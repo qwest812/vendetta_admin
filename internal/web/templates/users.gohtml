@@ -1,0 +1,95 @@
+{{define "title"}}Доступы — Vendetta{{end}}
+
+{{define "content"}}
+<div class="card">
+    <h1>Выдать доступ</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    <form class="row-form" method="post" action="/users">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <label>
+            Почта
+            <input type="email" name="email" value="{{.FormEmail}}" required autocomplete="off">
+        </label>
+        <label>
+            Пароль
+            <input type="password" name="password" required minlength="12" autocomplete="new-password">
+        </label>
+        <label>
+            Роль
+            <select name="role">
+                <option value="user" {{if ne .FormRole "admin"}}selected{{end}}>Пользователь</option>
+                <option value="admin" {{if eq .FormRole "admin"}}selected{{end}}>Администратор</option>
+            </select>
+        </label>
+        <button type="submit">Создать</button>
+    </form>
+    <p class="muted">Пароль не хранится в открытом виде — передайте его пользователю лично.</p>
+</div>
+
+<div class="card">
+    <h1>Пользователи</h1>
+    <table>
+        <thead>
+        <tr>
+            <th>Почта</th>
+            <th>Роль</th>
+            <th>Статус</th>
+            <th>Создан</th>
+            <th class="actions">Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{$root := .CurrentUser.IsRoot}}
+        {{$csrf := .CSRFToken}}
+        {{$me := .CurrentUser.ID}}
+        {{range .Users}}
+            <tr class="{{if not .IsActive}}inactive{{end}}">
+                <td>{{.Email}}{{if eq .ID $me}} <span class="muted">(это вы)</span>{{end}}</td>
+                <td><span class="badge role-{{.Role}}">{{.Role.Title}}</span></td>
+                <td>{{if .IsActive}}активен{{else}}заблокирован{{end}}</td>
+                <td class="muted">{{datetime .CreatedAt}}</td>
+                <td class="actions">
+                    {{if or .IsRoot (eq .ID $me)}}
+                        <span class="muted">—</span>
+                    {{else}}
+                        {{if eq .Role "admin"}}
+                            <form method="post" action="/users/{{.ID}}/role">
+                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                                <input type="hidden" name="role" value="user">
+                                <button type="submit">Понизить</button>
+                            </form>
+                        {{else}}
+                            <form method="post" action="/users/{{.ID}}/role">
+                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                                <input type="hidden" name="role" value="admin">
+                                <button type="submit">Повысить</button>
+                            </form>
+                        {{end}}
+
+                        <form method="post" action="/users/{{.ID}}/active">
+                            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                            <input type="hidden" name="active" value="{{if .IsActive}}false{{else}}true{{end}}">
+                            <button type="submit">{{if .IsActive}}Заблокировать{{else}}Разблокировать{{end}}</button>
+                        </form>
+
+                        <form method="post" action="/users/{{.ID}}/password" class="inline-pass">
+                            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                            <input type="password" name="password" placeholder="Новый пароль" minlength="12" required autocomplete="new-password">
+                            <button type="submit">Сменить</button>
+                        </form>
+
+                        {{if $root}}
+                            <form method="post" action="/users/{{.ID}}/delete"
+                                  onsubmit="return confirm('Удалить {{.Email}} безвозвратно?')">
+                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                                <button type="submit" class="danger">Удалить</button>
+                            </form>
+                        {{end}}
+                    {{end}}
+                </td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

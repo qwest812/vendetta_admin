@@ -1,0 +1,34 @@
+{{define "title"}}Журнал — Vendetta{{end}}
+
+{{define "content"}}
+<div class="card">
+    <h1>Журнал действий</h1>
+    <p class="muted">Последние 200 записей. Журнал неизменяем и его нельзя очистить из интерфейса.</p>
+    <table>
+        <thead>
+        <tr>
+            <th>Когда</th>
+            <th>Кто</th>
+            <th>Действие</th>
+            <th>Объект</th>
+            <th>Детали</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Entries}}
+            <tr>
+                <td class="muted nowrap">{{datetime .CreatedAt}}</td>
+                <td>{{.ActorEmail}}</td>
+                <td><code>{{.Action}}</code></td>
+                <td class="muted">{{.TargetType}} #{{.TargetID}}</td>
+                <td class="muted">
+                    {{range $k, $v := .Payload}}<span class="kv">{{$k}}: {{$v}}</span> {{end}}
+                </td>
+            </tr>
+        {{else}}
+            <tr><td colspan="5" class="muted">Пока пусто</td></tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

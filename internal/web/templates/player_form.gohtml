@@ -1,0 +1,54 @@
+{{define "title"}}{{if .Player}}Изменение карточки{{else}}Новый игрок{{end}} — Vendetta{{end}}
+
+{{define "content"}}
+{{$sel := .Selected}}
+<div class="card">
+    <h1>{{if .Player}}Изменение карточки{{else}}Новый игрок{{end}}</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    <form method="post" action="{{if .Player}}/players/{{.Player.ID}}{{else}}/players{{end}}">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+
+        <div class="row-form">
+            <label>
+                Ник
+                <input name="nickname" value="{{if .Player}}{{.Player.Nickname}}{{end}}"
+                       maxlength="64" required autofocus autocomplete="off">
+            </label>
+            <label>
+                Клан
+                <input name="clan" value="{{if .Player}}{{.Player.ClanName}}{{end}}"
+                       list="clans" placeholder="можно оставить пустым" autocomplete="off">
+                <datalist id="clans">
+                    {{range .Clans}}<option value="{{.Name}}">{{end}}
+                </datalist>
+            </label>
+        </div>
+
+        <h2>Признаки</h2>
+        <div class="checks">
+            {{range .Traits}}
+                <label class="check {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">
+                    <input type="checkbox" name="traits" value="{{.ID}}" {{if index $sel .ID}}checked{{end}}>
+                    <span>{{.Name}}</span>
+                    <span class="w">{{if gt .Weight 0}}+{{end}}{{.Weight}}</span>
+                </label>
+            {{else}}
+                <p class="muted">Справочник пуст — сначала заведите признаки в разделе «Признаки».</p>
+            {{end}}
+        </div>
+
+        {{if not .Player}}
+            <label class="block">
+                Первая заметка <span class="muted">(необязательно)</span>
+                <textarea name="note" rows="3" placeholder="Почему заводим карточку"></textarea>
+            </label>
+        {{end}}
+
+        <div class="form-actions">
+            <button type="submit">Сохранить</button>
+            <a class="button ghost" href="{{if .Player}}/players/{{.Player.ID}}{{else}}/{{end}}">Отмена</a>
+        </div>
+    </form>
+</div>
+{{end}}

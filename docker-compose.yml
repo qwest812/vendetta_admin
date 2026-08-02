@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: vendetta_pg
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vendetta}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vendetta}
+      POSTGRES_DB: ${POSTGRES_DB:-vendetta}
+    ports:
+      # Наружу — только чтобы можно было подключиться psql'ем или запустить
+      # приложение локально через `make dev`. Само приложение ходит по сети docker.
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vendetta} -d ${POSTGRES_DB:-vendetta}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+    image: vendetta-admin:latest
+    container_name: vendetta_app
+    environment:
+      # Внутри сети docker обращаемся к базе по имени сервиса, а не по localhost,
+      # поэтому DATABASE_URL из .env здесь намеренно перекрывается.
+      DATABASE_URL: postgres://${POSTGRES_USER:-vendetta}:${POSTGRES_PASSWORD:-vendetta}@postgres:5432/${POSTGRES_DB:-vendetta}?sslmode=disable
+      LISTEN_ADDR: ":8080"
+      SESSION_TTL: ${SESSION_TTL:-168h}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Даты в интерфейсе печатаются по этой зоне; в контейнере по умолчанию UTC.
+      TZ: ${TZ:-UTC}
+      ROOT_EMAIL: ${ROOT_EMAIL:?задайте ROOT_EMAIL в .env}
+      ROOT_PASSWORD: ${ROOT_PASSWORD:?задайте ROOT_PASSWORD в .env}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:

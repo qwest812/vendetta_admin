@@ -1,0 +1,92 @@
+{{define "title"}}{{.Player.Nickname}} — Vendetta{{end}}
+
+{{define "content"}}
+{{$p := .Player}}
+<div class="card">
+    <div class="card-head">
+        <div>
+            <h1 class="nick-big">{{$p.Nickname}}</h1>
+            {{if $p.ClanName}}<span class="clan">[{{$p.ClanName}}]</span>{{end}}
+        </div>
+        {{if .CurrentUser.IsAdmin}}
+            <div class="head-actions">
+                <a class="button" href="/players/{{$p.ID}}/edit">Изменить</a>
+                {{if .CurrentUser.IsRoot}}
+                    <form method="post" action="/players/{{$p.ID}}/delete"
+                          onsubmit="return confirm('Удалить карточку {{$p.Nickname}} со всеми заметками?')">
+                        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                        <button class="danger" type="submit">Удалить</button>
+                    </form>
+                {{end}}
+            </div>
+        {{end}}
+    </div>
+
+    <div class="scales">
+        <div class="scale">
+            <div class="scale-head">
+                <span>Риск: <b>{{$p.Score.Risk}}%</b> <span class="muted">({{$p.Score.RiskLevel}})</span></span>
+                <span class="muted">{{$p.Score.RiskPoints}} из {{$p.Score.RiskMax}}</span>
+            </div>
+            <div class="bar"><div class="fill risk-{{$p.Score.RiskClass}}" style="width: {{$p.Score.Risk}}%"></div></div>
+        </div>
+        <div class="scale">
+            <div class="scale-head">
+                <span>Лояльность: <b>{{$p.Score.Loyalty}}%</b></span>
+                <span class="muted">{{$p.Score.LoyaltyPoints}} из {{$p.Score.LoyaltyMax}}</span>
+            </div>
+            <div class="bar"><div class="fill loyalty" style="width: {{$p.Score.Loyalty}}%"></div></div>
+        </div>
+    </div>
+
+    {{if $p.Traits}}
+        <div class="trait-list">
+            {{range $p.Traits}}
+                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">
+                    {{.Name}} <span class="w">{{if gt .Weight 0}}+{{end}}{{.Weight}}</span>
+                </span>
+            {{end}}
+        </div>
+    {{else}}
+        <p class="muted">Признаки не отмечены.</p>
+    {{end}}
+
+    <p class="muted">Добавлен {{datetime $p.CreatedAt}}, изменён {{datetime $p.UpdatedAt}}</p>
+</div>
+
+<div class="card">
+    <h1>Заметки</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    {{if .CurrentUser.IsAdmin}}
+        <form method="post" action="/players/{{$p.ID}}/notes" class="note-form">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <textarea name="body" rows="3" placeholder="Что известно об игроке" required></textarea>
+            <button type="submit">Добавить заметку</button>
+        </form>
+    {{end}}
+
+    {{$me := .CurrentUser}}
+    {{$csrf := .CSRFToken}}
+    <ul class="notes">
+        {{range .Notes}}
+            <li>
+                <div class="note-head">
+                    <span class="author">{{.AuthorEmail}}</span>
+                    <span class="muted">{{datetime .CreatedAt}}</span>
+                    {{if $me.IsAdmin}}
+                        <form method="post" action="/notes/{{.ID}}/delete"
+                              onsubmit="return confirm('Удалить заметку?')">
+                            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                            <button class="link" type="submit">удалить</button>
+                        </form>
+                    {{end}}
+                </div>
+                <p class="note-body">{{.Body}}</p>
+            </li>
+        {{else}}
+            <li class="muted">Заметок пока нет.</li>
+        {{end}}
+    </ul>
+</div>
+{{end}}

@@ -1,0 +1,99 @@
+{{define "title"}}Признаки — Vendetta{{end}}
+
+{{define "content"}}
+<div class="card">
+    <h1>Как считаются шкалы</h1>
+    <p class="muted">
+        Отрицательные веса формируют шкалу риска, положительные — шкалу лояльности.
+        Признак с весом 0 остаётся пометкой и ни на что не влияет.
+        Проценты считаются от суммы весов всех активных признаков своего знака:
+        сейчас это <b>{{.RiskMax}}</b> для риска и <b>{{.LoyaltyMax}}</b> для лояльности.
+        Изменение веса сразу пересчитывает оценки всех игроков — ничего перезаписывать не нужно.
+    </p>
+</div>
+
+<div class="card">
+    <h1>Новый признак</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    <form class="row-form" method="post" action="/traits">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <label>
+            Код
+            <input name="code" placeholder="uses_cheats" pattern="[a-z][a-z0-9_]{1,39}" required autocomplete="off">
+        </label>
+        <label>
+            Название
+            <input name="name" placeholder="Использует читы" maxlength="80" required autocomplete="off">
+        </label>
+        <label class="narrow">
+            Вес
+            <input type="number" name="weight" value="0" min="-100" max="100" required>
+        </label>
+        <label class="narrow">
+            Порядок
+            <input type="number" name="sort_order" value="100" min="0" max="9999">
+        </label>
+        <button type="submit">Добавить</button>
+    </form>
+    <p class="muted">Код менять нельзя — он идентифицирует признак. Название и вес правятся в любой момент.</p>
+</div>
+
+<div class="card">
+    <h1>Справочник</h1>
+    {{$root := .CurrentUser.IsRoot}}
+    {{$csrf := .CSRFToken}}
+    {{$usage := .Usage}}
+    <table>
+        <thead>
+        <tr>
+            <th>Код</th>
+            <th>Название</th>
+            <th class="narrow">Вес</th>
+            <th class="narrow">Порядок</th>
+            <th class="narrow">Активен</th>
+            <th class="narrow">Отмечен</th>
+            <th class="actions">Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Traits}}
+            {{/* Формы вынесены за таблицу: <form> нельзя размещать внутри <tr>,
+                 поэтому поля связаны с ней атрибутом form. */}}
+            <tr class="{{if not .IsActive}}inactive{{end}}">
+                <td><code>{{.Code}}</code></td>
+                <td><input form="trait-{{.ID}}" name="name" value="{{.Name}}" maxlength="80" required></td>
+                <td class="narrow"><input form="trait-{{.ID}}" type="number" name="weight" value="{{.Weight}}" min="-100" max="100" required></td>
+                <td class="narrow"><input form="trait-{{.ID}}" type="number" name="sort_order" value="{{.SortOrder}}" min="0" max="9999"></td>
+                <td class="narrow">
+                    <input form="trait-{{.ID}}" type="hidden" name="is_active" value="false">
+                    <input form="trait-{{.ID}}" type="checkbox" name="is_active" value="true" {{if .IsActive}}checked{{end}}>
+                </td>
+                <td class="narrow muted">{{index $usage .ID}}</td>
+                <td class="actions">
+                    <button form="trait-{{.ID}}" type="submit">Сохранить</button>
+                    {{if $root}}
+                        <button form="trait-del-{{.ID}}" class="danger" type="submit">Удалить</button>
+                    {{end}}
+                </td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+
+    {{range .Traits}}
+        <form id="trait-{{.ID}}" method="post" action="/traits/{{.ID}}" hidden>
+            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        </form>
+        {{if $root}}
+            <form id="trait-del-{{.ID}}" method="post" action="/traits/{{.ID}}/delete" hidden
+                  onsubmit="return confirm('Удалить признак «{{.Name}}» и снять его у {{index $usage .ID}} игроков?')">
+                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+            </form>
+        {{end}}
+    {{end}}
+    <p class="muted">
+        Снятый флаг «активен» убирает признак из форм и из знаменателя шкал,
+        но сохраняет уже проставленные отметки. Удаление снимает отметки навсегда — оно доступно только руту.
+    </p>
+</div>
+{{end}}

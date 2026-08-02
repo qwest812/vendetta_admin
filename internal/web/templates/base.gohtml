@@ -1,0 +1,36 @@
+{{define "base.gohtml"}}<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{block "title" .}}Vendetta{{end}}</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+{{if .CurrentUser}}
+    <header class="topbar">
+        <a class="brand" href="/">Vendetta</a>
+        <nav>
+            <a href="/" {{if eq .Path "/"}}class="active"{{end}}>Поиск</a>
+            {{if .CurrentUser.IsAdmin}}
+                <a href="/traits" {{if eq .Path "/traits"}}class="active"{{end}}>Признаки</a>
+                <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>Доступы</a>
+                <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>Журнал</a>
+            {{end}}
+        </nav>
+        <div class="me">
+            <span class="email">{{.CurrentUser.Email}}</span>
+            <span class="badge role-{{.CurrentUser.Role}}">{{.CurrentUser.Role.Title}}</span>
+            <form method="post" action="/logout">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <button class="link" type="submit">Выйти</button>
+            </form>
+        </div>
+    </header>
+{{end}}
+<main class="{{if not .CurrentUser}}centered{{end}}">
+    {{template "content" .}}
+</main>
+</body>
+</html>{{end}}

@@ -1,0 +1,56 @@
+{{define "title"}}Поиск игроков — Vendetta{{end}}
+
+{{define "content"}}
+<div class="card">
+    <div class="card-head">
+        <h1>Поиск игроков</h1>
+        {{if .CurrentUser.IsAdmin}}<a class="button" href="/players/new">Добавить игрока</a>{{end}}
+    </div>
+
+    <input type="search" name="q" value="{{.Query}}" placeholder="Ник игрока или его часть"
+           autofocus autocomplete="off"
+           hx-get="/search" hx-trigger="input changed delay:250ms, search"
+           hx-target="#results" hx-swap="innerHTML"
+           hx-indicator="#searching">
+    <p class="muted">
+        Всего в базе: {{.Total}}. <span id="searching" class="htmx-indicator">ищем…</span>
+    </p>
+</div>
+
+<div id="results">{{template "results" .}}</div>
+{{end}}
+
+{{define "results"}}
+{{if .Players}}
+    <div class="players">
+        {{range .Players}}
+            <a class="player-row" href="/players/{{.ID}}">
+                <div class="player-main">
+                    <span class="nick">{{.Nickname}}</span>
+                    {{if .ClanName}}<span class="clan">[{{.ClanName}}]</span>{{end}}
+                </div>
+                <div class="player-traits">
+                    {{range .Traits}}
+                        <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
+                    {{end}}
+                </div>
+                <div class="player-score">
+                    <span class="risk-pill risk-{{.Score.RiskClass}}">Риск {{.Score.Risk}}%</span>
+                    <span class="loyalty-pill">Лояльность {{.Score.Loyalty}}%</span>
+                </div>
+            </a>
+        {{end}}
+    </div>
+    {{if ge (len .Players) .Limit}}
+        <p class="muted center">Показаны первые {{.Limit}} — уточните запрос.</p>
+    {{end}}
+{{else}}
+    <div class="card empty">
+        {{if .Query}}
+            По запросу «{{.Query}}» никого не нашли.
+        {{else}}
+            В базе пока нет игроков.
+        {{end}}
+    </div>
+{{end}}
+{{end}}

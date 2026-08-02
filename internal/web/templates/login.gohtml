@@ -1,0 +1,20 @@
+{{define "title"}}Вход — Vendetta{{end}}
+
+{{define "content"}}
+<form class="card login" method="post" action="/login">
+    <h1>Vendetta</h1>
+    <p class="muted">Вход в базу игроков</p>
+
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    <label>
+        Почта
+        <input type="email" name="email" value="{{.Email}}" required autofocus autocomplete="username">
+    </label>
+    <label>
+        Пароль
+        <input type="password" name="password" required autocomplete="current-password">
+    </label>
+    <button type="submit">Войти</button>
+</form>
+{{end}}
