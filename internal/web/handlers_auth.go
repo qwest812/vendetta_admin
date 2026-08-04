@@ -13,7 +13,7 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	s.render(w, r, http.StatusOK, "login", map[string]any{"Error": "", "Email": ""})
+	s.render(w, r, http.StatusOK, "login", map[string]any{"Error": "", "Login": ""})
 }
 
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
@@ -21,15 +21,16 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Некорректная форма", http.StatusBadRequest)
 		return
 	}
-	email := strings.TrimSpace(r.PostFormValue("email"))
+	// В одно поле вводят либо почту, либо ник — что удобнее.
+	login := strings.TrimSpace(r.PostFormValue("login"))
 	password := r.PostFormValue("password")
 
-	user, err := s.auth.Login(r.Context(), w, email, password)
+	user, err := s.auth.Login(r.Context(), w, login, password)
 	if errors.Is(err, domain.ErrInvalidLogin) {
-		s.log.Warn("неудачный вход", "email", email, "ip", r.RemoteAddr)
+		s.log.Warn("неудачный вход", "login", login, "ip", r.RemoteAddr)
 		s.render(w, r, http.StatusUnauthorized, "login", map[string]any{
-			"Error": "Неверная почта или пароль",
-			"Email": email,
+			"Error": "Неверная почта, ник или пароль",
+			"Login": login,
 		})
 		return
 	}
@@ -38,7 +39,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.log.Info("вход выполнен", "user_id", user.ID, "email", user.Email)
+	s.log.Info("вход выполнен", "user_id", user.ID, "nickname", user.Nickname)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 

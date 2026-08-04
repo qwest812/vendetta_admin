@@ -40,7 +40,7 @@
 
 <div class="card">
     <h1>Справочник</h1>
-    {{$root := .CurrentUser.IsRoot}}
+    {{$canDelete := .CurrentUser.IsAdmin}}
     {{$csrf := .CSRFToken}}
     {{$usage := .Usage}}
     <table>
@@ -71,7 +71,7 @@
                 <td class="narrow muted">{{index $usage .ID}}</td>
                 <td class="actions">
                     <button form="trait-{{.ID}}" type="submit">Сохранить</button>
-                    {{if $root}}
+                    {{if $canDelete}}
                         <button form="trait-del-{{.ID}}" class="danger" type="submit">Удалить</button>
                     {{end}}
                 </td>
@@ -84,7 +84,7 @@
         <form id="trait-{{.ID}}" method="post" action="/traits/{{.ID}}" hidden>
             <input type="hidden" name="csrf_token" value="{{$csrf}}">
         </form>
-        {{if $root}}
+        {{if $canDelete}}
             <form id="trait-del-{{.ID}}" method="post" action="/traits/{{.ID}}/delete" hidden
                   onsubmit="return confirm('Удалить признак «{{.Name}}» и снять его у {{index $usage .ID}} игроков?')">
                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
@@ -93,7 +93,7 @@
     {{end}}
     <p class="muted">
         Снятый флаг «активен» убирает признак из форм и из знаменателя шкал,
-        но сохраняет уже проставленные отметки. Удаление снимает отметки навсегда — оно доступно только руту.
+        но сохраняет уже проставленные отметки. Удаление снимает отметки навсегда.
     </p>
 </div>
 {{end}}

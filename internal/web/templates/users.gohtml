@@ -7,8 +7,12 @@
     <form class="row-form" method="post" action="/users">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <label>
-            Почта
-            <input type="email" name="email" value="{{.FormEmail}}" required autocomplete="off">
+            Ник
+            <input type="text" name="nickname" value="{{.FormNickname}}" required minlength="3" maxlength="32" autocomplete="off">
+        </label>
+        <label>
+            Почта <span class="muted">— необязательно</span>
+            <input type="email" name="email" value="{{.FormEmail}}" autocomplete="off">
         </label>
         <label>
             Пароль
@@ -23,7 +27,8 @@
         </label>
         <button type="submit">Создать</button>
     </form>
-    <p class="muted">Пароль не хранится в открытом виде — передайте его пользователю лично.</p>
+    <p class="muted">Входить можно и по нику, и по почте, поэтому почту можно не указывать.
+        Пароль не хранится в открытом виде — передайте его пользователю лично.</p>
 </div>
 
 <div class="card">
@@ -31,6 +36,7 @@
     <table>
         <thead>
         <tr>
+            <th>Ник</th>
             <th>Почта</th>
             <th>Роль</th>
             <th>Статус</th>
@@ -44,7 +50,8 @@
         {{$me := .CurrentUser.ID}}
         {{range .Users}}
             <tr class="{{if not .IsActive}}inactive{{end}}">
-                <td>{{.Email}}{{if eq .ID $me}} <span class="muted">(это вы)</span>{{end}}</td>
+                <td>{{.Nickname}}{{if eq .ID $me}} <span class="muted">(это вы)</span>{{end}}</td>
+                <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
                 <td><span class="badge role-{{.Role}}">{{.Role.Title}}</span></td>
                 <td>{{if .IsActive}}активен{{else}}заблокирован{{end}}</td>
                 <td class="muted">{{datetime .CreatedAt}}</td>
@@ -80,7 +87,7 @@
 
                         {{if $root}}
                             <form method="post" action="/users/{{.ID}}/delete"
-                                  onsubmit="return confirm('Удалить {{.Email}} безвозвратно?')">
+                                  onsubmit="return confirm('Удалить {{.Nickname}} безвозвратно?')">
                                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
                                 <button type="submit" class="danger">Удалить</button>
                             </form>

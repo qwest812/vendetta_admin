@@ -23,7 +23,10 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, status int,
 	}
 	// Значения по умолчанию обязательны: отсутствующий ключ карты
 	// печатается в шаблоне как "<no value>".
-	data := map[string]any{"Users": users, "Error": "", "FormEmail": "", "FormRole": "user"}
+	data := map[string]any{
+		"Users": users, "Error": "",
+		"FormEmail": "", "FormNickname": "", "FormRole": "user",
+	}
 	for k, v := range extra {
 		data[k] = v
 	}
@@ -33,18 +36,27 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, status int,
 func (s *Server) usersCreate(w http.ResponseWriter, r *http.Request) {
 	actor := currentUser(r)
 	email := strings.TrimSpace(r.PostFormValue("email"))
+	nickname := strings.TrimSpace(r.PostFormValue("nickname"))
 	password := r.PostFormValue("password")
 	role := domain.Role(r.PostFormValue("role"))
 
 	fail := func(msg string) {
 		s.renderUsers(w, r, http.StatusUnprocessableEntity, map[string]any{
-			"Error": msg, "FormEmail": email, "FormRole": string(role),
+			"Error": msg, "FormEmail": email, "FormNickname": nickname, "FormRole": string(role),
 		})
 	}
 
-	if _, err := mail.ParseAddress(email); err != nil {
-		fail("Некорректный адрес почты")
+	if err := domain.ValidateNickname(nickname); err != nil {
+		fail(err.Error())
 		return
+	}
+	// Почта необязательна: входить можно по нику. Но если её указали,
+	// адрес должен быть разбираемым — по нему тоже пускают в систему.
+	if email != "" {
+		if _, err := mail.ParseAddress(email); err != nil {
+			fail("Некорректный адрес почты")
+			return
+		}
 	}
 	// Рута назначить нельзя: он один и заводится при первом запуске.
 	if role != domain.RoleUser && role != domain.RoleAdmin {
@@ -62,9 +74,13 @@ func (s *Server) usersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := s.users.Create(r.Context(), email, hash, role, &actor.ID)
+	created, err := s.users.Create(r.Context(), email, nickname, hash, role, &actor.ID)
 	if errors.Is(err, domain.ErrEmailTaken) {
 		fail("Пользователь с такой почтой уже есть")
+		return
+	}
+	if errors.Is(err, domain.ErrNickTaken) {
+		fail("Пользователь с таким ником уже есть")
 		return
 	}
 	if err != nil {
@@ -72,7 +88,8 @@ func (s *Server) usersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.logAudit(r, "user.create", created.ID, map[string]any{"email": email, "role": string(role)})
+	s.logAudit(r, "user.create", created.ID,
+		map[string]any{"nickname": nickname, "email": email, "role": string(role)})
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
@@ -96,7 +113,7 @@ func (s *Server) usersSetRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logAudit(r, "user.set_role", target.ID,
-		map[string]any{"email": target.Email, "from": string(target.Role), "to": string(role)})
+		map[string]any{"user": target.Display(), "from": string(target.Role), "to": string(role)})
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
@@ -116,7 +133,7 @@ func (s *Server) usersSetActive(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s.logAudit(r, "user.set_active", target.ID, map[string]any{"email": target.Email, "active": active})
+	s.logAudit(r, "user.set_active", target.ID, map[string]any{"user": target.Display(), "active": active})
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
@@ -143,7 +160,7 @@ func (s *Server) usersResetPassword(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.logAudit(r, "user.reset_password", target.ID, map[string]any{"email": target.Email})
+	s.logAudit(r, "user.reset_password", target.ID, map[string]any{"user": target.Display()})
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
@@ -157,7 +174,7 @@ func (s *Server) usersDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logAudit(r, "user.delete", target.ID,
-		map[string]any{"email": target.Email, "role": string(target.Role)})
+		map[string]any{"user": target.Display(), "role": string(target.Role)})
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 

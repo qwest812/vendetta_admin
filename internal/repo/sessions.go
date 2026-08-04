@@ -33,17 +33,21 @@ func (r *Sessions) Create(ctx context.Context, tokenHash []byte, userID int64, c
 func (r *Sessions) Lookup(ctx context.Context, tokenHash []byte) (*Session, error) {
 	var s Session
 	var u domain.User
+	var email *string // почта необязательна, в базе может быть NULL
 	err := r.pool.QueryRow(ctx,
-		`SELECT s.csrf_token, s.expires_at, u.id, u.email, u.password_hash, u.role, u.is_active, u.created_by, u.created_at
+		`SELECT s.csrf_token, s.expires_at, u.id, u.email, u.nickname, u.password_hash, u.role, u.is_active, u.created_by, u.created_at
 		 FROM sessions s JOIN users u ON u.id = s.user_id
 		 WHERE s.token_hash = $1 AND s.expires_at > now() AND u.is_active`, tokenHash).
 		Scan(&s.CSRFToken, &s.ExpiresAt,
-			&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.IsActive, &u.CreatedBy, &u.CreatedAt)
+			&u.ID, &email, &u.Nickname, &u.PasswordHash, &u.Role, &u.IsActive, &u.CreatedBy, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
+	}
+	if email != nil {
+		u.Email = *email
 	}
 	s.User = &u
 	return &s, nil

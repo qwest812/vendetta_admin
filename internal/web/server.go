@@ -69,6 +69,12 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /search", user(http.HandlerFunc(s.search)))
 	mux.Handle("GET /players/{id}", user(http.HandlerFunc(s.playerCard)))
 
+	// Заметки пишут все авторизованные: карточку наполняют те, кто работает
+	// с игроками, а не только админы. Удаление разрешает сам хендлер —
+	// свою заметку убирает автор, чужую админ и выше.
+	mux.Handle("POST /players/{id}/notes", user(auth.VerifyCSRF(http.HandlerFunc(s.noteCreate))))
+	mux.Handle("POST /notes/{noteID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(s.noteDelete))))
+
 	// Управление доступами: админ и выше.
 	admin := auth.RequireRole(domain.RoleAdmin)
 	mux.Handle("GET /users", admin(http.HandlerFunc(s.usersList)))
@@ -83,18 +89,16 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /players", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerCreate))))
 	mux.Handle("GET /players/{id}/edit", admin(http.HandlerFunc(s.playerEdit)))
 	mux.Handle("POST /players/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerUpdate))))
-	mux.Handle("POST /players/{id}/notes", admin(auth.VerifyCSRF(http.HandlerFunc(s.noteCreate))))
-	mux.Handle("POST /notes/{noteID}/delete", admin(auth.VerifyCSRF(http.HandlerFunc(s.noteDelete))))
 
 	mux.Handle("GET /traits", admin(http.HandlerFunc(s.traitsList)))
 	mux.Handle("POST /traits", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
 	mux.Handle("POST /traits/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
+	mux.Handle("POST /traits/{id}/delete", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
 
-	// Удаление — только рут.
+	// Удаление пользователей и карточек — только рут.
 	root := auth.RequireRole(domain.RoleRoot)
 	mux.Handle("POST /users/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.usersDelete))))
 	mux.Handle("POST /players/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.playerDelete))))
-	mux.Handle("POST /traits/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
 
 	return s.recoverPanic(s.logRequests(s.auth.Attach(mux)))
 }

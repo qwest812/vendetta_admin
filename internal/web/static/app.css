@@ -160,6 +160,13 @@ a.button.ghost { background: none; border: 1px solid var(--border); color: var(-
 .nick { font-weight: 600; }
 .nick-big { font-size: 22px; }
 .clan { color: var(--muted); font-size: 13px; }
+/* Игровой ID постоянен, поэтому печатаем его моноширинным — так его удобнее
+   сверять с игрой и копировать. */
+.game-id {
+    color: var(--muted);
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 .player-traits { display: flex; gap: 6px; flex-wrap: wrap; }
 .player-score { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
 

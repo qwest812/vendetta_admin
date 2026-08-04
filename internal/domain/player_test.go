@@ -110,3 +110,32 @@ func TestScoreFollowsWeightChange(t *testing.T) {
 		t.Errorf("ожидалось 18%% до и 29%% после, получено %d%% и %d%%", before.Risk, after.Risk)
 	}
 }
+
+// Заметку удаляет её автор независимо от роли; чужую — админ и выше.
+func TestNoteCanDelete(t *testing.T) {
+	author := &User{ID: 4, Role: RoleUser}
+	stranger := &User{ID: 5, Role: RoleUser}
+	admin := &User{ID: 6, Role: RoleAdmin}
+	root := &User{ID: 1, Role: RoleRoot}
+
+	authorID := author.ID
+	note := Note{ID: 7, AuthorID: &authorID}
+
+	if !note.CanDelete(author) {
+		t.Error("автор должен удалять свою заметку")
+	}
+	if note.CanDelete(stranger) {
+		t.Error("обычный пользователь не должен удалять чужую заметку")
+	}
+	if !note.CanDelete(admin) {
+		t.Error("админ должен удалять чужую заметку")
+	}
+	if !note.CanDelete(root) {
+		t.Error("рут должен удалять любую заметку")
+	}
+
+	orphan := Note{ID: 8}
+	if orphan.CanDelete(stranger) || !orphan.CanDelete(admin) {
+		t.Error("заметку без автора убирает админ, но не обычный пользователь")
+	}
+}

@@ -20,7 +20,7 @@
             {{end}}
         </nav>
         <div class="me">
-            <span class="email">{{.CurrentUser.Email}}</span>
+            <span class="email">{{.CurrentUser.Display}}</span>
             <span class="badge role-{{.CurrentUser.Role}}">{{.CurrentUser.Role.Title}}</span>
             <form method="post" action="/logout">
                 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">

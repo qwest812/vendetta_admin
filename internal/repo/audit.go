@@ -38,7 +38,7 @@ func (r *Audit) Log(ctx context.Context, actor *domain.User, action, targetType 
 	_, err = r.pool.Exec(ctx,
 		`INSERT INTO audit_log (actor_id, actor_email, action, target_type, target_id, payload)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		actor.ID, actor.Email, action, targetType, strconv.FormatInt(targetID, 10), raw)
+		actor.ID, actor.Display(), action, targetType, strconv.FormatInt(targetID, 10), raw)
 	return err
 }
 

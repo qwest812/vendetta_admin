@@ -29,6 +29,7 @@ type Clan struct {
 
 type Player struct {
 	ID        int64
+	GameID    string // ID в игре; постоянен, в отличие от ника. Пусто — не указан
 	Nickname  string
 	ClanID    *int64
 	ClanName  string
@@ -47,6 +48,18 @@ type Note struct {
 	AuthorEmail string
 	Body        string
 	CreatedAt   time.Time
+}
+
+// CanDelete: свою заметку убирает автор, чужую — админ и выше. Заметка без
+// автора (пользователя удалили) остаётся админам.
+func (n Note) CanDelete(actor *User) bool {
+	if actor == nil {
+		return false
+	}
+	if n.AuthorID != nil && *n.AuthorID == actor.ID {
+		return true
+	}
+	return actor.IsAdmin()
 }
 
 // Score — две независимые шкалы. Риск считается по отрицательным признакам,

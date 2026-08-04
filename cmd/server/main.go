@@ -96,12 +96,12 @@ func seedRoot(ctx context.Context, log *slog.Logger, users *repo.Users, cfg *con
 	if err != nil {
 		return err
 	}
-	created, err := users.EnsureRoot(ctx, cfg.RootEmail, hash)
+	created, err := users.EnsureRoot(ctx, cfg.RootEmail, cfg.RootNickname, hash)
 	if err != nil {
 		return err
 	}
 	if created {
-		log.Info("создан рут-пользователь", "email", cfg.RootEmail)
+		log.Info("создан рут-пользователь", "nickname", cfg.RootNickname, "email", cfg.RootEmail)
 	}
 	return nil
 }

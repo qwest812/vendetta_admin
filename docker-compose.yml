@@ -33,7 +33,10 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Даты в интерфейсе печатаются по этой зоне; в контейнере по умолчанию UTC.
       TZ: ${TZ:-UTC}
-      ROOT_EMAIL: ${ROOT_EMAIL:?задайте ROOT_EMAIL в .env}
+      # Почта рута необязательна: вход возможен по нику. Проверку «задан хотя бы
+      # один логин» делает приложение — compose такое условие не выражает.
+      ROOT_EMAIL: ${ROOT_EMAIL:-}
+      ROOT_NICKNAME: ${ROOT_NICKNAME:-}
       ROOT_PASSWORD: ${ROOT_PASSWORD:?задайте ROOT_PASSWORD в .env}
     ports:
       - "${APP_PORT:-8080}:8080"

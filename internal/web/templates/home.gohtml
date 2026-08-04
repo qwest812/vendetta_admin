@@ -7,7 +7,7 @@
         {{if .CurrentUser.IsAdmin}}<a class="button" href="/players/new">Добавить игрока</a>{{end}}
     </div>
 
-    <input type="search" name="q" value="{{.Query}}" placeholder="Ник игрока или его часть"
+    <input type="search" name="q" value="{{.Query}}" placeholder="Игровой ID или ник (можно часть)"
            autofocus autocomplete="off"
            hx-get="/search" hx-trigger="input changed delay:250ms, search"
            hx-target="#results" hx-swap="innerHTML"
@@ -28,6 +28,7 @@
                 <div class="player-main">
                     <span class="nick">{{.Nickname}}</span>
                     {{if .ClanName}}<span class="clan">[{{.ClanName}}]</span>{{end}}
+                    {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
                 </div>
                 <div class="player-traits">
                     {{range .Traits}}

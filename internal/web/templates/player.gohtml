@@ -7,6 +7,11 @@
         <div>
             <h1 class="nick-big">{{$p.Nickname}}</h1>
             {{if $p.ClanName}}<span class="clan">[{{$p.ClanName}}]</span>{{end}}
+            {{if $p.GameID}}
+                <span class="game-id">ID {{$p.GameID}}</span>
+            {{else}}
+                <span class="muted">ID не указан</span>
+            {{end}}
         </div>
         {{if .CurrentUser.IsAdmin}}
             <div class="head-actions">
@@ -58,13 +63,11 @@
     <h1>Заметки</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
-    {{if .CurrentUser.IsAdmin}}
-        <form method="post" action="/players/{{$p.ID}}/notes" class="note-form">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <textarea name="body" rows="3" placeholder="Что известно об игроке" required></textarea>
-            <button type="submit">Добавить заметку</button>
-        </form>
-    {{end}}
+    <form method="post" action="/players/{{$p.ID}}/notes" class="note-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <textarea name="body" rows="3" placeholder="Что известно об игроке" required></textarea>
+        <button type="submit">Добавить заметку</button>
+    </form>
 
     {{$me := .CurrentUser}}
     {{$csrf := .CSRFToken}}
@@ -74,7 +77,7 @@
                 <div class="note-head">
                     <span class="author">{{.AuthorEmail}}</span>
                     <span class="muted">{{datetime .CreatedAt}}</span>
-                    {{if $me.IsAdmin}}
+                    {{if .CanDelete $me}}
                         <form method="post" action="/notes/{{.ID}}/delete"
                               onsubmit="return confirm('Удалить заметку?')">
                             <input type="hidden" name="csrf_token" value="{{$csrf}}">

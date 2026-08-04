@@ -16,12 +16,13 @@ type Players struct{ pool *pgxpool.Pool }
 func NewPlayers(pool *pgxpool.Pool) *Players { return &Players{pool: pool} }
 
 const playerSelect = `
-	SELECT p.id, p.nickname, p.clan_id, coalesce(c.name, ''), p.created_by, p.created_at, p.updated_at
+	SELECT p.id, coalesce(p.game_id, ''), p.nickname, p.clan_id, coalesce(c.name, ''),
+	       p.created_by, p.created_at, p.updated_at
 	FROM players p LEFT JOIN clans c ON c.id = p.clan_id`
 
 func scanPlayer(row pgx.Row) (*domain.Player, error) {
 	var p domain.Player
-	err := row.Scan(&p.ID, &p.Nickname, &p.ClanID, &p.ClanName, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
+	err := row.Scan(&p.ID, &p.GameID, &p.Nickname, &p.ClanID, &p.ClanName, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}
@@ -31,8 +32,8 @@ func scanPlayer(row pgx.Row) (*domain.Player, error) {
 	return &p, nil
 }
 
-// Search ищет по подстроке ника без учёта регистра. Пустой запрос отдаёт
-// последних добавленных — это стартовый экран поиска.
+// Search ищет по подстроке ника или игрового ID без учёта регистра. Пустой
+// запрос отдаёт последних добавленных — это стартовый экран поиска.
 func (r *Players) Search(ctx context.Context, query string, limit int) ([]*domain.Player, error) {
 	query = strings.TrimSpace(query)
 
@@ -41,10 +42,14 @@ func (r *Players) Search(ctx context.Context, query string, limit int) ([]*domai
 	if query == "" {
 		rows, err = r.pool.Query(ctx, playerSelect+` ORDER BY p.updated_at DESC LIMIT $1`, limit)
 	} else {
-		// Сначала точное совпадение, потом начинающиеся с запроса, потом остальные.
+		// Сначала точное совпадение, потом начинающиеся с запроса, потом
+		// остальные. Игровой ID идёт первым: он не меняется, поэтому попадание
+		// по нему точнее совпадения по нику.
 		rows, err = r.pool.Query(ctx, playerSelect+`
-			WHERE p.nickname ILIKE '%' || $1 || '%'
-			ORDER BY (lower(p.nickname) = lower($1)) DESC,
+			WHERE p.nickname ILIKE '%' || $1 || '%' OR p.game_id ILIKE '%' || $1 || '%'
+			ORDER BY (lower(coalesce(p.game_id, '')) = lower($1)) DESC,
+			         (lower(p.nickname) = lower($1)) DESC,
+			         (coalesce(p.game_id, '') ILIKE $1 || '%') DESC,
 			         (p.nickname ILIKE $1 || '%') DESC,
 			         length(p.nickname), p.nickname
 			LIMIT $2`, query, limit)
@@ -111,7 +116,9 @@ func (r *Players) attachTraits(ctx context.Context, players []*domain.Player) er
 	return rows.Err()
 }
 
-func (r *Players) Create(ctx context.Context, nickname, clanName string, traitIDs []int64, createdBy int64) (*domain.Player, error) {
+// Create заводит карточку. Пустой игровой ID уходит в NULL: у старых карточек
+// его может не быть, и такие записи не должны конфликтовать между собой.
+func (r *Players) Create(ctx context.Context, gameID, nickname, clanName string, traitIDs []int64, createdBy int64) (*domain.Player, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -125,10 +132,14 @@ func (r *Players) Create(ctx context.Context, nickname, clanName string, traitID
 
 	var id int64
 	err = tx.QueryRow(ctx,
-		`INSERT INTO players (nickname, clan_id, created_by) VALUES ($1, $2, $3) RETURNING id`,
-		nickname, clanID, createdBy).Scan(&id)
+		`INSERT INTO players (game_id, nickname, clan_id, created_by)
+		 VALUES (NULLIF($1, ''), $2, $3, $4) RETURNING id`,
+		gameID, nickname, clanID, createdBy).Scan(&id)
 	if isUniqueViolation(err, "players_nickname_key") {
 		return nil, domain.ErrNickTaken
+	}
+	if isUniqueViolation(err, "players_game_id_key") {
+		return nil, domain.ErrGameIDTaken
 	}
 	if err != nil {
 		return nil, err
@@ -143,7 +154,7 @@ func (r *Players) Create(ctx context.Context, nickname, clanName string, traitID
 	return r.ByID(ctx, id)
 }
 
-func (r *Players) Update(ctx context.Context, id int64, nickname, clanName string, traitIDs []int64) error {
+func (r *Players) Update(ctx context.Context, id int64, gameID, nickname, clanName string, traitIDs []int64) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -156,10 +167,14 @@ func (r *Players) Update(ctx context.Context, id int64, nickname, clanName strin
 	}
 
 	tag, err := tx.Exec(ctx,
-		`UPDATE players SET nickname = $2, clan_id = $3, updated_at = now() WHERE id = $1`,
-		id, nickname, clanID)
+		`UPDATE players SET game_id = NULLIF($2, ''), nickname = $3, clan_id = $4, updated_at = now()
+		 WHERE id = $1`,
+		id, gameID, nickname, clanID)
 	if isUniqueViolation(err, "players_nickname_key") {
 		return domain.ErrNickTaken
+	}
+	if isUniqueViolation(err, "players_game_id_key") {
+		return domain.ErrGameIDTaken
 	}
 	if err != nil {
 		return err
@@ -235,7 +250,7 @@ func (r *Players) AddNote(ctx context.Context, playerID int64, author *domain.Us
 	err := r.pool.QueryRow(ctx,
 		`INSERT INTO player_notes (player_id, author_id, author_email, body)
 		 VALUES ($1, $2, $3, $4) RETURNING id`,
-		playerID, author.ID, author.Email, body).Scan(&id)
+		playerID, author.ID, author.Display(), body).Scan(&id)
 	return id, err
 }
 

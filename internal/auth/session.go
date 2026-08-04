@@ -30,11 +30,12 @@ func NewService(users *repo.Users, sessions *repo.Sessions, ttl time.Duration, s
 }
 
 // Login проверяет учётные данные и заводит сессию, выставляя cookie.
-func (s *Service) Login(ctx context.Context, w http.ResponseWriter, email, password string) (*domain.User, error) {
-	user, err := s.users.ByEmail(ctx, email)
+// login — почта либо ник: у кого почты нет, тот входит только по нику.
+func (s *Service) Login(ctx context.Context, w http.ResponseWriter, login, password string) (*domain.User, error) {
+	user, err := s.users.ByLogin(ctx, login)
 	if errors.Is(err, domain.ErrNotFound) {
-		// Считаем хеш и на несуществующей почте, чтобы время ответа не
-		// выдавало, зарегистрирован адрес или нет.
+		// Считаем хеш и на несуществующем логине, чтобы время ответа не
+		// выдавало, зарегистрирован такой пользователь или нет.
 		_ = VerifyPassword(password, dummyHash)
 		return nil, domain.ErrInvalidLogin
 	}

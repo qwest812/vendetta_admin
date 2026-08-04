@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCanManage(t *testing.T) {
 	root := &User{ID: 1, Role: RoleRoot}
@@ -43,5 +46,33 @@ func TestRoleAtLeast(t *testing.T) {
 	}
 	if Role("guest").Valid() {
 		t.Error("неизвестная роль не должна считаться валидной")
+	}
+}
+
+func TestValidateNickname(t *testing.T) {
+	valid := []string{"root", "Ярослав", "player_01", "a.b-c", "ник123"}
+	for _, n := range valid {
+		if err := ValidateNickname(n); err != nil {
+			t.Errorf("ник %q должен проходить: %v", n, err)
+		}
+	}
+	invalid := []string{"", "ab", "с пробелом", "user@mail.com", "_подчёркивание", strings.Repeat("a", 33)}
+	for _, n := range invalid {
+		if err := ValidateNickname(n); err == nil {
+			t.Errorf("ник %q не должен проходить", n)
+		}
+	}
+}
+
+// Подпись в журнале и в авторе заметки не должна быть пустой,
+// когда пользователь заведён без почты.
+func TestUserDisplay(t *testing.T) {
+	withEmail := &User{Email: "a@b.c", Nickname: "ник"}
+	if got := withEmail.Display(); got != "a@b.c" {
+		t.Errorf("Display = %q, ожидалось a@b.c", got)
+	}
+	noEmail := &User{Nickname: "ник"}
+	if got := noEmail.Display(); got != "ник" {
+		t.Errorf("Display = %q, ожидалось ник", got)
 	}
 }

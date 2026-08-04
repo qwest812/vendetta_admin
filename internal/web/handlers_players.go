@@ -125,21 +125,33 @@ func (s *Server) renderPlayerForm(w http.ResponseWriter, r *http.Request, status
 
 func (s *Server) playerCreate(w http.ResponseWriter, r *http.Request) {
 	actor := currentUser(r)
+	gameID := strings.TrimSpace(r.PostFormValue("game_id"))
 	nickname := strings.TrimSpace(r.PostFormValue("nickname"))
 	clan := strings.TrimSpace(r.PostFormValue("clan"))
 	traitIDs := parseIDs(r.PostForm["traits"])
 
-	if err := validateNickname(nickname); err != nil {
+	fail := func(msg string) {
 		s.renderPlayerForm(w, r, http.StatusUnprocessableEntity,
-			&domain.Player{Nickname: nickname, ClanName: clan}, idSet(traitIDs), err.Error())
+			&domain.Player{GameID: gameID, Nickname: nickname, ClanName: clan}, idSet(traitIDs), msg)
+	}
+	// У новой карточки игровой ID обязателен: ник игрок может сменить,
+	// и без ID карточку потом не опознать.
+	if err := validateGameID(gameID, true); err != nil {
+		fail(err.Error())
+		return
+	}
+	if err := validateNickname(nickname); err != nil {
+		fail(err.Error())
 		return
 	}
 
-	player, err := s.players.Create(r.Context(), nickname, clan, traitIDs, actor.ID)
+	player, err := s.players.Create(r.Context(), gameID, nickname, clan, traitIDs, actor.ID)
 	if errors.Is(err, domain.ErrNickTaken) {
-		s.renderPlayerForm(w, r, http.StatusUnprocessableEntity,
-			&domain.Player{Nickname: nickname, ClanName: clan}, idSet(traitIDs),
-			"Игрок с таким ником уже есть в базе")
+		fail("Игрок с таким ником уже есть в базе")
+		return
+	}
+	if errors.Is(err, domain.ErrGameIDTaken) {
+		fail("Игрок с таким игровым ID уже есть в базе")
 		return
 	}
 	if err != nil {
@@ -156,7 +168,7 @@ func (s *Server) playerCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.logAuditOn(r, "player.create", "player", player.ID,
-		map[string]any{"nickname": nickname, "clan": clan, "traits": len(traitIDs)})
+		map[string]any{"game_id": gameID, "nickname": nickname, "clan": clan, "traits": len(traitIDs)})
 	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
 }
 
@@ -165,22 +177,34 @@ func (s *Server) playerUpdate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	gameID := strings.TrimSpace(r.PostFormValue("game_id"))
 	nickname := strings.TrimSpace(r.PostFormValue("nickname"))
 	clan := strings.TrimSpace(r.PostFormValue("clan"))
 	traitIDs := parseIDs(r.PostForm["traits"])
 
 	fail := func(msg string) {
 		s.renderPlayerForm(w, r, http.StatusUnprocessableEntity,
-			&domain.Player{ID: player.ID, Nickname: nickname, ClanName: clan}, idSet(traitIDs), msg)
+			&domain.Player{ID: player.ID, GameID: gameID, Nickname: nickname, ClanName: clan},
+			idSet(traitIDs), msg)
+	}
+	// При правке ID можно оставить пустым: у карточек, заведённых до его
+	// появления, его просто не знают.
+	if err := validateGameID(gameID, false); err != nil {
+		fail(err.Error())
+		return
 	}
 	if err := validateNickname(nickname); err != nil {
 		fail(err.Error())
 		return
 	}
 
-	err := s.players.Update(r.Context(), player.ID, nickname, clan, traitIDs)
+	err := s.players.Update(r.Context(), player.ID, gameID, nickname, clan, traitIDs)
 	if errors.Is(err, domain.ErrNickTaken) {
 		fail("Игрок с таким ником уже есть в базе")
+		return
+	}
+	if errors.Is(err, domain.ErrGameIDTaken) {
+		fail("Игрок с таким игровым ID уже есть в базе")
 		return
 	}
 	if err != nil {
@@ -189,7 +213,8 @@ func (s *Server) playerUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.logAuditOn(r, "player.update", "player", player.ID, map[string]any{
-		"nickname": nickname, "was": player.Nickname, "clan": clan, "traits": len(traitIDs),
+		"game_id": gameID, "nickname": nickname, "was": player.Nickname,
+		"clan": clan, "traits": len(traitIDs),
 	})
 	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
 }
@@ -235,7 +260,7 @@ func (s *Server) noteCreate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
 }
 
-// noteDelete: свою заметку убирает автор, чужую — только рут.
+// noteDelete: свою заметку убирает автор, чужую — админ и выше.
 func (s *Server) noteDelete(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("noteID"), 10, 64)
 	if err != nil {
@@ -253,9 +278,8 @@ func (s *Server) noteDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	actor := currentUser(r)
-	own := note.AuthorID != nil && *note.AuthorID == actor.ID
-	if !own && !actor.IsRoot() {
-		http.Error(w, "Чужую заметку может удалить только рут", http.StatusForbidden)
+	if !note.CanDelete(actor) {
+		http.Error(w, "Чужую заметку может удалить только админ", http.StatusForbidden)
 		return
 	}
 	if err := s.players.DeleteNote(r.Context(), id); err != nil {
@@ -294,6 +318,24 @@ func validateNickname(nick string) error {
 		return errors.New("Укажите ник игрока")
 	case n > 64:
 		return errors.New("Ник длиннее 64 символов")
+	}
+	return nil
+}
+
+// validateGameID проверяет игровой ID: он попадает в поиск наравне с ником,
+// поэтому пробелы внутри не допускаются — иначе по нему не найти.
+func validateGameID(gameID string, required bool) error {
+	if gameID == "" {
+		if required {
+			return errors.New("Укажите игровой ID — по нему карточка ищется после смены ника")
+		}
+		return nil
+	}
+	if len([]rune(gameID)) > 32 {
+		return errors.New("Игровой ID длиннее 32 символов")
+	}
+	if strings.ContainsAny(gameID, " \t\n") {
+		return errors.New("Игровой ID не должен содержать пробелов")
 	}
 	return nil
 }
