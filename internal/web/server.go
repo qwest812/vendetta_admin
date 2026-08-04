@@ -68,6 +68,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /{$}", user(http.HandlerFunc(s.home)))
 	mux.Handle("GET /search", user(http.HandlerFunc(s.search)))
 	mux.Handle("GET /players/{id}", user(http.HandlerFunc(s.playerCard)))
+	mux.Handle("GET /faq", user(http.HandlerFunc(s.faq)))
 
 	// Заметки пишут все авторизованные: карточку наполняют те, кто работает
 	// с игроками, а не только админы. Удаление разрешает сам хендлер —

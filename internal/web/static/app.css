@@ -265,5 +265,40 @@ th.narrow, td.narrow { width: 90px; }
 td.narrow input { width: 100%; }
 td.actions button { margin-left: 6px; }
 
+/* --- справка --- */
+
+/* Вопросы свёрнуты через <details>: список читается целиком, а ответ
+   разворачивается без единой строки скрипта. */
+.faq details { border-top: 1px solid var(--border); }
+.faq details:first-of-type { border-top: none; }
+
+.faq summary {
+    padding: 12px 0;
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::before {
+    content: "+";
+    color: var(--accent);
+    font-weight: 700;
+    width: 12px;
+}
+.faq details[open] > summary::before { content: "–"; }
+.faq summary:hover { color: var(--accent); }
+.faq summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.faq-body { padding: 0 0 14px 22px; max-width: 70ch; }
+.faq-body p { margin: 0 0 10px; }
+.faq-body p:last-child { margin-bottom: 0; }
+.faq-body table { margin-top: 4px; }
+.faq-body td.yes { color: var(--ok); text-align: center; }
+.faq-body td.no { color: var(--muted); text-align: center; }
+.faq-body th.narrow { text-align: center; }
+
 .htmx-indicator { opacity: 0; transition: opacity .2s; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }

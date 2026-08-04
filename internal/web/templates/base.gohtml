@@ -18,6 +18,7 @@
                 <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>Доступы</a>
                 <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>Журнал</a>
             {{end}}
+            <a href="/faq" {{if eq .Path "/faq"}}class="active"{{end}}>Справка</a>
         </nav>
         <div class="me">
             <span class="email">{{.CurrentUser.Display}}</span>
