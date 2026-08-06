@@ -38,6 +38,12 @@ services:
       ROOT_EMAIL: ${ROOT_EMAIL:-}
       ROOT_NICKNAME: ${ROOT_NICKNAME:-}
       ROOT_PASSWORD: ${ROOT_PASSWORD:?задайте ROOT_PASSWORD в .env}
+      # Слежение за лобби Supremacy 1914. Пустой S1914_USER — воркер не стартует.
+      S1914_USER: ${S1914_USER:-}
+      S1914_PASSWORD: ${S1914_PASSWORD:-}
+      S1914_LANG: ${S1914_LANG:-ru}
+      S1914_WATCH_TITLES: ${S1914_WATCH_TITLES:-}
+      S1914_POLL_INTERVAL: ${S1914_POLL_INTERVAL:-1m}
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:

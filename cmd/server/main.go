@@ -14,6 +14,7 @@ import (
 	"Vendetta_admin/internal/config"
 	"Vendetta_admin/internal/repo"
 	"Vendetta_admin/internal/storage"
+	"Vendetta_admin/internal/supremacy"
 	"Vendetta_admin/internal/web"
 )
 
@@ -61,6 +62,13 @@ func run(log *slog.Logger) error {
 	}
 
 	go cleanupSessions(ctx, log, sessions)
+
+	if cfg.S1914User != "" {
+		client := supremacy.NewClient(cfg.S1914User, cfg.S1914Password, cfg.S1914Lang, log)
+		seen := repo.NewSupremacyGames(pool)
+		watcher := supremacy.NewWatcher(client, cfg.S1914Titles, cfg.S1914PollEvery, log, nil, seen)
+		go watcher.Run(ctx)
+	}
 
 	httpSrv := &http.Server{
 		Addr:              cfg.ListenAddr,
