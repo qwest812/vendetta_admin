@@ -1,6 +1,7 @@
 package supremacy
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -286,8 +287,112 @@ func TestMemorySeenStoreForget(t *testing.T) {
 	}
 }
 
+// Ссылка ведёт в игру под нужным аккаунтом; до логина uid ещё неизвестен,
+// и тогда параметра быть не должно — с пустым uid игра открывает не то.
+func TestPlayURL(t *testing.T) {
+	if got, want := PlayURL("101408369"), "https://www.supremacy1914.com/game.php?bust=1&uid=101408369"; got != want {
+		t.Errorf("PlayURL = %s, ожидалось %s", got, want)
+	}
+	if got, want := PlayURL(""), "https://www.supremacy1914.com/game.php?bust=1"; got != want {
+		t.Errorf("PlayURL без аккаунта = %s, ожидалось %s", got, want)
+	}
+}
+
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+// recordLogger пишет всё, вплоть до Debug, в буфер — чтобы проверять,
+// что именно попало в лог.
+func recordLogger() (*slog.Logger, *bytes.Buffer) {
+	buf := &bytes.Buffer{}
+	return slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug})), buf
+}
+
+// Сводка нужна на старте сразу, а дальше — не чаще раза в heartbeatEvery:
+// при опросе раз в минуту иначе набегает 60 бесполезных строк в час.
+func TestWatcherHeartbeatRate(t *testing.T) {
+	log, buf := recordLogger()
+	w := NewWatcher(nil, nil, time.Minute, log, nil, nil)
+
+	start := time.Date(2026, 8, 12, 10, 0, 0, 0, time.UTC)
+	w.heartbeat(start)
+	if n := strings.Count(buf.String(), "воркер лобби жив"); n != 1 {
+		t.Fatalf("на старте сводок %d, ожидалась 1", n)
+	}
+
+	w.heartbeat(start.Add(heartbeatEvery - time.Minute))
+	if n := strings.Count(buf.String(), "воркер лобби жив"); n != 1 {
+		t.Errorf("до истечения периода сводок %d, ожидалась 1", n)
+	}
+
+	w.heartbeat(start.Add(heartbeatEvery))
+	if n := strings.Count(buf.String(), "воркер лобби жив"); n != 2 {
+		t.Errorf("после истечения периода сводок %d, ожидалось 2", n)
+	}
+}
+
+// Сводка отчитывается за период, а не за всё время: иначе счётчики только
+// растут и по ним не понять, что происходит сейчас.
+func TestWatcherHeartbeatResetsStats(t *testing.T) {
+	ctx := context.Background()
+	g := Game{GameID: "111", Title: "The Great War"}
+	log, buf := recordLogger()
+	w := NewWatcher(&stubLister{pages: [][]Game{{g}, {g}}}, nil, time.Minute, log, nil, nil)
+
+	start := time.Date(2026, 8, 12, 10, 0, 0, 0, time.UTC)
+	if err := w.poll(ctx); err != nil {
+		t.Fatalf("poll: %v", err)
+	}
+	w.heartbeat(start)
+	if !strings.Contains(buf.String(), "новых=1") {
+		t.Fatalf("в первой сводке нет находки:\n%s", buf)
+	}
+
+	buf.Reset()
+	if err := w.poll(ctx); err != nil {
+		t.Fatalf("poll: %v", err)
+	}
+	w.heartbeat(start.Add(heartbeatEvery))
+	if !strings.Contains(buf.String(), "новых=0") {
+		t.Errorf("во второй сводке счётчик находок не обнулился:\n%s", buf)
+	}
+	if !strings.Contains(buf.String(), "опросов=1") {
+		t.Errorf("во второй сводке счётчик опросов не обнулился:\n%s", buf)
+	}
+}
+
+// Игра лежит минутами, и все эти минуты ошибка одна и та же. Печатать её
+// каждый тик — значит утопить в ней всё остальное.
+func TestWatcherThinsOutRepeatedErrors(t *testing.T) {
+	log, buf := recordLogger()
+	w := NewWatcher(nil, nil, time.Minute, log, nil, nil)
+
+	down := errors.New("getGames: http 502")
+	for range errorRepeatEvery + 1 {
+		w.noteFailure(down)
+	}
+	if n := strings.Count(buf.String(), "level=ERROR"); n != 2 {
+		t.Errorf("на %d одинаковых отказов пришлось %d записей, ожидалось 2", errorRepeatEvery+1, n)
+	}
+
+	// Другая ошибка — другая причина, о ней надо сказать сразу.
+	buf.Reset()
+	w.noteFailure(errors.New("getGames: resultCode=-19 forbidden"))
+	if n := strings.Count(buf.String(), "level=ERROR"); n != 1 {
+		t.Errorf("о новой ошибке записей %d, ожидалась 1", n)
+	}
+
+	// А по логу, где видно начало сбоя, но не конец, непонятно, живо ли всё.
+	buf.Reset()
+	w.noteSuccess()
+	if !strings.Contains(buf.String(), "восстановился") {
+		t.Errorf("о возврате лобби в строй не сообщили:\n%s", buf)
+	}
+	w.noteSuccess()
+	if n := strings.Count(buf.String(), "восстановился"); n != 1 {
+		t.Errorf("о восстановлении сообщили %d раз, ожидался 1", n)
+	}
 }
 
 func TestWatcherMatches(t *testing.T) {

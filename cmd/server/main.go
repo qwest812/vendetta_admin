@@ -19,18 +19,23 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	if err := run(log); err != nil {
+	// Уровень задаётся конфигом, а логгер нужен раньше, чем конфиг прочитан
+	// (иначе ошибку чтения некуда написать). LevelVar разрешает это
+	// противоречие: он подкручивается уже после старта.
+	level := new(slog.LevelVar)
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	if err := run(log, level); err != nil {
 		log.Error("остановка с ошибкой", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(log *slog.Logger) error {
+func run(log *slog.Logger, level *slog.LevelVar) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
+	level.Set(cfg.LogLevel)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -66,7 +71,20 @@ func run(log *slog.Logger) error {
 	if cfg.S1914User != "" {
 		client := supremacy.NewClient(cfg.S1914User, cfg.S1914Password, cfg.S1914Lang, log)
 		seen := repo.NewSupremacyGames(pool)
-		watcher := supremacy.NewWatcher(client, cfg.S1914Titles, cfg.S1914PollEvery, log, nil, seen)
+
+		// Нулевой notifier воркер понимает как «пиши в лог» — именно это и
+		// нужно, когда телеграм не настроен.
+		var notifier supremacy.Notifier
+		if cfg.TelegramToken != "" {
+			notifier = supremacy.NewTelegramNotifier(
+				cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramTopicID, client.UserID)
+			log.Info("о найденных играх пишем в телеграм",
+				"chatID", cfg.TelegramChatID, "topicID", cfg.TelegramTopicID)
+		} else {
+			log.Warn("телеграм не настроен, о найденных играх будет только запись в логе")
+		}
+
+		watcher := supremacy.NewWatcher(client, cfg.S1914Titles, cfg.S1914PollEvery, log, notifier, seen)
 		go watcher.Run(ctx)
 	}
 

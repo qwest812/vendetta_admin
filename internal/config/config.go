@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ type Config struct {
 	ListenAddr   string
 	SessionTTL   time.Duration
 	CookieSecure bool
+	LogLevel     slog.Level
 
 	// Учётные данные рута. Применяются только при первом запуске:
 	// если рут уже есть в базе, значения игнорируются.
@@ -27,6 +30,12 @@ type Config struct {
 	S1914Lang      string
 	S1914Titles    []string
 	S1914PollEvery time.Duration
+
+	// Куда воркер пишет о найденных играх. Без токена и чата сообщения
+	// остаются в логе приложения. Тема нужна только для групп-форумов.
+	TelegramToken   string
+	TelegramChatID  string
+	TelegramTopicID int
 }
 
 func Load() (*Config, error) {
@@ -41,6 +50,15 @@ func Load() (*Config, error) {
 		S1914User:     env("S1914_USER", ""),
 		S1914Password: env("S1914_PASSWORD", ""),
 		S1914Lang:     env("S1914_LANG", "ru"),
+
+		TelegramToken:  env("TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID: env("TELEGRAM_CHAT_ID", ""),
+	}
+
+	// slog разбирает не только DEBUG/INFO/WARN/ERROR, но и сдвиги вида
+	// «INFO-2», так что своей таблицы уровней не заводим.
+	if err := cfg.LogLevel.UnmarshalText([]byte(env("LOG_LEVEL", "info"))); err != nil {
+		return nil, fmt.Errorf("LOG_LEVEL: %w", err)
 	}
 
 	ttl, err := time.ParseDuration(env("SESSION_TTL", "168h"))
@@ -70,6 +88,29 @@ func Load() (*Config, error) {
 	}
 	if cfg.S1914Password != "" && cfg.S1914User == "" {
 		return nil, fmt.Errorf("задан S1914_PASSWORD, но не задан S1914_USER")
+	}
+
+	// Половина настроек телеграма бесполезна: без чата боту некуда писать,
+	// без токена — нечем. Тихо съесть такое хуже, чем не запуститься:
+	// приложение работало бы, а сообщений никто бы не дождался.
+	if cfg.TelegramToken != "" && cfg.TelegramChatID == "" {
+		return nil, fmt.Errorf("задан TELEGRAM_BOT_TOKEN, но не задан TELEGRAM_CHAT_ID")
+	}
+	if cfg.TelegramChatID != "" && cfg.TelegramToken == "" {
+		return nil, fmt.Errorf("задан TELEGRAM_CHAT_ID, но не задан TELEGRAM_BOT_TOKEN")
+	}
+
+	if topic := env("TELEGRAM_TOPIC_ID", ""); topic != "" {
+		if cfg.TelegramChatID == "" {
+			return nil, fmt.Errorf("задан TELEGRAM_TOPIC_ID, но не задан TELEGRAM_CHAT_ID")
+		}
+		// Тему задают числом. Строку телеграм не примет, а разбираться в его
+		// отказе на каждой находке — то ещё удовольствие.
+		id, err := strconv.Atoi(topic)
+		if err != nil || id <= 0 {
+			return nil, fmt.Errorf("TELEGRAM_TOPIC_ID: ожидалось положительное число, получили %q", topic)
+		}
+		cfg.TelegramTopicID = id
 	}
 
 	// Входить можно по нику, поэтому почта рута необязательна — но хоть

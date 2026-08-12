@@ -30,6 +30,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-vendetta}:${POSTGRES_PASSWORD:-vendetta}@postgres:5432/${POSTGRES_DB:-vendetta}?sslmode=disable
       LISTEN_ADDR: ":8080"
       SESSION_TTL: ${SESSION_TTL:-168h}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Даты в интерфейсе печатаются по этой зоне; в контейнере по умолчанию UTC.
       TZ: ${TZ:-UTC}
@@ -44,6 +45,11 @@ services:
       S1914_LANG: ${S1914_LANG:-ru}
       S1914_WATCH_TITLES: ${S1914_WATCH_TITLES:-}
       S1914_POLL_INTERVAL: ${S1914_POLL_INTERVAL:-1m}
+      # Куда воркер сообщает о находках. Без этой пары сообщения остаются
+      # в логе приложения; задавать нужно оба значения или ни одного.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_TOPIC_ID: ${TELEGRAM_TOPIC_ID:-}
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:

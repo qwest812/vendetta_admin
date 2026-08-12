@@ -144,9 +144,27 @@ type Game struct {
 	MinRank     string `json:"minRank"`
 }
 
-// URL — ссылка, по которой игру видно в браузере.
-func (g Game) URL() string {
-	return fmt.Sprintf("%s/game.php?bust=1#c%s", baseURL, g.GameID)
+// PlayURL — ссылка, по которой в браузере открывается игра. Конкретную игру
+// она не выбирает: uid здесь — это аккаунт, а не игра, так что открывшемуся
+// клиенту игру придётся найти в списке самому. Пустой userID (до логина)
+// просто опускает параметр.
+func PlayURL(userID string) string {
+	u := baseURL + "/game.php?bust=1"
+	if userID != "" {
+		u += "&uid=" + url.QueryEscape(userID)
+	}
+	return u
+}
+
+// UserID — аккаунт, под которым клиент ходит в игру. До первого удачного
+// логина пусто.
+func (c *Client) UserID() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.sess == nil {
+		return ""
+	}
+	return c.sess.userID
 }
 
 // OpenGames возвращает игры из лобби, куда сейчас можно вступить.
