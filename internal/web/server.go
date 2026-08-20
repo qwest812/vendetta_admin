@@ -19,6 +19,7 @@ type Server struct {
 	sessions *repo.Sessions
 	audit    *repo.Audit
 	players  *repo.Players
+	clans    *repo.Clans
 	traits   *repo.Traits
 	health   func(context.Context) error
 	pages    pages
@@ -31,6 +32,7 @@ type Deps struct {
 	Sessions *repo.Sessions
 	Audit    *repo.Audit
 	Players  *repo.Players
+	Clans    *repo.Clans
 	Traits   *repo.Traits
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
@@ -43,7 +45,7 @@ func NewServer(d Deps) (*Server, error) {
 	}
 	return &Server{
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
-		audit: d.Audit, players: d.Players, traits: d.Traits,
+		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
 		health: d.Health, pages: tmpls,
 	}, nil
 }
@@ -68,6 +70,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /{$}", user(http.HandlerFunc(s.home)))
 	mux.Handle("GET /search", user(http.HandlerFunc(s.search)))
 	mux.Handle("GET /players/{id}", user(http.HandlerFunc(s.playerCard)))
+	// Кланы смотрят все: это такой же справочник, как карточки игроков.
+	// Статусы правит админ — они политика, а не наблюдение.
+	mux.Handle("GET /clans", user(http.HandlerFunc(s.clansList)))
+	mux.Handle("GET /clans/{id}", user(http.HandlerFunc(s.clanCard)))
 	mux.Handle("GET /faq", user(http.HandlerFunc(s.faq)))
 
 	// Заметки пишут все авторизованные: карточку наполняют те, кто работает
@@ -90,6 +96,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /players", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerCreate))))
 	mux.Handle("GET /players/{id}/edit", admin(http.HandlerFunc(s.playerEdit)))
 	mux.Handle("POST /players/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerUpdate))))
+
+	mux.Handle("POST /clans", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanCreate))))
+	mux.Handle("POST /clans/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanUpdate))))
+	mux.Handle("POST /clans/{id}/delete", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanDelete))))
 
 	mux.Handle("GET /traits", admin(http.HandlerFunc(s.traitsList)))
 	mux.Handle("POST /traits", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))

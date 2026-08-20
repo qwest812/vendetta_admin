@@ -13,6 +13,7 @@
         <a class="brand" href="/">Vendetta</a>
         <nav>
             <a href="/" {{if eq .Path "/"}}class="active"{{end}}>Поиск</a>
+            <a href="/clans" {{if eq .Path "/clans"}}class="active"{{end}}>Кланы</a>
             {{if .CurrentUser.IsAdmin}}
                 <a href="/traits" {{if eq .Path "/traits"}}class="active"{{end}}>Признаки</a>
                 <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>Доступы</a>

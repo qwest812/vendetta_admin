@@ -7,51 +7,30 @@
         {{if .CurrentUser.IsAdmin}}<a class="button" href="/players/new">Добавить игрока</a>{{end}}
     </div>
 
-    <input type="search" name="q" value="{{.Query}}" placeholder="Игровой ID или ник (можно часть)"
-           autofocus autocomplete="off"
-           hx-get="/search" hx-trigger="input changed delay:250ms, search"
-           hx-target="#results" hx-swap="innerHTML"
-           hx-indicator="#searching">
+    {{/* Фильтр и строка поиска шлют один и тот же запрос, поэтому каждый
+         подмешивает значение соседа через hx-include. */}}
+    <div class="filters">
+        <input type="search" name="q" value="{{.Query}}" placeholder="Игровой ID или ник (можно часть)"
+               autofocus autocomplete="off"
+               hx-get="/search" hx-trigger="input changed delay:250ms, search"
+               hx-include="[name='status']"
+               hx-target="#results" hx-swap="innerHTML"
+               hx-indicator="#searching">
+        <select name="status" class="narrow"
+                hx-get="/search" hx-trigger="change"
+                hx-include="[name='q']"
+                hx-target="#results" hx-swap="innerHTML"
+                hx-indicator="#searching">
+            <option value="">Все кланы</option>
+            <option value="ally" {{if eq .Status "ally"}}selected{{end}}>Только союзные</option>
+            <option value="neutral" {{if eq .Status "neutral"}}selected{{end}}>Только нейтральные</option>
+            <option value="enemy" {{if eq .Status "enemy"}}selected{{end}}>Только враждебные</option>
+        </select>
+    </div>
     <p class="muted">
         Всего в базе: {{.Total}}. <span id="searching" class="htmx-indicator">ищем…</span>
     </p>
 </div>
 
 <div id="results">{{template "results" .}}</div>
-{{end}}
-
-{{define "results"}}
-{{if .Players}}
-    <div class="players">
-        {{range .Players}}
-            <a class="player-row" href="/players/{{.ID}}">
-                <div class="player-main">
-                    <span class="nick">{{.Nickname}}</span>
-                    {{if .ClanName}}<span class="clan">[{{.ClanName}}]</span>{{end}}
-                    {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
-                </div>
-                <div class="player-traits">
-                    {{range .Traits}}
-                        <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
-                    {{end}}
-                </div>
-                <div class="player-score">
-                    <span class="risk-pill risk-{{.Score.RiskClass}}">Риск {{.Score.Risk}}%</span>
-                    <span class="loyalty-pill">Лояльность {{.Score.Loyalty}}%</span>
-                </div>
-            </a>
-        {{end}}
-    </div>
-    {{if ge (len .Players) .Limit}}
-        <p class="muted center">Показаны первые {{.Limit}} — уточните запрос.</p>
-    {{end}}
-{{else}}
-    <div class="card empty">
-        {{if .Query}}
-            По запросу «{{.Query}}» никого не нашли.
-        {{else}}
-            В базе пока нет игроков.
-        {{end}}
-    </div>
-{{end}}
 {{end}}

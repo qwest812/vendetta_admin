@@ -6,7 +6,12 @@
     <div class="card-head">
         <div>
             <h1 class="nick-big">{{$p.Nickname}}</h1>
-            {{if $p.ClanName}}<span class="clan">[{{$p.ClanName}}]</span>{{end}}
+            {{if $p.ClanName}}
+                <a class="clan clan-{{$p.ClanStatus}}" href="/clans/{{$p.ClanID}}">[{{$p.ClanName}}]</a>
+                {{if $p.ClanStatus.Marked}}
+                    <span class="badge clan-{{$p.ClanStatus}}">{{$p.ClanStatus.Title}} клан</span>
+                {{end}}
+            {{end}}
             {{if $p.GameID}}
                 <span class="game-id">ID {{$p.GameID}}</span>
             {{else}}

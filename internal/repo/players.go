@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -17,12 +18,13 @@ func NewPlayers(pool *pgxpool.Pool) *Players { return &Players{pool: pool} }
 
 const playerSelect = `
 	SELECT p.id, coalesce(p.game_id, ''), p.nickname, p.clan_id, coalesce(c.name, ''),
-	       p.created_by, p.created_at, p.updated_at
+	       coalesce(c.status, ''), p.created_by, p.created_at, p.updated_at
 	FROM players p LEFT JOIN clans c ON c.id = p.clan_id`
 
 func scanPlayer(row pgx.Row) (*domain.Player, error) {
 	var p domain.Player
-	err := row.Scan(&p.ID, &p.GameID, &p.Nickname, &p.ClanID, &p.ClanName, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
+	err := row.Scan(&p.ID, &p.GameID, &p.Nickname, &p.ClanID, &p.ClanName, &p.ClanStatus,
+		&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}
@@ -34,31 +36,65 @@ func scanPlayer(row pgx.Row) (*domain.Player, error) {
 
 // Search ищет по подстроке ника или игрового ID без учёта регистра. Пустой
 // запрос отдаёт последних добавленных — это стартовый экран поиска.
-func (r *Players) Search(ctx context.Context, query string, limit int) ([]*domain.Player, error) {
+//
+// Пустой status — «любой клан». Фильтр смотрит на клан игрока, поэтому
+// карточки без клана не попадают ни в один из статусов.
+func (r *Players) Search(ctx context.Context, query string, status domain.ClanStatus, limit int) ([]*domain.Player, error) {
 	query = strings.TrimSpace(query)
 
-	var rows pgx.Rows
-	var err error
-	if query == "" {
-		rows, err = r.pool.Query(ctx, playerSelect+` ORDER BY p.updated_at DESC LIMIT $1`, limit)
-	} else {
-		// Сначала точное совпадение, потом начинающиеся с запроса, потом
-		// остальные. Игровой ID идёт первым: он не меняется, поэтому попадание
-		// по нему точнее совпадения по нику.
-		rows, err = r.pool.Query(ctx, playerSelect+`
-			WHERE p.nickname ILIKE '%' || $1 || '%' OR p.game_id ILIKE '%' || $1 || '%'
-			ORDER BY (lower(coalesce(p.game_id, '')) = lower($1)) DESC,
-			         (lower(p.nickname) = lower($1)) DESC,
-			         (coalesce(p.game_id, '') ILIKE $1 || '%') DESC,
-			         (p.nickname ILIKE $1 || '%') DESC,
-			         length(p.nickname), p.nickname
-			LIMIT $2`, query, limit)
+	var conds []string
+	var args []any
+	if query != "" {
+		args = append(args, query)
+		conds = append(conds, `(p.nickname ILIKE '%' || $1 || '%' OR p.game_id ILIKE '%' || $1 || '%')`)
 	}
+	if status != "" {
+		args = append(args, string(status))
+		conds = append(conds, fmt.Sprintf(`c.status = $%d`, len(args)))
+	}
+
+	where := ""
+	if len(conds) > 0 {
+		where = " WHERE " + strings.Join(conds, " AND ")
+	}
+
+	// Без запроса сортировать не по чему — показываем свежие. С запросом
+	// сначала точное совпадение, потом начинающиеся с него, потом остальные.
+	// Игровой ID идёт первым: он не меняется, поэтому попадание по нему
+	// точнее совпадения по нику.
+	order := ` ORDER BY p.updated_at DESC`
+	if query != "" {
+		order = ` ORDER BY (lower(coalesce(p.game_id, '')) = lower($1)) DESC,
+		         (lower(p.nickname) = lower($1)) DESC,
+		         (coalesce(p.game_id, '') ILIKE $1 || '%') DESC,
+		         (p.nickname ILIKE $1 || '%') DESC,
+		         length(p.nickname), p.nickname`
+	}
+
+	args = append(args, limit)
+	rows, err := r.pool.Query(ctx, playerSelect+where+order+fmt.Sprintf(" LIMIT $%d", len(args)), args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	return r.collect(ctx, rows)
+}
+
+// ByClan отдаёт состав клана — карточки, привязанные к нему.
+func (r *Players) ByClan(ctx context.Context, clanID int64, limit int) ([]*domain.Player, error) {
+	rows, err := r.pool.Query(ctx,
+		playerSelect+` WHERE p.clan_id = $1 ORDER BY lower(p.nickname) LIMIT $2`, clanID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return r.collect(ctx, rows)
+}
+
+// collect дочитывает выборку и догружает признаки.
+func (r *Players) collect(ctx context.Context, rows pgx.Rows) ([]*domain.Player, error) {
 	var players []*domain.Player
 	for rows.Next() {
 		p, err := scanPlayer(rows)
@@ -204,25 +240,6 @@ func (r *Players) Count(ctx context.Context) (int, error) {
 	var n int
 	err := r.pool.QueryRow(ctx, `SELECT count(*) FROM players`).Scan(&n)
 	return n, err
-}
-
-// Clans отдаёт список кланов для подсказки в форме.
-func (r *Players) Clans(ctx context.Context) ([]domain.Clan, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id, name FROM clans ORDER BY name`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []domain.Clan
-	for rows.Next() {
-		var c domain.Clan
-		if err := rows.Scan(&c.ID, &c.Name); err != nil {
-			return nil, err
-		}
-		out = append(out, c)
-	}
-	return out, rows.Err()
 }
 
 func (r *Players) Notes(ctx context.Context, playerID int64) ([]domain.Note, error) {

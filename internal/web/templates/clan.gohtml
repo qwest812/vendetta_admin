@@ -1,0 +1,37 @@
+{{define "title"}}{{.Clan.Name}} — Vendetta{{end}}
+
+{{define "content"}}
+{{$c := .Clan}}
+<div class="card">
+    <div class="card-head">
+        <div>
+            <h1 class="nick-big">{{$c.Name}}</h1>
+            <span class="badge clan-{{$c.Status}}">{{$c.Status.Title}}</span>
+            <span class="muted">игроков в базе: {{$c.Players}}</span>
+        </div>
+        <a class="button ghost" href="/clans">Все кланы</a>
+    </div>
+
+    {{if .CurrentUser.IsAdmin}}
+        <form class="row-form" method="post" action="/clans/{{$c.ID}}">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="hidden" name="back" value="/clans/{{$c.ID}}">
+            <label>
+                Название
+                <input name="name" value="{{$c.Name}}" maxlength="64" required autocomplete="off">
+            </label>
+            <label class="narrow">
+                Статус
+                {{$cur := $c.Status}}
+                <select name="status">
+                    {{range .Statuses}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.Title}}</option>{{end}}
+                </select>
+            </label>
+            <button type="submit">Сохранить</button>
+        </form>
+    {{end}}
+</div>
+
+<h1 class="section">Состав</h1>
+{{template "results" (dict "Players" .Players "Limit" .Limit "Empty" "В этом клане пока нет карточек.")}}
+{{end}}

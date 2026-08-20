@@ -160,6 +160,19 @@ a.button.ghost { background: none; border: 1px solid var(--border); color: var(-
 .nick { font-weight: 600; }
 .nick-big { font-size: 22px; }
 .clan { color: var(--muted); font-size: 13px; }
+/* Статус клана: помеченные альянсы должны читаться боковым зрением, в списке
+   из полусотни строк. */
+a.clan:hover { color: var(--accent); }
+.clan.clan-ally { color: #7fd3a1; }
+.clan.clan-enemy { color: #e88b81; }
+.badge.clan-ally { border-color: rgba(63, 166, 106, .5); color: #7fd3a1; }
+.badge.clan-enemy { border-color: rgba(217, 72, 59, .5); color: #e88b81; }
+.badge.clan-neutral { color: var(--muted); }
+
+.filters { display: flex; gap: 10px; align-items: flex-start; }
+.filters input[type=search] { flex: 1; }
+.filters select { width: 210px; margin-top: 0; }
+h1.section { font-size: 18px; margin: 0 0 12px; }
 /* Игровой ID постоянен, поэтому печатаем его моноширинным — так его удобнее
    сверять с игрой и копировать. */
 .game-id {

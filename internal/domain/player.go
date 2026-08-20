@@ -22,20 +22,17 @@ func (t Trait) IsNegative() bool { return t.Weight < 0 }
 func (t Trait) IsPositive() bool { return t.Weight > 0 }
 func (t Trait) IsNeutral() bool  { return t.Weight == 0 }
 
-type Clan struct {
-	ID   int64
-	Name string
-}
-
 type Player struct {
-	ID        int64
-	GameID    string // ID в игре; постоянен, в отличие от ника. Пусто — не указан
-	Nickname  string
-	ClanID    *int64
-	ClanName  string
-	CreatedBy *int64
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID       int64
+	GameID   string // ID в игре; постоянен, в отличие от ника. Пусто — не указан
+	Nickname string
+	ClanID   *int64
+	ClanName string
+	// ClanStatus пуст, если игрок без клана.
+	ClanStatus ClanStatus
+	CreatedBy  *int64
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 
 	Traits []Trait // отмеченные признаки, отсортированы как в справочнике
 	Score  Score

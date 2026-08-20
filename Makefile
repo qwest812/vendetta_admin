@@ -1,4 +1,4 @@
-.PHONY: up down restart logs ps dev build test tidy clean
+.PHONY: up down restart logs ps dev build game test tidy clean
 
 # Поднять всё в docker: postgres и приложение.
 up:
@@ -25,6 +25,11 @@ dev:
 
 build:
 	go build -o bin/vendetta ./cmd/server
+
+# Состав игры: какая страна за кем. make game GAME=10868223
+game:
+	@test -n "$(GAME)" || { echo "нужен gameID: make game GAME=10868223"; exit 1; }
+	@set -a; . ./.env; set +a; go run ./cmd/gameinfo $(GAME)
 
 test:
 	go test ./...

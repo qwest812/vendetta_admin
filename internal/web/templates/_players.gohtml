@@ -1,0 +1,41 @@
+{{/* Список найденных игроков. Общий для поиска и карточки клана, поэтому
+     пустой случай подписывается через .Empty. */}}
+{{define "results"}}
+{{if .Players}}
+    <div class="players">
+        {{range .Players}}
+            <a class="player-row" href="/players/{{.ID}}">
+                <div class="player-main">
+                    <span class="nick">{{.Nickname}}</span>
+                    {{if .ClanName}}<span class="clan clan-{{.ClanStatus}}">[{{.ClanName}}]</span>{{end}}
+                    {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
+                </div>
+                <div class="player-traits">
+                    {{range .Traits}}
+                        <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
+                    {{end}}
+                </div>
+                <div class="player-score">
+                    <span class="risk-pill risk-{{.Score.RiskClass}}">Риск {{.Score.Risk}}%</span>
+                    <span class="loyalty-pill">Лояльность {{.Score.Loyalty}}%</span>
+                </div>
+            </a>
+        {{end}}
+    </div>
+    {{if ge (len .Players) .Limit}}
+        <p class="muted center">Показаны первые {{.Limit}} — уточните запрос.</p>
+    {{end}}
+{{else}}
+    <div class="card empty">
+        {{if .Empty}}
+            {{.Empty}}
+        {{else if .Query}}
+            По запросу «{{.Query}}» никого не нашли.
+        {{else if .Status}}
+            С таким статусом клана никого нет.
+        {{else}}
+            В базе пока нет игроков.
+        {{end}}
+    </div>
+{{end}}
+{{end}}

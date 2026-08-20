@@ -1,0 +1,102 @@
+{{define "title"}}Кланы — Vendetta{{end}}
+
+{{define "content"}}
+<div class="card">
+    <h1>Кланы</h1>
+    <p class="muted">
+        Статус — это отношение к альянсу целиком: помеченный клан красит все свои
+        карточки в поиске, а фильтр на главной показывает только своих или только
+        чужих. На шкалы риска и лояльности статус не влияет — они про репутацию
+        человека, а не про политику его альянса.
+    </p>
+</div>
+
+{{if .CurrentUser.IsAdmin}}
+    <div class="card">
+        <h1>Новый клан</h1>
+        {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+        <form class="row-form" method="post" action="/clans">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <label>
+                Название
+                <input name="name" maxlength="64" required autocomplete="off">
+            </label>
+            <label class="narrow">
+                Статус
+                <select name="status">
+                    {{range .Statuses}}<option value="{{.}}" {{if eq . "neutral"}}selected{{end}}>{{.Title}}</option>{{end}}
+                </select>
+            </label>
+            <button type="submit">Добавить</button>
+        </form>
+        <p class="muted">
+            Обычно клан заводить не нужно — он появляется сам, когда его вписывают
+            в карточку игрока. Вручную удобно пометить альянс заранее.
+        </p>
+    </div>
+{{end}}
+
+<div class="card">
+    <h1>Справочник</h1>
+    {{$admin := .CurrentUser.IsAdmin}}
+    {{$csrf := .CSRFToken}}
+    {{$statuses := .Statuses}}
+    <table>
+        <thead>
+        <tr>
+            <th>Клан</th>
+            <th class="narrow">Статус</th>
+            <th class="narrow">Игроков</th>
+            <th class="actions">Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Clans}}
+            {{/* Формы вынесены за таблицу: <form> нельзя размещать внутри <tr>,
+                 поэтому поля связаны с ней атрибутом form. */}}
+            <tr>
+                <td>
+                    <a href="/clans/{{.ID}}">{{.Name}}</a>
+                    {{if $admin}}<input form="clan-{{.ID}}" name="name" value="{{.Name}}" maxlength="64" required>{{end}}
+                </td>
+                <td class="narrow">
+                    {{if $admin}}
+                        <select form="clan-{{.ID}}" name="status">
+                            {{$cur := .Status}}
+                            {{range $statuses}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.Title}}</option>{{end}}
+                        </select>
+                    {{else}}
+                        <span class="badge clan-{{.Status}}">{{.Status.Title}}</span>
+                    {{end}}
+                </td>
+                <td class="narrow muted">{{.Players}}</td>
+                <td class="actions">
+                    {{if $admin}}
+                        <button form="clan-{{.ID}}" type="submit">Сохранить</button>
+                        <button form="clan-del-{{.ID}}" class="danger" type="submit">Удалить</button>
+                    {{end}}
+                </td>
+            </tr>
+        {{else}}
+            <tr><td colspan="4" class="muted">Кланов пока нет.</td></tr>
+        {{end}}
+        </tbody>
+    </table>
+
+    {{if $admin}}
+        {{range .Clans}}
+            <form id="clan-{{.ID}}" method="post" action="/clans/{{.ID}}" hidden>
+                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                <input type="hidden" name="back" value="/clans">
+            </form>
+            <form id="clan-del-{{.ID}}" method="post" action="/clans/{{.ID}}/delete" hidden
+                  onsubmit="return confirm('Удалить клан «{{.Name}}»? Карточки {{.Players}} игроков останутся, но клан у них пропадёт.')">
+                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+            </form>
+        {{end}}
+        <p class="muted">
+            Удаление убирает клан из карточек игроков, сами карточки и заметки остаются.
+        </p>
+    {{end}}
+</div>
+{{end}}

@@ -50,6 +50,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	sessions := repo.NewSessions(pool)
 	audit := repo.NewAudit(pool)
 	players := repo.NewPlayers(pool)
+	clans := repo.NewClans(pool)
 	traits := repo.NewTraits(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
@@ -59,7 +60,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	authSvc := auth.NewService(users, sessions, cfg.SessionTTL, cfg.CookieSecure)
 	srv, err := web.NewServer(web.Deps{
 		Log: log, Auth: authSvc, Users: users, Sessions: sessions,
-		Audit: audit, Players: players, Traits: traits,
+		Audit: audit, Players: players, Clans: clans, Traits: traits,
 		Health: pool.Ping,
 	})
 	if err != nil {

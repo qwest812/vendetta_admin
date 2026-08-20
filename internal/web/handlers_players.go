@@ -13,8 +13,8 @@ const searchLimit = 50
 
 // home — стартовый экран поиска.
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	players, err := s.findPlayers(r, query)
+	query, status := searchParams(r)
+	players, err := s.findPlayers(r, query, status)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -25,25 +25,37 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, r, http.StatusOK, "home", map[string]any{
-		"Query": query, "Players": players, "Total": total, "Limit": searchLimit,
+		"Query": query, "Status": string(status), "Players": players,
+		"Total": total, "Limit": searchLimit,
 	})
 }
 
 // search отвечает на живой ввод: HTMX подменяет только список результатов.
 func (s *Server) search(w http.ResponseWriter, r *http.Request) {
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	players, err := s.findPlayers(r, query)
+	query, status := searchParams(r)
+	players, err := s.findPlayers(r, query, status)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	s.renderPartial(w, r, "home", "results", map[string]any{
-		"Query": query, "Players": players, "Limit": searchLimit,
+		"Query": query, "Status": string(status), "Players": players, "Limit": searchLimit,
 	})
 }
 
-func (s *Server) findPlayers(r *http.Request, query string) ([]*domain.Player, error) {
-	players, err := s.players.Search(r.Context(), query, searchLimit)
+// searchParams разбирает строку запроса. Незнакомый статус — это не ошибка,
+// а «фильтр не выбран»: поиск не то место, где показывают 400.
+func searchParams(r *http.Request) (string, domain.ClanStatus) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	status, ok := domain.ParseClanStatus(r.URL.Query().Get("status"))
+	if !ok {
+		return query, ""
+	}
+	return query, status
+}
+
+func (s *Server) findPlayers(r *http.Request, query string, status domain.ClanStatus) ([]*domain.Player, error) {
+	players, err := s.players.Search(r.Context(), query, status, searchLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +117,7 @@ func (s *Server) renderPlayerForm(w http.ResponseWriter, r *http.Request, status
 		s.serverError(w, r, err)
 		return
 	}
-	clans, err := s.players.Clans(r.Context())
+	clans, err := s.clans.List(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
 		return
