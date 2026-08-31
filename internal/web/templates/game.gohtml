@@ -1,0 +1,96 @@
+{{define "title"}}Партия — Vendetta{{end}}
+
+{{define "content"}}
+<div class="card">
+    <div class="card-head">
+        <h1>
+            {{if .Game}}{{.Game.Title}}{{else}}Партия {{.GameID}}{{end}}
+            <span class="game-id">ID {{.GameID}}</span>
+        </h1>
+        <div class="head-actions">
+            <a class="button ghost" href="/games">Все партии</a>
+        </div>
+    </div>
+
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    {{if .Game}}
+        <p class="muted">
+            Состояние: {{.Game.State}}{{if .Game.Day}}, день {{.Game.Day}}{{end}},
+            игроков {{.Game.Players}}{{if .Game.PlayerID}}, мы игрок №{{.Game.PlayerID}}{{end}}.
+        </p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h1>Что делаем сами</h1>
+    {{$t := .Task}}
+    <div class="row-form">
+        <form method="post" action="/games/{{.GameID}}/hero">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
+            <input type="hidden" name="on" value="{{if and $t $t.HeroDeploy}}0{{else}}1{{end}}">
+            <button type="submit">
+                {{if and $t $t.HeroDeploy}}Выключить призыв пехоты{{else}}Включить призыв пехоты{{end}}
+            </button>
+        </form>
+        {{/* Ручной призыв стоит рядом с переключателем: проверять кнопку,
+             дожидаясь тика воркера, невозможно. */}}
+        <form method="post" action="/games/{{.GameID}}/hero/run">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button type="submit">Призвать сейчас</button>
+        </form>
+        <p class="muted">
+            {{if and $t $t.HeroDeploy}}
+                Включено: воркер заходит в партию каждые {{every .Interval}} и жмёт у Мейв
+                «призвать пехоту».
+            {{else}}
+                Выключено. Если включить, воркер будет заходить в партию каждые
+                {{every .Interval}} и жать у Мейв «призвать пехоту».
+            {{end}}
+        </p>
+    </div>
+
+    {{if and $t (not $t.LastRunAt.IsZero)}}
+        <p class="muted">Последний заход: {{datetime $t.LastRunAt}} — {{$t.LastResult}}</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h1>Что у нас в партии</h1>
+        <div class="head-actions">
+            <a class="button" href="/games/{{.GameID}}?state=1">Заглянуть в партию</a>
+        </div>
+    </div>
+
+    {{if .State}}
+        <p class="muted">
+            День {{.State.Day}}, играем за {{.Me.Nation}} ({{.Me.Name}}), номер в партии {{.State.Me}}.
+            Провинций под контролем {{len .Mine}} из {{len .State.Provinces}} занятых на карте.
+        </p>
+        <table>
+            <thead>
+            <tr>
+                <th>Провинция</th>
+                <th>Мораль</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .Mine}}
+                <tr>
+                    <td>{{.Name}}{{if .Capital}} <span class="badge">столица</span>{{end}}</td>
+                    <td class="muted nowrap">{{printf "%.0f" .Morale}}%</td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    {{else}}
+        <p class="muted">
+            Состав партии берётся с игрового сервера, и такой заход игра
+            засчитывает как вход в партию — поэтому он делается только по
+            нажатию, а не при каждом открытии страницы.
+        </p>
+    {{end}}
+</div>
+{{end}}

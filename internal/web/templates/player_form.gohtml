@@ -11,9 +11,9 @@
 
         <div class="row-form">
             <label>
-                Игровой ID{{if .Player}} <span class="muted">(можно оставить пустым)</span>{{end}}
+                Игровой ID
                 <input name="game_id" value="{{if .Player}}{{.Player.GameID}}{{end}}"
-                       maxlength="32" {{if not .Player}}required autofocus{{end}} autocomplete="off">
+                       maxlength="32" required {{if not .Player}}autofocus{{end}} autocomplete="off">
             </label>
             <label>
                 Ник

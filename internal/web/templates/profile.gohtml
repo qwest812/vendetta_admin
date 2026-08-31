@@ -1,0 +1,42 @@
+{{define "title"}}Профиль — Vendetta{{end}}
+
+{{define "content"}}
+{{$p := .Profile}}
+<div class="card">
+    <div class="card-head">
+        <h1>Профиль</h1>
+        <div class="head-actions">
+            <span class="badge role-{{$p.Role}}">{{$p.Role.Title}}</span>
+        </div>
+    </div>
+
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    {{if .Notice}}<p class="muted">{{.Notice}}</p>{{end}}
+
+    <p class="muted">
+        Ник <b>{{$p.Nickname}}</b>{{if $p.Email}}, почта {{$p.Email}}{{end}}.
+        Их и пароль меняют в разделе «Доступы» — здесь только то, что вы
+        рассказываете о себе сами.
+    </p>
+
+    <form method="post" action="/profile">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <div class="row-form">
+            <label>
+                Имя
+                <input type="text" name="full_name" value="{{$p.FullName}}" maxlength="100" autocomplete="name">
+            </label>
+            <label>
+                Город
+                <input type="text" name="city" value="{{$p.City}}" maxlength="100" autocomplete="address-level2">
+            </label>
+            <label>
+                Игровой ID
+                <input type="text" name="game_id" value="{{$p.GameID}}" maxlength="32" autocomplete="off"
+                       placeholder="ваш ID в Supremacy">
+            </label>
+            <button type="submit">Сохранить</button>
+        </div>
+    </form>
+</div>
+{{end}}

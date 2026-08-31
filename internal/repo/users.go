@@ -16,13 +16,14 @@ type Users struct{ pool *pgxpool.Pool }
 
 func NewUsers(pool *pgxpool.Pool) *Users { return &Users{pool: pool} }
 
-const userColumns = `id, email, nickname, password_hash, role, is_active, created_by, created_at`
+const userColumns = `id, email, nickname, password_hash, role, is_active, created_by, created_at, full_name, city, game_id`
 
 func scanUser(row pgx.Row) (*domain.User, error) {
 	var u domain.User
 	// Почта необязательна и хранится как NULL, в домене — пустая строка.
 	var email *string
-	err := row.Scan(&u.ID, &email, &u.Nickname, &u.PasswordHash, &u.Role, &u.IsActive, &u.CreatedBy, &u.CreatedAt)
+	err := row.Scan(&u.ID, &email, &u.Nickname, &u.PasswordHash, &u.Role, &u.IsActive,
+		&u.CreatedBy, &u.CreatedAt, &u.FullName, &u.City, &u.GameID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}
@@ -66,6 +67,14 @@ func (r *Users) List(ctx context.Context) ([]*domain.User, error) {
 		users = append(users, u)
 	}
 	return users, rows.Err()
+}
+
+// UpdateProfile сохраняет то, что человек написал о себе сам. Роли, ника
+// и пароля это не касается — их меняют в «Доступах».
+func (r *Users) UpdateProfile(ctx context.Context, id int64, fullName, city, gameID string) error {
+	return r.exec(ctx,
+		`UPDATE users SET full_name = $2, city = $3, game_id = $4 WHERE id = $1`,
+		id, fullName, city, gameID)
 }
 
 // Create заводит пользователя. Пустая почта допустима — она уходит в NULL,

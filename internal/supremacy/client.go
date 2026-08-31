@@ -52,6 +52,9 @@ type Client struct {
 
 	mu   sync.Mutex
 	sess *session
+	// gsVer — версия клиента, которую сейчас требует игровой сервер.
+	// Пустая означает «ещё не уточняли», см. gsVersionDefault.
+	gsVer string
 }
 
 // session — то, что даёт странице право подписывать вызовы API.
@@ -142,6 +145,11 @@ type Game struct {
 	Ranked      string `json:"ranked"`
 	StartOfGame string `json:"startofgame2"`
 	MinRank     string `json:"minRank"`
+
+	// Приходят только в списке своих игр: наш номер в партии и когда мы
+	// в неё вошли. У игр из лобби они пустые.
+	PlayerID string `json:"playerID"`
+	JoinTime string `json:"joinTime"`
 }
 
 // PlayURL — ссылка, по которой в браузере открывается игра. Конкретную игру
@@ -154,6 +162,21 @@ func PlayURL(userID string) string {
 		u += "&uid=" + url.QueryEscape(userID)
 	}
 	return u
+}
+
+func (c *Client) gameVersion() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.gsVer == "" {
+		return gsVersionDefault
+	}
+	return c.gsVer
+}
+
+func (c *Client) setGameVersion(v string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.gsVer = v
 }
 
 // UserID — аккаунт, под которым клиент ходит в игру. До первого удачного
@@ -206,6 +229,50 @@ func (c *Client) OpenGames(ctx context.Context) ([]Game, error) {
 			return out, nil
 		}
 	}
+}
+
+// MyGames возвращает игры аккаунта, которые идут сейчас, — то же, что
+// показывает вкладка «Обзор» на /game.php. Завершённые сюда не попадают:
+// они лежат в архиве, а это отдельный вызов с mygamesMode=archived.
+func (c *Client) MyGames(ctx context.Context) ([]Game, error) {
+	// userID нужен уже в параметрах, поэтому сессию получаем заранее.
+	// Если её перебьёт перезаход внутри call, ничего не сломается: аккаунт
+	// тот же, а значит и userID тот же.
+	sess, err := c.ensureSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	raw, err := c.call(ctx, "getGames", myGamesParams(sess.userID))
+	if err != nil {
+		return nil, err
+	}
+	return parseMyGames(raw)
+}
+
+// myGamesParams вынесены отдельно, чтобы порядок параметров можно было
+// сверить с подписанным вектором из HAR, не выходя в сеть.
+func myGamesParams(userID string) []param {
+	return []param{
+		{"userID", userID},
+		{"loadUserLoginData", "1"},
+	}
+}
+
+// parseMyGames разбирает ответ на список своих игр. В отличие от лобби
+// result здесь — сразу массив игр, без обёртки с numGames.
+func parseMyGames(raw json.RawMessage) ([]Game, error) {
+	var res []struct {
+		Properties Game `json:"properties"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil, fmt.Errorf("разбор списка своих игр: %w", err)
+	}
+	out := make([]Game, 0, len(res))
+	for _, g := range res {
+		out = append(out, g.Properties)
+	}
+	return out, nil
 }
 
 type param struct{ key, value string }

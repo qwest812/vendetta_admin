@@ -1,0 +1,58 @@
+{{define "title"}}Игры — Vendetta{{end}}
+
+{{define "content"}}
+<div class="card">
+    <div class="card-head">
+        <h1>Активные игры</h1>
+        <div class="head-actions">
+            {{if .PlayURL}}<a class="button" href="{{.PlayURL}}" target="_blank" rel="noopener">Открыть игру</a>{{end}}
+            <a class="button ghost" href="/games">Обновить</a>
+        </div>
+    </div>
+    <p class="muted">
+        Партии аккаунта, под которым админка ходит в Supremacy 1914, — то же,
+        что показывает вкладка «Обзор» в игре. Список берётся из игры в момент
+        открытия страницы и нигде не хранится; завершённые партии сюда
+        не попадают.
+    </p>
+
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    <table>
+        <thead>
+        <tr>
+            <th>Игра</th>
+            <th>Состояние</th>
+            <th>День</th>
+            <th>Игроков</th>
+            <th>Начало</th>
+            <th>Вошли</th>
+            <th>Язык</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Games}}
+            <tr>
+                <td>
+                    <a class="nick" href="/games/{{.ID}}">{{.Title}}</a>
+                    <span class="game-id">ID {{.ID}}</span>
+                    {{if .PlayerID}}<span class="muted">игрок №{{.PlayerID}}</span>{{end}}
+                </td>
+                <td class="nowrap">{{.State}}</td>
+                <td>{{.Day}}</td>
+                <td>{{.Players}}</td>
+                <td class="muted nowrap">{{if .Started.IsZero}}—{{else}}{{datetime .Started}}{{end}}</td>
+                <td class="muted nowrap">{{if .Joined.IsZero}}—{{else}}{{datetime .Joined}}{{end}}</td>
+                <td class="muted">{{.Language}}</td>
+            </tr>
+        {{else}}
+            <tr>
+                <td colspan="7" class="muted">
+                    {{if .Error}}Список не получен.{{else}}Сейчас аккаунт не играет ни в одной партии.{{end}}
+                </td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

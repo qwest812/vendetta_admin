@@ -76,3 +76,28 @@ func TestUserDisplay(t *testing.T) {
 		t.Errorf("Display = %q, ожидалось ник", got)
 	}
 }
+
+// Профиль человек заполняет сам, поэтому проверки мягкие: пустое — норма,
+// а вот пробел в игровом ID сломал бы поиск по нему.
+func TestValidateProfile(t *testing.T) {
+	tests := []struct {
+		name              string
+		full, city, gameI string
+		wantErr           bool
+	}{
+		{"пустой профиль", "", "", "", false},
+		{"обычный", "Ярослав", "Киев", "101408369", false},
+		{"длинное имя", strings.Repeat("я", 101), "", "", true},
+		{"длинный город", "", strings.Repeat("к", 101), "", true},
+		{"длинный ID", "", "", strings.Repeat("1", 33), true},
+		{"пробел в ID", "", "", "101 408", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateProfile(tt.full, tt.city, tt.gameI)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateProfile(%q, %q, %q) = %v", tt.full, tt.city, tt.gameI, err)
+			}
+		})
+	}
+}

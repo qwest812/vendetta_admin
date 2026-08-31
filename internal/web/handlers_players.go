@@ -211,9 +211,10 @@ func (s *Server) playerUpdate(w http.ResponseWriter, r *http.Request) {
 			&domain.Player{ID: player.ID, GameID: gameID, Nickname: nickname, ClanName: clan},
 			idSet(traitIDs), msg)
 	}
-	// При правке ID можно оставить пустым: у карточек, заведённых до его
-	// появления, его просто не знают.
-	if err := validateGameID(gameID, false); err != nil {
+	// ID обязателен и при правке: иначе карточки, заведённые до его
+	// появления, так и остались бы без него. Правка — тот самый момент,
+	// когда его удобно дописать.
+	if err := validateGameID(gameID, true); err != nil {
 		fail(err.Error())
 		return
 	}

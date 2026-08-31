@@ -19,6 +19,13 @@ var staticFS embed.FS
 
 var funcs = template.FuncMap{
 	"datetime": func(t time.Time) string { return t.Local().Format("02.01.2006 15:04") },
+	// Интервал воркера в интерфейсе читается словами: «45 мин» вместо «45m0s».
+	"every": func(d time.Duration) string {
+		if h := int(d.Hours()); h > 0 && d%time.Hour == 0 {
+			return fmt.Sprintf("%d ч", h)
+		}
+		return fmt.Sprintf("%d мин", int(d.Minutes()))
+	},
 	"dict": func(values ...any) (map[string]any, error) {
 		if len(values)%2 != 0 {
 			return nil, fmt.Errorf("dict: нечётное число аргументов")

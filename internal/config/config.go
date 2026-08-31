@@ -30,6 +30,10 @@ type Config struct {
 	S1914Lang      string
 	S1914Titles    []string
 	S1914PollEvery time.Duration
+	// S1914HeroEvery — как часто воркер жмёт кнопку Мейв в партиях, где это
+	// включено. Заход в партию игра засчитывает как вход, поэтому реже,
+	// чем опрос лобби.
+	S1914HeroEvery time.Duration
 
 	// Куда воркер пишет о найденных играх. Без токена и чата сообщения
 	// остаются в логе приложения. Тема нужна только для групп-форумов.
@@ -75,6 +79,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("S1914_POLL_INTERVAL: не чаще раза в 30 секунд")
 	}
 	cfg.S1914PollEvery = poll
+
+	hero, err := time.ParseDuration(env("S1914_HERO_INTERVAL", "45m"))
+	if err != nil {
+		return nil, fmt.Errorf("S1914_HERO_INTERVAL: %w", err)
+	}
+	// Заход в партию игра засчитывает как вход, и частить с ним нельзя:
+	// это и лишняя нагрузка, и повод попасть под её античит.
+	if hero < 5*time.Minute {
+		return nil, fmt.Errorf("S1914_HERO_INTERVAL: не чаще раза в 5 минут")
+	}
+	cfg.S1914HeroEvery = hero
 
 	for _, t := range strings.Split(env("S1914_WATCH_TITLES", ""), ",") {
 		if t = strings.TrimSpace(t); t != "" {

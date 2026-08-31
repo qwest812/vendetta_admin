@@ -20,10 +20,13 @@
                 <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>Доступы</a>
                 <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>Журнал</a>
             {{end}}
+            {{if .CurrentUser.IsRoot}}
+                <a href="/games" {{if eq .Path "/games"}}class="active"{{end}}>Игры</a>
+            {{end}}
             <a href="/faq" {{if eq .Path "/faq"}}class="active"{{end}}>Справка</a>
         </nav>
         <div class="me">
-            <span class="email">{{.CurrentUser.Display}}</span>
+            <a class="email" href="/profile">{{.CurrentUser.Display}}</a>
             <span class="badge role-{{.CurrentUser.Role}}">{{.CurrentUser.Role.Title}}</span>
             <form method="post" action="/logout">
                 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">

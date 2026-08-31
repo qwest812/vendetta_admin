@@ -22,8 +22,13 @@ type Server struct {
 	clans    *repo.Clans
 	traits   *repo.Traits
 	enemies  *repo.Enemies
-	health   func(context.Context) error
-	pages    pages
+	games    gameSource
+	tasks    *repo.GameTasks
+	// heroEvery — как часто воркер жмёт кнопку Мейв; показывается на
+	// странице партии, чтобы обещание в интерфейсе не расходилось с делом.
+	heroEvery time.Duration
+	health    func(context.Context) error
+	pages     pages
 }
 
 type Deps struct {
@@ -36,6 +41,12 @@ type Deps struct {
 	Clans    *repo.Clans
 	Traits   *repo.Traits
 	Enemies  *repo.Enemies
+	// Games — аккаунт Supremacy 1914 для рутового раздела «Игры».
+	// Пусто, если аккаунт не настроен: раздел тогда скажет об этом сам.
+	Games gameSource
+	// Tasks — что админка делает в партиях сама, и HeroEvery — как часто.
+	Tasks     *repo.GameTasks
+	HeroEvery time.Duration
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
 }
@@ -48,7 +59,8 @@ func NewServer(d Deps) (*Server, error) {
 	return &Server{
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
-		enemies: d.Enemies, health: d.Health, pages: tmpls,
+		enemies: d.Enemies, games: d.Games, tasks: d.Tasks, heroEvery: d.HeroEvery,
+		health: d.Health, pages: tmpls,
 	}, nil
 }
 
@@ -77,6 +89,12 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /clans", user(http.HandlerFunc(s.clansList)))
 	mux.Handle("GET /clans/{id}", user(http.HandlerFunc(s.clanCard)))
 	mux.Handle("GET /faq", user(http.HandlerFunc(s.faq)))
+
+	// Свой профиль ведёт каждый сам: имя, город и игровой ник — это справка
+	// для своих. Чужой профиль отсюда не правится, пользователь берётся
+	// из сессии.
+	mux.Handle("GET /profile", user(http.HandlerFunc(s.profileForm)))
+	mux.Handle("POST /profile", user(auth.VerifyCSRF(http.HandlerFunc(s.profileSave))))
 
 	// Личный список врагов ведёт каждый сам: и обычный пользователь тоже,
 	// поэтому права те же, что у заметок. Чужой список не показывается и не
@@ -118,8 +136,14 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /traits/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
 	mux.Handle("POST /traits/{id}/delete", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
 
-	// Удаление пользователей и карточек — только рут.
+	// Только рут: удаление пользователей и карточек, а с ними и раздел
+	// «Игры» — он про общий игровой аккаунт проекта, а не про чью-то работу
+	// с базой.
 	root := auth.RequireRole(domain.RoleRoot)
+	mux.Handle("GET /games", root(http.HandlerFunc(s.gamesList)))
+	mux.Handle("GET /games/{id}", root(http.HandlerFunc(s.gameCard)))
+	mux.Handle("POST /games/{id}/hero", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroToggle))))
+	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
 	mux.Handle("POST /users/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.usersDelete))))
 	mux.Handle("POST /players/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.playerDelete))))
 

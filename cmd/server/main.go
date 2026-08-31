@@ -53,25 +53,41 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	clans := repo.NewClans(pool)
 	traits := repo.NewTraits(pool)
 	enemies := repo.NewEnemies(pool)
+	tasks := repo.NewGameTasks(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
 	}
 
+	// Клиент игры нужен и воркеру лобби, и рутовому разделу «Игры»,
+	// поэтому он один на приложение. Без S1914_USER остаётся пустым —
+	// раздел это переживает и сам объясняет, чего не хватает.
+	var s1914 *supremacy.Client
+	if cfg.S1914User != "" {
+		s1914 = supremacy.NewClient(cfg.S1914User, cfg.S1914Password, cfg.S1914Lang, log)
+	}
+
 	authSvc := auth.NewService(users, sessions, cfg.SessionTTL, cfg.CookieSecure)
-	srv, err := web.NewServer(web.Deps{
+	deps := web.Deps{
 		Log: log, Auth: authSvc, Users: users, Sessions: sessions,
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
-		Enemies: enemies, Health: pool.Ping,
-	})
+		Enemies: enemies, Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
+		Health: pool.Ping,
+	}
+	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
+	// на проверку `== nil` не отвечает, и раздел счёл бы аккаунт настроенным.
+	if s1914 != nil {
+		deps.Games = s1914
+	}
+
+	srv, err := web.NewServer(deps)
 	if err != nil {
 		return err
 	}
 
 	go cleanupSessions(ctx, log, sessions)
 
-	if cfg.S1914User != "" {
-		client := supremacy.NewClient(cfg.S1914User, cfg.S1914Password, cfg.S1914Lang, log)
+	if s1914 != nil {
 		seen := repo.NewSupremacyGames(pool)
 
 		// Нулевой notifier воркер понимает как «пиши в лог» — именно это и
@@ -79,15 +95,19 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		var notifier supremacy.Notifier
 		if cfg.TelegramToken != "" {
 			notifier = supremacy.NewTelegramNotifier(
-				cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramTopicID, client.UserID)
+				cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramTopicID, s1914.UserID)
 			log.Info("о найденных играх пишем в телеграм",
 				"chatID", cfg.TelegramChatID, "topicID", cfg.TelegramTopicID)
 		} else {
 			log.Warn("телеграм не настроен, о найденных играх будет только запись в логе")
 		}
 
-		watcher := supremacy.NewWatcher(client, cfg.S1914Titles, cfg.S1914PollEvery, log, notifier, seen)
+		watcher := supremacy.NewWatcher(s1914, cfg.S1914Titles, cfg.S1914PollEvery, log, notifier, seen)
 		go watcher.Run(ctx)
+
+		// Автопилот ходит только в те партии, где кнопку включили руками,
+		// поэтому запускается всегда: без включённых партий он молчит.
+		go supremacy.NewAutopilot(s1914, tasks, cfg.S1914HeroEvery, log).Run(ctx)
 	}
 
 	httpSrv := &http.Server{

@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -35,9 +36,14 @@ func (r Role) Title() string {
 }
 
 type User struct {
-	ID           int64
-	Email        string // необязателен: пустая строка — почта не задана
-	Nickname     string
+	ID       int64
+	Email    string // необязателен: пустая строка — почта не задана
+	Nickname string
+	// Профиль: кто это и под каким ником он играет. Всё необязательное —
+	// доступ выдают раньше, чем человек дойдёт до своей страницы.
+	FullName     string
+	City         string
+	GameID       string
 	PasswordHash string
 	Role         Role
 	IsActive     bool
@@ -70,6 +76,24 @@ func ValidateNickname(nick string) error {
 	}
 	if !nicknameRe.MatchString(nick) {
 		return errors.New("ник: 3–32 символа, буквы, цифры, точка, дефис и подчёркивание; начинается с буквы или цифры")
+	}
+	return nil
+}
+
+// ValidateProfile проверяет то, что человек пишет о себе сам. Ограничения
+// мягкие: это справка для своих, а не документ.
+func ValidateProfile(fullName, city, gameID string) error {
+	if len([]rune(fullName)) > 100 {
+		return errors.New("имя длиннее 100 символов")
+	}
+	if len([]rune(city)) > 100 {
+		return errors.New("город длиннее 100 символов")
+	}
+	if len([]rune(gameID)) > 32 {
+		return errors.New("игровой ID длиннее 32 символов")
+	}
+	if strings.ContainsAny(gameID, " \t\n") {
+		return errors.New("игровой ID не должен содержать пробелов")
 	}
 	return nil
 }

@@ -25,6 +25,10 @@ type gameLister interface {
 // так что запись к этому моменту заведомо мёртвая.
 const seenRetention = 7 * 24 * time.Hour
 
+// skipTitles — что пропускаем всегда, каким бы ни был фильтр. Сравнение
+// идёт по подстроке в нижнем регистре.
+var skipTitles = []string{"tutorial"}
+
 const (
 	// heartbeatEvery — как часто подводить итог в Info. Печатать каждый опрос
 	// — это строка в минуту ни о чём, а молчать совсем нельзя: по логу тогда
@@ -254,11 +258,21 @@ func (w *Watcher) poll(ctx context.Context) error {
 }
 
 func (w *Watcher) matches(title string) bool {
-	// Фильтр не задан — берём всё, что висит в лобби.
+	lower := strings.ToLower(title)
+
+	// Обучающие партии («[Tutorial] - The Great War») висят в лобби всегда
+	// и под любой фильтр по названию карты попадают заодно с настоящими.
+	// Отсекаем их до фильтра: сообщать о них не о чем.
+	for _, skip := range skipTitles {
+		if strings.Contains(lower, skip) {
+			return false
+		}
+	}
+
+	// Фильтр не задан — берём всё остальное, что висит в лобби.
 	if len(w.titles) == 0 {
 		return true
 	}
-	lower := strings.ToLower(title)
 	for _, t := range w.titles {
 		if strings.Contains(lower, t) {
 			return true

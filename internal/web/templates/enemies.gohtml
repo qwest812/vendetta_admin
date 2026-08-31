@@ -18,7 +18,7 @@
     {{/* Поиск вынесен из формы намеренно: иначе Enter в нём отправлял бы
          форму первой кнопкой «Добавить» — то есть первым найденным. */}}
     <div class="filters">
-        <input type="search" name="q" value="{{.Query}}" placeholder="Игровой ID или ник (можно часть)"
+        <input type="search" name="q" value="{{.Query}}" placeholder="Найти по игровому ID или нику"
                autocomplete="off"
                hx-get="/enemies/search" hx-trigger="input changed delay:250ms, search"
                hx-target="#candidates" hx-swap="innerHTML"
@@ -46,7 +46,8 @@
                 <div class="note-head">
                     <a class="nick" href="/players/{{$p.ID}}">{{$p.Nickname}}</a>
                     {{if $p.ClanName}}<span class="clan clan-{{$p.ClanStatus}}">[{{$p.ClanName}}]</span>{{end}}
-                    {{if $p.GameID}}<span class="game-id">ID {{$p.GameID}}</span>{{end}}
+                    {{if $p.GameID}}<span class="game-id">ID {{$p.GameID}}</span>
+                    {{else}}<span class="muted">без ID</span>{{end}}
                     <span class="muted">{{datetime .CreatedAt}}</span>
                     <form method="post" action="/enemies/{{$p.ID}}/delete"
                           onsubmit="return confirm('Убрать {{$p.Nickname}} из списка врагов?')">
@@ -80,7 +81,11 @@
                 <div class="player-main">
                     <span class="nick">{{.Nickname}}</span>
                     {{if .ClanName}}<span class="clan clan-{{.ClanStatus}}">[{{.ClanName}}]</span>{{end}}
-                    {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
+                    {{/* Игровой ID — тот, что вписали в карточку руками. У старых
+                         карточек его нет, и молчать об этом хуже, чем сказать:
+                         иначе кажется, что поле просто не выводится. */}}
+                    {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>
+                    {{else}}<span class="muted">без ID</span>{{end}}
                 </div>
                 <div class="row-actions">
                     {{if index $marked .ID}}
@@ -93,7 +98,10 @@
         {{end}}
     </div>
     {{if ge (len .Candidates) .Limit}}
-        <p class="muted center">Показаны первые {{.Limit}} — уточните запрос.</p>
+        <p class="muted center">
+            {{if .Query}}Показаны первые {{.Limit}} — уточните запрос.
+            {{else}}Показаны последние {{.Limit}} карточек — остальных найдите поиском.{{end}}
+        </p>
     {{end}}
 {{else if .Query}}
     <p class="muted">
@@ -101,6 +109,6 @@
         у кого есть карточка в базе, — новую заводит админ на главной.
     </p>
 {{else}}
-    <p class="muted">Начните вводить игровой ID или ник — найденные карточки появятся здесь.</p>
+    <p class="muted">В базе пока нет карточек — их заводит админ на главной.</p>
 {{end}}
 {{end}}

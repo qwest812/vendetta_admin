@@ -25,30 +25,41 @@ func (s *Server) renderEnemies(w http.ResponseWriter, r *http.Request, status in
 		s.serverError(w, r, err)
 		return
 	}
+
+	// Пустой запрос показывает последние карточки: врага чаще выбирают
+	// из списка, чем набирают ник по памяти. Поиск сужает этот же список.
+	candidates, err := s.players.Search(r.Context(), "", "", enemyCandidates)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	marked, err := s.markedEnemies(r, candidates)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
 	s.render(w, r, status, "enemies", map[string]any{
 		"Enemies": list, "Error": errMsg,
-		// Пустой подбор: поле поиска ещё не трогали. Подбор живёт в HTMX и
-		// формой не отправляется, а вот комментарий возвращаем в поле —
-		// иначе после отказа его пришлось бы набирать заново.
-		"Candidates": nil, "Marked": map[int64]bool{},
+		// Подбор живёт в HTMX и формой не отправляется, а вот комментарий
+		// возвращаем в поле — иначе после отказа его пришлось бы набирать
+		// заново.
+		"Candidates": candidates, "Marked": marked,
 		"Query": "", "Limit": enemyCandidates,
 		"Comment": r.PostFormValue("comment"),
 	})
 }
 
-// enemiesSearch отвечает на живой ввод в форме добавления. Пустой запрос
-// ничего не показывает: это подбор одного человека, а не витрина базы.
+// enemiesSearch отвечает на живой ввод в форме добавления. Пустой запрос —
+// это не «ничего», а список последних карточек: стёртая строка поиска
+// возвращает подбор в исходный вид, а не оставляет пустое место.
 func (s *Server) enemiesSearch(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 
-	var players []*domain.Player
-	if query != "" {
-		found, err := s.players.Search(r.Context(), query, "", enemyCandidates)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		players = found
+	players, err := s.players.Search(r.Context(), query, "", enemyCandidates)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
 	}
 
 	marked, err := s.markedEnemies(r, players)

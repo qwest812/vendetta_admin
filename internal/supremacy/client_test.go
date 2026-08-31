@@ -89,6 +89,72 @@ func TestOpenGamesParamsMatchSignature(t *testing.T) {
 	}
 }
 
+// Свои игры подписываются тем же вектором, что снят с живого клиента,
+// поэтому порядок параметров проверяем прямо по коду.
+func TestMyGamesParamsMatchSignature(t *testing.T) {
+	params := append(myGamesParams("101408369"),
+		param{"authTstamp", "1786039670"},
+		param{"authUserID", "101408369"},
+		param{"source", trackingSource},
+	)
+
+	var b strings.Builder
+	for i, p := range params {
+		if i > 0 {
+			b.WriteByte('&')
+		}
+		b.WriteString(p.key)
+		b.WriteByte('=')
+		b.WriteString(p.value)
+	}
+
+	const want = "userID=101408369&loadUserLoginData=1&authTstamp=1786039670&authUserID=101408369&source=browser-desktop"
+	if got := b.String(); got != want {
+		t.Errorf("строка параметров:\n получили %s\n ожидалось %s", got, want)
+	}
+}
+
+// Ответ снят с живого аккаунта: в отличие от лобби result здесь массив,
+// а не объект с games, и на этом легко споткнуться.
+func TestParseMyGames(t *testing.T) {
+	const raw = `[{"@c":"hup.model.games.Game","properties":{` +
+		`"gameID":"10867066","startofgame2":"1785920128","nrofplayers":"31",` +
+		`"openSlots":"0","dayofgame":"6","language":"ru",` +
+		`"title":"[Speed] - The Great War","state":"running",` +
+		`"playerID":"32","joinTime":"1785920263","isSystemGame":true}}]`
+
+	games, err := parseMyGames([]byte(raw))
+	if err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+	if len(games) != 1 {
+		t.Fatalf("игр = %d, ожидалась 1", len(games))
+	}
+
+	g := games[0]
+	for _, tt := range []struct{ name, got, want string }{
+		{"gameID", g.GameID, "10867066"},
+		{"title", g.Title, "[Speed] - The Great War"},
+		{"state", g.State, "running"},
+		{"день", g.DayOfGame, "6"},
+		{"playerID", g.PlayerID, "32"},
+		{"вход", g.JoinTime, "1785920263"},
+	} {
+		if tt.got != tt.want {
+			t.Errorf("%s = %q, ожидалось %q", tt.name, tt.got, tt.want)
+		}
+	}
+}
+
+// Лобби отдаёт result объектом, и его формат сюда попасть не должен:
+// молча вернуть пустой список — худший исход, список игр выглядел бы
+// правдоподобно пустым.
+func TestParseMyGamesRejectsLobbyShape(t *testing.T) {
+	if _, err := parseMyGames([]byte(`{"numGames":1,"games":[]}`)); err == nil {
+		t.Error("ответ лобби должен считаться ошибкой разбора")
+	}
+}
+
 func TestEncodeURIComponent(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"browser-desktop", "browser-desktop"},
@@ -421,5 +487,27 @@ func TestWatcherWithoutTitlesMatchesEverything(t *testing.T) {
 				t.Errorf("titles=%v: %q должно совпасть", titles, title)
 			}
 		}
+	}
+}
+
+// Обучающие партии висят в лобби постоянно: о них не сообщаем ни при пустом
+// фильтре, ни когда фильтр по названию совпал с их картой.
+func TestWatcherSkipsTutorialGames(t *testing.T) {
+	const tutorial = "[Tutorial] - The Great War"
+
+	all := NewWatcher(nil, nil, time.Minute, quietLog(), nil, nil)
+	if all.matches(tutorial) {
+		t.Error("без фильтра обучающая партия всё равно не нужна")
+	}
+	if !all.matches("[Speed] - The Great War") {
+		t.Error("обычная партия должна проходить")
+	}
+
+	filtered := NewWatcher(nil, []string{"great war"}, time.Minute, quietLog(), nil, nil)
+	if filtered.matches(tutorial) {
+		t.Error("фильтр по названию не должен вытаскивать обучающую партию")
+	}
+	if !filtered.matches("The Great War") {
+		t.Error("настоящая партия под тем же фильтром должна проходить")
 	}
 }

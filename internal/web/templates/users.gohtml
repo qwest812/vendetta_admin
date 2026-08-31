@@ -37,6 +37,9 @@
         <thead>
         <tr>
             <th>Ник</th>
+            <th>Имя</th>
+            <th>Город</th>
+            <th>Игровой ID</th>
             <th>Почта</th>
             <th>Роль</th>
             <th>Статус</th>
@@ -51,6 +54,11 @@
         {{range .Users}}
             <tr class="{{if not .IsActive}}inactive{{end}}">
                 <td>{{.Nickname}}{{if eq .ID $me}} <span class="muted">(это вы)</span>{{end}}</td>
+                {{/* Профиль человек заполняет сам, поэтому пустые поля здесь
+                     обычное дело — прочерк, а не пустая ячейка. */}}
+                <td>{{if .FullName}}{{.FullName}}{{else}}<span class="muted">—</span>{{end}}</td>
+                <td>{{if .City}}{{.City}}{{else}}<span class="muted">—</span>{{end}}</td>
+                <td>{{if .GameID}}<span class="game-id">{{.GameID}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
                 <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
                 <td><span class="badge role-{{.Role}}">{{.Role.Title}}</span></td>
                 <td>{{if .IsActive}}активен{{else}}заблокирован{{end}}</td>
