@@ -21,6 +21,7 @@ type Server struct {
 	players  *repo.Players
 	clans    *repo.Clans
 	traits   *repo.Traits
+	enemies  *repo.Enemies
 	health   func(context.Context) error
 	pages    pages
 }
@@ -34,6 +35,7 @@ type Deps struct {
 	Players  *repo.Players
 	Clans    *repo.Clans
 	Traits   *repo.Traits
+	Enemies  *repo.Enemies
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
 }
@@ -46,7 +48,7 @@ func NewServer(d Deps) (*Server, error) {
 	return &Server{
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
-		health: d.Health, pages: tmpls,
+		enemies: d.Enemies, health: d.Health, pages: tmpls,
 	}, nil
 }
 
@@ -75,6 +77,16 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /clans", user(http.HandlerFunc(s.clansList)))
 	mux.Handle("GET /clans/{id}", user(http.HandlerFunc(s.clanCard)))
 	mux.Handle("GET /faq", user(http.HandlerFunc(s.faq)))
+
+	// Личный список врагов ведёт каждый сам: и обычный пользователь тоже,
+	// поэтому права те же, что у заметок. Чужой список не показывается и не
+	// правится — пользователь берётся из сессии, а не из адреса.
+	mux.Handle("GET /enemies", user(http.HandlerFunc(s.enemiesList)))
+	mux.Handle("GET /enemies/search", user(http.HandlerFunc(s.enemiesSearch)))
+	mux.Handle("POST /enemies", user(auth.VerifyCSRF(http.HandlerFunc(s.enemyAdd))))
+	mux.Handle("POST /enemies/{playerID}", user(auth.VerifyCSRF(http.HandlerFunc(s.enemyUpdate))))
+	mux.Handle("POST /enemies/{playerID}/mark", user(auth.VerifyCSRF(http.HandlerFunc(s.enemyMark))))
+	mux.Handle("POST /enemies/{playerID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(s.enemyRemove))))
 
 	// Заметки пишут все авторизованные: карточку наполняют те, кто работает
 	// с игроками, а не только админы. Удаление разрешает сам хендлер —

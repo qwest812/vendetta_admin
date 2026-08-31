@@ -52,6 +52,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	players := repo.NewPlayers(pool)
 	clans := repo.NewClans(pool)
 	traits := repo.NewTraits(pool)
+	enemies := repo.NewEnemies(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -61,7 +62,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	srv, err := web.NewServer(web.Deps{
 		Log: log, Auth: authSvc, Users: users, Sessions: sessions,
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
-		Health: pool.Ping,
+		Enemies: enemies, Health: pool.Ping,
 	})
 	if err != nil {
 		return err

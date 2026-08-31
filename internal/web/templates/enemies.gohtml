@@ -1,0 +1,106 @@
+{{define "title"}}Мои враги — Vendetta{{end}}
+
+{{define "content"}}
+<div class="card">
+    <h1>Мои враги</h1>
+    <p class="muted">
+        Список личный: его видите только вы, у каждого он свой. Это пометка
+        «за что» о конкретном человеке, а не позиция альянса — вражда с кланом
+        целиком помечается статусом в разделе «Кланы». На шкалы риска и
+        лояльности список не влияет.
+    </p>
+</div>
+
+<div class="card">
+    <h1>Добавить</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    {{/* Поиск вынесен из формы намеренно: иначе Enter в нём отправлял бы
+         форму первой кнопкой «Добавить» — то есть первым найденным. */}}
+    <div class="filters">
+        <input type="search" name="q" value="{{.Query}}" placeholder="Игровой ID или ник (можно часть)"
+               autocomplete="off"
+               hx-get="/enemies/search" hx-trigger="input changed delay:250ms, search"
+               hx-target="#candidates" hx-swap="innerHTML"
+               hx-indicator="#searching">
+        <span id="searching" class="htmx-indicator muted">ищем…</span>
+    </div>
+
+    <form method="post" action="/enemies">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <label class="block">
+            Комментарий
+            <textarea name="comment" rows="2" maxlength="4000" placeholder="За что">{{.Comment}}</textarea>
+        </label>
+        <div id="candidates">{{template "candidates" .}}</div>
+    </form>
+</div>
+
+<div class="card">
+    <h1>Список</h1>
+    {{$csrf := .CSRFToken}}
+    <ul class="notes enemies">
+        {{range .Enemies}}
+            {{$p := .Player}}
+            <li>
+                <div class="note-head">
+                    <a class="nick" href="/players/{{$p.ID}}">{{$p.Nickname}}</a>
+                    {{if $p.ClanName}}<span class="clan clan-{{$p.ClanStatus}}">[{{$p.ClanName}}]</span>{{end}}
+                    {{if $p.GameID}}<span class="game-id">ID {{$p.GameID}}</span>{{end}}
+                    <span class="muted">{{datetime .CreatedAt}}</span>
+                    <form method="post" action="/enemies/{{$p.ID}}/delete"
+                          onsubmit="return confirm('Убрать {{$p.Nickname}} из списка врагов?')">
+                        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                        <button class="link" type="submit">убрать</button>
+                    </form>
+                </div>
+                {{/* Комментарий правится на месте: отдельная страница ради
+                     одного поля была бы лишним шагом. */}}
+                <form class="enemy-comment" method="post" action="/enemies/{{$p.ID}}">
+                    <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                    <textarea name="comment" rows="2" maxlength="4000" placeholder="За что">{{.Comment}}</textarea>
+                    <button type="submit">Сохранить</button>
+                </form>
+            </li>
+        {{else}}
+            <li class="muted">Список пуст. Найдите игрока выше и добавьте — комментарий можно оставить пустым.</li>
+        {{end}}
+    </ul>
+</div>
+{{end}}
+
+{{/* Подбор карточки для добавления. Отдаётся и целой страницей, и отдельно —
+     в ответ на живой ввод. */}}
+{{define "candidates"}}
+{{$marked := .Marked}}
+{{if .Candidates}}
+    <div class="players">
+        {{range .Candidates}}
+            <div class="player-row static">
+                <div class="player-main">
+                    <span class="nick">{{.Nickname}}</span>
+                    {{if .ClanName}}<span class="clan clan-{{.ClanStatus}}">[{{.ClanName}}]</span>{{end}}
+                    {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
+                </div>
+                <div class="row-actions">
+                    {{if index $marked .ID}}
+                        <span class="muted">уже в списке</span>
+                    {{else}}
+                        <button type="submit" name="player_id" value="{{.ID}}">Добавить</button>
+                    {{end}}
+                </div>
+            </div>
+        {{end}}
+    </div>
+    {{if ge (len .Candidates) .Limit}}
+        <p class="muted center">Показаны первые {{.Limit}} — уточните запрос.</p>
+    {{end}}
+{{else if .Query}}
+    <p class="muted">
+        По запросу «{{.Query}}» никого не нашли. Во враги записываются только те,
+        у кого есть карточка в базе, — новую заводит админ на главной.
+    </p>
+{{else}}
+    <p class="muted">Начните вводить игровой ID или ник — найденные карточки появятся здесь.</p>
+{{end}}
+{{end}}

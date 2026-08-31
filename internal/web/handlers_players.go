@@ -24,9 +24,15 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	marked, err := s.markedEnemies(r, players)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.render(w, r, http.StatusOK, "home", map[string]any{
 		"Query": query, "Status": string(status), "Players": players,
 		"Total": total, "Limit": searchLimit,
+		"CanMark": true, "Marked": marked,
 	})
 }
 
@@ -38,8 +44,14 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	marked, err := s.markedEnemies(r, players)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.renderPartial(w, r, "home", "results", map[string]any{
 		"Query": query, "Status": string(status), "Players": players, "Limit": searchLimit,
+		"CanMark": true, "Marked": marked,
 	})
 }
 

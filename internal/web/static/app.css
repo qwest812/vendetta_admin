@@ -145,8 +145,7 @@ a.button.ghost { background: none; border: 1px solid var(--border); color: var(-
 .players { display: flex; flex-direction: column; gap: 8px; }
 
 .player-row {
-    display: grid;
-    grid-template-columns: minmax(180px, 1fr) 2fr auto;
+    display: flex;
     gap: 14px;
     align-items: center;
     padding: 12px 16px;
@@ -155,7 +154,21 @@ a.button.ghost { background: none; border: 1px solid var(--border); color: var(-
     border-radius: 8px;
 }
 
-.player-row:hover { border-color: var(--accent); color: var(--text); }
+/* Ссылка на карточку занимает всю строку, кроме места под пометку «во враги»:
+   кнопку внутрь <a> положить нельзя, поэтому колонки строки живут здесь. */
+.player-link {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) 2fr auto;
+    gap: 14px;
+    align-items: center;
+}
+
+.player-row:hover { border-color: var(--accent); }
+/* Подсвечивается рамка строки, а не текст: иначе ник и шкалы перекрашивались
+   бы в акцент при наведении куда угодно в строке. */
+.player-link:hover { color: var(--text); }
 .player-main { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .nick { font-weight: 600; }
 .nick-big { font-size: 22px; }
@@ -315,3 +328,33 @@ td.actions button { margin-left: 6px; }
 
 .htmx-indicator { opacity: 0; transition: opacity .2s; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+
+/* Личный список врагов. Строка подбора — не ссылка, а форма, поэтому она не
+   подсвечивается при наведении, как строки поиска. */
+.player-row.static:hover { border-color: var(--border); }
+.player-row.static .player-main { flex: 1; }
+
+/* Пометка «во враги» в строке поиска намеренно тихая: это личное дело того,
+   кто её ставит, а не свойство игрока, и в списке из полусотни строк она не
+   должна спорить со шкалами. Красной становится только уже поставленная. */
+.mark {
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+button.mark:hover { border-color: rgba(217, 72, 59, .5); color: #e88b81; filter: none; }
+a.mark.done, a.mark.done:hover { border-color: rgba(217, 72, 59, .5); color: #e88b81; }
+.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.enemies .note-head { margin-bottom: 6px; }
+.enemies .note-head .nick { color: var(--text); }
+.enemies .note-head a.nick:hover { color: var(--accent); }
+.enemy-comment { display: flex; gap: 10px; align-items: flex-end; }
+.enemy-comment textarea { flex: 1; margin: 0; }
+/* Индикатор стоит в одной строке с полем поиска, поэтому его надо опустить
+   до базовой линии ввода. */
+.filters .htmx-indicator { align-self: center; }

@@ -81,6 +81,7 @@ var (
 	ErrGameIDTaken  = errors.New("такой игровой ID уже есть в базе")
 	ErrCodeTaken    = errors.New("такой код признака уже есть")
 	ErrClanTaken    = errors.New("клан с таким названием уже есть")
+	ErrEnemyExists  = errors.New("игрок уже в списке врагов")
 	ErrForbidden    = errors.New("недостаточно прав")
 	ErrInvalidLogin = errors.New("неверная почта или пароль")
 )

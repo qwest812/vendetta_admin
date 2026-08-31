@@ -1,25 +1,37 @@
 {{/* Список найденных игроков. Общий для поиска и карточки клана, поэтому
-     пустой случай подписывается через .Empty. */}}
+     пустой случай подписывается через .Empty, а пометка «во враги» — через
+     .CanMark: на карточке клана её нет. */}}
 {{define "results"}}
+{{$csrf := .CSRFToken}}
+{{$canMark := .CanMark}}
+{{$marked := .Marked}}
 {{if .Players}}
     <div class="players">
         {{range .Players}}
-            <a class="player-row" href="/players/{{.ID}}">
-                <div class="player-main">
-                    <span class="nick">{{.Nickname}}</span>
-                    {{if .ClanName}}<span class="clan clan-{{.ClanStatus}}">[{{.ClanName}}]</span>{{end}}
-                    {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
-                </div>
-                <div class="player-traits">
-                    {{range .Traits}}
-                        <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
-                    {{end}}
-                </div>
-                <div class="player-score">
-                    <span class="risk-pill risk-{{.Score.RiskClass}}">Риск {{.Score.Risk}}%</span>
-                    <span class="loyalty-pill">Лояльность {{.Score.Loyalty}}%</span>
-                </div>
-            </a>
+            {{/* Вся строка ведёт на карточку, но пометка живёт рядом со
+                 ссылкой, а не внутри неё: кнопка внутри <a> и ломает вёрстку,
+                 и уводила бы на карточку вместо нажатия. */}}
+            <div class="player-row">
+                <a class="player-link" href="/players/{{.ID}}">
+                    <div class="player-main">
+                        <span class="nick">{{.Nickname}}</span>
+                        {{if .ClanName}}<span class="clan clan-{{.ClanStatus}}">[{{.ClanName}}]</span>{{end}}
+                        {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
+                    </div>
+                    <div class="player-traits">
+                        {{range .Traits}}
+                            <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
+                        {{end}}
+                    </div>
+                    <div class="player-score">
+                        <span class="risk-pill risk-{{.Score.RiskClass}}">Риск {{.Score.Risk}}%</span>
+                        <span class="loyalty-pill">Лояльность {{.Score.Loyalty}}%</span>
+                    </div>
+                </a>
+                {{if $canMark}}
+                    {{template "mark" (dict "ID" .ID "Marked" (index $marked .ID) "CSRFToken" $csrf)}}
+                {{end}}
+            </div>
         {{end}}
     </div>
     {{if ge (len .Players) .Limit}}
@@ -37,5 +49,20 @@
             В базе пока нет игроков.
         {{end}}
     </div>
+{{end}}
+{{end}}
+
+{{/* Пометка «во враги» одной строки. Отдаётся и вместе со списком, и отдельно —
+     в ответ на нажатие, чтобы поиск не перезагружался и не сбрасывался. */}}
+{{define "mark"}}
+{{if .Marked}}
+    <a class="mark done" href="/enemies" title="Уже в вашем списке врагов — комментарий пишется там">во врагах</a>
+{{else}}
+    <form method="post" action="/enemies/{{.ID}}/mark"
+          hx-post="/enemies/{{.ID}}/mark" hx-target="this" hx-swap="outerHTML">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button class="mark" type="submit"
+                title="В личный список врагов, без комментария — «за что» допишете в разделе «Враги»">во враги</button>
+    </form>
 {{end}}
 {{end}}
