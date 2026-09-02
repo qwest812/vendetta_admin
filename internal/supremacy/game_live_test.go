@@ -44,4 +44,12 @@ func TestGameStateLive(t *testing.T) {
 	}
 	t.Logf("день %d, играем за %s (%s), своих провинций %d из %d",
 		g.Day, me.Nation, me.Name, len(g.Owned(g.Me)), len(g.Provinces))
+
+	// Номера игроков на сайте печатаем целиком: по ним партия сводится
+	// с карточками в базе и с личными списками, и когда сведение ломается,
+	// смотреть надо сюда.
+	for _, p := range g.Players {
+		t.Logf("игрок %3d %-16s %-16s siteUserID=%-12s ии=%v выбыл=%v",
+			p.ID, p.Nation, p.Name, p.SiteUserID, p.IsAI, p.Defeated || p.Retired)
+	}
 }

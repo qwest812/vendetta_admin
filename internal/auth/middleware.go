@@ -42,6 +42,21 @@ func RequireRole(min domain.Role) func(http.Handler) http.Handler {
 	}
 }
 
+// RequireGamesAccess пропускает в раздел «Игры» тех, кому доступ выдал рут.
+// RequireRole про это право не знает: оно персональное, а не ступень
+// в лестнице ролей. Ставится после проверки авторизации — неавторизованного
+// разворачивает она.
+func RequireGamesAccess(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := UserFrom(r.Context())
+		if u == nil || !u.CanViewGames() {
+			http.Error(w, "Доступ к играм выдаёт рут", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // VerifyCSRF защищает изменяющие запросы. Проверяем токен из формы против
 // токена сессии — cookie SameSite=Lax сам по себе не покрывает все случаи.
 func VerifyCSRF(next http.Handler) http.Handler {

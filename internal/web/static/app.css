@@ -334,9 +334,10 @@ td.actions button { margin-left: 6px; }
 .player-row.static:hover { border-color: var(--border); }
 .player-row.static .player-main { flex: 1; }
 
-/* Пометка «во враги» в строке поиска намеренно тихая: это личное дело того,
-   кто её ставит, а не свойство игрока, и в списке из полусотни строк она не
-   должна спорить со шкалами. Красной становится только уже поставленная. */
+/* Пометки «в друзья» и «во враги» в строке поиска намеренно тихие: это личное
+   дело того, кто их ставит, а не свойство игрока, и в списке из полусотни
+   строк они не должны спорить со шкалами. Цвет появляется только у уже
+   поставленной: красный у вражды, зелёный у дружбы. */
 .mark {
     padding: 3px 10px;
     border-radius: 999px;
@@ -347,8 +348,12 @@ td.actions button { margin-left: 6px; }
     white-space: nowrap;
 }
 
-button.mark:hover { border-color: rgba(217, 72, 59, .5); color: #e88b81; filter: none; }
-a.mark.done, a.mark.done:hover { border-color: rgba(217, 72, 59, .5); color: #e88b81; }
+button.mark.enemy:hover { border-color: rgba(217, 72, 59, .5); color: #e88b81; filter: none; }
+a.mark.done.enemy, a.mark.done.enemy:hover { border-color: rgba(217, 72, 59, .5); color: #e88b81; }
+button.mark.friend:hover { border-color: rgba(76, 175, 122, .5); color: #8fd4a8; filter: none; }
+a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, .5); color: #8fd4a8; }
+/* Две пометки в строке стоят рядом: сначала дружба, потом вражда. */
+.marks { display: flex; align-items: center; gap: 6px; }
 .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .enemies .note-head { margin-bottom: 6px; }
 .enemies .note-head .nick { color: var(--text); }
@@ -358,3 +363,36 @@ a.mark.done, a.mark.done:hover { border-color: rgba(217, 72, 59, .5); color: #e8
 /* Индикатор стоит в одной строке с полем поиска, поэтому его надо опустить
    до базовой линии ввода. */
 .filters .htmx-indicator { align-self: center; }
+
+/* Карта партии: широкая и мелкая в деталях, поэтому во всю ширину карточки
+   и с фоном под цвет моря — море отдельными фигурами не рисуется. */
+.game-map {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 4px 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #16222c;
+}
+/* Тонкая граница у обычных провинций, заметная — у своих. Селектор с :not
+   важен: css перебивает атрибут stroke, и без него обводка из шаблона
+   просто не была бы видна. */
+.game-map polygon:not([stroke]) { stroke: rgba(0, 0, 0, .35); stroke-width: 1; }
+.game-map polygon[stroke] { stroke-width: 6; }
+.game-map text {
+    font: 600 34px system-ui, -apple-system, "Segoe UI", sans-serif;
+    fill: rgba(255, 255, 255, .92);
+    /* Обводка под текстом: поверх пёстрой заливки иначе не прочитать. */
+    paint-order: stroke;
+    stroke: rgba(0, 0, 0, .65);
+    stroke-width: 6;
+}
+.game-map text.enemy { fill: #ffb3aa; }
+.game-map text.friend { fill: #a8e8c0; }
+/* Меч чёрный — на приглушённой заливке он читается как значок, а не как
+   часть названия. Светлая обводка вместо общей тёмной: иначе чёрное
+   по чёрному сливается. Рукопожатие рисует шрифт эмодзи, fill его
+   не берёт. Класс не «mark»: тот в проекте занят кнопками списков,
+   и его font-size сжал бы значок до кнопочного. */
+.game-map text .sign { fill: #000; stroke: rgba(255, 255, 255, .55); }

@@ -18,6 +18,7 @@
 
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
+    {{$root := .CurrentUser.IsRoot}}
     <table>
         <thead>
         <tr>
@@ -36,7 +37,8 @@
                 <td>
                     <a class="nick" href="/games/{{.ID}}">{{.Title}}</a>
                     <span class="game-id">ID {{.ID}}</span>
-                    {{if .PlayerID}}<span class="muted">игрок №{{.PlayerID}}</span>{{end}}
+                    {{/* Номер в партии здесь про аккаунт проекта, а не про смотрящего. */}}
+                    {{if and $root .PlayerID}}<span class="muted">аккаунт — игрок №{{.PlayerID}}</span>{{end}}
                 </td>
                 <td class="nowrap">{{.State}}</td>
                 <td>{{.Day}}</td>

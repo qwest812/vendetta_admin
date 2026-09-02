@@ -21,9 +21,11 @@ type Server struct {
 	players  *repo.Players
 	clans    *repo.Clans
 	traits   *repo.Traits
-	enemies  *repo.Enemies
-	games    gameSource
-	tasks    *repo.GameTasks
+	// Личные списки: устроены одинаково, различаются таблицей и словами.
+	enemies *relationSection
+	friends *relationSection
+	games   gameSource
+	tasks   *repo.GameTasks
 	// heroEvery — как часто воркер жмёт кнопку Мейв; показывается на
 	// странице партии, чтобы обещание в интерфейсе не расходилось с делом.
 	heroEvery time.Duration
@@ -40,7 +42,8 @@ type Deps struct {
 	Players  *repo.Players
 	Clans    *repo.Clans
 	Traits   *repo.Traits
-	Enemies  *repo.Enemies
+	Enemies  *repo.Relations
+	Friends  *repo.Relations
 	// Games — аккаунт Supremacy 1914 для рутового раздела «Игры».
 	// Пусто, если аккаунт не настроен: раздел тогда скажет об этом сам.
 	Games gameSource
@@ -56,12 +59,15 @@ func NewServer(d Deps) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{
+	s := &Server{
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
-		enemies: d.Enemies, games: d.Games, tasks: d.Tasks, heroEvery: d.HeroEvery,
+		games: d.Games, tasks: d.Tasks, heroEvery: d.HeroEvery,
 		health: d.Health, pages: tmpls,
-	}, nil
+	}
+	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
+	s.friends = newRelationSection(s, d.Friends, friendWords)
+	return s, nil
 }
 
 func (s *Server) Handler() http.Handler {
@@ -96,15 +102,19 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /profile", user(http.HandlerFunc(s.profileForm)))
 	mux.Handle("POST /profile", user(auth.VerifyCSRF(http.HandlerFunc(s.profileSave))))
 
-	// Личный список врагов ведёт каждый сам: и обычный пользователь тоже,
-	// поэтому права те же, что у заметок. Чужой список не показывается и не
-	// правится — пользователь берётся из сессии, а не из адреса.
-	mux.Handle("GET /enemies", user(http.HandlerFunc(s.enemiesList)))
-	mux.Handle("GET /enemies/search", user(http.HandlerFunc(s.enemiesSearch)))
-	mux.Handle("POST /enemies", user(auth.VerifyCSRF(http.HandlerFunc(s.enemyAdd))))
-	mux.Handle("POST /enemies/{playerID}", user(auth.VerifyCSRF(http.HandlerFunc(s.enemyUpdate))))
-	mux.Handle("POST /enemies/{playerID}/mark", user(auth.VerifyCSRF(http.HandlerFunc(s.enemyMark))))
-	mux.Handle("POST /enemies/{playerID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(s.enemyRemove))))
+	// Личные списки — враги и друзья — ведёт каждый сам: и обычный
+	// пользователь тоже, поэтому права те же, что у заметок. Чужой список
+	// не показывается и не правится — пользователь берётся из сессии,
+	// а не из адреса. Разделы устроены одинаково, поэтому и роуты общие.
+	for _, sec := range []*relationSection{s.enemies, s.friends} {
+		path := "/" + sec.words.Path
+		mux.Handle("GET "+path, user(http.HandlerFunc(sec.list)))
+		mux.Handle("GET "+path+"/search", user(http.HandlerFunc(sec.search)))
+		mux.Handle("POST "+path, user(auth.VerifyCSRF(http.HandlerFunc(sec.add))))
+		mux.Handle("POST "+path+"/{playerID}", user(auth.VerifyCSRF(http.HandlerFunc(sec.update))))
+		mux.Handle("POST "+path+"/{playerID}/mark", user(auth.VerifyCSRF(http.HandlerFunc(sec.mark))))
+		mux.Handle("POST "+path+"/{playerID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(sec.remove))))
+	}
 
 	// Заметки пишут все авторизованные: карточку наполняют те, кто работает
 	// с игроками, а не только админы. Удаление разрешает сам хендлер —
@@ -136,14 +146,20 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /traits/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
 	mux.Handle("POST /traits/{id}/delete", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
 
-	// Только рут: удаление пользователей и карточек, а с ними и раздел
-	// «Игры» — он про общий игровой аккаунт проекта, а не про чью-то работу
-	// с базой.
 	root := auth.RequireRole(domain.RoleRoot)
-	mux.Handle("GET /games", root(http.HandlerFunc(s.gamesList)))
-	mux.Handle("GET /games/{id}", root(http.HandlerFunc(s.gameCard)))
+
+	// Смотреть партии может тот, кому рут выдал доступ: право персональное,
+	// в лестницу ролей не встроено. Заход в состояние партии игра засчитывает
+	// как вход в неё, поэтому раздаётся он поштучно, а не всем подряд.
+	games := func(h http.HandlerFunc) http.Handler { return user(auth.RequireGamesAccess(h)) }
+	mux.Handle("GET /games", games(s.gamesList))
+	mux.Handle("GET /games/{id}", games(s.gameCard))
+
+	// Только рут: он один жмёт кнопки в чужой партии от имени общего
+	// аккаунта, выдаёт доступ к разделу и удаляет пользователей и карточки.
 	mux.Handle("POST /games/{id}/hero", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroToggle))))
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
+	mux.Handle("POST /users/{id}/games", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetGamesAccess))))
 	mux.Handle("POST /users/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.usersDelete))))
 	mux.Handle("POST /players/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.playerDelete))))
 

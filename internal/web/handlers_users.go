@@ -137,6 +137,26 @@ func (s *Server) usersSetActive(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
+// usersSetGamesAccess выдаёт и снимает доступ к разделу «Игры». Роут стоит
+// под рутом, а не под админом: раздел работает с общим игровым аккаунтом
+// проекта, и передавать право раздачи дальше по лестнице ролей мы не хотим.
+func (s *Server) usersSetGamesAccess(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.manageableTarget(w, r)
+	if !ok {
+		return
+	}
+	allowed := r.PostFormValue("access") == "true"
+	if err := s.users.SetGamesAccess(r.Context(), target.ID, allowed); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	// Сессии не сбрасываем: пользователь читается из базы на каждый запрос,
+	// так что снятый доступ действует со следующей же страницы.
+	s.logAudit(r, "user.set_games_access", target.ID,
+		map[string]any{"user": target.Display(), "access": allowed})
+	http.Redirect(w, r, "/users", http.StatusSeeOther)
+}
+
 func (s *Server) usersResetPassword(w http.ResponseWriter, r *http.Request) {
 	target, ok := s.manageableTarget(w, r)
 	if !ok {

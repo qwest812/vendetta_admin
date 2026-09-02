@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/supremacy"
 )
 
 // Шаблоны — единственная часть админки, где ошибка вылезает только в рантайме
@@ -21,23 +22,36 @@ func TestPagesRender(t *testing.T) {
 	}
 	clan := domain.Clan{ID: clanID, Name: "КСГ", Status: domain.ClanEnemy, Players: 1}
 
+	// Часть страниц выглядит по-разному для разных ролей, поэтому у случая
+	// есть свой смотрящий; пусто — обычный админ.
+	root := &domain.User{ID: 1, Nickname: "root", Role: domain.RoleRoot}
+	player := &domain.User{ID: 2, Nickname: "Dau7er", Role: domain.RoleUser,
+		GamesAccess: true, GameID: "101408369"}
+
 	tests := []struct {
+		name string
 		page string
+		user *domain.User
 		data map[string]any
 		want []string
+		deny []string // чего на странице быть не должно
 	}{
 		{
 			page: "home",
 			data: map[string]any{
 				"Query": "", "Status": "enemy", "Total": 1, "Limit": 50,
 				"Players": []*domain.Player{enemy},
-				"CanMark": true, "Marked": map[int64]bool{},
+				"CanMark": true, "MarkedEnemies": map[int64]bool{},
+				"MarkedFriends": map[int64]bool{},
+				"EnemyWords":    enemyWords, "FriendWords": friendWords,
 			},
 			// Выбранный фильтр должен пережить перезагрузку страницы,
 			// а пометить врага можно прямо из строки поиска.
 			want: []string{
 				`value="enemy" selected`, `clan clan-enemy`, "КСГ",
+				// Из строки поиска игрок помечается в оба личных списка.
 				`action="/enemies/3/mark"`, ">во враги<",
+				`action="/friends/3/mark"`, ">в друзья<",
 			},
 		},
 		{
@@ -91,7 +105,9 @@ func TestPagesRender(t *testing.T) {
 			want: []string{"[Speed] - The Great War", "ID 10867066", "идёт", "game.php?bust=1&amp;uid=101408369"},
 		},
 		{
+			name: "game/root",
 			page: "game",
+			user: root,
 			data: map[string]any{
 				"GameID": "10886819",
 				"Game": &gameView{
@@ -115,9 +131,62 @@ func TestPagesRender(t *testing.T) {
 			},
 		},
 		{
+			// Смотрящий с доступом видит партию своими глазами: страна берётся
+			// из его профиля, а кнопки призыва остаются рутовыми.
+			name: "game/своя страна",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID": "10886819",
+				"Game": &gameView{
+					ID: "10886819", Title: "[Speed] - The Great War", State: "идёт",
+					Day: "13", Players: "31", PlayerID: "12",
+				},
+				"Task":     &domain.GameTask{GameID: "10886819", HeroDeploy: true},
+				"Interval": 45 * time.Minute, "Error": "",
+				"State": &supremacy.GameState{Day: 13, Me: 12,
+					Provinces: []supremacy.Province{{ID: 1}, {ID: 2}}},
+				"Me":   &supremacy.Player{ID: 29, Nation: "Франция", Name: "Dau7er"},
+				"Mine": []supremacy.Province{{Name: "Париж", Capital: true, Morale: 88}},
+			},
+			want: []string{"вы играете за Франция", "номер в партии 29", "Париж", "столица"},
+			deny: []string{"Призвать сейчас", "призыв пехоты", "аккаунт проекта"},
+		},
+		{
+			// Без игрового ID в профиле своей страны не найти — и об этом
+			// говорится прямо, со ссылкой, куда его вписать.
+			name: "game/без игрового ID",
+			page: "game",
+			user: &domain.User{ID: 3, Nickname: "Новичок", Role: domain.RoleUser, GamesAccess: true},
+			data: map[string]any{
+				"GameID":          "10886819",
+				"Game":            &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
+				"Interval":        45 * time.Minute,
+				"State":           &supremacy.GameState{Day: 13},
+				"NoProfileGameID": true,
+			},
+			want: []string{`href="/profile"`, "укажите игровой ID"},
+			deny: []string{"вы играете за", "Призвать сейчас"},
+		},
+		{
+			name: "game/чужая партия",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID":     "10886819",
+				"Game":       &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
+				"Interval":   45 * time.Minute,
+				"State":      &supremacy.GameState{Day: 13},
+				"NotPlaying": true,
+			},
+			want: []string{"В этой партии вы не играете"},
+			deny: []string{"вы играете за", "Призвать сейчас"},
+		},
+		{
 			page: "enemies",
 			data: map[string]any{
-				"Enemies": []domain.Enemy{{
+				"Words": enemyWords,
+				"List": []domain.Relation{{
 					Player: enemy, Comment: "слил координаты", CreatedAt: time.Now(),
 				}},
 				"Error": "", "Candidates": nil, "Marked": map[int64]bool{},
@@ -127,7 +196,27 @@ func TestPagesRender(t *testing.T) {
 			// своей записью — обе формы должны быть на странице.
 			want: []string{
 				"слил координаты", `action="/enemies/3"`, `action="/enemies/3/delete"`,
+				"Мои враги",
 			},
+			deny: []string{"/friends/"},
+		},
+		{
+			// Друзья — та же разметка с другими словами: пути и заголовок
+			// должны смениться целиком, иначе кнопка уведёт не туда.
+			page: "friends",
+			data: map[string]any{
+				"Words": friendWords,
+				"List": []domain.Relation{{
+					Player: enemy, Comment: "вместе держали фронт", CreatedAt: time.Now(),
+				}},
+				"Error": "", "Candidates": nil, "Marked": map[int64]bool{},
+				"Query": "", "Limit": 20, "Comment": "",
+			},
+			want: []string{
+				"вместе держали фронт", `action="/friends/3"`, `action="/friends/3/delete"`,
+				"Мои друзья",
+			},
+			deny: []string{"/enemies/"},
 		},
 	}
 
@@ -137,12 +226,20 @@ func TestPagesRender(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.page, func(t *testing.T) {
+		name := tt.name
+		if name == "" {
+			name = tt.page
+		}
+		t.Run(name, func(t *testing.T) {
 			tmpl, ok := pages[tt.page]
 			if !ok {
 				t.Fatalf("нет шаблона %q", tt.page)
 			}
-			tt.data["CurrentUser"] = admin
+			user := tt.user
+			if user == nil {
+				user = admin
+			}
+			tt.data["CurrentUser"] = user
 			tt.data["CSRFToken"] = "csrf"
 			tt.data["Path"] = "/"
 
@@ -153,6 +250,11 @@ func TestPagesRender(t *testing.T) {
 			for _, want := range tt.want {
 				if !strings.Contains(buf.String(), want) {
 					t.Errorf("на странице нет %q", want)
+				}
+			}
+			for _, deny := range tt.deny {
+				if strings.Contains(buf.String(), deny) {
+					t.Errorf("на странице есть лишнее %q", deny)
 				}
 			}
 		})
@@ -223,7 +325,8 @@ func TestClansPageIsReadOnlyForUser(t *testing.T) {
 }
 
 // Подбор в форме добавления отвечает за то, чтобы одного и того же игрока
-// нельзя было добавить дважды: уже отмеченному кнопки не место.
+// нельзя было добавить дважды, и чтобы без запроса он ничего не предлагал:
+// иначе свежая карточка стоит первой строкой и её принимают за врага.
 func TestEnemyCandidates(t *testing.T) {
 	pages, err := parseTemplates()
 	if err != nil {
@@ -242,20 +345,35 @@ func TestEnemyCandidates(t *testing.T) {
 		notWant []string
 	}{
 		{
-			name: "новый игрок",
+			name: "нашли одного",
 			data: map[string]any{
-				"Candidates": found[:1], "Marked": map[int64]bool{}, "Query": "dau", "Limit": 20,
+				"Words":      enemyWords,
+				"Candidates": found[:1], "Marked": map[int64]bool{},
+				"Query": "dau", "Limit": 20, "CanAdd": true,
 			},
-			want:    []string{"Dau7er", `name="player_id" value="3"`},
-			notWant: []string{"уже в списке"},
+			want:    []string{"Dau7er", `<option value="3"`, ">Добавить<"},
+			notWant: []string{"уже в списке", "disabled"},
 		},
 		{
-			name: "уже во врагах",
+			// Уже добавленного из списка не убираем, но выбрать не даём:
+			// иначе кажется, что поиск его не нашёл.
+			name: "единственный найденный уже во врагах",
 			data: map[string]any{
-				"Candidates": found[:1], "Marked": map[int64]bool{3: true}, "Query": "dau", "Limit": 20,
+				"Words":      enemyWords,
+				"Candidates": found[:1], "Marked": map[int64]bool{3: true},
+				"Query": "dau", "Limit": 20, "CanAdd": false,
 			},
-			want:    []string{"уже в списке"},
-			notWant: []string{`name="player_id" value="3"`},
+			want:    []string{"уже в списке", "disabled", "Все найденные уже у вас во врагах"},
+			notWant: []string{">Добавить<"},
+		},
+		{
+			name: "часть найденных уже во врагах",
+			data: map[string]any{
+				"Words":      friendWords,
+				"Candidates": found, "Marked": map[int64]bool{3: true},
+				"Query": "a", "Limit": 20, "CanAdd": true,
+			},
+			want: []string{"уже в списке", "disabled", ">Добавить<", `<option value="4"`},
 		},
 		{
 			// Игровой ID вписывают руками, и у старых карточек его нет —
@@ -263,51 +381,34 @@ func TestEnemyCandidates(t *testing.T) {
 			name: "карточка без игрового ID",
 			data: map[string]any{
 				"Candidates": []*domain.Player{{ID: 5, Nickname: "Безымянный"}},
-				"Marked":     map[int64]bool{}, "Query": "", "Limit": 20,
+				"Marked":     map[int64]bool{}, "Query": "без", "Limit": 20, "CanAdd": true,
+				"Words": enemyWords,
 			},
-			want:    []string{"Безымянный", "без ID"},
-			notWant: []string{"ID </span>"},
+			want: []string{"Безымянный", "без ID"},
 		},
 		{
-			// Без запроса подбор — это список последних карточек: врага чаще
-			// выбирают глазами, чем набирают ник по памяти.
-			name: "список без запроса",
-			data: map[string]any{
-				"Candidates": found, "Marked": map[int64]bool{}, "Query": "", "Limit": 20,
-			},
-			want:    []string{"Dau7er", "Sever", `name="player_id" value="4"`, "ID 42", "ID 43"},
-			notWant: []string{"никого не нашли", "уточните запрос"},
-		},
-		{
-			// Пустая база и пустая выдача подписываются по-разному: «никого
-			// не нашли» без запроса означало бы не то.
-			name:    "база пуста",
-			data:    map[string]any{"Marked": map[int64]bool{}, "Query": "", "Limit": 20},
-			want:    []string{"В базе пока нет карточек"},
-			notWant: []string{"никого не нашли"},
+			// Пока ничего не набрано, предлагать некого: подбор — ответ
+			// на запрос, а не витрина базы.
+			name: "без запроса",
+			data: map[string]any{"Words": enemyWords, "Marked": map[int64]bool{}, "Query": "", "Limit": 20},
+			want: []string{"Наберите ник или игровой ID"},
+			// Ни списка, ни жалобы на пустую выдачу: человек ещё не искал.
+			notWant: []string{"<option", "никого не нашли"},
 		},
 		{
 			name:    "нет совпадений",
-			data:    map[string]any{"Marked": map[int64]bool{}, "Query": "abc", "Limit": 20},
+			data:    map[string]any{"Words": enemyWords, "Marked": map[int64]bool{}, "Query": "abc", "Limit": 20},
 			want:    []string{"abc", "никого не нашли"},
-			notWant: []string{"В базе пока нет карточек"},
+			notWant: []string{"<option"},
 		},
 		{
 			name: "выдача упёрлась в предел",
 			data: map[string]any{
-				"Candidates": found, "Marked": map[int64]bool{}, "Query": "a", "Limit": 2,
+				"Words":      enemyWords,
+				"Candidates": found, "Marked": map[int64]bool{},
+				"Query": "a", "Limit": 2, "CanAdd": true,
 			},
 			want: []string{"уточните запрос"},
-		},
-		{
-			// Тот же предел без запроса подписывается иначе: обрезан список,
-			// а не выдача поиска.
-			name: "список упёрся в предел",
-			data: map[string]any{
-				"Candidates": found, "Marked": map[int64]bool{}, "Query": "", "Limit": 2,
-			},
-			want:    []string{"остальных найдите поиском"},
-			notWant: []string{"уточните запрос"},
 		},
 	}
 
@@ -342,19 +443,36 @@ func TestSearchRowMark(t *testing.T) {
 	tests := []struct {
 		name    string
 		marked  bool
+		words   relationWords
 		want    []string
 		notWant []string
 	}{
 		{
 			name:    "ещё не помечен",
+			words:   enemyWords,
 			want:    []string{`action="/enemies/3/mark"`, `name="csrf_token"`, ">во враги<"},
 			notWant: []string{"во врагах"},
 		},
 		{
 			name:    "уже помечен",
+			words:   enemyWords,
 			marked:  true,
 			want:    []string{">во врагах<", `href="/enemies"`},
 			notWant: []string{"<form", "/enemies/3/mark"},
+		},
+		{
+			// Та же пометка с другими словами ведёт в другой раздел.
+			name:    "друзья: ещё не помечен",
+			words:   friendWords,
+			want:    []string{`action="/friends/3/mark"`, ">в друзья<", "mark friend"},
+			notWant: []string{"/enemies/"},
+		},
+		{
+			name:    "друзья: уже помечен",
+			words:   friendWords,
+			marked:  true,
+			want:    []string{">в друзьях<", `href="/friends"`},
+			notWant: []string{"<form", "/enemies/"},
 		},
 	}
 
@@ -362,7 +480,7 @@ func TestSearchRowMark(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			err := pages["home"].ExecuteTemplate(&buf, "mark", map[string]any{
-				"ID": int64(3), "Marked": tt.marked, "CSRFToken": "csrf",
+				"ID": int64(3), "Marked": tt.marked, "CSRFToken": "csrf", "Words": tt.words,
 			})
 			if err != nil {
 				t.Fatalf("отрисовка: %v", err)
@@ -418,7 +536,9 @@ func TestGamesLinkIsRootOnly(t *testing.T) {
 		err := pages["home"].ExecuteTemplate(&buf, "base.gohtml", map[string]any{
 			"CurrentUser": u, "CSRFToken": "csrf", "Path": "/",
 			"Query": "", "Status": "", "Total": 0, "Limit": 50,
-			"Players": nil, "CanMark": true, "Marked": map[int64]bool{},
+			"Players": nil, "CanMark": true,
+			"MarkedEnemies": map[int64]bool{}, "MarkedFriends": map[int64]bool{},
+			"EnemyWords": enemyWords, "FriendWords": friendWords,
 		})
 		if err != nil {
 			t.Fatalf("отрисовка: %v", err)

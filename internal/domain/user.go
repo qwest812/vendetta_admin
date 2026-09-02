@@ -47,14 +47,22 @@ type User struct {
 	PasswordHash string
 	Role         Role
 	IsActive     bool
-	CreatedBy    *int64
-	CreatedAt    time.Time
+	// GamesAccess — персональный пропуск в раздел «Игры». Выдаёт его только
+	// рут: раздел ходит в Supremacy под общим аккаунтом проекта, и раздавать
+	// его по роли админа мы не хотим. Рут проходит и без флага.
+	GamesAccess bool
+	CreatedBy   *int64
+	CreatedAt   time.Time
 }
 
 // Хелперы для шаблонов: html/template не умеет передавать строковый
 // литерал в аргумент типа Role, поэтому проверки роли оформлены методами.
 func (u *User) IsRoot() bool  { return u.Role == RoleRoot }
 func (u *User) IsAdmin() bool { return u.Role.AtLeast(RoleAdmin) }
+
+// CanViewGames — пускать ли в раздел «Игры». Право персональное, а не
+// ступень в лестнице ролей: админ без выданного флага раздела не видит.
+func (u *User) CanViewGames() bool { return u.IsRoot() || u.GamesAccess }
 
 // Display — как подписывать пользователя там, где место на одну строку:
 // в журнале, в авторе заметки. Почта информативнее, но её может не быть.
@@ -99,15 +107,15 @@ func ValidateProfile(fullName, city, gameID string) error {
 }
 
 var (
-	ErrNotFound     = errors.New("не найдено")
-	ErrEmailTaken   = errors.New("почта уже используется")
-	ErrNickTaken    = errors.New("такой ник уже есть в базе")
-	ErrGameIDTaken  = errors.New("такой игровой ID уже есть в базе")
-	ErrCodeTaken    = errors.New("такой код признака уже есть")
-	ErrClanTaken    = errors.New("клан с таким названием уже есть")
-	ErrEnemyExists  = errors.New("игрок уже в списке врагов")
-	ErrForbidden    = errors.New("недостаточно прав")
-	ErrInvalidLogin = errors.New("неверная почта или пароль")
+	ErrNotFound      = errors.New("не найдено")
+	ErrEmailTaken    = errors.New("почта уже используется")
+	ErrNickTaken     = errors.New("такой ник уже есть в базе")
+	ErrGameIDTaken   = errors.New("такой игровой ID уже есть в базе")
+	ErrCodeTaken     = errors.New("такой код признака уже есть")
+	ErrClanTaken     = errors.New("клан с таким названием уже есть")
+	ErrAlreadyListed = errors.New("игрок уже в списке")
+	ErrForbidden     = errors.New("недостаточно прав")
+	ErrInvalidLogin  = errors.New("неверная почта или пароль")
 )
 
 // CanManage описывает, кто кого вправе изменять: рут — всех кроме себя,

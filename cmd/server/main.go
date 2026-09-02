@@ -53,6 +53,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	clans := repo.NewClans(pool)
 	traits := repo.NewTraits(pool)
 	enemies := repo.NewEnemies(pool)
+	friends := repo.NewFriends(pool)
 	tasks := repo.NewGameTasks(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
@@ -71,7 +72,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	deps := web.Deps{
 		Log: log, Auth: authSvc, Users: users, Sessions: sessions,
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
-		Enemies: enemies, Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
+		Enemies: enemies, Friends: friends, Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
 		Health: pool.Ping,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе

@@ -1,10 +1,13 @@
 {{/* Список найденных игроков. Общий для поиска и карточки клана, поэтому
-     пустой случай подписывается через .Empty, а пометка «во враги» — через
-     .CanMark: на карточке клана её нет. */}}
+     пустой случай подписывается через .Empty, а пометки «во враги»
+     и «в друзья» — через .CanMark: на карточке клана их нет. */}}
 {{define "results"}}
 {{$csrf := .CSRFToken}}
 {{$canMark := .CanMark}}
-{{$marked := .Marked}}
+{{$enemies := .MarkedEnemies}}
+{{$friends := .MarkedFriends}}
+{{$enemyWords := .EnemyWords}}
+{{$friendWords := .FriendWords}}
 {{if .Players}}
     <div class="players">
         {{range .Players}}
@@ -29,7 +32,10 @@
                     </div>
                 </a>
                 {{if $canMark}}
-                    {{template "mark" (dict "ID" .ID "Marked" (index $marked .ID) "CSRFToken" $csrf)}}
+                    <div class="marks">
+                        {{template "mark" (dict "ID" .ID "Marked" (index $friends .ID) "CSRFToken" $csrf "Words" $friendWords)}}
+                        {{template "mark" (dict "ID" .ID "Marked" (index $enemies .ID) "CSRFToken" $csrf "Words" $enemyWords)}}
+                    </div>
                 {{end}}
             </div>
         {{end}}
@@ -52,17 +58,18 @@
 {{end}}
 {{end}}
 
-{{/* Пометка «во враги» одной строки. Отдаётся и вместе со списком, и отдельно —
-     в ответ на нажатие, чтобы поиск не перезагружался и не сбрасывался. */}}
+{{/* Пометка одной строки — «во враги» или «в друзья», смотря какие слова
+     пришли. Отдаётся и вместе со списком, и отдельно — в ответ на нажатие,
+     чтобы поиск не перезагружался и не сбрасывался. */}}
 {{define "mark"}}
+{{$w := .Words}}
 {{if .Marked}}
-    <a class="mark done" href="/enemies" title="Уже в вашем списке врагов — комментарий пишется там">во врагах</a>
+    <a class="mark done {{$w.Class}}" href="/{{$w.Path}}" title="{{$w.DoneTitle}}">{{$w.MarkDone}}</a>
 {{else}}
-    <form method="post" action="/enemies/{{.ID}}/mark"
-          hx-post="/enemies/{{.ID}}/mark" hx-target="this" hx-swap="outerHTML">
+    <form method="post" action="/{{$w.Path}}/{{.ID}}/mark"
+          hx-post="/{{$w.Path}}/{{.ID}}/mark" hx-target="this" hx-swap="outerHTML">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <button class="mark" type="submit"
-                title="В личный список врагов, без комментария — «за что» допишете в разделе «Враги»">во враги</button>
+        <button class="mark {{$w.Class}}" type="submit" title="{{$w.AddTitle}}">{{$w.MarkAdd}}</button>
     </form>
 {{end}}
 {{end}}

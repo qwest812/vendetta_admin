@@ -71,7 +71,13 @@ func run() error {
 		fmt.Printf("  %-28s мораль %3.0f%%%s\n", p.Name, p.Morale, mark)
 	}
 
-	fmt.Printf("\nВсего провинций с владельцем на карте: %d\n", len(state.Provinces))
+	var taken int
+	for _, p := range state.Provinces {
+		if p.Owner > 0 {
+			taken++
+		}
+	}
+	fmt.Printf("\nПровинций на карте: %d, из них занято: %d\n", len(state.Provinces), taken)
 	return nil
 }
 

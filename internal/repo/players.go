@@ -81,6 +81,46 @@ func (r *Players) Search(ctx context.Context, query string, status domain.ClanSt
 	return r.collect(ctx, rows)
 }
 
+// ByGameIDs находит карточки по игровым ID — так партия сводится с базой.
+// Ключи в ответе те же строки, что передали: игровой ID уникален без учёта
+// регистра, поэтому и сравнение регистронезависимое.
+func (r *Players) ByGameIDs(ctx context.Context, gameIDs []string) (map[string]*domain.Player, error) {
+	found := make(map[string]*domain.Player, len(gameIDs))
+	if len(gameIDs) == 0 {
+		return found, nil
+	}
+
+	rows, err := r.pool.Query(ctx,
+		playerSelect+` WHERE lower(coalesce(p.game_id, '')) = ANY($1)`, lowerAll(gameIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	players, err := r.collect(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	byLower := make(map[string]*domain.Player, len(players))
+	for _, p := range players {
+		byLower[strings.ToLower(p.GameID)] = p
+	}
+	for _, id := range gameIDs {
+		if p, ok := byLower[strings.ToLower(id)]; ok {
+			found[id] = p
+		}
+	}
+	return found, nil
+}
+
+func lowerAll(values []string) []string {
+	out := make([]string, len(values))
+	for i, v := range values {
+		out[i] = strings.ToLower(v)
+	}
+	return out
+}
+
 // ByClan отдаёт состав клана — карточки, привязанные к нему.
 func (r *Players) ByClan(ctx context.Context, clanID int64, limit int) ([]*domain.Player, error) {
 	rows, err := r.pool.Query(ctx,

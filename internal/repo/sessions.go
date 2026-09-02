@@ -28,18 +28,22 @@ func (r *Sessions) Create(ctx context.Context, tokenHash []byte, userID int64, c
 	return err
 }
 
-// Lookup возвращает живую сессию вместе с пользователем.
+// Lookup возвращает живую сессию вместе с пользователем. Пользователь
+// читается на каждый запрос, поэтому снятый доступ и правки профиля
+// применяются сразу, без перелогина.
 // Заблокированные пользователи сессию не получают.
 func (r *Sessions) Lookup(ctx context.Context, tokenHash []byte) (*Session, error) {
 	var s Session
 	var u domain.User
 	var email *string // почта необязательна, в базе может быть NULL
 	err := r.pool.QueryRow(ctx,
-		`SELECT s.csrf_token, s.expires_at, u.id, u.email, u.nickname, u.password_hash, u.role, u.is_active, u.created_by, u.created_at
+		`SELECT s.csrf_token, s.expires_at, u.id, u.email, u.nickname, u.password_hash, u.role, u.is_active,
+		        u.games_access, u.created_by, u.created_at, u.full_name, u.city, u.game_id
 		 FROM sessions s JOIN users u ON u.id = s.user_id
 		 WHERE s.token_hash = $1 AND s.expires_at > now() AND u.is_active`, tokenHash).
 		Scan(&s.CSRFToken, &s.ExpiresAt,
-			&u.ID, &email, &u.Nickname, &u.PasswordHash, &u.Role, &u.IsActive, &u.CreatedBy, &u.CreatedAt)
+			&u.ID, &email, &u.Nickname, &u.PasswordHash, &u.Role, &u.IsActive,
+			&u.GamesAccess, &u.CreatedBy, &u.CreatedAt, &u.FullName, &u.City, &u.GameID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}

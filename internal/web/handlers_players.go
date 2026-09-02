@@ -24,16 +24,15 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	marked, err := s.markedEnemies(r, players)
+	marks, err := s.marks(r, players)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.render(w, r, http.StatusOK, "home", map[string]any{
+	s.render(w, r, http.StatusOK, "home", merge(marks, map[string]any{
 		"Query": query, "Status": string(status), "Players": players,
-		"Total": total, "Limit": searchLimit,
-		"CanMark": true, "Marked": marked,
-	})
+		"Total": total, "Limit": searchLimit, "CanMark": true,
+	}))
 }
 
 // search отвечает на живой ввод: HTMX подменяет только список результатов.
@@ -44,15 +43,41 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	marked, err := s.markedEnemies(r, players)
+	marks, err := s.marks(r, players)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.renderPartial(w, r, "home", "results", map[string]any{
-		"Query": query, "Status": string(status), "Players": players, "Limit": searchLimit,
-		"CanMark": true, "Marked": marked,
-	})
+	s.renderPartial(w, r, "home", "results", merge(marks, map[string]any{
+		"Query": query, "Status": string(status), "Players": players,
+		"Limit": searchLimit, "CanMark": true,
+	}))
+}
+
+// marks — кто из выборки уже в личных списках смотрящего. Строка поиска
+// показывает обе пометки сразу, поэтому и считаются они вместе.
+func (s *Server) marks(r *http.Request, players []*domain.Player) (map[string]any, error) {
+	enemies, err := s.enemies.marked(r, players)
+	if err != nil {
+		return nil, err
+	}
+	friends, err := s.friends.marked(r, players)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"MarkedEnemies": enemies, "MarkedFriends": friends,
+		"EnemyWords": enemyWords, "FriendWords": friendWords,
+	}, nil
+}
+
+// merge складывает две карты данных для шаблона: общее и то, что нужно
+// конкретной странице.
+func merge(base, extra map[string]any) map[string]any {
+	for k, v := range extra {
+		base[k] = v
+	}
+	return base
 }
 
 // searchParams разбирает строку запроса. Незнакомый статус — это не ошибка,

@@ -33,6 +33,7 @@
 
 <div class="card">
     <h1>Пользователи</h1>
+    {{$root := .CurrentUser.IsRoot}}
     <table>
         <thead>
         <tr>
@@ -42,13 +43,14 @@
             <th>Игровой ID</th>
             <th>Почта</th>
             <th>Роль</th>
+            {{/* Доступ к играм раздаёт только рут, остальным колонку не показываем. */}}
+            {{if $root}}<th>Игры</th>{{end}}
             <th>Статус</th>
             <th>Создан</th>
             <th class="actions">Действия</th>
         </tr>
         </thead>
         <tbody>
-        {{$root := .CurrentUser.IsRoot}}
         {{$csrf := .CSRFToken}}
         {{$me := .CurrentUser.ID}}
         {{range .Users}}
@@ -61,6 +63,20 @@
                 <td>{{if .GameID}}<span class="game-id">{{.GameID}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
                 <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
                 <td><span class="badge role-{{.Role}}">{{.Role.Title}}</span></td>
+                {{if $root}}
+                    <td class="actions">
+                        {{if .IsRoot}}
+                            {{/* Рут ходит в игры по роли: снимать у него нечего. */}}
+                            <span class="muted">всегда</span>
+                        {{else}}
+                            <form method="post" action="/users/{{.ID}}/games">
+                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                                <input type="hidden" name="access" value="{{if .GamesAccess}}false{{else}}true{{end}}">
+                                <button type="submit">{{if .GamesAccess}}Закрыть{{else}}Открыть{{end}}</button>
+                            </form>
+                        {{end}}
+                    </td>
+                {{end}}
                 <td>{{if .IsActive}}активен{{else}}заблокирован{{end}}</td>
                 <td class="muted">{{datetime .CreatedAt}}</td>
                 <td class="actions">

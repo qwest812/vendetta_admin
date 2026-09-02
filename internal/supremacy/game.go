@@ -61,8 +61,8 @@ func (e *gsException) version() string {
 	return ""
 }
 
-// Province — провинция на карте партии. Море и озёра сюда не попадают:
-// у них нет владельца.
+// Province — провинция на карте партии. Море и озёра сюда не попадают.
+// Owner = 0 означает ничейную землю: игрока с таким номером не бывает.
 type Province struct {
 	ID      int
 	Name    string
@@ -97,18 +97,25 @@ type Army struct {
 }
 
 // Player — игрок партии: страна, имя на сайте и что с ним стало.
+// Color — цвет страны на карте, в виде готовой CSS-строки.
+// SiteUserID — его номер на сайте игры: тот самый «игровой ID», который
+// вписывают в карточку, поэтому по нему партия и сводится с базой.
 type Player struct {
-	ID       int
-	Nation   string
-	Name     string
-	IsAI     bool
-	Defeated bool
-	Retired  bool
+	ID         int
+	Nation     string
+	Name       string
+	SiteUserID string
+	Color      string
+	IsAI       bool
+	Defeated   bool
+	Retired    bool
 }
 
 // GameState — то, что мы забрали с игрового сервера за один заход.
 type GameState struct {
-	GameID    string
+	GameID string
+	// MapID — какая карта под партией: по нему берутся очертания провинций.
+	MapID     string
 	Day       int
 	Me        int // наш playerID в этой партии
 	Players   map[int]Player
@@ -353,7 +360,9 @@ type gameStateResponse struct {
 			Players map[string]struct {
 				PlayerID   int    `json:"playerID"`
 				NationName string `json:"nationName"`
+				Color      string `json:"primaryColor"`
 				UserName   string `json:"userName"`
+				SiteUserID int64  `json:"siteUserID"`
 				CapitalID  int    `json:"capitalID"`
 				IsAI       bool   `json:"computerPlayer"`
 				Defeated   bool   `json:"defeated"`
@@ -362,6 +371,7 @@ type gameStateResponse struct {
 		} `json:"1"`
 		Map struct {
 			Map struct {
+				MapID     string `json:"mapID"`
 				Locations []struct {
 					Class  string   `json:"@c"`
 					ID     int      `json:"id"`
@@ -406,6 +416,9 @@ type gameStateResponse struct {
 }
 
 const (
+	// provinceLand — суша; «sp» в тех же списках означает море.
+	provinceLand = "p"
+
 	// roleDeployInfantry — роль юнита, который умеет призывать пехоту.
 	// Так игра помечает Мейв; фичи DEPLOY_UNIT у её типа при этом нет.
 	roleDeployInfantry = "DEPLOY_INFANTRY"
@@ -425,6 +438,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 
 	g := &GameState{
 		GameID:  gameID,
+		MapID:   r.States.Map.Map.MapID,
 		Day:     r.States.Info.DayOfGame,
 		Me:      me,
 		Players: make(map[int]Player, len(r.States.Players.Players)),
@@ -436,21 +450,31 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		if p.PlayerID <= 0 {
 			continue
 		}
-		g.Players[p.PlayerID] = Player{
+		player := Player{
 			ID: p.PlayerID, Nation: p.NationName, Name: p.UserName,
-			IsAI: p.IsAI, Defeated: p.Defeated, Retired: p.Retired,
+			Color: cssColor(p.Color),
+			IsAI:  p.IsAI, Defeated: p.Defeated, Retired: p.Retired,
 		}
+		// У ботов номера на сайте нет — там ноль, и в базе его искать незачем.
+		if p.SiteUserID > 0 {
+			player.SiteUserID = strconv.FormatInt(p.SiteUserID, 10)
+		}
+		g.Players[p.PlayerID] = player
 		if p.CapitalID > 0 {
 			capitals[p.CapitalID] = true
 		}
 	}
 
 	for _, l := range locations {
-		// «p» — суша, «sp» — море: у последнего владельца не бывает.
-		if l.Class != "p" || l.Owner == nil {
+		// «p» — суша, «sp» — море. Ничейную сушу тоже берём: без неё карту
+		// не нарисовать, а Owner = 0 честно означает «ничья».
+		if l.Class != provinceLand {
 			continue
 		}
-		pr := Province{ID: l.ID, Name: l.Name, Owner: *l.Owner, Capital: capitals[l.ID]}
+		pr := Province{ID: l.ID, Name: l.Name, Capital: capitals[l.ID]}
+		if l.Owner != nil {
+			pr.Owner = *l.Owner
+		}
 		if l.Morale != nil {
 			pr.Morale = *l.Morale
 		}
@@ -490,6 +514,28 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		g.Armies = append(g.Armies, army)
 	}
 	return g, nil
+}
+
+// cssColor переводит цвет страны из игрового «rgba(230,190,140,255)»
+// в то, что понимает браузер. Непрозрачность игра всегда шлёт полной,
+// поэтому четвёртый компонент отбрасываем.
+func cssColor(c string) string {
+	inside, ok := strings.CutPrefix(c, "rgba(")
+	if !ok {
+		return ""
+	}
+	inside, ok = strings.CutSuffix(inside, ")")
+	if !ok {
+		return ""
+	}
+	parts := strings.Split(inside, ",")
+	if len(parts) < 3 {
+		return ""
+	}
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	return "rgb(" + strings.Join(parts[:3], ",") + ")"
 }
 
 // numeric приводит числовые идентификаторы, которые сайт отдаёт строками,

@@ -17,11 +17,14 @@
     {{if .Game}}
         <p class="muted">
             Состояние: {{.Game.State}}{{if .Game.Day}}, день {{.Game.Day}}{{end}},
-            игроков {{.Game.Players}}{{if .Game.PlayerID}}, мы игрок №{{.Game.PlayerID}}{{end}}.
+            игроков {{.Game.Players}}{{/* Номер аккаунта проекта — внутренняя кухня,
+            и «мы» здесь означает именно его, а не того, кто смотрит. */}}{{if and .CurrentUser.IsRoot .Game.PlayerID}},
+            аккаунт проекта — игрок №{{.Game.PlayerID}}{{end}}.
         </p>
     {{end}}
 </div>
 
+{{if .CurrentUser.IsRoot}}
 <div class="card">
     <h1>Что делаем сами</h1>
     {{$t := .Task}}
@@ -55,6 +58,7 @@
         <p class="muted">Последний заход: {{datetime $t.LastRunAt}} — {{$t.LastResult}}</p>
     {{end}}
 </div>
+{{end}}
 
 <div class="card">
     <div class="card-head">
@@ -64,10 +68,74 @@
         </div>
     </div>
 
-    {{if .State}}
+    {{if .Map}}
+        {{/* Карта в собственных координатах игры: viewBox их и берёт,
+             а размер на странице задаёт css. */}}
+        <svg class="game-map" viewBox="0 0 {{.Map.Width}} {{.Map.Height}}"
+             preserveAspectRatio="xMidYMid meet" role="img"
+             aria-label="Карта партии: провинции раскрашены по владельцам">
+            <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
+            {{range .Map.Shapes}}
+                <polygon points="{{.Points}}" fill="{{.Fill}}"
+                         {{if .Stroke}}stroke="{{.Stroke}}"{{end}}><title>{{.Title}}</title></polygon>
+            {{end}}
+            {{/* Подписи поверх заливки: страна пишется один раз, посередине
+                 своих владений. */}}
+            {{range .Map.Labels}}
+                {{/* Значок отдельным tspan: он красится не как название. */}}
+                <text x="{{.X}}" y="{{.Y}}" text-anchor="middle"
+                      class="{{if .Enemy}}enemy{{else if .Friend}}friend{{end}}">{{if .Mark}}<tspan class="sign">{{.Mark}}</tspan> {{end}}{{.Text}}</text>
+            {{end}}
+        </svg>
         <p class="muted">
-            День {{.State.Day}}, играем за {{.Me.Nation}} ({{.Me.Name}}), номер в партии {{.State.Me}}.
-            Провинций под контролем {{len .Mine}} из {{len .State.Provinces}} занятых на карте.
+            {{if .Me}}Ваши провинции обведены жёлтым. {{end}}Страны из ваших
+            списков видны по названию: враги — красным, с мечом; друзья —
+            зелёным, с рукопожатием. Наведите на провинцию, чтобы увидеть,
+            чья она.
+        </p>
+    {{end}}
+    {{if .MapError}}<p class="muted">{{.MapError}}</p>{{end}}
+
+    {{if .State}}
+        {{/* Партию сводим с базой по игровому ID: он у карточки и у игрока
+             на сайте игры один и тот же. Оба личных списка — списки того,
+             кто смотрит, у соседа они свои. */}}
+        {{if .Friends}}
+            <p class="muted">
+                Из ваших друзей здесь играют:
+                {{range $i, $f := .Friends}}{{if $i}}, {{end}}<a href="/players/{{$f.Card.ID}}">{{$f.Card.Nickname}}</a>
+                    — {{$f.Nation}}{{if $f.Name}} ({{$f.Name}}){{end}}{{end}}.
+            </p>
+        {{else}}
+            <p class="muted">Из ваших друзей в этой партии никого.</p>
+        {{end}}
+        {{if .Enemies}}
+            <p class="muted">
+                Из вашего списка врагов здесь играют:
+                {{range $i, $e := .Enemies}}{{if $i}}, {{end}}<a href="/players/{{$e.Card.ID}}">{{$e.Card.Nickname}}</a>
+                    — {{$e.Nation}}{{if $e.Name}} ({{$e.Name}}){{end}}{{end}}.
+            </p>
+        {{else}}
+            <p class="muted">Из вашего списка врагов в этой партии никого.</p>
+        {{end}}
+    {{end}}
+
+    {{if .NoProfileGameID}}
+        <p class="muted">
+            Чтобы видеть на этой странице свою страну, укажите игровой ID
+            в <a href="/profile">профиле</a>: по нему вас и находят среди
+            игроков партии.
+        </p>
+    {{end}}
+    {{if .NotPlaying}}
+        <p class="muted">В этой партии вы не играете — своей страны здесь нет.</p>
+    {{end}}
+
+    {{if .Me}}
+        <p class="muted">
+            День {{.State.Day}}, вы играете за {{.Me.Nation}} ({{.Me.Name}}),
+            номер в партии {{.Me.ID}}.
+            Провинций под контролем {{len .Mine}} из {{len .State.Provinces}} на карте.
         </p>
         <table>
             <thead>
@@ -85,7 +153,9 @@
             {{end}}
             </tbody>
         </table>
-    {{else}}
+    {{end}}
+
+    {{if not .State}}
         <p class="muted">
             Состав партии берётся с игрового сервера, и такой заход игра
             засчитывает как вход в партию — поэтому он делается только по
