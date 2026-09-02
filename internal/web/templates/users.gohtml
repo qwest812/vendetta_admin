@@ -64,7 +64,9 @@
                 <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
                 <td><span class="badge role-{{.Role}}">{{.Role.Title}}</span></td>
                 {{if $root}}
-                    <td class="actions">
+                    {{/* Колонка обычная, не «Действия»: та прижимает содержимое
+                         к правому краю, и столбец читался бы съехавшим. */}}
+                    <td class="access">
                         {{if .IsRoot}}
                             {{/* Рут ходит в игры по роли: снимать у него нечего. */}}
                             <span class="muted">всегда</span>

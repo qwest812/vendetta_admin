@@ -290,6 +290,10 @@ label.block { display: block; margin-top: 14px; }
 th.narrow, td.narrow { width: 90px; }
 td.narrow input { width: 100%; }
 td.actions button { margin-left: 6px; }
+/* Кнопка доступа к играм стоит в обычной колонке и по левому краю, как её
+   заголовок: форма сама по себе блочная и без этого роняла бы кнопку
+   на свою строку. */
+td.access form { display: inline-flex; }
 
 /* --- справка --- */
 
