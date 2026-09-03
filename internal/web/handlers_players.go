@@ -125,8 +125,24 @@ func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+
+	// Что игра рассказала про этого человека, когда мы в последний раз
+	// заходили в партию с ним. Ничего не рассказала — карточка просто
+	// обходится без этого: связь идёт по игровому ID, а он есть не у всех.
+	var seen *domain.GamePlayer
+	if player.GameID != "" {
+		known, err := s.gamePlayers.ByGameIDs(r.Context(), []string{player.GameID})
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		if p, ok := known[player.GameID]; ok {
+			seen = &p
+		}
+	}
+
 	s.render(w, r, http.StatusOK, "player", map[string]any{
-		"Player": player, "Notes": notes, "Error": "",
+		"Player": player, "Notes": notes, "Error": "", "Seen": seen,
 	})
 }
 

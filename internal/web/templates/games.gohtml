@@ -1,6 +1,28 @@
 {{define "title"}}Игры — Vendetta{{end}}
 
 {{define "content"}}
+{{/* Проверка по номеру доступна всем, кому открыт раздел: сведения
+     о партии сайт отдаёт про любую, и заходом в неё это не считается.
+     А вот список партий аккаунта — рутовый. */}}
+<div class="card">
+    <div class="card-head">
+        <h1>Проверить игру</h1>
+    </div>
+    <form class="row-form" method="get" action="/games/check">
+        <input type="text" name="id" value="{{.Query}}" placeholder="номер партии"
+               autocomplete="off" inputmode="numeric" autofocus>
+        <button type="submit">Проверить</button>
+    </form>
+    {{if .CheckError}}<p class="error">{{.CheckError}}</p>{{end}}
+    <p class="muted">
+        Введите номер партии — покажем, что о ней знает игра: название,
+        сценарий, состояние, день и число игроков. Номер виден в адресе партии
+        и годится любой, не только наш. Если в партии играет общий аккаунт
+        проекта, на её странице будет ещё и карта с составом.
+    </p>
+</div>
+
+{{if .CurrentUser.IsRoot}}
 <div class="card">
     <div class="card-head">
         <h1>Активные игры</h1>
@@ -57,4 +79,5 @@
         </tbody>
     </table>
 </div>
+{{end}}
 {{end}}

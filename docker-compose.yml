@@ -45,6 +45,8 @@ services:
       S1914_LANG: ${S1914_LANG:-ru}
       S1914_WATCH_TITLES: ${S1914_WATCH_TITLES:-}
       S1914_POLL_INTERVAL: ${S1914_POLL_INTERVAL:-1m}
+      # Как часто воркер разбирает очередь кланов игроков.
+      S1914_ALLIANCE_INTERVAL: ${S1914_ALLIANCE_INTERVAL:-15m}
       # Куда воркер сообщает о находках. Без этой пары сообщения остаются
       # в логе приложения; задавать нужно оба значения или ни одного.
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}

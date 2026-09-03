@@ -234,6 +234,28 @@ func (c *Client) OpenGames(ctx context.Context) ([]Game, error) {
 	}
 }
 
+// Game спрашивает у сайта одну партию по её номеру — любую, не только свою.
+// Отвечает сайт из общего списка партий, поэтому заходом в партию это
+// не считается и работает для чужих игр тоже: так по номеру можно узнать
+// название, сценарий, день и число игроков, ничего в партию не отправляя.
+func (c *Client) Game(ctx context.Context, gameID string) (*Game, error) {
+	raw, err := c.call(ctx, "getGame", []param{{"gameID", gameID}})
+	if err != nil {
+		return nil, err
+	}
+
+	var res struct {
+		Properties Game `json:"properties"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil, fmt.Errorf("разбор партии %s: %w", gameID, err)
+	}
+	if res.Properties.GameID == "" {
+		return nil, fmt.Errorf("партии %s у игры нет", gameID)
+	}
+	return &res.Properties, nil
+}
+
 // MyGames возвращает игры аккаунта, которые идут сейчас, — то же, что
 // показывает вкладка «Обзор» на /game.php. Завершённые сюда не попадают:
 // они лежат в архиве, а это отдельный вызов с mygamesMode=archived.
@@ -276,6 +298,171 @@ func parseMyGames(raw json.RawMessage) ([]Game, error) {
 		out = append(out, g.Properties)
 	}
 	return out, nil
+}
+
+// Alliance — клан игрока на сайте игры. Это не наш справочник кланов:
+// альянс заведён в самой Supremacy, игроки состоят в нём по-настоящему,
+// и меняется он без нашего ведома.
+type Alliance struct {
+	ID   string
+	Name string
+	Tag  string
+}
+
+// UserAlliance спрашивает у сайта, в каком альянсе состоит игрок. Работает
+// по тому же номеру, который партия отдаёт как siteUserID, поэтому состав
+// партии сводится с альянсами без всякой базы.
+//
+// Заходом в партию этот вызов не считается: он идёт на сайт, а не на игровой
+// сервер. Ответ nil без ошибки означает, что игрок ни в каком альянсе
+// не состоит.
+func (c *Client) UserAlliance(ctx context.Context, siteUserID string) (*Alliance, error) {
+	raw, err := c.call(ctx, "getUserDetailsFirefly", []param{
+		{"userID", siteUserID},
+		{"alliance", "1"},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	alliance, err := parseAlliance(raw)
+	if err != nil {
+		return nil, fmt.Errorf("альянс игрока %s: %w", siteUserID, err)
+	}
+	return alliance, nil
+}
+
+// parseAlliance разбирает ответ про игрока. Альянс приходит вложенным
+// в properties, а у игрока без альянса поле просто null — это не ошибка,
+// а полноценный ответ.
+func parseAlliance(raw json.RawMessage) (*Alliance, error) {
+	var res struct {
+		Alliance *struct {
+			Properties struct {
+				UID  string `json:"uid"`
+				Name string `json:"name"`
+				Tag  string `json:"tag"`
+			} `json:"properties"`
+		} `json:"alliance"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil, fmt.Errorf("разбор: %w", err)
+	}
+	if res.Alliance == nil || res.Alliance.Properties.UID == "" {
+		return nil, nil
+	}
+	p := res.Alliance.Properties
+	return &Alliance{ID: p.UID, Name: p.Name, Tag: p.Tag}, nil
+}
+
+// AllianceMember — участник клана, как его отдаёт сайт: номер на сайте
+// игры и ник. Больше про него из состава ничего не нужно — карту красит
+// принадлежность к клану, а не заслуги.
+type AllianceMember struct {
+	SiteUserID string
+	Name       string
+}
+
+// AllianceRoster забирает клан целиком: сам клан и весь его состав одним
+// запросом. Это главный способ узнавать кланы: спрашивать про каждого
+// игрока отдельно вышло бы во столько запросов, сколько в клане людей,
+// а их до сорока.
+func (c *Client) AllianceRoster(ctx context.Context, allianceID string) (*Alliance, []AllianceMember, error) {
+	raw, err := c.call(ctx, "getAlliance", []param{
+		{"allianceID", allianceID},
+		{"members", "1"},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return parseRoster(raw, allianceID)
+}
+
+// parseRoster разбирает ответ про клан. Состав приходит списком рядом
+// с самим кланом, у каждого участника нас интересуют только номер и ник.
+func parseRoster(raw json.RawMessage, allianceID string) (*Alliance, []AllianceMember, error) {
+	var res struct {
+		Properties struct {
+			UID  string `json:"uid"`
+			Name string `json:"name"`
+			Tag  string `json:"tag"`
+		} `json:"properties"`
+		Members []struct {
+			ID       int64  `json:"id"`
+			Username string `json:"username"`
+		} `json:"members"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil, nil, fmt.Errorf("разбор клана %s: %w", allianceID, err)
+	}
+	if res.Properties.UID == "" {
+		return nil, nil, fmt.Errorf("клан %s: сайт ответил без клана", allianceID)
+	}
+
+	alliance := &Alliance{
+		ID: res.Properties.UID, Name: res.Properties.Name, Tag: res.Properties.Tag,
+	}
+	members := make([]AllianceMember, 0, len(res.Members))
+	for _, m := range res.Members {
+		if m.ID <= 0 {
+			continue
+		}
+		members = append(members, AllianceMember{
+			SiteUserID: strconv.FormatInt(m.ID, 10), Name: m.Username,
+		})
+	}
+	return alliance, members, nil
+}
+
+// allianceWorkers — сколько альянсов спрашиваем одновременно. Игроков
+// в партии до сорока, а сайт отвечает не мгновенно: последовательный обход
+// не уложился бы в терпение человека, открывшего страницу. Больше десятка
+// параллельных запросов слать не хочется — это всё-таки чужой сайт.
+const allianceWorkers = 8
+
+// UserAlliances спрашивает альянсы сразу у пачки игроков. Ключ в ответе
+// есть у каждого, кого удалось спросить; nil в значении означает «спросили,
+// альянса нет». Ошибка возвращается первая из случившихся, но ответ при
+// этом не пустой: одного упавшего запроса мало, чтобы отказать всей карте.
+func (c *Client) UserAlliances(ctx context.Context, siteUserIDs []string) (map[string]*Alliance, error) {
+	out := make(map[string]*Alliance, len(siteUserIDs))
+	if len(siteUserIDs) == 0 {
+		return out, nil
+	}
+
+	var (
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		firstEr error
+	)
+	ids := make(chan string)
+
+	workers := min(allianceWorkers, len(siteUserIDs))
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for id := range ids {
+				alliance, err := c.UserAlliance(ctx, id)
+				mu.Lock()
+				if err != nil {
+					if firstEr == nil {
+						firstEr = err
+					}
+				} else {
+					out[id] = alliance
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+	for _, id := range siteUserIDs {
+		ids <- id
+	}
+	close(ids)
+	wg.Wait()
+
+	return out, firstEr
 }
 
 type param struct{ key, value string }

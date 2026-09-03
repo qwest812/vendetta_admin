@@ -17,6 +17,14 @@
             {{else}}
                 <span class="muted">ID не указан</span>
             {{end}}
+            {{/* Что игра рассказала про этого человека при последнем заходе
+                 в партию с ним. Бан — свойство аккаунта, поэтому ему тут
+                 самое место. */}}
+            {{with .Seen}}
+                {{if .Banned}}
+                    <span class="badge clan-enemy">забанен в игре</span>
+                {{end}}
+            {{end}}
         </div>
         {{if .CurrentUser.IsAdmin}}
             <div class="head-actions">
@@ -61,6 +69,15 @@
         <p class="muted">Признаки не отмечены.</p>
     {{end}}
 
+    {{/* Что игра рассказала про игрока сама. Появляется только у тех,
+         кого мы встретили в партии: связь идёт по игровому ID. */}}
+    {{with .Seen}}
+        <p class="muted">
+            В игре{{if .Nickname}} под ником {{.Nickname}}{{end}};
+            {{if .Banned}}аккаунт забанен{{with .BannedAt}} — заметили {{datetime .}}{{end}}{{else}}бана нет{{end}}.
+            Видели {{datetime .SeenAt}}{{if .SeenGameID}} в <a href="/games/{{.SeenGameID}}">партии {{.SeenGameID}}</a>{{end}}.
+        </p>
+    {{end}}
     <p class="muted">Добавлен {{datetime $p.CreatedAt}}, изменён {{datetime $p.UpdatedAt}}</p>
 </div>
 

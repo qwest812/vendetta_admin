@@ -379,11 +379,33 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
     border-radius: 6px;
     background: #16222c;
 }
-/* Тонкая граница у обычных провинций, заметная — у своих. Селектор с :not
-   важен: css перебивает атрибут stroke, и без него обводка из шаблона
-   просто не была бы видна. */
-.game-map polygon:not([stroke]) { stroke: rgba(0, 0, 0, .35); stroke-width: 1; }
-.game-map polygon[stroke] { stroke-width: 6; }
+/* Тонкая граница есть у всех провинций: без неё карта в один цвет
+   расползается в пятно. Заметная обводка означает свою страну и означает
+   её во всех режимах: цвет в каждом свой, а «где я» — вопрос один и тот же. */
+.game-map polygon { stroke: rgba(0, 0, 0, .35); stroke-width: 1; }
+.game-map polygon.own { stroke: #e8b45f; stroke-width: 6; }
+
+/* Заливка провинций живёт здесь, а не в атрибуте: карта выводится один раз,
+   а красится по-разному в зависимости от режима. Серый по умолчанию — это
+   «про этот режим о владельце ничего не известно»; ничейная земля темнее,
+   чтобы свободную не принять за чужую. */
+.game-map polygon { fill: #4a5b68; }
+.game-map polygon.neutral { fill: #2b3a46; }
+/* Режим «Кланы»: цвет приезжает переменной --clan из шаблона, потому что
+   раздаётся он на партию и заранее в стилях его не пропишешь. */
+#map-clans:checked ~ .game-map polygon.clan { fill: var(--clan); }
+/* Режим «Мои списки»: своя заливка у врагов и друзей, всё прочее серое.
+   Правило врага стоит ниже — если человек попал в оба списка, побеждает
+   вражда: о ней предупредить нужнее. */
+#map-sides:checked ~ .game-map polygon.side-friend { fill: #3f7d5a; }
+#map-sides:checked ~ .game-map polygon.side-enemy { fill: #a2453c; }
+/* Режим «Коалиции»: цвет тоже приезжает переменной, но берётся не из нашей
+   палитры, а из самой игры — коалиция раскрашивает себя сама. */
+#map-teams:checked ~ .game-map polygon.team { fill: var(--team); }
+/* Режим «Премиум»: признак двоичный, поэтому и цвет один. Сиреневый взят
+   намеренно: он не спорит ни с жёлтой обводкой своих провинций, ни с красным
+   и зелёным из личных списков. */
+#map-premium:checked ~ .game-map polygon.premium { fill: #7d63a8; }
 .game-map text {
     font: 600 34px system-ui, -apple-system, "Segoe UI", sans-serif;
     fill: rgba(255, 255, 255, .92);
@@ -392,11 +414,80 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
     stroke: rgba(0, 0, 0, .65);
     stroke-width: 6;
 }
-.game-map text.enemy { fill: #ffb3aa; }
-.game-map text.friend { fill: #a8e8c0; }
+/* Название страны красится и получает значок только в режиме личных
+   списков: в режиме кланов подписи нейтральные, иначе на одной картинке
+   опять оказались бы две разные разметки. */
+#map-sides:checked ~ .game-map text.enemy { fill: #ffb3aa; }
+#map-sides:checked ~ .game-map text.friend { fill: #a8e8c0; }
+.game-map text .sign { display: none; }
+#map-sides:checked ~ .game-map text .sign { display: inline; }
 /* Меч чёрный — на приглушённой заливке он читается как значок, а не как
    часть названия. Светлая обводка вместо общей тёмной: иначе чёрное
    по чёрному сливается. Рукопожатие рисует шрифт эмодзи, fill его
    не берёт. Класс не «mark»: тот в проекте занят кнопками списков,
    и его font-size сжал бы значок до кнопочного. */
 .game-map text .sign { fill: #000; stroke: rgba(255, 255, 255, .55); }
+/* Ник второй строкой под страной: мельче и тише названия, но того же цвета —
+   в режиме личных списков он должен краснеть и зеленеть вместе с ним. */
+.game-map text .player { font-size: 26px; font-weight: 500; opacity: .8; }
+
+/* Переключатель режимов карты. Радиокнопки настоящие и лежат первыми
+   в контейнере: по ним css и понимает, что показывать, — сами они
+   не видны, а нажимаются подписями-вкладками. Убирать их из потока
+   display:none нельзя, иначе до них не добраться с клавиатуры. */
+.map-view { position: relative; }
+.map-view > .map-mode { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.map-tabs { display: flex; gap: 8px; margin: 4px 0 0; }
+.map-tabs label {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+.map-tabs label:hover { color: var(--text); }
+#map-clans:checked ~ .map-tabs label[for="map-clans"],
+#map-sides:checked ~ .map-tabs label[for="map-sides"],
+#map-teams:checked ~ .map-tabs label[for="map-teams"],
+#map-premium:checked ~ .map-tabs label[for="map-premium"] {
+    border-color: var(--accent);
+    color: var(--text);
+}
+/* Клавиатуре тоже надо показывать, где она находится: сама кнопка не видна,
+   поэтому рамку рисуем на её подписи. */
+#map-clans:focus-visible ~ .map-tabs label[for="map-clans"],
+#map-sides:focus-visible ~ .map-tabs label[for="map-sides"],
+#map-teams:focus-visible ~ .map-tabs label[for="map-teams"],
+#map-premium:focus-visible ~ .map-tabs label[for="map-premium"] { outline: 2px solid var(--accent); }
+
+/* Легенда и пояснение — свои у каждого режима, показывается только пара
+   выбранного. */
+.map-pane { display: none; }
+#map-clans:checked ~ .pane-clans,
+#map-sides:checked ~ .pane-sides,
+#map-teams:checked ~ .pane-teams,
+#map-premium:checked ~ .pane-premium { display: block; }
+
+/* Легенда карты: цвет раздаётся кланам на партию, поэтому она идёт сразу
+   под картой и читается как её продолжение. Строки в ряд и с переносом —
+   кланов обычно единицы, но на ширину телефона они всё равно не встают. */
+.map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 0 0 10px;
+    padding: 0;
+    list-style: none;
+}
+.map-legend li { display: flex; align-items: center; gap: 6px; }
+.map-legend .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, .45);
+}
+/* Образцы режима списков — те же цвета, что и заливка на карте. */
+.map-legend .swatch.side-enemy { background: #a2453c; }
+.map-legend .swatch.side-friend { background: #3f7d5a; }
+.map-legend .swatch.premium { background: #7d63a8; }

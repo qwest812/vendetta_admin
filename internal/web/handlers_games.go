@@ -2,8 +2,9 @@ package web
 
 import (
 	"context"
-	"fmt"
+	"html/template"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ const gamesTimeout = 20 * time.Second
 // означает, что аккаунт игры не настроен (S1914_USER не задан).
 type gameSource interface {
 	MyGames(ctx context.Context) ([]supremacy.Game, error)
+	Game(ctx context.Context, gameID string) (*supremacy.Game, error)
 	GameState(ctx context.Context, gameID string) (*supremacy.GameState, error)
 	DeployInfantry(ctx context.Context, gameID string) (string, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
@@ -42,14 +44,29 @@ type gameView struct {
 	Joined   time.Time
 }
 
-// gamesList — активные игры того аккаунта, под которым админка ходит
-// в Supremacy 1914. Аккаунт в проекте один и общий, поэтому список у всех
-// одинаковый; доступ к разделу выдаёт рут поимённо.
+// gamesList — раздел «Игры». Руту он показывает активные партии общего аккаунта,
+// остальным — только форму проверки: список партий говорит, где аккаунт
+// играет прямо сейчас, и это знание рутовое. Проверить же партию по номеру
+// может любой, кому доступ к разделу выдан: сведения о партии сайт отдаёт
+// про любую, и заходом в неё это не считается.
 func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
-	data := map[string]any{"Games": nil, "Error": "", "PlayURL": ""}
+	data := map[string]any{
+		"Games": nil, "Error": "", "PlayURL": "", "CheckError": "",
+		"Query": strings.TrimSpace(r.URL.Query().Get("id")),
+	}
 
 	if s.games == nil {
 		data["Error"] = "Аккаунт Supremacy 1914 не настроен: задайте S1914_USER и S1914_PASSWORD."
+		s.render(w, r, http.StatusOK, "games", data)
+		return
+	}
+	if msg := r.URL.Query().Get("err"); msg != "" {
+		data["CheckError"] = "Не похоже на номер партии. Номер — это число, его видно в адресе партии."
+	}
+
+	// Не рут дальше формы не идёт: за списком партий мы ради него в игру
+	// не ходим вовсе.
+	if !currentUser(r).IsRoot() {
 		s.render(w, r, http.StatusOK, "games", data)
 		return
 	}
@@ -70,6 +87,37 @@ func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
 	data["Games"] = gameViews(games)
 	data["PlayURL"] = supremacy.PlayURL(s.games.UserID())
 	s.render(w, r, http.StatusOK, "games", data)
+}
+
+var reDigits = regexp.MustCompile(`\d+`)
+
+// gameIDFrom достаёт номер партии из того, что ввели. Приносят и голый номер,
+// и ссылку целиком, поэтому берём самое длинное число: в адресе игры есть
+// и другие — хотя бы 1914 в самом имени сайта. Короткие обрывки за номер
+// не считаем вовсе.
+func gameIDFrom(input string) string {
+	var best string
+	for _, digits := range reDigits.FindAllString(input, -1) {
+		if len(digits) > len(best) {
+			best = digits
+		}
+	}
+	if len(best) < 4 {
+		return ""
+	}
+	return best
+}
+
+// gamesCheck — кнопка «Проверить игру»: по введённому номеру уводит
+// на страницу партии. Отдельный роут нужен затем, чтобы адрес партии
+// оставался прежним и им можно было делиться.
+func (s *Server) gamesCheck(w http.ResponseWriter, r *http.Request) {
+	id := gameIDFrom(r.URL.Query().Get("id"))
+	if id == "" {
+		http.Redirect(w, r, "/games?err=1", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/games/"+id, http.StatusSeeOther)
 }
 
 // gameViews готовит игры к показу: свежая партия сверху.
@@ -116,12 +164,24 @@ func unixTime(s string) time.Time {
 	return time.Unix(sec, 0)
 }
 
-// mapShape — одна провинция на рисунке карты.
+// mapShape — одна провинция на рисунке карты. Ни заливки, ни обводки здесь
+// нет: карта рисуется один раз, а красится по-разному в зависимости от
+// выбранного режима, поэтому провинция несёт признаки сразу всех режимов,
+// а цвет из них выбирает css.
+//
+// Class — «neutral» у ничейной земли, «clan» у той, чей клан получил цвет,
+// «side-enemy» и «side-friend» у стран из личных списков смотрящего,
+// «team» у состоящей в коалиции, «premium» у страны игрока с подпиской,
+// «own» у своей: эта последняя пометка одна на все режимы, потому что
+// обводка везде означает одно и то же.
+// ClanColor и TeamColor — цвета клана и коалиции, они же css-переменные
+// --clan и --team; пусто, если красить нечем.
 type mapShape struct {
-	Points string
-	Fill   string
-	Stroke string
-	Title  string
+	Points    string
+	Class     string
+	ClanColor template.CSS
+	TeamColor template.CSS
+	Title     string
 }
 
 // mapLabel — подпись страны на карте: имя пишется один раз, посередине
@@ -131,11 +191,16 @@ type mapShape struct {
 // Mark — значок перед названием (меч или рукопожатие). Он хранится отдельно
 // от имени, потому что красится по-своему: страница рисует его собственным
 // tspan.
+//
+// Nick — ник игрока второй строкой под названием страны. Пусто у ботов
+// и там, где ник уже стоит первой строкой: страна без названия
+// подписывается именно им.
 type mapLabel struct {
 	X      int
 	Y      int
 	Mark   string
 	Text   string
+	Nick   string
 	Enemy  bool
 	Friend bool
 }
@@ -147,33 +212,76 @@ type gameMapView struct {
 	Height int
 	Shapes []mapShape
 	Labels []mapLabel
+	// Legend — какому альянсу какой цвет достался в этой партии. Без неё
+	// заливка ничего не значит: цвет раздаётся на партию, а не закреплён
+	// за альянсом навсегда.
+	Legend []allianceLegendView
+	// Teams — коалиции партии для своего режима карты. Цвет у них свой,
+	// игровой, поэтому раздавать его почти не приходится.
+	Teams []teamLegendView
+}
+
+// teamLegendView — строка легенды режима «Коалиции»: название из игры,
+// её же цвет и сколько игроков партии в ней состоит. Mine — коалиция
+// смотрящего: своя должна узнаваться без пересчёта стран.
+type teamLegendView struct {
+	Name    string
+	Color   string
+	Members int
+	Mine    bool
+}
+
+// allianceLegendView — строка легенды под картой: альянс из самой игры.
+// Пустой Color означает альянс, которому цвета не хватило: он нарисован
+// общим серым, но в легенде остаётся — иначе о нём на карте не узнать вовсе.
+type allianceLegendView struct {
+	ID        string
+	Name      string
+	Tag       string
+	Color     string
+	Provinces int
 }
 
 // gameRelationView — игрок партии, оказавшийся в личном списке смотрящего.
-// Card — его карточка в базе, по ней и нашли.
+// Card — его карточка в базе, по ней и нашли. Premium — подписка
+// «Высокое командование»: у союзника и у врага она одинаково важна,
+// поэтому едет в оба списка.
 type gameRelationView struct {
-	Nation string
-	Name   string
-	Card   *domain.Player
+	Nation  string
+	Name    string
+	Premium bool
+	Card    *domain.Player
 }
 
-// Цвета для тех, у кого своего нет: ничейная земля и игрок без цвета
-// в профиле. Море рисуется фоном, отдельными фигурами его не набираем.
-const (
-	mapNeutralFill = "#2b3a46"
-	mapUnknownFill = "#4a5b68"
-	mapOwnStroke   = "#e8b45f"
-)
+// gamePlayerView — игрок партии сам по себе, без всякой связи с базой.
+// Нужен там, где страница перечисляет участников: например, у кого
+// в этой партии премиум.
+type gamePlayerView struct {
+	Nation string
+	Name   string
+	Mine   bool
+}
 
-// Игра раздаёт странам чистые кричащие цвета: карта целиком из них слепит,
-// и поверх неё плохо читаются и названия, и обводки. Поэтому каждый цвет
-// уводим к фону карты — mapFade говорит, насколько сильно.
-const (
-	mapSeaFill = "#16222c"
-	mapFade    = 0.45
-)
+// mapPalette — цвета кланов. Приглушённые: поверх заливки должны читаться
+// и названия стран, и жёлтая обводка своих провинций. Цвета раздаются по
+// убыванию владений, поэтому крупнейший альянс партии получает первый цвет
+// списка. Кланов в партии обычно единицы; тем, кому цвета не хватило,
+// достаётся общий серый.
+var mapPalette = []string{
+	"#c4694f", // терракотовый
+	"#5f8fb0", // синий
+	"#7a9a5c", // зелёный
+	"#a07bb8", // фиолетовый
+	"#c9a44c", // охра
+	"#4f9b91", // бирюзовый
+	"#c07396", // розовый
+	"#94795e", // коричневый
+}
 
-// gameMap раскрашивает очертания карты по владельцам из состояния партии.
+// gameMap готовит очертания карты сразу для всех режимов страницы: заливку
+// по кланам из базы, по личным спискам смотрящего и по коалициям из самой
+// партии. Что из этого показать, решает css — рисуется карта один раз. Собственные цвета стран из игры не используются: на них
+// карта пестрит, а стороны конфликта всё равно не видны.
 // Провинции, которых нет в геометрии, просто не рисуются: файл карты общий
 // для всех партий и меняется отдельно от них.
 // meID — номер смотрящего в этой партии, его провинции обводим отдельно.
@@ -181,9 +289,17 @@ const (
 // одна, своя: страны из личных списков и без неё видны по значку и цвету
 // названия, а лишние рамки на карте только рябят.
 func gameMap(geo *supremacy.MapGeometry, state *supremacy.GameState,
-	enemies, friends map[int]*domain.Player, meID int) *gameMapView {
+	sides *gameSides, meID int) *gameMapView {
 
-	view := &gameMapView{Width: geo.Width, Height: geo.Height}
+	if sides == nil {
+		sides = &gameSides{}
+	}
+	fills, legend := allianceFills(state, sides.Alliances)
+	teamOf, teams := teamFills(state, meID)
+
+	view := &gameMapView{
+		Width: geo.Width, Height: geo.Height, Legend: legend, Teams: teams,
+	}
 	// Середина владений каждой страны — там и будет её имя.
 	centers := map[int]*center{}
 
@@ -193,24 +309,59 @@ func gameMap(geo *supremacy.MapGeometry, state *supremacy.GameState,
 			continue
 		}
 
-		shape := mapShape{Points: svgPoints(points), Fill: mapNeutralFill, Title: p.Name}
+		shape := mapShape{Points: svgPoints(points), Title: p.Name}
+		// Ничейная земля своим классом отличается от занятой: в обоих
+		// режимах она серая, но темнее — свободную землю не должно быть
+		// видно как чью-то.
+		classes := []string{"neutral"}
 		if p.Owner > 0 {
+			classes = classes[:0]
 			owner := state.Players[p.Owner]
-			shape.Fill = mapUnknownFill
-			if owner.Color != "" {
-				shape.Fill = fadeColor(owner.Color)
+			// Своего цвета у страны на нашей карте нет: в режиме кланов
+			// серым остаётся и тот, кого нет в базе, и тот, кто в базе
+			// без клана.
+			if color, ok := fills[p.Owner]; ok {
+				classes = append(classes, "clan")
+				shape.ClanColor = template.CSS(color)
 			}
 			shape.Title = p.Name + " — " + nonEmpty(owner.Nation, "неизвестно")
 			if owner.Name != "" {
 				shape.Title += " (" + owner.Name + ")"
 			}
-			// Личные списки на заливку не влияют, но в подсказке про них
-			// сказать стоит: наводят как раз чтобы понять, чья провинция.
-			if _, ok := friends[p.Owner]; ok {
+			// Клан в подсказке нужен и покрашенным: по цвету название
+			// не восстановить, а серые кланы на карте не отличить
+			// от игроков без клана вовсе.
+			if a, ok := sides.Alliances[p.Owner]; ok && a.InClan() {
+				shape.Title += ", клан " + nonEmpty(a.Name, "без названия")
+			}
+			// Личные списки красят карту в своём режиме, а в подсказке
+			// живут всегда: наводят как раз чтобы понять, чья провинция.
+			if _, ok := sides.Friends[p.Owner]; ok {
+				classes = append(classes, "side-friend")
 				shape.Title += ", в друзьях"
 			}
-			if _, ok := enemies[p.Owner]; ok {
+			if _, ok := sides.Enemies[p.Owner]; ok {
+				// Вражда важнее дружбы: в спорном случае класс врага идёт
+				// последним и по порядку правил в css побеждает.
+				classes = append(classes, "side-enemy")
 				shape.Title += ", во врагах"
+			}
+			// Коалиция — из самой игры, в отличие от клана: её игроки
+			// объявили друг друга союзниками прямо в партии, и цвет
+			// коалиция выбирает себе тоже сама.
+			if color, ok := teamOf[p.Owner]; ok {
+				classes = append(classes, "team")
+				shape.TeamColor = template.CSS(color)
+				shape.Title += ", коалиция " + nonEmpty(state.Teams[owner.TeamID].Name, "без названия")
+			}
+			// Премиум — свойство самого игрока, из состояния партии.
+			// В своём режиме он и есть вся разметка.
+			if owner.Premium {
+				classes = append(classes, "premium")
+				shape.Title += ", премиум"
+			}
+			if owner.Banned {
+				shape.Title += ", забанен"
 			}
 
 			c := centers[p.Owner]
@@ -221,10 +372,12 @@ func gameMap(geo *supremacy.MapGeometry, state *supremacy.GameState,
 			c.add(points)
 		}
 		// Свои провинции обводим: на политической карте иначе не найти,
-		// чей цвет наш.
+		// чей цвет наш. Обводка на все режимы одна — режимы спорят
+		// за заливку, а «где я» в каждом из них вопрос один и тот же.
 		if meID > 0 && p.Owner == meID {
-			shape.Stroke = mapOwnStroke
+			classes = append(classes, "own")
 		}
+		shape.Class = strings.Join(classes, " ")
 		view.Shapes = append(view.Shapes, shape)
 	}
 
@@ -234,8 +387,8 @@ func gameMap(geo *supremacy.MapGeometry, state *supremacy.GameState,
 		if name == "" {
 			continue
 		}
-		_, enemy := enemies[playerID]
-		_, friend := friends[playerID]
+		_, enemy := sides.Enemies[playerID]
+		_, friend := sides.Friends[playerID]
 		// Во врагах и в друзьях сразу человек быть не может, но если списки
 		// разошлись, вражда важнее: о ней предупредить нужнее.
 		mark := ""
@@ -246,9 +399,16 @@ func gameMap(geo *supremacy.MapGeometry, state *supremacy.GameState,
 		case friend:
 			mark = "🤝"
 		}
+		// Ник под названием страны: страну помнят по нику, а не по стране,
+		// и на карте одно без другого читается плохо. Повторять его
+		// не нужно там, где он и есть подпись.
+		nick := owner.Name
+		if nick == name {
+			nick = ""
+		}
 		x, y := c.point()
 		view.Labels = append(view.Labels,
-			mapLabel{X: x, Y: y, Mark: mark, Text: name, Enemy: enemy, Friend: friend})
+			mapLabel{X: x, Y: y, Mark: mark, Text: name, Nick: nick, Enemy: enemy, Friend: friend})
 	}
 	// Порядок подписей игра не задаёт, а страница должна быть одинаковой
 	// от захода к заходу.
@@ -276,6 +436,145 @@ func (c *center) point() (int, int) {
 	return c.sumX / c.n, c.sumY / c.n
 }
 
+// allianceFills раздаёт альянсам цвета: чем больше провинций у альянса
+// в этой партии, тем раньше он берёт цвет из палитры. Порядок именно
+// по владениям, а не по названию: крупный альянс на карте должен быть
+// заметен, а мелкий не должен забирать яркий цвет. Альянсам, не влезшим
+// в палитру, цвет не достаётся — они рисуются общим серым и остаются
+// в легенде.
+//
+// Первый ответ — цвет по номеру игрока в партии, второй — легенда для
+// страницы. Альянс берётся из самой Supremacy, а не из нашего справочника
+// кланов: на карте должно быть видно, кто с кем в игре, а не кого мы
+// как записали.
+func allianceFills(state *supremacy.GameState, alliances map[int]domain.Alliance) (map[int]string, []allianceLegendView) {
+	memberOf := make(map[int]string, len(alliances))
+	legend := map[string]*allianceLegendView{}
+	for playerID, a := range alliances {
+		if !a.InClan() {
+			continue
+		}
+		memberOf[playerID] = a.ID
+		if _, ok := legend[a.ID]; !ok {
+			legend[a.ID] = &allianceLegendView{
+				ID: a.ID, Name: nonEmpty(a.Name, "без названия"), Tag: a.Tag}
+		}
+	}
+	if len(legend) == 0 {
+		return nil, nil
+	}
+
+	for _, p := range state.Provinces {
+		if id, ok := memberOf[p.Owner]; ok {
+			legend[id].Provinces++
+		}
+	}
+
+	out := make([]allianceLegendView, 0, len(legend))
+	for _, a := range legend {
+		out = append(out, *a)
+	}
+	// Порядок должен быть один и тот же от захода к заходу, поэтому
+	// у равных по владениям альянсов решает название, а у одноимённых —
+	// номер.
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Provinces != out[j].Provinces {
+			return out[i].Provinces > out[j].Provinces
+		}
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].ID < out[j].ID
+	})
+
+	colors := make(map[string]string, len(out))
+	for i := range out {
+		if i < len(mapPalette) {
+			out[i].Color = mapPalette[i]
+			colors[out[i].ID] = out[i].Color
+		}
+	}
+
+	fills := make(map[int]string, len(memberOf))
+	for playerID, id := range memberOf {
+		if color, ok := colors[id]; ok {
+			fills[playerID] = color
+		}
+	}
+	return fills, out
+}
+
+// teamFills раздаёт цвета коалициям партии. Придумывать их, в отличие
+// от кланов, почти не приходится: и название, и цвет у коалиции свои,
+// игровые — она живёт в самой партии, а не в нашем справочнике. Палитра
+// подставляется только там, где игра цвета не дала.
+//
+// Первый ответ — цвет по номеру игрока в партии, второй — легенда.
+// meID нужен, чтобы отметить в легенде коалицию смотрящего.
+func teamFills(state *supremacy.GameState, meID int) (map[int]string, []teamLegendView) {
+	if len(state.Teams) == 0 {
+		return nil, nil
+	}
+
+	members := make(map[int]int, len(state.Teams))
+	for _, p := range state.Players {
+		if _, ok := state.Teams[p.TeamID]; ok {
+			members[p.TeamID]++
+		}
+	}
+	if len(members) == 0 {
+		return nil, nil
+	}
+
+	// Порядок тот же, что у кланов: крупнейшая коалиция сверху, а при
+	// равенстве решает название — список не должен прыгать от захода
+	// к заходу.
+	ids := make([]int, 0, len(members))
+	for id := range members {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		a, b := ids[i], ids[j]
+		if members[a] != members[b] {
+			return members[a] > members[b]
+		}
+		if state.Teams[a].Name != state.Teams[b].Name {
+			return state.Teams[a].Name < state.Teams[b].Name
+		}
+		return a < b
+	})
+
+	mine := 0
+	if meID > 0 {
+		mine = state.Players[meID].TeamID
+	}
+
+	colors := make(map[int]string, len(ids))
+	legend := make([]teamLegendView, 0, len(ids))
+	for i, id := range ids {
+		team := state.Teams[id]
+		color := team.Color
+		if color == "" {
+			color = mapPalette[i%len(mapPalette)]
+		}
+		colors[id] = color
+		legend = append(legend, teamLegendView{
+			Name:    nonEmpty(team.Name, "без названия"),
+			Color:   color,
+			Members: members[id],
+			Mine:    id == mine,
+		})
+	}
+
+	fills := make(map[int]string, len(state.Players))
+	for _, p := range state.Players {
+		if color, ok := colors[p.TeamID]; ok {
+			fills[p.ID] = color
+		}
+	}
+	return fills, legend
+}
+
 // viewerPlayer — кто смотрящий в этой партии. Игрока ищем по игровому ID
 // из его профиля, а не по state.Me: под общим аккаунтом в партию ходит
 // админка, а страницу читает человек со своей страной. Пустой ID и чужая
@@ -292,12 +591,77 @@ func viewerPlayer(state *supremacy.GameState, siteUserID string) (supremacy.Play
 	return supremacy.Player{}, false
 }
 
-// gameLists сводит игроков партии с базой по игровому ID и раскладывает их
-// по личным спискам смотрящего: сначала враги, потом друзья. Ключ — номер
-// игрока в партии. Карточки берутся одним запросом на оба списка.
-func (s *Server) gameLists(r *http.Request, state *supremacy.GameState) (
-	map[int]*domain.Player, map[int]*domain.Player, error) {
+// gameAlliances выясняет, кто из игроков партии в каком клане Supremacy.
+// В сеть отсюда не ходим совсем: страница читает то, что уже лежит в базе,
+// а незнакомых игроков просто записывает в очередь — их спросит воркер.
+// Поэтому карта открывается ровно за то же время, что и без кланов, а у
+// новой партии первый заход показывает часть игроков серыми.
+//
+// Второй ответ — сколько игроков партии ещё не спрошено: об этом стоит
+// сказать на странице, иначе серый цвет читается как «клана нет».
+func (s *Server) gameAlliances(ctx context.Context, state *supremacy.GameState) (map[int]domain.Alliance, int, error) {
+	byUser := make(map[string][]int, len(state.Players))
+	for _, p := range state.Players {
+		if p.SiteUserID != "" {
+			byUser[p.SiteUserID] = append(byUser[p.SiteUserID], p.ID)
+		}
+	}
+	if len(byUser) == 0 {
+		return nil, 0, nil
+	}
 
+	ids := make([]string, 0, len(byUser))
+	for id := range byUser {
+		ids = append(ids, id)
+	}
+
+	known, err := s.alliances.Known(ctx, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// В очередь попадают и те, кого в базе нет вовсе, и те, кого записали
+	// раньше, но спросить ещё не успели: вторых Enqueue молча пропустит.
+	pending := 0
+	queue := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if a, ok := known[id]; !ok || !a.Known() {
+			pending++
+			queue = append(queue, id)
+		}
+	}
+	if err := s.alliances.Enqueue(ctx, queue); err != nil {
+		return nil, 0, err
+	}
+
+	// Один игрок сайта в партии бывает ровно один раз, но связывать
+	// правильнее через список: партия ключуется номером в ней, а не
+	// номером на сайте.
+	out := make(map[int]domain.Alliance, len(known))
+	for userID, a := range known {
+		for _, playerID := range byUser[userID] {
+			out[playerID] = a
+		}
+	}
+	return out, pending, nil
+}
+
+// gameSides — что мы знаем об игроках партии помимо состояния самой партии.
+// Ключ везде один: номер игрока в этой партии. Cards — карточки из базы,
+// Enemies и Friends — те же карточки, отобранные личными списками
+// смотрящего, Alliances — кланы игроков в самой Supremacy, по ним карта
+// и красится.
+type gameSides struct {
+	Cards     map[int]*domain.Player
+	Enemies   map[int]*domain.Player
+	Friends   map[int]*domain.Player
+	Alliances map[int]domain.Alliance
+}
+
+// gameLists сводит игроков партии с базой по игровому ID и раскладывает их
+// по личным спискам смотрящего. Карточки берутся одним запросом на всё:
+// и на раскраску по кланам, и на оба списка.
+func (s *Server) gameLists(r *http.Request, state *supremacy.GameState) (*gameSides, error) {
 	ids := make([]string, 0, len(state.Players))
 	for _, p := range state.Players {
 		if p.SiteUserID != "" {
@@ -307,7 +671,7 @@ func (s *Server) gameLists(r *http.Request, state *supremacy.GameState) (
 
 	cards, err := s.players.ByGameIDs(r.Context(), ids)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	list := make([]*domain.Player, 0, len(cards))
 	for _, c := range cards {
@@ -315,81 +679,32 @@ func (s *Server) gameLists(r *http.Request, state *supremacy.GameState) (
 	}
 	enemyIDs, err := s.enemies.marked(r, list)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	friendIDs, err := s.friends.marked(r, list)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// Один и тот же разбор для обоих списков: игроки партии сверяются
-	// с карточками, карточки — с личной пометкой.
+	// Один и тот же разбор для всех трёх наборов: игроки партии сверяются
+	// с карточками, карточки — с личной пометкой. Пустая пометка означает
+	// «берём все найденные карточки».
 	pick := func(marked map[int64]bool) map[int]*domain.Player {
 		out := make(map[int]*domain.Player)
 		for _, p := range state.Players {
-			if card, ok := cards[p.SiteUserID]; ok && marked[card.ID] {
-				out[p.ID] = card
+			card, ok := cards[p.SiteUserID]
+			if !ok || (marked != nil && !marked[card.ID]) {
+				continue
 			}
+			out[p.ID] = card
 		}
 		return out
 	}
-	return pick(enemyIDs), pick(friendIDs), nil
-}
-
-// fadeColor уводит цвет страны к фону карты: игра шлёт «rgb(230,190,140)»,
-// и в чистом виде такая заливка спорит с подписями и обводками. Чужую
-// запись возвращаем нетронутой — нарисовать ярко лучше, чем потерять цвет.
-func fadeColor(color string) string {
-	r, g, b, ok := parseRGB(color)
-	if !ok {
-		return color
-	}
-	sr, sg, sb, ok := parseHexRGB(mapSeaFill)
-	if !ok {
-		return color
-	}
-	mix := func(c, sea int) int {
-		return int(float64(c)*(1-mapFade) + float64(sea)*mapFade + 0.5)
-	}
-	return fmt.Sprintf("rgb(%d,%d,%d)", mix(r, sr), mix(g, sg), mix(b, sb))
-}
-
-// parseRGB разбирает «rgb(r,g,b)» — в таком виде цвета отдаёт supremacy.
-func parseRGB(color string) (int, int, int, bool) {
-	inside, ok := strings.CutPrefix(strings.TrimSpace(color), "rgb(")
-	if !ok {
-		return 0, 0, 0, false
-	}
-	inside, ok = strings.CutSuffix(inside, ")")
-	if !ok {
-		return 0, 0, 0, false
-	}
-	parts := strings.Split(inside, ",")
-	if len(parts) != 3 {
-		return 0, 0, 0, false
-	}
-	var v [3]int
-	for i, p := range parts {
-		n, err := strconv.Atoi(strings.TrimSpace(p))
-		if err != nil || n < 0 || n > 255 {
-			return 0, 0, 0, false
-		}
-		v[i] = n
-	}
-	return v[0], v[1], v[2], true
-}
-
-// parseHexRGB разбирает «#rrggbb» — так записаны наши собственные цвета.
-func parseHexRGB(color string) (int, int, int, bool) {
-	hex, ok := strings.CutPrefix(color, "#")
-	if !ok || len(hex) != 6 {
-		return 0, 0, 0, false
-	}
-	n, err := strconv.ParseUint(hex, 16, 32)
-	if err != nil {
-		return 0, 0, 0, false
-	}
-	return int(n >> 16), int(n >> 8 & 0xff), int(n & 0xff), true
+	return &gameSides{
+		Cards:   pick(nil),
+		Enemies: pick(enemyIDs),
+		Friends: pick(friendIDs),
+	}, nil
 }
 
 func svgPoints(points []supremacy.Point) string {
@@ -417,7 +732,62 @@ func relationViews(state *supremacy.GameState, found map[int]*domain.Player) []g
 	out := make([]gameRelationView, 0, len(found))
 	for playerID, card := range found {
 		p := state.Players[playerID]
-		out = append(out, gameRelationView{Nation: p.Nation, Name: p.Name, Card: card})
+		out = append(out, gameRelationView{
+			Nation: p.Nation, Name: p.Name, Premium: p.Premium, Card: card})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Nation < out[j].Nation })
+	return out
+}
+
+// premiumViews — у кого в партии премиум. Игра сообщает подписку про всех
+// участников, и это единственное место, где её видно: в самом клиенте
+// чужой премиум ничем не отмечен. Компьютерных игроков пропускаем —
+// подписки у них не бывает, а список должен читаться.
+func premiumViews(state *supremacy.GameState, meID int) []gamePlayerView {
+	var out []gamePlayerView
+	for _, p := range state.Players {
+		if !p.Premium || p.IsAI {
+			continue
+		}
+		out = append(out, gamePlayerView{
+			Nation: nonEmpty(p.Nation, "неизвестно"), Name: p.Name, Mine: p.ID == meID})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Nation < out[j].Nation })
+	return out
+}
+
+// rememberPlayers записывает состав партии в базу: ник и бан у каждого,
+// кто пришёл с номером на сайте. Свойства партии — поражение, выход, премиум
+// — сюда не идут: они про эту игру, а не про человека, и в другой партии
+// будут другими.
+//
+// Ошибка записи страницу не отменяет: мы уже в партии, состав перед глазами,
+// и терять его показ из-за базы было бы обидно.
+func (s *Server) rememberPlayers(ctx context.Context, state *supremacy.GameState) error {
+	list := make([]domain.GamePlayer, 0, len(state.Players))
+	now := time.Now()
+	for _, p := range state.Players {
+		if p.SiteUserID == "" {
+			continue
+		}
+		list = append(list, domain.GamePlayer{
+			SiteUserID: p.SiteUserID, Nickname: p.Name, Banned: p.Banned,
+			SeenAt: now, SeenGameID: state.GameID,
+		})
+	}
+	return s.gamePlayers.Save(ctx, list)
+}
+
+// bannedViews — кто из игроков партии забанен. Игра сообщает бан про всех
+// участников, и это единственное место, где его видно.
+func bannedViews(state *supremacy.GameState) []gamePlayerView {
+	var out []gamePlayerView
+	for _, p := range state.Players {
+		if !p.Banned {
+			continue
+		}
+		out = append(out, gamePlayerView{
+			Nation: nonEmpty(p.Nation, "неизвестно"), Name: p.Name})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Nation < out[j].Nation })
 	return out
@@ -449,6 +819,12 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		"GameID": gameID, "Task": task, "Error": errMsg,
 		"Interval": s.heroEvery, "Game": nil, "State": nil, "Mine": nil,
 		"Map": nil, "MapError": "", "Enemies": nil, "Friends": nil,
+		"Premium": nil, "Banned": nil,
+		// AlliancesPending — сколько игроков партии воркер ещё не спросил.
+		"AlliancesPending": 0,
+		// Ours — играет ли общий аккаунт в этой партии. Если нет, доступны
+		// только сведения из лобби: заглянуть внутрь может лишь участник.
+		"Ours": false,
 		// Своя страна — от профиля смотрящего. Её может не быть по двум
 		// разным причинам, и сказать об этом надо по-разному.
 		"Me": nil, "NoProfileGameID": false, "NotPlaying": false,
@@ -469,11 +845,23 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		if g.ID == gameID {
 			view := g
 			data["Game"] = &view
+			data["Ours"] = true
 			break
 		}
 	}
+	// Чужая партия — не ошибка: про любую можно узнать хотя бы то, что
+	// сайт показывает в лобби. Внутрь мы туда не попадём, поэтому дальше
+	// сведений дело не идёт.
 	if data["Game"] == nil {
-		data["Error"] = joinErrors(errMsg, "Партии "+gameID+" нет среди активных партий аккаунта.")
+		game, err := s.games.Game(ctx, gameID)
+		if err != nil {
+			s.log.Warn("сведения о партии", "gameID", gameID, "err", err)
+			data["Error"] = joinErrors(errMsg, "Партии "+gameID+" не нашлось: "+err.Error())
+			s.render(w, r, http.StatusOK, "game", data)
+			return
+		}
+		view := gameViews([]supremacy.Game{*game})[0]
+		data["Game"] = &view
 		s.render(w, r, http.StatusOK, "game", data)
 		return
 	}
@@ -516,19 +904,37 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		// остальную страницу.
 		// Игроков партии сводим с базой по игровому ID и отмечаем тех,
 		// кто в личных списках того, кто смотрит.
-		enemies, friends, err := s.gameLists(r, state)
+		sides, err := s.gameLists(r, state)
 		if err != nil {
 			s.serverError(w, r, err)
 			return
 		}
-		data["Enemies"] = relationViews(state, enemies)
-		data["Friends"] = relationViews(state, friends)
+		data["Enemies"] = relationViews(state, sides.Enemies)
+		data["Premium"] = premiumViews(state, meID)
+		data["Banned"] = bannedViews(state)
+
+		// Раз уж состав перед глазами — запомним про игроков то,
+		// что принадлежит им самим, а не этой партии.
+		if err := s.rememberPlayers(ctx, state); err != nil {
+			s.log.Error("запись состава партии", "gameID", gameID, "err", err)
+		}
+		data["Friends"] = relationViews(state, sides.Friends)
+
+		// Кланы игроков берутся из самой игры, но не сейчас: страница
+		// читает уже известное, а незнакомых ставит в очередь воркеру.
+		alliances, pending, err := s.gameAlliances(ctx, state)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		sides.Alliances = alliances
+		data["AlliancesPending"] = pending
 
 		if geo, err := s.games.MapGeometry(ctx, state.MapID); err != nil {
 			s.log.Warn("очертания карты", "gameID", gameID, "mapID", state.MapID, "err", err)
 			data["MapError"] = "Карту нарисовать не вышло: " + err.Error()
 		} else {
-			data["Map"] = gameMap(geo, state, enemies, friends, meID)
+			data["Map"] = gameMap(geo, state, sides, meID)
 		}
 	}
 

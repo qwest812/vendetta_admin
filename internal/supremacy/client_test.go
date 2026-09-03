@@ -511,3 +511,61 @@ func TestWatcherSkipsTutorialGames(t *testing.T) {
 		t.Error("настоящая партия под тем же фильтром должна проходить")
 	}
 }
+
+// Альянс сайт отдаёт вложенным в properties, а игроку без альянса кладёт
+// в это поле null. Форма взята из живого ответа getUserDetailsFirefly.
+func TestParseAlliance(t *testing.T) {
+	const withAlliance = `{"@c": "hup.model.users.User", "id": 101408369,
+	 "alliance": {"@c": "hup.model.alliances.Alliance",
+	  "properties": {"uid": "843930", "name": "VEN.DETTA", "tag": "-V.D-",
+	                 "leaderID": "75396888"}}}`
+
+	a, err := parseAlliance([]byte(withAlliance))
+	if err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+	if a == nil || a.ID != "843930" || a.Name != "VEN.DETTA" || a.Tag != "-V.D-" {
+		t.Errorf("альянс = %+v", a)
+	}
+
+	// Ни альянса, ни ошибки: игрок сам по себе.
+	for _, body := range []string{`{"id": 1, "alliance": null}`, `{"id": 1}`} {
+		a, err := parseAlliance([]byte(body))
+		if err != nil || a != nil {
+			t.Errorf("%s: альянс = %+v, err = %v", body, a, err)
+		}
+	}
+}
+
+// Состав клана приходит списком рядом с самим кланом. Форма взята
+// из живого ответа getAlliance с members=1.
+func TestParseRoster(t *testing.T) {
+	const body = `{"@c": "hup.model.alliances.Alliance",
+	 "properties": {"uid": "843930", "name": "VEN.DETTA", "tag": "-V.D-", "numMembers": 20},
+	 "members": [
+	   {"@c": "hup.model.users.User", "id": 75396888, "username": "V.D. Noxarion"},
+	   {"@c": "hup.model.users.User", "id": 101408369, "username": "Dau7er"},
+	   {"@c": "hup.model.users.User", "id": 0, "username": "служебный"}
+	 ]}`
+
+	alliance, members, err := parseRoster([]byte(body), "843930")
+	if err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+	if alliance.Name != "VEN.DETTA" || alliance.Tag != "-V.D-" {
+		t.Errorf("клан = %+v", alliance)
+	}
+	// Служебный нулевой номер в состав не попадает: искать его в партии
+	// бессмысленно.
+	if len(members) != 2 || members[1].SiteUserID != "101408369" || members[1].Name != "Dau7er" {
+		t.Errorf("состав = %+v", members)
+	}
+}
+
+// Ответ без клана — это отказ, а не пустой состав: молча принять его
+// значило бы записать всем участникам «клана нет».
+func TestParseRosterWithoutAlliance(t *testing.T) {
+	if _, _, err := parseRoster([]byte(`{"members": []}`), "843930"); err == nil {
+		t.Error("ответ без клана принят за пустой состав")
+	}
+}

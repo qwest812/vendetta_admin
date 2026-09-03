@@ -25,7 +25,13 @@ type Server struct {
 	enemies *relationSection
 	friends *relationSection
 	games   gameSource
-	tasks   *repo.GameTasks
+	// alliances — кеш кланов Supremacy: сайт игры отвечает про одного
+	// игрока за раз, а карту красят все сразу.
+	alliances *repo.Alliances
+	// gamePlayers — что игра рассказала про игроков при заходе в партию:
+	// ник и бан. Пишется на каждом заходе, читается в карточке игрока.
+	gamePlayers *repo.GamePlayers
+	tasks       *repo.GameTasks
 	// heroEvery — как часто воркер жмёт кнопку Мейв; показывается на
 	// странице партии, чтобы обещание в интерфейсе не расходилось с делом.
 	heroEvery time.Duration
@@ -47,6 +53,10 @@ type Deps struct {
 	// Games — аккаунт Supremacy 1914 для рутового раздела «Игры».
 	// Пусто, если аккаунт не настроен: раздел тогда скажет об этом сам.
 	Games gameSource
+	// Alliances — кеш кланов из самой Supremacy, по ним красится карта партии.
+	Alliances *repo.Alliances
+	// GamePlayers — ники и баны игроков, увиденные при заходах в партии.
+	GamePlayers *repo.GamePlayers
 	// Tasks — что админка делает в партиях сама, и HeroEvery — как часто.
 	Tasks     *repo.GameTasks
 	HeroEvery time.Duration
@@ -62,7 +72,8 @@ func NewServer(d Deps) (*Server, error) {
 	s := &Server{
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
-		games: d.Games, tasks: d.Tasks, heroEvery: d.HeroEvery,
+		games: d.Games, alliances: d.Alliances, gamePlayers: d.GamePlayers,
+		tasks: d.Tasks, heroEvery: d.HeroEvery,
 		health: d.Health, pages: tmpls,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
@@ -153,6 +164,10 @@ func (s *Server) Handler() http.Handler {
 	// как вход в неё, поэтому раздаётся он поштучно, а не всем подряд.
 	games := func(h http.HandlerFunc) http.Handler { return user(auth.RequireGamesAccess(h)) }
 	mux.Handle("GET /games", games(s.gamesList))
+	// Проверка партии по номеру: сведения о ней сайт отдаёт про любую,
+	// заходом в партию это не считается. Роут стоит раньше /games/{id}
+	// по правилам мультиплексора — он точнее шаблона с параметром.
+	mux.Handle("GET /games/check", games(s.gamesCheck))
 	mux.Handle("GET /games/{id}", games(s.gameCard))
 
 	// Только рут: он один жмёт кнопки в чужой партии от имени общего

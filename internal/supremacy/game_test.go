@@ -12,8 +12,12 @@ const gameStateFixture = `{
  "states": {
   "1": {"players": {
     "-1": {"playerID": -1, "nationName": "", "userName": ""},
-    "12": {"playerID": 12, "nationName": "Греция", "userName": "Dau7er", "capitalID": 430},
-    "29": {"playerID": 29, "nationName": "Франция", "userName": "AI", "computerPlayer": true, "defeated": true}
+    "12": {"playerID": 12, "nationName": "Греция", "userName": "Dau7er", "capitalID": 430, "teamID": 3, "premiumUser": true},
+    "29": {"playerID": 29, "nationName": "Франция", "userName": "AI", "computerPlayer": true, "defeated": true, "banned": true}
+  },
+  "teams": {
+    "3": {"teamID": 3, "name": "КСГ", "primaryColor": "rgba(120,90,120,255)", "disbanded": false},
+    "4": {"teamID": 4, "name": "Распущенная", "primaryColor": "rgba(10,20,30,255)", "disbanded": true}
   }},
   "6": {"armies": {
     "17000885": {"id": 17000885, "o": 12, "s": 25, "l": 500, "u": [
@@ -72,6 +76,15 @@ func TestGameStateBuild(t *testing.T) {
 	if !g.Players[29].IsAI || !g.Players[29].Defeated {
 		t.Error("ИИ и поражение должны читаться из профиля")
 	}
+	// Бан — свойство аккаунта, игра сообщает его тем же профилем.
+	if !g.Players[29].Banned || g.Players[12].Banned {
+		t.Errorf("бан: у 29 = %v, у 12 = %v", g.Players[29].Banned, g.Players[12].Banned)
+	}
+	// Премиум игра сообщает про всех участников партии, а не только
+	// про нас: у соперника он виден так же.
+	if !g.Players[12].Premium || g.Players[29].Premium {
+		t.Errorf("премиум: у 12 = %v, у 29 = %v", g.Players[12].Premium, g.Players[29].Premium)
+	}
 
 	mine := g.Owned(12)
 	if len(mine) != 2 {
@@ -85,6 +98,37 @@ func TestGameStateBuild(t *testing.T) {
 	}
 	if mine[1].Morale != 87.5 {
 		t.Errorf("мораль = %v, ожидалось 87.5 (игра шлёт и дробные)", mine[1].Morale)
+	}
+}
+
+// Коалиции игра отдаёт рядом с игроками: у игрока только номер, название
+// и цвет лежат в отдельном списке. Распущенные в него попадать не должны —
+// состоять в них уже нельзя.
+func TestGameStateBuildTeams(t *testing.T) {
+	var resp gameStateResponse
+	if err := json.Unmarshal([]byte(gameStateFixture), &resp); err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+
+	g, err := resp.build("10886819", 12)
+	if err != nil {
+		t.Fatalf("сборка: %v", err)
+	}
+
+	if len(g.Teams) != 1 {
+		t.Fatalf("коалиций = %d, ожидалась одна живая: %+v", len(g.Teams), g.Teams)
+	}
+	team, ok := g.Teams[3]
+	if !ok || team.Name != "КСГ" || team.Color != "rgb(120,90,120)" {
+		t.Errorf("коалиция = %+v, ok=%v", team, ok)
+	}
+	if got := g.Players[12].TeamID; got != 3 {
+		t.Errorf("коалиция игрока = %d, ожидалась 3", got)
+	}
+	// Кто ни в какой коалиции не состоит, получает ноль — это и есть
+	// «сам по себе», отдельного признака у игры нет.
+	if got := g.Players[29].TeamID; got != 0 {
+		t.Errorf("коалиция одиночки = %d, ожидался ноль", got)
 	}
 }
 

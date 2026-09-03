@@ -55,6 +55,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	enemies := repo.NewEnemies(pool)
 	friends := repo.NewFriends(pool)
 	tasks := repo.NewGameTasks(pool)
+	alliances := repo.NewAlliances(pool)
+	gamePlayers := repo.NewGamePlayers(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -72,7 +74,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	deps := web.Deps{
 		Log: log, Auth: authSvc, Users: users, Sessions: sessions,
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
-		Enemies: enemies, Friends: friends, Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
+		Enemies: enemies, Friends: friends, Alliances: alliances, GamePlayers: gamePlayers,
+		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
 		Health: pool.Ping,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
@@ -109,6 +112,11 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// Автопилот ходит только в те партии, где кнопку включили руками,
 		// поэтому запускается всегда: без включённых партий он молчит.
 		go supremacy.NewAutopilot(s1914, tasks, cfg.S1914HeroEvery, log).Run(ctx)
+
+		// Кланы игроков спрашивает воркер, а не страница карты: сайт игры
+		// отвечает про одного игрока за раз. Очередь ему наполняют сами
+		// открытые партии, поэтому без них он молчит.
+		go supremacy.NewAllianceWatcher(s1914, alliances, cfg.S1914AllianceEvery, log).Run(ctx)
 	}
 
 	httpSrv := &http.Server{

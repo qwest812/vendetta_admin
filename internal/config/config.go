@@ -34,6 +34,10 @@ type Config struct {
 	// включено. Заход в партию игра засчитывает как вход, поэтому реже,
 	// чем опрос лобби.
 	S1914HeroEvery time.Duration
+	// S1914AllianceEvery — как часто воркер разбирает очередь кланов.
+	// Спрашивает он сайт игры, а не игровой сервер, поэтому заходом
+	// в партию это не считается и частить можно смелее.
+	S1914AllianceEvery time.Duration
 
 	// Куда воркер пишет о найденных играх. Без токена и чата сообщения
 	// остаются в логе приложения. Тема нужна только для групп-форумов.
@@ -90,6 +94,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("S1914_HERO_INTERVAL: не чаще раза в 5 минут")
 	}
 	cfg.S1914HeroEvery = hero
+
+	alliances, err := time.ParseDuration(env("S1914_ALLIANCE_INTERVAL", "15m"))
+	if err != nil {
+		return nil, fmt.Errorf("S1914_ALLIANCE_INTERVAL: %w", err)
+	}
+	// Порция за тик небольшая, но это всё же обход чужого сайта: чаще
+	// раза в минуту ходить незачем — кланы столько не меняются.
+	if alliances < time.Minute {
+		return nil, fmt.Errorf("S1914_ALLIANCE_INTERVAL: не чаще раза в минуту")
+	}
+	cfg.S1914AllianceEvery = alliances
 
 	for _, t := range strings.Split(env("S1914_WATCH_TITLES", ""), ",") {
 		if t = strings.TrimSpace(t); t != "" {

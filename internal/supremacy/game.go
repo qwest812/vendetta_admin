@@ -106,19 +106,42 @@ type Player struct {
 	Name       string
 	SiteUserID string
 	Color      string
-	IsAI       bool
-	Defeated   bool
-	Retired    bool
+	// TeamID — коалиция игрока в этой партии. Ноль означает «сам по себе»:
+	// так игра помечает всех, кто ни в какой коалиции не состоит.
+	TeamID int
+	// Premium — подписка «Высокое командование» у игрока. Игра сообщает
+	// её про всех участников партии, а не только про нас, и знать это
+	// полезно: премиум даёт и лишний слот производства, и ускорения.
+	Premium bool
+	// Banned — аккаунт игрока забанен. Это свойство аккаунта, а не партии,
+	// поэтому его и стоит запоминать: в следующий раз человек может нам
+	// и не встретиться, а знать о бане будет полезно.
+	Banned   bool
+	IsAI     bool
+	Defeated bool
+	Retired  bool
+}
+
+// Team — коалиция партии. Своё название и свой цвет игра даёт каждой,
+// поэтому придумывать их не приходится. Распущенные коалиции сюда
+// не попадают: игра держит их в списке, но состоять в них уже нельзя.
+type Team struct {
+	ID    int
+	Name  string
+	Color string
 }
 
 // GameState — то, что мы забрали с игрового сервера за один заход.
 type GameState struct {
 	GameID string
 	// MapID — какая карта под партией: по нему берутся очертания провинций.
-	MapID     string
-	Day       int
-	Me        int // наш playerID в этой партии
-	Players   map[int]Player
+	MapID   string
+	Day     int
+	Me      int // наш playerID в этой партии
+	Players map[int]Player
+	// Teams — коалиции партии по своему номеру. Пусто, если коалиций
+	// в партии нет: игроки тогда все с TeamID = 0.
+	Teams     map[int]Team
 	Provinces []Province
 	Armies    []Army
 	// HeroTypes — типы юнитов, умеющих призывать пехоту (роль
@@ -364,10 +387,21 @@ type gameStateResponse struct {
 				UserName   string `json:"userName"`
 				SiteUserID int64  `json:"siteUserID"`
 				CapitalID  int    `json:"capitalID"`
+				TeamID     int    `json:"teamID"`
+				Premium    bool   `json:"premiumUser"`
+				Banned     bool   `json:"banned"`
 				IsAI       bool   `json:"computerPlayer"`
 				Defeated   bool   `json:"defeated"`
 				Retired    bool   `json:"retired"`
 			} `json:"players"`
+			// Коалиции лежат рядом с игроками: у игрока только номер
+			// коалиции, а название, цвет и роспуск — здесь.
+			Teams map[string]struct {
+				TeamID    int    `json:"teamID"`
+				Name      string `json:"name"`
+				Color     string `json:"primaryColor"`
+				Disbanded bool   `json:"disbanded"`
+			} `json:"teams"`
 		} `json:"1"`
 		Map struct {
 			Map struct {
@@ -444,6 +478,18 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		Players: make(map[int]Player, len(r.States.Players.Players)),
 	}
 
+	// Распущенные коалиции пропускаем: игра оставляет их в списке, но
+	// состоять в них уже нельзя, и на карте им делать нечего.
+	for _, t := range r.States.Players.Teams {
+		if t.TeamID <= 0 || t.Disbanded {
+			continue
+		}
+		if g.Teams == nil {
+			g.Teams = make(map[int]Team, len(r.States.Players.Teams))
+		}
+		g.Teams[t.TeamID] = Team{ID: t.TeamID, Name: t.Name, Color: cssColor(t.Color)}
+	}
+
 	capitals := make(map[int]bool)
 	for _, p := range r.States.Players.Players {
 		// Игра держит в этом списке и служебного игрока -1 («никто»).
@@ -452,8 +498,8 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		}
 		player := Player{
 			ID: p.PlayerID, Nation: p.NationName, Name: p.UserName,
-			Color: cssColor(p.Color),
-			IsAI:  p.IsAI, Defeated: p.Defeated, Retired: p.Retired,
+			Color: cssColor(p.Color), TeamID: p.TeamID, Premium: p.Premium, Banned: p.Banned,
+			IsAI: p.IsAI, Defeated: p.Defeated, Retired: p.Retired,
 		}
 		// У ботов номера на сайте нет — там ноль, и в базе его искать незачем.
 		if p.SiteUserID > 0 {

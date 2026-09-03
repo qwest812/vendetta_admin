@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"html/template"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ func TestPagesRender(t *testing.T) {
 
 	// Часть страниц выглядит по-разному для разных ролей, поэтому у случая
 	// есть свой смотрящий; пусто — обычный админ.
+	banSeen := time.Unix(1788984426, 0)
 	root := &domain.User{ID: 1, Nickname: "root", Role: domain.RoleRoot}
 	player := &domain.User{ID: 2, Nickname: "Dau7er", Role: domain.RoleUser,
 		GamesAccess: true, GameID: "101408369"}
@@ -87,12 +89,33 @@ func TestPagesRender(t *testing.T) {
 		},
 		{
 			page: "player",
-			data: map[string]any{"Player": enemy, "Notes": nil, "Error": ""},
+			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil},
 			// Клан на карточке — ссылка на клан, а не текст.
 			want: []string{`href="/clans/7"`, "Враждебный клан"},
+			// Про игру мы ничего не знаем — и молчим об этом.
+			deny: []string{"В игре", "забанен"},
 		},
 		{
+			// Бан игра рассказывает про аккаунт, поэтому он и живёт
+			// в карточке, а не только в партии, где мы его увидели.
+			name: "player/забанен в игре",
+			page: "player",
+			data: map[string]any{
+				"Player": enemy, "Notes": nil, "Error": "",
+				"Seen": &domain.GamePlayer{
+					SiteUserID: "777", Nickname: "Мультовод", Banned: true,
+					BannedAt: &banSeen, SeenAt: banSeen, SeenGameID: "10892960",
+				},
+			},
+			want: []string{
+				"забанен в игре", "под ником Мультовод",
+				`href="/games/10892960"`,
+			},
+		},
+		{
+			name: "games/root",
 			page: "games",
+			user: root,
 			data: map[string]any{
 				"Games": []gameView{{
 					ID: "10867066", Title: "[Speed] - The Great War", State: "идёт",
@@ -100,9 +123,28 @@ func TestPagesRender(t *testing.T) {
 					Started: time.Unix(1785920128, 0), Joined: time.Unix(1785920263, 0),
 				}},
 				"Error": "", "PlayURL": "https://www.supremacy1914.com/game.php?bust=1&uid=101408369",
+				"CheckError": "", "Query": "",
 			},
-			// Игру надо узнать в списке и суметь открыть в клиенте.
-			want: []string{"[Speed] - The Great War", "ID 10867066", "идёт", "game.php?bust=1&amp;uid=101408369"},
+			// Игру надо узнать в списке, суметь открыть в клиенте и проверить
+			// чужую партию по номеру.
+			want: []string{
+				"[Speed] - The Great War", "ID 10867066", "идёт",
+				"game.php?bust=1&amp;uid=101408369",
+				`action="/games/check"`, "Проверить игру",
+			},
+		},
+		{
+			// Список партий говорит, где аккаунт играет прямо сейчас, — это
+			// рутовое знание. Остальным остаётся проверка по номеру.
+			name: "games/доступ без рута",
+			page: "games",
+			user: player,
+			data: map[string]any{
+				"Games": nil, "Error": "", "PlayURL": "",
+				"CheckError": "", "Query": "",
+			},
+			want: []string{`action="/games/check"`, "Проверить игру", `name="id"`},
+			deny: []string{"Активные игры", "Обновить"},
 		},
 		{
 			name: "game/root",
@@ -118,7 +160,7 @@ func TestPagesRender(t *testing.T) {
 					GameID: "10886819", HeroDeploy: true,
 					LastRunAt: time.Now(), LastResult: "пехота призвана",
 				},
-				"Interval": 45 * time.Minute, "Error": "",
+				"Interval": 45 * time.Minute, "Error": "", "Ours": true,
 				"State": nil, "Mine": nil,
 			},
 			// Переключатель показывает обратное действие, обещанный интервал
@@ -143,7 +185,7 @@ func TestPagesRender(t *testing.T) {
 					Day: "13", Players: "31", PlayerID: "12",
 				},
 				"Task":     &domain.GameTask{GameID: "10886819", HeroDeploy: true},
-				"Interval": 45 * time.Minute, "Error": "",
+				"Interval": 45 * time.Minute, "Error": "", "Ours": true,
 				"State": &supremacy.GameState{Day: 13, Me: 12,
 					Provinces: []supremacy.Province{{ID: 1}, {ID: 2}}},
 				"Me":   &supremacy.Player{ID: 29, Nation: "Франция", Name: "Dau7er"},
@@ -153,15 +195,83 @@ func TestPagesRender(t *testing.T) {
 			deny: []string{"Призвать сейчас", "призыв пехоты", "аккаунт проекта"},
 		},
 		{
+			// Карта без легенды бесполезна: цвет раздаётся кланам на партию,
+			// и понять, чей он, можно только по подписи под картой.
+			name: "game/легенда карты",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID":   "10886819",
+				"Game":     &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
+				"Interval": 45 * time.Minute, "Ours": true,
+				"State": &supremacy.GameState{Day: 13},
+				"Map": &gameMapView{
+					Width: 100, Height: 50,
+					Shapes: []mapShape{
+						{Points: "0,0 10,0 10,10", Class: "clan side-enemy team premium own",
+							ClanColor: template.CSS(mapPalette[0]),
+							TeamColor: template.CSS("rgb(120,90,120)"), Title: "Афины"},
+						{Points: "20,0 30,0 30,10", Class: "neutral", Title: "Ничьё"},
+					},
+					Labels: []mapLabel{
+						{X: 5, Y: 5, Text: "Греция", Nick: "Dau7er"},
+						{X: 25, Y: 5, Text: "Швеция"},
+					},
+					Legend: []allianceLegendView{
+						{ID: "843930", Name: "VEN.DETTA", Tag: "-V.D-", Color: mapPalette[0], Provinces: 12},
+						{ID: "77", Name: "Мелкий", Provinces: 1},
+					},
+					Teams: []teamLegendView{
+						{Name: "КСГ", Color: "rgb(120,90,120)", Members: 4, Mine: true},
+					},
+				},
+				"Enemies": []gameRelationView{{
+					Nation: "Франция", Name: "Враг", Premium: true,
+					Card: &domain.Player{ID: 3, Nickname: "Враг"},
+				}},
+				"Premium": []gamePlayerView{
+					{Nation: "Франция", Name: "Враг"},
+					{Nation: "Швеция", Name: "Сосед"},
+				},
+				"Banned":     []gamePlayerView{{Nation: "Швеция", Name: "Сосед"}},
+				"NotPlaying": true,
+			},
+			want: []string{
+				// Обе кнопки режимов и обе легенды на странице: переключает
+				// их css, поэтому в разметке они есть всегда.
+				`id="map-clans"`, `id="map-sides"`, `id="map-teams"`, `id="map-premium"`,
+				"Кланы", "Мои списки", "Коалиции", "Премиум",
+				"Во врагах", "В друзьях",
+				// Коалиция — из игры: своё название, свой цвет, и своя
+				// помечается отдельно.
+				"КСГ", "rgb(120,90,120)", "ваша",
+				// Премиум виден и списком по партии, и меткой у врага
+				// в личном списке.
+				"Премиум («Высокое командование») в этой партии", "премиум", "Швеция",
+				"Забанены:",
+				// Цвета едут переменными: нужную из них берёт css того
+				// режима, который выбран.
+				"--clan: " + mapPalette[0], "--team: rgb(120,90,120)",
+				`class="clan side-enemy team premium own"`, `class="neutral"`,
+				// Ник — вторая строка подписи: у svg переноса нет, поэтому
+				// строка заново задаёт x и сдвиг.
+				`<tspan class="player" x="5" dy="36">Dau7er</tspan>`,
+				"VEN.DETTA", "-V.D-",
+				// Клан без цвета остаётся в легенде: на карте он серый,
+				// и узнать его больше неоткуда.
+				"Мелкий", "#4a5b68",
+			},
+		},
+		{
 			// Без игрового ID в профиле своей страны не найти — и об этом
 			// говорится прямо, со ссылкой, куда его вписать.
 			name: "game/без игрового ID",
 			page: "game",
 			user: &domain.User{ID: 3, Nickname: "Новичок", Role: domain.RoleUser, GamesAccess: true},
 			data: map[string]any{
-				"GameID":          "10886819",
-				"Game":            &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
-				"Interval":        45 * time.Minute,
+				"GameID":   "10886819",
+				"Game":     &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
+				"Interval": 45 * time.Minute, "Ours": true,
 				"State":           &supremacy.GameState{Day: 13},
 				"NoProfileGameID": true,
 			},
@@ -169,13 +279,33 @@ func TestPagesRender(t *testing.T) {
 			deny: []string{"вы играете за", "Призвать сейчас"},
 		},
 		{
+			name: "game/не наша партия",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID": "10895766",
+				"Game": &gameView{
+					ID: "10895766", Title: "[Event] - Colonial Uprising",
+					State: "набор", Day: "1", Players: "97", Language: "ru",
+				},
+				"Interval": 45 * time.Minute, "Ours": false,
+			},
+			// Про чужую партию есть сведения из лобби, но внутрь не пускают:
+			// ни кнопки «заглянуть», ни карты быть не должно.
+			want: []string{
+				"[Event] - Colonial Uprising", "набор", "97",
+				"общий аккаунт проекта не играет",
+			},
+			deny: []string{"Заглянуть в партию", "Что у нас в партии", "Призвать сейчас"},
+		},
+		{
 			name: "game/чужая партия",
 			page: "game",
 			user: player,
 			data: map[string]any{
-				"GameID":     "10886819",
-				"Game":       &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
-				"Interval":   45 * time.Minute,
+				"GameID":   "10886819",
+				"Game":     &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
+				"Interval": 45 * time.Minute, "Ours": true,
 				"State":      &supremacy.GameState{Day: 13},
 				"NotPlaying": true,
 			},
@@ -599,7 +729,7 @@ func TestGamePageAsksBeforeEnteringGame(t *testing.T) {
 		"GameID":   "10886819",
 		"Game":     &gameView{ID: "10886819", Title: "The Great War", State: "идёт"},
 		"Task":     &domain.GameTask{GameID: "10886819"},
-		"Interval": 45 * time.Minute, "Error": "", "State": nil, "Mine": nil,
+		"Interval": 45 * time.Minute, "Error": "", "Ours": true, "State": nil, "Mine": nil,
 	})
 	if err != nil {
 		t.Fatalf("отрисовка: %v", err)
