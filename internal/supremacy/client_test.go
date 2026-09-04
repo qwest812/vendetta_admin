@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -567,5 +568,40 @@ func TestParseRoster(t *testing.T) {
 func TestParseRosterWithoutAlliance(t *testing.T) {
 	if _, _, err := parseRoster([]byte(`{"members": []}`), "843930"); err == nil {
 		t.Error("ответ без клана принят за пустой состав")
+	}
+}
+
+// Состав партии сайт отдаёт вместе с самой партией: ник, номер на сайте,
+// клан с названием и уровень. Форма взята из живого ответа getGame.
+func TestParseGameLogins(t *testing.T) {
+	const body = `{"@c": "hup.model.games.Game",
+	 "properties": {"gameID": "10892960", "title": "[Speed] - The Great War",
+	                "nrofplayers": "31", "dayofgame": "15"},
+	 "logins": [
+	   {"login": "Vakyla", "siteUserID": "2953349", "allianceID": "11781",
+	    "allianceName": "F L O W", "teamID": "0", "playerLevel": 17},
+	   {"login": "MigoV", "siteUserID": "11075095", "allianceID": "0",
+	    "teamID": "5", "playerLevel": 13}
+	 ]}`
+
+	var res struct {
+		Properties Game        `json:"properties"`
+		Logins     []GameLogin `json:"logins"`
+	}
+	if err := json.Unmarshal([]byte(body), &res); err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+	if res.Properties.Title != "[Speed] - The Great War" {
+		t.Errorf("партия = %+v", res.Properties)
+	}
+	if len(res.Logins) != 2 {
+		t.Fatalf("состав = %+v", res.Logins)
+	}
+	if got := res.Logins[0]; !got.InClan() || got.AllianceName != "F L O W" || got.Level != 17 {
+		t.Errorf("игрок с кланом = %+v", got)
+	}
+	// «0» у сайта означает «ни в каком клане», и за клан это считать нельзя.
+	if res.Logins[1].InClan() {
+		t.Errorf("игрок без клана = %+v", res.Logins[1])
 	}
 }

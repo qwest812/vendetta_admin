@@ -8,8 +8,17 @@ package supremacy
 //	UltUpdateGameStateAction → полное состояние: игроки, карта, день
 //
 // Подписи, как в index.php, здесь нет: gs верит токену из getGameToken.
-// Важно помнить, что такой заход игра засчитывает как вход в партию, так что
-// дёргать это по таймеру не стоит — только по запросу человека.
+//
+// Входом в партию игра считает ровно средний шаг — активацию. Без него
+// состояние приходит глазами наблюдателя: то же самое, но своего игрока
+// в нём нет, а партия не запоминает, что мы заходили. Отсюда два пути:
+//
+//	GameState   — игроком: нужен свой playerID, но заход засчитывается,
+//	              поэтому дёргать его по таймеру не стоит.
+//	ObserveGame — наблюдателем: годится для любой партии, в том числе
+//	              чужой, и следа в ней не оставляет.
+//
+// Токен gs сайт выдаёт и по чужой партии — участие он не проверяет.
 
 import (
 	"context"
@@ -151,7 +160,12 @@ type GameState struct {
 
 // DeployArmy — наша армия с героиней, умеющей призыв пехоты. Пусто, если
 // такой армии в партии нет: героиню в партию ещё не отправили или её убили.
+// У наблюдателя своего игрока нет вовсе, и своей армии у него быть не может:
+// иначе за нас сошёл бы владелец с номером ноль.
 func (g *GameState) DeployArmy() (Army, string, bool) {
+	if g.Me <= 0 {
+		return Army{}, "", false
+	}
 	for _, a := range g.Armies {
 		if a.Owner != g.Me {
 			continue
@@ -183,10 +197,24 @@ type gameAccess struct {
 	tstamp string
 }
 
-// GameState заходит в партию и забирает её состояние целиком.
+// GameState заходит в партию игроком и забирает её состояние целиком.
+// Такой заход игра засчитывает как вход в партию, и работает он только
+// там, где мы играем. Для чужой партии есть ObserveGame.
 func (c *Client) GameState(ctx context.Context, gameID string) (*GameState, error) {
 	_, state, err := c.enter(ctx, gameID)
 	return state, err
+}
+
+// ObserveGame забирает состояние партии наблюдателем: активацию мы
+// пропускаем, а с ней — и вход в партию. Игра отдаёт всё то же самое,
+// включая коалиции с их названиями и цветами, про любую партию, играем мы
+// в ней или нет; своего игрока в таком состоянии нет, поэтому Me = 0.
+func (c *Client) ObserveGame(ctx context.Context, gameID string) (*GameState, error) {
+	acc, err := c.gameAccess(ctx, gameID)
+	if err != nil {
+		return nil, err
+	}
+	return c.gameState(ctx, acc, gameID, 1, 0)
 }
 
 // enter проходит вход в партию и возвращает пропуск вместе с состоянием:
@@ -197,8 +225,8 @@ func (c *Client) enter(ctx context.Context, gameID string) (*gameAccess, *GameSt
 		return nil, nil, err
 	}
 
-	// Активация выдаёт наш номер в партии: без него состояние придёт
-	// глазами наблюдателя, а не игрока.
+	// Активация выдаёт наш номер в партии; она же и есть тот самый вход,
+	// который игра запоминает.
 	var playerID int
 	if err := c.gsCall(ctx, acc, gameID, 1, "ultshared.action.UltActivateGameAction", 0, map[string]any{
 		"selectedPlayerID":              -1,
@@ -214,8 +242,21 @@ func (c *Client) enter(ctx context.Context, gameID string) (*gameAccess, *GameSt
 		return nil, nil, fmt.Errorf("вход в партию %s: игра вернула playerID=%d (мы в ней не играем?)", gameID, playerID)
 	}
 
+	state, err := c.gameState(ctx, acc, gameID, 2, playerID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return acc, state, nil
+}
+
+// gameState спрашивает у игрового сервера полное состояние партии.
+// playerID = 0 означает «смотрим наблюдателем»: игра такой запрос принимает
+// и без активации, только своего игрока в ответе тогда нет.
+func (c *Client) gameState(ctx context.Context, acc *gameAccess, gameID string,
+	reqID, playerID int) (*GameState, error) {
+
 	var state gameStateResponse
-	if err := c.gsCall(ctx, acc, gameID, 2, "ultshared.action.UltUpdateGameStateAction", playerID, map[string]any{
+	if err := c.gsCall(ctx, acc, gameID, reqID, "ultshared.action.UltUpdateGameStateAction", playerID, map[string]any{
 		"actions": []any{map[string]any{
 			"requestID":  "actionReq-1",
 			"@c":         "ultshared.action.UltLoginAction",
@@ -235,14 +276,9 @@ func (c *Client) enter(ctx context.Context, gameID string) (*gameAccess, *GameSt
 		}},
 		"lastCallDuration": 0,
 	}, &state); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	built, err := state.build(gameID, playerID)
-	if err != nil {
-		return nil, nil, err
-	}
-	return acc, built, nil
+	return state.build(gameID, playerID)
 }
 
 // gameAccess спрашивает у сайта, на каком сервере идёт партия и с каким

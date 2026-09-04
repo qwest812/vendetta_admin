@@ -289,14 +289,61 @@ func TestPagesRender(t *testing.T) {
 					State: "набор", Day: "1", Players: "97", Language: "ru",
 				},
 				"Interval": 45 * time.Minute, "Ours": false,
+				"Roster": []rosterView{
+					{Login: "Vakyla", Clan: "F L O W", Team: "5", Level: 17,
+						Card: &domain.Player{ID: 3, Nickname: "Враг"}, Enemy: true},
+					{Login: "MigoV", Level: 13},
+				},
 			},
-			// Про чужую партию есть сведения из лобби, но внутрь не пускают:
-			// ни кнопки «заглянуть», ни карты быть не должно.
+			// Посмотреть со стороны не вышло — остаются сведения из лобби
+			// и состав с сайта. Кнопки захода у чужой партии нет: заходить
+			// в неё нечем, а наблюдателем страница смотрит сама.
 			want: []string{
 				"[Event] - Colonial Uprising", "набор", "97",
 				"общий аккаунт проекта не играет",
+				"Кто играет", "Vakyla", "F L O W", "№5", "17",
+				// Кого знаем — тот со ссылкой на карточку и с меткой списка.
+				`href="/players/3"`, "во врагах",
+				"MigoV",
 			},
 			deny: []string{"Заглянуть в партию", "Что у нас в партии", "Призвать сейчас"},
+		},
+		{
+			// Чужая партия глазами наблюдателя: карта с коалициями есть,
+			// а делать в партии нечего — кнопок призыва тут быть не должно,
+			// как и кнопки захода: страница уже посмотрела всё сама.
+			name: "game/чужая партия со стороны",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID": "10896278",
+				"Game": &gameView{
+					ID: "10896278", Title: "[Speed] - The Great War",
+					State: "идёт", Day: "1", Players: "45",
+				},
+				"Interval": 45 * time.Minute, "Ours": false,
+				"State":      &supremacy.GameState{Day: 1},
+				"NotPlaying": true,
+				"Map": &gameMapView{
+					Width: 100, Height: 50,
+					Shapes: []mapShape{{Points: "0,0 10,0 10,10", Class: "team",
+						TeamColor: template.CSS("rgb(120,140,40)"), Title: "Москва"}},
+					Teams: []teamLegendView{
+						{Name: "Союз независимых", Color: "rgb(120,140,40)", Members: 2},
+					},
+				},
+			},
+			want: []string{
+				"Что в партии", "общий аккаунт проекта не играет",
+				"входом в неё он не считается",
+				"Коалиции", "Союз независимых",
+				"В этой партии вы не играете",
+			},
+			deny: []string{
+				"Заглянуть в партию", "Что у нас в партии", "Призвать сейчас",
+				// Состав с сайта здесь лишний: те же люди видны на карте.
+				"Кто играет",
+			},
 		},
 		{
 			name: "game/чужая партия",

@@ -132,6 +132,36 @@ func TestGameStateBuildTeams(t *testing.T) {
 	}
 }
 
+// Наблюдателем игра отдаёт то же состояние, только своего игрока в нём нет:
+// сборка должна пережить playerID = 0 и сохранить всё остальное, включая
+// коалиции — ради них наблюдательный режим и нужен.
+func TestGameStateBuildAsObserver(t *testing.T) {
+	var resp gameStateResponse
+	if err := json.Unmarshal([]byte(gameStateFixture), &resp); err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+
+	g, err := resp.build("10886819", 0)
+	if err != nil {
+		t.Fatalf("сборка: %v", err)
+	}
+
+	if g.Me != 0 {
+		t.Errorf("свой игрок = %d, у наблюдателя его быть не должно", g.Me)
+	}
+	if len(g.Teams) != 1 || g.Teams[3].Name != "КСГ" {
+		t.Errorf("коалиции наблюдателю не достались: %+v", g.Teams)
+	}
+	if len(g.Players) == 0 || len(g.Provinces) == 0 {
+		t.Errorf("пустое состояние: игроков %d, провинций %d", len(g.Players), len(g.Provinces))
+	}
+	// Своей армии у наблюдателя нет, и героиню он искать не должен: иначе
+	// ничейный владелец сошёл бы за нас.
+	if _, _, ok := g.DeployArmy(); ok {
+		t.Error("у наблюдателя нашлась своя армия с героиней")
+	}
+}
+
 // Без карты отчёт был бы пустым и выглядел бы как «мы ничем не владеем» —
 // это худший исход, поэтому такой ответ считается ошибкой.
 func TestGameStateBuildWithoutMap(t *testing.T) {

@@ -169,7 +169,12 @@ func (r *Alliances) Save(ctx context.Context, list []domain.Alliance, at time.Ti
 			 ON CONFLICT (site_user_id) DO UPDATE SET
 			     alliance_id = EXCLUDED.alliance_id,
 			     name = EXCLUDED.name,
-			     tag = EXCLUDED.tag,
+			     tag = CASE
+			         WHEN EXCLUDED.tag <> '' THEN EXCLUDED.tag
+			         WHEN EXCLUDED.alliance_id = supremacy_user_alliances.alliance_id
+			             THEN supremacy_user_alliances.tag
+			         ELSE ''
+			     END,
 			     checked_at = EXCLUDED.checked_at`,
 			a.SiteUserID, a.ID, a.Name, a.Tag, at)
 		if err != nil {

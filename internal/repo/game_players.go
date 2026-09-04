@@ -18,6 +18,9 @@ func NewGamePlayers(pool *pgxpool.Pool) *GamePlayers { return &GamePlayers{pool:
 // Save записывает состав партии. Дата бана ставится в момент, когда бан
 // увидели впервые, и держится, пока он есть; снятие бана обнуляет её —
 // дата без бана означала бы «сидит до сих пор».
+//
+// Тип у $4 приходится называть вслух: внутри CASE без ELSE выводить его
+// Postgres не из чего, он берёт text — и упирается в timestamptz колонки.
 func (r *GamePlayers) Save(ctx context.Context, list []domain.GamePlayer) error {
 	if len(list) == 0 {
 		return nil
@@ -33,7 +36,7 @@ func (r *GamePlayers) Save(ctx context.Context, list []domain.GamePlayer) error 
 		if _, err := tx.Exec(ctx,
 			`INSERT INTO supremacy_players
 			     (site_user_id, nickname, banned, banned_at, seen_at, seen_game_id)
-			 VALUES ($1, $2, $3, CASE WHEN $3 THEN $4 END, $4, $5)
+			 VALUES ($1, $2, $3, CASE WHEN $3 THEN $4::timestamptz END, $4, $5)
 			 ON CONFLICT (site_user_id) DO UPDATE SET
 			     nickname = EXCLUDED.nickname,
 			     banned = EXCLUDED.banned,

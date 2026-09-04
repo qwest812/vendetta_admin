@@ -234,26 +234,48 @@ func (c *Client) OpenGames(ctx context.Context) ([]Game, error) {
 	}
 }
 
+// GameLogin — участник партии по данным сайта. Приходит вместе с самой
+// партией и содержит то, чего в состоянии на игровом сервере нет: клан
+// игрока с названием и его уровень. Пустой AllianceID (сайт шлёт «0»)
+// означает, что в клане игрок не состоит.
+//
+// Всё это сайт отдаёт про любую партию, не спрашивая, играем ли мы в ней:
+// состав, кланы и коалиции узнаются без всякого захода на игровой сервер.
+type GameLogin struct {
+	Login        string `json:"login"`
+	SiteUserID   string `json:"siteUserID"`
+	AllianceID   string `json:"allianceID"`
+	AllianceName string `json:"allianceName"`
+	TeamID       string `json:"teamID"`
+	Level        int    `json:"playerLevel"`
+}
+
+// InClan — состоит ли игрок в клане. Ноль у сайта означает «ни в каком»,
+// и отличить его от пустоты стоит здесь, а не у каждого вызывающего.
+func (l GameLogin) InClan() bool { return l.AllianceID != "" && l.AllianceID != "0" }
+
 // Game спрашивает у сайта одну партию по её номеру — любую, не только свою.
 // Отвечает сайт из общего списка партий, поэтому заходом в партию это
-// не считается и работает для чужих игр тоже: так по номеру можно узнать
-// название, сценарий, день и число игроков, ничего в партию не отправляя.
-func (c *Client) Game(ctx context.Context, gameID string) (*Game, error) {
+// не считается и работает для чужих игр тоже: по номеру можно узнать
+// название, сценарий, день, число игроков и весь состав с кланами,
+// ничего в партию не отправляя.
+func (c *Client) Game(ctx context.Context, gameID string) (*Game, []GameLogin, error) {
 	raw, err := c.call(ctx, "getGame", []param{{"gameID", gameID}})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var res struct {
-		Properties Game `json:"properties"`
+		Properties Game        `json:"properties"`
+		Logins     []GameLogin `json:"logins"`
 	}
 	if err := json.Unmarshal(raw, &res); err != nil {
-		return nil, fmt.Errorf("разбор партии %s: %w", gameID, err)
+		return nil, nil, fmt.Errorf("разбор партии %s: %w", gameID, err)
 	}
 	if res.Properties.GameID == "" {
-		return nil, fmt.Errorf("партии %s у игры нет", gameID)
+		return nil, nil, fmt.Errorf("партии %s у игры нет", gameID)
 	}
-	return &res.Properties, nil
+	return &res.Properties, res.Logins, nil
 }
 
 // MyGames возвращает игры аккаунта, которые идут сейчас, — то же, что

@@ -23,8 +23,9 @@ const gamesTimeout = 20 * time.Second
 // означает, что аккаунт игры не настроен (S1914_USER не задан).
 type gameSource interface {
 	MyGames(ctx context.Context) ([]supremacy.Game, error)
-	Game(ctx context.Context, gameID string) (*supremacy.Game, error)
+	Game(ctx context.Context, gameID string) (*supremacy.Game, []supremacy.GameLogin, error)
 	GameState(ctx context.Context, gameID string) (*supremacy.GameState, error)
+	ObserveGame(ctx context.Context, gameID string) (*supremacy.GameState, error)
 	DeployInfantry(ctx context.Context, gameID string) (string, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
 	UserID() string
@@ -47,8 +48,8 @@ type gameView struct {
 // gamesList — раздел «Игры». Руту он показывает активные партии общего аккаунта,
 // остальным — только форму проверки: список партий говорит, где аккаунт
 // играет прямо сейчас, и это знание рутовое. Проверить же партию по номеру
-// может любой, кому доступ к разделу выдан: сведения о партии сайт отдаёт
-// про любую, и заходом в неё это не считается.
+// может любой, кому доступ к разделу выдан: и сведения о партии, и её состав
+// с картой берутся так, что заходом в партию это не считается.
 func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
 		"Games": nil, "Error": "", "PlayURL": "", "CheckError": "",
@@ -110,7 +111,9 @@ func gameIDFrom(input string) string {
 
 // gamesCheck — кнопка «Проверить игру»: по введённому номеру уводит
 // на страницу партии. Отдельный роут нужен затем, чтобы адрес партии
-// оставался прежним и им можно было делиться.
+// оставался прежним и им можно было делиться. Что покажет страница, решает
+// она сама: в чужую партию она заглянет наблюдателем сразу, в свою — только
+// по кнопке, потому что своя требует настоящего входа.
 func (s *Server) gamesCheck(w http.ResponseWriter, r *http.Request) {
 	id := gameIDFrom(r.URL.Query().Get("id"))
 	if id == "" {
@@ -599,7 +602,9 @@ func viewerPlayer(state *supremacy.GameState, siteUserID string) (supremacy.Play
 //
 // Второй ответ — сколько игроков партии ещё не спрошено: об этом стоит
 // сказать на странице, иначе серый цвет читается как «клана нет».
-func (s *Server) gameAlliances(ctx context.Context, state *supremacy.GameState) (map[int]domain.Alliance, int, error) {
+func (s *Server) gameAlliances(ctx context.Context, state *supremacy.GameState,
+	roster []supremacy.GameLogin) (map[int]domain.Alliance, int, error) {
+
 	byUser := make(map[string][]int, len(state.Players))
 	for _, p := range state.Players {
 		if p.SiteUserID != "" {
@@ -619,9 +624,15 @@ func (s *Server) gameAlliances(ctx context.Context, state *supremacy.GameState) 
 	if err != nil {
 		return nil, 0, err
 	}
+	// Состав, только что взятый у сайта, свежее любой записи в базе
+	// и перекрывает её.
+	for _, a := range allianceRows(roster, time.Now()) {
+		known[a.SiteUserID] = a
+	}
 
-	// В очередь попадают и те, кого в базе нет вовсе, и те, кого записали
-	// раньше, но спросить ещё не успели: вторых Enqueue молча пропустит.
+	// В очередь попадают те, о ком не сказал ни состав, ни база. После
+	// того как кланы приезжают вместе с партией, таких почти не остаётся:
+	// разве что игрок пришёл в партию после того, как сайт отдал состав.
 	pending := 0
 	queue := make([]string, 0, len(ids))
 	for _, id := range ids {
@@ -644,6 +655,48 @@ func (s *Server) gameAlliances(ctx context.Context, state *supremacy.GameState) 
 		}
 	}
 	return out, pending, nil
+}
+
+// allianceRows переводит состав партии в записи о кланах. Тега сайт здесь
+// не даёт — он приходит только с составом самого клана, — и пустой тег
+// затирать чужую находку не должен: об этом знает сама запись в базе.
+func allianceRows(roster []supremacy.GameLogin, at time.Time) []domain.Alliance {
+	out := make([]domain.Alliance, 0, len(roster))
+	for _, l := range roster {
+		if l.SiteUserID == "" {
+			continue
+		}
+		row := domain.Alliance{SiteUserID: l.SiteUserID, CheckedAt: &at}
+		if l.InClan() {
+			row.ID, row.Name = l.AllianceID, l.AllianceName
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
+// rememberAlliances кладёт кланы из состава партии в базу и ставит новые
+// кланы в очередь на состав. Это главный способ пополнения: одна проверка
+// партии приносит кланы всех её участников разом, тогда как воркер
+// спрашивает по игроку за раз.
+func (s *Server) rememberAlliances(ctx context.Context, roster []supremacy.GameLogin) error {
+	rows := allianceRows(roster, time.Now())
+	if len(rows) == 0 {
+		return nil
+	}
+	if err := s.alliances.Save(ctx, rows, time.Now()); err != nil {
+		return err
+	}
+
+	seen := map[string]bool{}
+	var clans []string
+	for _, r := range rows {
+		if r.InClan() && !seen[r.ID] {
+			seen[r.ID] = true
+			clans = append(clans, r.ID)
+		}
+	}
+	return s.alliances.EnqueueAlliances(ctx, clans)
 }
 
 // gameSides — что мы знаем об игроках партии помимо состояния самой партии.
@@ -793,6 +846,91 @@ func bannedViews(state *supremacy.GameState) []gamePlayerView {
 	return out
 }
 
+// rosterView — строка состава партии: то, что сайт рассказывает про
+// участника, плюс то, что о нём знаем мы. Card — карточка из базы, если
+// игрок в ней есть; Enemy и Friend — личные списки смотрящего.
+//
+// Team — номер коалиции, как его отдаёт сайт. Названия коалиций он не даёт,
+// они видны только изнутри партии, поэтому номер здесь работает как метка
+// «эти трое заодно».
+type rosterView struct {
+	Login  string
+	Clan   string
+	Team   string
+	Level  int
+	Card   *domain.Player
+	Enemy  bool
+	Friend bool
+}
+
+// rosterViews готовит состав партии к показу и сводит его с базой по
+// игровому ID: тот самый номер, что сайт зовёт siteUserID. Порядок — по
+// клану, чтобы соклановцы стояли рядом, а внутри клана по нику; безкланные
+// уходят в конец.
+func (s *Server) rosterViews(r *http.Request, roster []supremacy.GameLogin) ([]rosterView, error) {
+	if len(roster) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]string, 0, len(roster))
+	for _, l := range roster {
+		if l.SiteUserID != "" {
+			ids = append(ids, l.SiteUserID)
+		}
+	}
+	cards, err := s.players.ByGameIDs(r.Context(), ids)
+	if err != nil {
+		return nil, err
+	}
+	list := make([]*domain.Player, 0, len(cards))
+	for _, c := range cards {
+		list = append(list, c)
+	}
+	enemies, err := s.enemies.marked(r, list)
+	if err != nil {
+		return nil, err
+	}
+	friends, err := s.friends.marked(r, list)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]rosterView, 0, len(roster))
+	for _, l := range roster {
+		view := rosterView{Login: l.Login, Level: l.Level}
+		if l.InClan() {
+			view.Clan = nonEmpty(l.AllianceName, "клан "+l.AllianceID)
+		}
+		if l.TeamID != "" && l.TeamID != "0" {
+			view.Team = l.TeamID
+		}
+		if card, ok := cards[l.SiteUserID]; ok {
+			view.Card = card
+			view.Enemy, view.Friend = enemies[card.ID], friends[card.ID]
+		}
+		out = append(out, view)
+	}
+
+	sortRoster(out)
+	return out, nil
+}
+
+// sortRoster ставит состав в том порядке, в котором его читают: соклановцы
+// рядом, а безкланные в конце — они друг другу никто, и разбирать их стоит
+// после того, как видны стороны. Внутри клана порядок по нику.
+func sortRoster(list []rosterView) {
+	sort.SliceStable(list, func(i, j int) bool {
+		a, b := list[i], list[j]
+		if (a.Clan == "") != (b.Clan == "") {
+			return a.Clan != ""
+		}
+		if a.Clan != b.Clan {
+			return a.Clan < b.Clan
+		}
+		return strings.ToLower(a.Login) < strings.ToLower(b.Login)
+	})
+}
+
 // gameCard — страница одной партии: что это за партия и что админка делает
 // в ней сама. Состав партии сюда не тянется по умолчанию: заход на игровой
 // сервер игра засчитывает как вход в партию, поэтому его просят отдельно.
@@ -819,11 +957,12 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		"GameID": gameID, "Task": task, "Error": errMsg,
 		"Interval": s.heroEvery, "Game": nil, "State": nil, "Mine": nil,
 		"Map": nil, "MapError": "", "Enemies": nil, "Friends": nil,
-		"Premium": nil, "Banned": nil,
+		"Premium": nil, "Banned": nil, "Roster": nil,
 		// AlliancesPending — сколько игроков партии воркер ещё не спросил.
 		"AlliancesPending": 0,
-		// Ours — играет ли общий аккаунт в этой партии. Если нет, доступны
-		// только сведения из лобби: заглянуть внутрь может лишь участник.
+		// Ours — играет ли общий аккаунт в этой партии. От этого зависит,
+		// как мы смотрим на неё: в свою заходим игроком по кнопке, в чужую
+		// — наблюдателем и сразу, потому что входом в партию это не считается.
 		"Ours": false,
 		// Своя страна — от профиля смотрящего. Её может не быть по двум
 		// разным причинам, и сказать об этом надо по-разному.
@@ -849,27 +988,63 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 			break
 		}
 	}
-	// Чужая партия — не ошибка: про любую можно узнать хотя бы то, что
-	// сайт показывает в лобби. Внутрь мы туда не попадём, поэтому дальше
-	// сведений дело не идёт.
-	if data["Game"] == nil {
-		game, err := s.games.Game(ctx, gameID)
-		if err != nil {
-			s.log.Warn("сведения о партии", "gameID", gameID, "err", err)
+	// Состав сайт отдаёт вместе с самой партией и про любую партию, поэтому
+	// спрашиваем всегда: в нём кланы всех участников, а это вся раскраска
+	// карты — и её не приходится собирать по игроку за раз.
+	game, roster, err := s.games.Game(ctx, gameID)
+	if err != nil {
+		s.log.Warn("сведения о партии", "gameID", gameID, "err", err)
+		// Своя партия переживёт молчание сайта: название и день уже есть
+		// из списка, а кланы возьмутся из базы. Чужая — нет, про неё мы
+		// больше ничего и не знаем.
+		if data["Game"] == nil {
 			data["Error"] = joinErrors(errMsg, "Партии "+gameID+" не нашлось: "+err.Error())
 			s.render(w, r, http.StatusOK, "game", data)
 			return
 		}
-		view := gameViews([]supremacy.Game{*game})[0]
-		data["Game"] = &view
-		s.render(w, r, http.StatusOK, "game", data)
-		return
+		data["Error"] = joinErrors(errMsg, "Состав партии не получен: "+err.Error())
 	}
 
-	if withState {
-		state, err := s.games.GameState(ctx, gameID)
+	// Кланы из состава кладём в базу независимо от того, дошло ли дело
+	// до карты: раз уж сайт их назвал, пусть остаются.
+	if err := s.rememberAlliances(ctx, roster); err != nil {
+		s.log.Error("запись кланов из состава", "gameID", gameID, "err", err)
+	}
+
+	// Состав показываем там, где нет карты: в чужой партии он и есть вся
+	// проверка, а в своей — то, что видно до захода внутрь.
+	views, err := s.rosterViews(r, roster)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	data["Roster"] = views
+
+	// Чужая партия — не ошибка: название и состояние сайт называет про любую.
+	ours := data["Ours"] == true
+	if !ours {
+		view := gameViews([]supremacy.Game{*game})[0]
+		data["Game"] = &view
+	}
+
+	// В свою партию заходим только по кнопке: такой заход игра засчитывает
+	// как вход. В чужую смотрим наблюдателем, и вот это уже ничего не стоит
+	// — значит, и прятать за кнопкой незачем.
+	if withState || !ours {
+		var state *supremacy.GameState
+		var err error
+		if ours {
+			state, err = s.games.GameState(ctx, gameID)
+		} else {
+			state, err = s.games.ObserveGame(ctx, gameID)
+		}
 		if err != nil {
-			data["Error"] = joinErrors(errMsg, "Не удалось зайти в партию: "+err.Error())
+			s.log.Warn("состояние партии", "gameID", gameID, "наша", ours, "err", err)
+			what := "Не удалось зайти в партию: "
+			if !ours {
+				what = "Не удалось посмотреть партию со стороны: "
+			}
+			data["Error"] = joinErrors(errMsg, what+err.Error())
 			s.render(w, r, http.StatusOK, "game", data)
 			return
 		}
@@ -922,7 +1097,7 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 
 		// Кланы игроков берутся из самой игры, но не сейчас: страница
 		// читает уже известное, а незнакомых ставит в очередь воркеру.
-		alliances, pending, err := s.gameAlliances(ctx, state)
+		alliances, pending, err := s.gameAlliances(ctx, state, roster)
 		if err != nil {
 			s.serverError(w, r, err)
 			return

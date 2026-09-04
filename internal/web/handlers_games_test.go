@@ -539,3 +539,58 @@ func TestBannedViews(t *testing.T) {
 		t.Errorf("порядок = %+v, ожидался по алфавиту", got)
 	}
 }
+
+// Состав партии приходит вместе с самой партией, и кланы всех её игроков
+// берутся оттуда разом. Игрок без клана — это ответ, а не пустота: сайт
+// про него сказал, и переспрашивать его не нужно.
+func TestAllianceRows(t *testing.T) {
+	at := time.Unix(1788984426, 0)
+	rows := allianceRows([]supremacy.GameLogin{
+		{Login: "Vakyla", SiteUserID: "2953349", AllianceID: "11781", AllianceName: "F L O W"},
+		{Login: "MigoV", SiteUserID: "11075095", AllianceID: "0"},
+		{Login: "без номера"},
+	}, at)
+
+	if len(rows) != 2 {
+		t.Fatalf("записей = %+v, ожидались две: без номера на сайте игрок бесполезен", rows)
+	}
+	if got := rows[0]; got.ID != "11781" || got.Name != "F L O W" || !got.InClan() {
+		t.Errorf("игрок с кланом = %+v", got)
+	}
+	// Тег состав не отдаёт: он приходит только с составом самого клана.
+	if rows[0].Tag != "" {
+		t.Errorf("откуда тег? %+v", rows[0])
+	}
+	if got := rows[1]; got.InClan() || !got.Known() {
+		t.Errorf("игрок без клана = %+v: ответ есть, клана нет", got)
+	}
+	if !rows[0].CheckedAt.Equal(at) {
+		t.Errorf("время проверки = %v", rows[0].CheckedAt)
+	}
+}
+
+// Состав ставится в порядке, в котором его читают: соклановцы рядом,
+// безкланные в конце. Внутри клана — по нику, без учёта регистра.
+func TestRosterOrder(t *testing.T) {
+	views := []rosterView{
+		{Login: "один", Clan: ""},
+		{Login: "яков", Clan: "F L O W"},
+		{Login: "Абрам", Clan: "F L O W"},
+		{Login: "второй", Clan: ""},
+		{Login: "кто-то", Clan: "VEN.DETTA"},
+	}
+	sortRoster(views)
+
+	got := []string{}
+	for _, v := range views {
+		got = append(got, v.Login)
+	}
+	// Безкланные тоже по нику: список должен читаться, а не лежать
+	// в том порядке, в каком его прислал сайт.
+	want := []string{"Абрам", "яков", "кто-то", "второй", "один"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("порядок = %v, ожидался %v", got, want)
+		}
+	}
+}
