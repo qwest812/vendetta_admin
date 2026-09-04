@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -26,32 +27,51 @@ func (r *GamePlayers) Save(ctx context.Context, list []domain.GamePlayer) error 
 		return nil
 	}
 
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
+	// Одним запросом, а не строкой за строкой: состав партии — это четыре
+	// десятка человек, и сорок обращений к базе ради них излишни. Повторы
+	// убираем заранее — ON CONFLICT DO UPDATE не правит одну строку дважды
+	// в одном запросе.
+	users, nicks, banned := make([]string, 0, len(list)), make([]string, 0, len(list)), make([]bool, 0, len(list))
+	seen := make(map[string]int, len(list))
+	var at time.Time
+	var gameID string
 	for _, p := range list {
-		if _, err := tx.Exec(ctx,
-			`INSERT INTO supremacy_players
-			     (site_user_id, nickname, banned, banned_at, seen_at, seen_game_id)
-			 VALUES ($1, $2, $3, CASE WHEN $3 THEN $4::timestamptz END, $4, $5)
-			 ON CONFLICT (site_user_id) DO UPDATE SET
-			     nickname = EXCLUDED.nickname,
-			     banned = EXCLUDED.banned,
-			     banned_at = CASE
-			         WHEN NOT EXCLUDED.banned THEN NULL
-			         WHEN supremacy_players.banned THEN supremacy_players.banned_at
-			         ELSE EXCLUDED.seen_at
-			     END,
-			     seen_at = EXCLUDED.seen_at,
-			     seen_game_id = EXCLUDED.seen_game_id`,
-			p.SiteUserID, p.Nickname, p.Banned, p.SeenAt, p.SeenGameID); err != nil {
-			return err
+		if p.SiteUserID == "" {
+			continue
 		}
+		at, gameID = p.SeenAt, p.SeenGameID
+		if i, ok := seen[p.SiteUserID]; ok {
+			nicks[i], banned[i] = p.Nickname, p.Banned
+			continue
+		}
+		seen[p.SiteUserID] = len(users)
+		users = append(users, p.SiteUserID)
+		nicks = append(nicks, p.Nickname)
+		banned = append(banned, p.Banned)
 	}
-	return tx.Commit(ctx)
+	if len(users) == 0 {
+		return nil
+	}
+
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO supremacy_players
+		     (site_user_id, nickname, banned, banned_at, seen_at, seen_game_id)
+		 SELECT u.site_user_id, u.nickname, u.banned,
+		        CASE WHEN u.banned THEN $4::timestamptz END, $4, $5
+		   FROM unnest($1::text[], $2::text[], $3::boolean[])
+		        AS u(site_user_id, nickname, banned)
+		 ON CONFLICT (site_user_id) DO UPDATE SET
+		     nickname = EXCLUDED.nickname,
+		     banned = EXCLUDED.banned,
+		     banned_at = CASE
+		         WHEN NOT EXCLUDED.banned THEN NULL
+		         WHEN supremacy_players.banned THEN supremacy_players.banned_at
+		         ELSE EXCLUDED.seen_at
+		     END,
+		     seen_at = EXCLUDED.seen_at,
+		     seen_game_id = EXCLUDED.seen_game_id`,
+		users, nicks, banned, at, gameID)
+	return err
 }
 
 // ByGameIDs отдаёт известное про игроков по их номерам на сайте игры —

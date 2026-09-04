@@ -162,24 +162,55 @@ func (r *Alliances) SaveRoster(ctx context.Context, alliance domain.Alliance,
 // Save кладёт ответы игры. Время проверки обновляется всегда, даже когда
 // клан не изменился: смысл записи — «на этот момент было так».
 func (r *Alliances) Save(ctx context.Context, list []domain.Alliance, at time.Time) error {
-	for _, a := range list {
-		_, err := r.pool.Exec(ctx,
-			`INSERT INTO supremacy_user_alliances (site_user_id, alliance_id, name, tag, checked_at)
-			 VALUES ($1, $2, $3, $4, $5)
-			 ON CONFLICT (site_user_id) DO UPDATE SET
-			     alliance_id = EXCLUDED.alliance_id,
-			     name = EXCLUDED.name,
-			     tag = CASE
-			         WHEN EXCLUDED.tag <> '' THEN EXCLUDED.tag
-			         WHEN EXCLUDED.alliance_id = supremacy_user_alliances.alliance_id
-			             THEN supremacy_user_alliances.tag
-			         ELSE ''
-			     END,
-			     checked_at = EXCLUDED.checked_at`,
-			a.SiteUserID, a.ID, a.Name, a.Tag, at)
-		if err != nil {
-			return err
-		}
+	// Одним запросом, а не строкой за строкой. У постгреса synchronous_commit
+	// включён, и отдельный Exec — это отдельный коммит с fsync: тридцать
+	// строк состава партии стоили почти секунды. Тот же приём с unnest уже
+	// применён рядом, в EnqueueAlliances.
+	users, ids, names, tags := allianceColumns(list)
+	if len(users) == 0 {
+		return nil
 	}
-	return nil
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO supremacy_user_alliances (site_user_id, alliance_id, name, tag, checked_at)
+		 SELECT u.site_user_id, u.alliance_id, u.name, u.tag, $5
+		   FROM unnest($1::text[], $2::text[], $3::text[], $4::text[])
+		        AS u(site_user_id, alliance_id, name, tag)
+		 ON CONFLICT (site_user_id) DO UPDATE SET
+		     alliance_id = EXCLUDED.alliance_id,
+		     name = EXCLUDED.name,
+		     tag = CASE
+		         WHEN EXCLUDED.tag <> '' THEN EXCLUDED.tag
+		         WHEN EXCLUDED.alliance_id = supremacy_user_alliances.alliance_id
+		             THEN supremacy_user_alliances.tag
+		         ELSE ''
+		     END,
+		     checked_at = EXCLUDED.checked_at`,
+		users, ids, names, tags, at)
+	return err
+}
+
+// allianceColumns раскладывает записи по столбцам и заодно убирает повторы.
+// Повторы здесь опаснее, чем кажется: ON CONFLICT DO UPDATE отказывается
+// править одну и ту же строку дважды в одном запросе, и построчная запись
+// такого не замечала, а пакетная упала бы целиком.
+//
+// Из одинаковых оставляем последнюю: список приходит в порядке ответа игры,
+// и свежее в нём идёт позже.
+func allianceColumns(list []domain.Alliance) (users, ids, names, tags []string) {
+	seen := make(map[string]int, len(list))
+	for _, a := range list {
+		if a.SiteUserID == "" {
+			continue
+		}
+		if i, ok := seen[a.SiteUserID]; ok {
+			ids[i], names[i], tags[i] = a.ID, a.Name, a.Tag
+			continue
+		}
+		seen[a.SiteUserID] = len(users)
+		users = append(users, a.SiteUserID)
+		ids = append(ids, a.ID)
+		names = append(names, a.Name)
+		tags = append(tags, a.Tag)
+	}
+	return users, ids, names, tags
 }

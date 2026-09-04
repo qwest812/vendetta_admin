@@ -944,6 +944,21 @@ func sortRoster(list []rosterView) {
 	})
 }
 
+// gameAbout и gameLive — ответы двух походов наружу, которые страница партии
+// делает одновременно. Каналы под них буферизованные: если страница сдалась
+// раньше (сайт молчит, номер выдуман), горутина допишет ответ в буфер
+// и завершится, а не повиснет навсегда.
+type gameAbout struct {
+	game   *supremacy.Game
+	roster []supremacy.GameLogin
+	err    error
+}
+
+type gameLive struct {
+	state *supremacy.GameState
+	err   error
+}
+
 // gameCard — страница одной партии: что это за партия и что админка делает
 // в ней сама. Состав партии сюда не тянется по умолчанию: заход на игровой
 // сервер игра засчитывает как вход в партию, поэтому его просят отдельно.
@@ -989,6 +1004,15 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
 	defer cancel()
 
+	// Три похода наружу независимы, а суммарно занимают почти три секунды,
+	// поэтому идут разом. Сведения о партии с сайта — самый долгий из них
+	// (около двух секунд), и ждать его, ничего не делая, обиднее всего.
+	about := make(chan gameAbout, 1)
+	go func() {
+		g, roster, err := s.games.Game(ctx, gameID)
+		about <- gameAbout{game: g, roster: roster, err: err}
+	}()
+
 	// Название и день берём из дешёвого списка партий: он же подтверждает,
 	// что партия наша и ещё идёт.
 	games, err := s.games.MyGames(ctx)
@@ -1009,10 +1033,37 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 			break
 		}
 	}
+	ours := data["Ours"] == true
+
+	// Состояние партии — третий поход, и ему хватает уже известного: свою
+	// партию открываем игроком, чужую смотрим наблюдателем. Отправляем его
+	// сейчас, чтобы он шёл под ответ сайта, а не после него.
+	//
+	// Цена решения: по выдуманному номеру партии мы теперь сходим в игру
+	// зря — сайт скажет «такой нет» уже после. Один лишний запрос на опечатку
+	// против секунды на каждом честном открытии.
+	var live chan gameLive
+	if withState || !ours {
+		live = make(chan gameLive, 1)
+		go func() {
+			var (
+				state *supremacy.GameState
+				err   error
+			)
+			if ours {
+				state, err = s.games.GameState(ctx, gameID)
+			} else {
+				state, err = s.games.ObserveGame(ctx, gameID)
+			}
+			live <- gameLive{state: state, err: err}
+		}()
+	}
+
 	// Состав сайт отдаёт вместе с самой партией и про любую партию, поэтому
 	// спрашиваем всегда: в нём кланы всех участников, а это вся раскраска
 	// карты — и её не приходится собирать по игроку за раз.
-	game, roster, err := s.games.Game(ctx, gameID)
+	got := <-about
+	game, roster, err := got.game, got.roster, got.err
 	if err != nil {
 		s.log.Warn("сведения о партии", "gameID", gameID, "err", err)
 		// Своя партия переживёт молчание сайта: название и день уже есть
@@ -1042,7 +1093,6 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	data["Roster"] = views
 
 	// Чужая партия — не ошибка: название и состояние сайт называет про любую.
-	ours := data["Ours"] == true
 	if !ours {
 		view := gameViews(lang, []supremacy.Game{*game})[0]
 		data["Game"] = &view
@@ -1051,14 +1101,9 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	// В свою партию заходим только по кнопке: такой заход игра засчитывает
 	// как вход. В чужую смотрим наблюдателем, и вот это уже ничего не стоит
 	// — значит, и прятать за кнопкой незачем.
-	if withState || !ours {
-		var state *supremacy.GameState
-		var err error
-		if ours {
-			state, err = s.games.GameState(ctx, gameID)
-		} else {
-			state, err = s.games.ObserveGame(ctx, gameID)
-		}
+	if live != nil {
+		res := <-live
+		state, err := res.state, res.err
 		if err != nil {
 			s.log.Warn("состояние партии", "gameID", gameID, "наша", ours, "err", err)
 			if ours {

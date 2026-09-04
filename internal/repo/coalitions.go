@@ -139,35 +139,68 @@ func (r *Coalitions) Observe(ctx context.Context, g domain.WatchedGame,
 	return tx.Commit(ctx)
 }
 
-// writeCoalitions — общая часть обоих путей записи: сам архив.
+// writeCoalitions — общая часть обоих путей записи: сам архив. Два запроса
+// на всю партию, а не по одному на коалицию и на человека: обращений к базе
+// иначе набирается по числу участников, а толку от них столько же.
 func writeCoalitions(ctx context.Context, tx pgx.Tx, gameID string,
 	teams []domain.Coalition, at time.Time) error {
 
+	var (
+		teamIDs []int
+		names   []string
+
+		memberTeams  []int
+		memberUsers  []string
+		memberLogins []string
+		memberNation []string
+	)
+	// Один человек в двух коалициях одной партии невозможен, но проверить
+	// дешевле, чем потом разбираться: ON CONFLICT DO UPDATE не правит одну
+	// строку дважды в одном запросе и уронил бы всю запись.
+	seen := make(map[string]bool)
 	for _, team := range teams {
-		if _, err := tx.Exec(ctx,
-			`INSERT INTO supremacy_coalitions (game_id, team_id, name, first_seen, last_seen)
-			 VALUES ($1, $2, $3, $4, $4)
-			 ON CONFLICT (game_id, team_id) DO UPDATE SET
-			     name = EXCLUDED.name,
-			     last_seen = EXCLUDED.last_seen`,
-			gameID, team.TeamID, team.Name, at); err != nil {
-			return err
-		}
+		teamIDs = append(teamIDs, team.TeamID)
+		names = append(names, team.Name)
 		for _, m := range team.Members {
-			if _, err := tx.Exec(ctx,
-				`INSERT INTO supremacy_coalition_members
-				     (game_id, team_id, site_user_id, login, nation, first_seen, last_seen)
-				 VALUES ($1, $2, $3, $4, $5, $6, $6)
-				 ON CONFLICT (game_id, team_id, site_user_id) DO UPDATE SET
-				     login = EXCLUDED.login,
-				     nation = EXCLUDED.nation,
-				     last_seen = EXCLUDED.last_seen`,
-				gameID, team.TeamID, m.SiteUserID, m.Login, m.Nation, at); err != nil {
-				return err
+			if m.SiteUserID == "" || seen[m.SiteUserID] {
+				continue
 			}
+			seen[m.SiteUserID] = true
+			memberTeams = append(memberTeams, team.TeamID)
+			memberUsers = append(memberUsers, m.SiteUserID)
+			memberLogins = append(memberLogins, m.Login)
+			memberNation = append(memberNation, m.Nation)
 		}
 	}
-	return nil
+	if len(teamIDs) == 0 {
+		return nil
+	}
+
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO supremacy_coalitions (game_id, team_id, name, first_seen, last_seen)
+		 SELECT $1, t.team_id, t.name, $4, $4
+		   FROM unnest($2::int[], $3::text[]) AS t(team_id, name)
+		 ON CONFLICT (game_id, team_id) DO UPDATE SET
+		     name = EXCLUDED.name,
+		     last_seen = EXCLUDED.last_seen`,
+		gameID, teamIDs, names, at); err != nil {
+		return err
+	}
+	if len(memberUsers) == 0 {
+		return nil
+	}
+	_, err := tx.Exec(ctx,
+		`INSERT INTO supremacy_coalition_members
+		     (game_id, team_id, site_user_id, login, nation, first_seen, last_seen)
+		 SELECT $1, m.team_id, m.site_user_id, m.login, m.nation, $6, $6
+		   FROM unnest($2::int[], $3::text[], $4::text[], $5::text[])
+		        AS m(team_id, site_user_id, login, nation)
+		 ON CONFLICT (game_id, team_id, site_user_id) DO UPDATE SET
+		     login = EXCLUDED.login,
+		     nation = EXCLUDED.nation,
+		     last_seen = EXCLUDED.last_seen`,
+		gameID, memberTeams, memberUsers, memberLogins, memberNation, at)
+	return err
 }
 
 // Partners — кто из переданных игроков уже состоял с кем в одной коалиции.

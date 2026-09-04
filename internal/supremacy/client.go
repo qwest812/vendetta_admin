@@ -53,6 +53,10 @@ type Client struct {
 
 	mu   sync.Mutex
 	sess *session
+	// loginMu пропускает к логину по одному. Без него два одновременных
+	// вызова с протухшей сессией входят в игру дважды подряд — лишний вход
+	// там, где хватает одного.
+	loginMu sync.Mutex
 	// gsVer — версия клиента, которую сейчас требует игровой сервер.
 	// Пустая означает «ещё не уточняли», см. gsVersionDefault.
 	gsVer string
@@ -645,13 +649,19 @@ func (c *Client) callOnce(ctx context.Context, sess *session, action string, par
 }
 
 func (c *Client) ensureSession(ctx context.Context) (*session, error) {
-	c.mu.Lock()
-	if c.sess != nil {
-		sess := c.sess
-		c.mu.Unlock()
+	if sess := c.current(); sess != nil {
 		return sess, nil
 	}
-	c.mu.Unlock()
+
+	// Логин под своим замком: страница партии ходит в игру в несколько
+	// рук, и без него первый же поход после протухания сессии обернулся бы
+	// парой входов подряд.
+	c.loginMu.Lock()
+	defer c.loginMu.Unlock()
+	// Пока ждали очереди, сосед мог уже войти.
+	if sess := c.current(); sess != nil {
+		return sess, nil
+	}
 
 	sess, err := c.login(ctx)
 	if err != nil {
@@ -662,6 +672,12 @@ func (c *Client) ensureSession(ctx context.Context) (*session, error) {
 	c.sess = sess
 	c.mu.Unlock()
 	return sess, nil
+}
+
+func (c *Client) current() *session {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.sess
 }
 
 // invalidate сбрасывает сессию, но только если её не подменили параллельно:
