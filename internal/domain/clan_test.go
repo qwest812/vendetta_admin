@@ -31,13 +31,13 @@ func TestParseClanStatus(t *testing.T) {
 }
 
 func TestClanStatusDisplay(t *testing.T) {
-	if got := ClanEnemy.Title(); got != "Враждебный" {
-		t.Errorf("название = %q", got)
+	if got := ClanEnemy.TitleKey(); got != "clanstatus.enemy" {
+		t.Errorf("ключ подписи = %q", got)
 	}
 	// Клан без статуса в базе не появится, но пустое значение приходит с
 	// игроком без клана — подписывать его надо нейтрально, а не пустотой.
-	if got := ClanStatus("").Title(); got != "Нейтральный" {
-		t.Errorf("название пустого статуса = %q", got)
+	if got := ClanStatus("").TitleKey(); got != "clanstatus.neutral" {
+		t.Errorf("ключ подписи пустого статуса = %q", got)
 	}
 	if !ClanAlly.Marked() || !ClanEnemy.Marked() {
 		t.Error("союзный и враждебный должны получать метку")

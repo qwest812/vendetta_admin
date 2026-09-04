@@ -1,0 +1,497 @@
+package i18n
+
+// entry — одно сообщение на двух языках. Держать их рядом важнее, чем
+// красиво: так при правке русского английский стоит перед глазами и не
+// остаётся жить своей жизнью.
+type entry struct {
+	ru string
+	en string
+}
+
+// messages — весь текст интерфейса. Порядок разделов тот же, в каком
+// страницы стоят в меню; внутри раздела — в порядке появления на странице.
+var messages = map[string]entry{
+	// --- каркас: шапка, меню, общие кнопки ---
+	"nav.search":  {ru: "Поиск", en: "Search"},
+	"nav.clans":   {ru: "Кланы", en: "Clans"},
+	"nav.friends": {ru: "Друзья", en: "Friends"},
+	"nav.enemies": {ru: "Враги", en: "Enemies"},
+	"nav.traits":  {ru: "Признаки", en: "Traits"},
+	"nav.users":   {ru: "Доступы", en: "Access"},
+	"nav.audit":   {ru: "Журнал", en: "Audit log"},
+	"nav.games":   {ru: "Игры", en: "Games"},
+	"nav.faq":     {ru: "Справка", en: "Help"},
+	"top.logout":  {ru: "Выйти", en: "Log out"},
+	"top.lang.to": {ru: "Переключить на %s", en: "Switch to %s"},
+
+	// Роли, статусы кланов и уровни шкал приходят из domain кодами:
+	// подписи к ним — дело интерфейса, и живут они здесь.
+	"role.root":  {ru: "Рут", en: "Root"},
+	"role.admin": {ru: "Администратор", en: "Administrator"},
+	"role.user":  {ru: "Пользователь", en: "User"},
+
+	"clanstatus.ally":    {ru: "Союзный", en: "Allied"},
+	"clanstatus.neutral": {ru: "Нейтральный", en: "Neutral"},
+	"clanstatus.enemy":   {ru: "Враждебный", en: "Hostile"},
+
+	"level.none":   {ru: "не задан", en: "not set"},
+	"level.high":   {ru: "высокий", en: "high"},
+	"level.medium": {ru: "средний", en: "medium"},
+	"level.low":    {ru: "низкий", en: "low"},
+	"level.clean":  {ru: "чисто", en: "clean"},
+
+	// Единицы времени в подписях: «45 мин», «2 ч».
+	"unit.hours":   {ru: "%d ч", en: "%d h"},
+	"unit.minutes": {ru: "%d мин", en: "%d min"},
+	// Формат даты и времени: у языков он разный, и это часть перевода.
+	"format.datetime": {ru: "02.01.2006 15:04", en: "Jan 2, 2006 15:04"},
+
+	// --- вход ---
+	"login.title":    {ru: "Вход — Vendetta", en: "Sign in — Vendetta"},
+	"login.subtitle": {ru: "Вход в базу игроков", en: "Sign in to the player database"},
+	"login.login":    {ru: "Почта или ник", en: "Email or nickname"},
+	"login.password": {ru: "Пароль", en: "Password"},
+	"login.submit":   {ru: "Войти", en: "Sign in"},
+
+	// --- поиск игроков (главная) ---
+	"home.title":              {ru: "Поиск игроков — Vendetta", en: "Player search — Vendetta"},
+	"home.heading":            {ru: "Поиск игроков", en: "Player search"},
+	"home.add":                {ru: "Добавить игрока", en: "Add player"},
+	"home.search.placeholder": {ru: "Игровой ID или ник (можно часть)", en: "Game ID or nickname (partial is fine)"},
+	"home.filter.all":         {ru: "Все кланы", en: "All clans"},
+	"home.filter.ally":        {ru: "Только союзные", en: "Allied only"},
+	"home.filter.neutral":     {ru: "Только нейтральные", en: "Neutral only"},
+	"home.filter.enemy":       {ru: "Только враждебные", en: "Hostile only"},
+	"home.total":              {ru: "Всего в базе:", en: "In the database:"},
+	"home.searching":          {ru: "ищем…", en: "searching…"},
+
+	// --- профиль ---
+	"profile.title":              {ru: "Профиль — Vendetta", en: "Profile — Vendetta"},
+	"profile.heading":            {ru: "Профиль", en: "Profile"},
+	"profile.nick":               {ru: "Ник", en: "Nickname"},
+	"profile.email":              {ru: "почта", en: "email"},
+	"profile.note":               {ru: "Их и пароль меняют в разделе «Доступы» — здесь только то, что вы рассказываете о себе сами.", en: "Those and your password are changed in the Access section — this page is only what you tell about yourself."},
+	"profile.fullname":           {ru: "Имя", en: "Name"},
+	"profile.city":               {ru: "Город", en: "City"},
+	"profile.gameid":             {ru: "Игровой ID", en: "Game ID"},
+	"profile.gameid.placeholder": {ru: "ваш ID в Supremacy", en: "your Supremacy ID"},
+
+	// --- журнал ---
+	"audit.title":   {ru: "Журнал — Vendetta", en: "Audit log — Vendetta"},
+	"audit.heading": {ru: "Журнал действий", en: "Action log"},
+	"audit.note":    {ru: "Последние 200 записей. Журнал неизменяем и его нельзя очистить из интерфейса.", en: "The last 200 entries. The log is append-only and cannot be cleared from the interface."},
+	"audit.when":    {ru: "Когда", en: "When"},
+	"audit.who":     {ru: "Кто", en: "Who"},
+	"audit.action":  {ru: "Действие", en: "Action"},
+	"audit.target":  {ru: "Объект", en: "Target"},
+	"audit.details": {ru: "Детали", en: "Details"},
+	"audit.empty":   {ru: "Пока пусто", en: "Nothing yet"},
+
+	// --- кнопки и слова, общие для многих страниц ---
+	"common.save": {ru: "Сохранить", en: "Save"},
+
+	// --- список найденных игроков (поиск и карточка клана) ---
+	"results.truncated":    {ru: "Показаны первые %d — уточните запрос.", en: "Showing the first %d — narrow your query."},
+	"results.empty.query":  {ru: "По запросу «%s» никого не нашли.", en: "Nothing found for “%s”."},
+	"results.empty.status": {ru: "С таким статусом клана никого нет.", en: "No one with that clan status."},
+	"results.empty.all":    {ru: "В базе пока нет игроков.", en: "No players in the database yet."},
+
+	// --- карточка игрока ---
+	"player.risk":                {ru: "Риск", en: "Risk"},
+	"player.loyalty":             {ru: "Лояльность", en: "Loyalty"},
+	"player.of":                  {ru: "%d из %d", en: "%d of %d"},
+	"player.clan.status":         {ru: "%s клан", en: "%s clan"},
+	"player.noid":                {ru: "ID не указан", en: "no ID set"},
+	"player.banned":              {ru: "забанен в игре", en: "banned in game"},
+	"player.delete.confirm":      {ru: "Удалить карточку %s со всеми заметками?", en: "Delete %s and all their notes?"},
+	"player.notraits":            {ru: "Признаки не отмечены.", en: "No traits marked."},
+	"player.seen.ingame":         {ru: "В игре", en: "In game"},
+	"player.seen.as":             {ru: "под ником %s", en: "as %s"},
+	"player.seen.banned":         {ru: "аккаунт забанен", en: "the account is banned"},
+	"player.seen.noticed":        {ru: "заметили", en: "noticed"},
+	"player.seen.notbanned":      {ru: "бана нет", en: "no ban"},
+	"player.seen.at":             {ru: "Видели", en: "Seen"},
+	"player.seen.ingamepre":      {ru: "в", en: "in"},
+	"player.seen.game":           {ru: "партии %s", en: "game %s"},
+	"player.added":               {ru: "Добавлен", en: "Added"},
+	"player.changed":             {ru: "изменён", en: "updated"},
+	"player.notes":               {ru: "Заметки", en: "Notes"},
+	"player.note.placeholder":    {ru: "Что известно об игроке", en: "What is known about the player"},
+	"player.note.add":            {ru: "Добавить заметку", en: "Add note"},
+	"player.note.delete.confirm": {ru: "Удалить заметку?", en: "Delete this note?"},
+	"player.notes.empty":         {ru: "Заметок пока нет.", en: "No notes yet."},
+
+	// --- форма карточки ---
+	"playerform.edit":                  {ru: "Изменение карточки", en: "Edit player"},
+	"playerform.new":                   {ru: "Новый игрок", en: "New player"},
+	"playerform.clan":                  {ru: "Клан", en: "Clan"},
+	"playerform.clan.placeholder":      {ru: "можно оставить пустым", en: "may be left empty"},
+	"playerform.notraits":              {ru: "Справочник пуст — сначала заведите признаки в разделе «Признаки».", en: "The list is empty — add traits in the Traits section first."},
+	"playerform.firstnote":             {ru: "Первая заметка", en: "First note"},
+	"playerform.firstnote.placeholder": {ru: "Почему заводим карточку", en: "Why we are adding this player"},
+
+	// --- общие кнопки и слова ---
+	"common.edit":         {ru: "Изменить", en: "Edit"},
+	"common.delete":       {ru: "Удалить", en: "Delete"},
+	"common.delete.lower": {ru: "удалить", en: "delete"},
+	"common.cancel":       {ru: "Отмена", en: "Cancel"},
+	"common.optional":     {ru: "(необязательно)", en: "(optional)"},
+
+	// --- кланы ---
+	"clans.title":          {ru: "Кланы — Vendetta", en: "Clans — Vendetta"},
+	"clans.intro":          {ru: "Статус — это отношение к альянсу целиком: помеченный клан красит все свои карточки в поиске, а фильтр на главной показывает только своих или только чужих. На шкалы риска и лояльности статус не влияет — они про репутацию человека, а не про политику его альянса.", en: "A status is our stance towards a whole alliance: a marked clan colours all of its players in search, and the filter on the main page shows only friends or only foes. The status does not affect the risk and loyalty scales — those are about a person’s reputation, not their alliance’s politics."},
+	"clans.new":            {ru: "Новый клан", en: "New clan"},
+	"clans.new.note":       {ru: "Обычно клан заводить не нужно — он появляется сам, когда его вписывают в карточку игрока. Вручную удобно пометить альянс заранее.", en: "You rarely need to add a clan by hand — it appears on its own once someone types it into a player’s card. Adding one manually is for marking an alliance in advance."},
+	"clans.col.clan":       {ru: "Клан", en: "Clan"},
+	"clans.col.players":    {ru: "Игроков", en: "Players"},
+	"clans.empty":          {ru: "Кланов пока нет.", en: "No clans yet."},
+	"clans.delete.confirm": {ru: "Удалить клан «%s»? Карточки %d игроков останутся, но клан у них пропадёт.", en: "Delete the clan “%s”? The %d player cards stay, but they will lose the clan."},
+	"clans.delete.note":    {ru: "Удаление убирает клан из карточек игроков, сами карточки и заметки остаются.", en: "Deleting removes the clan from player cards; the cards and notes themselves stay."},
+
+	// --- карточка клана ---
+	"clan.players": {ru: "игроков в базе: %d", en: "players in the database: %d"},
+	"clan.all":     {ru: "Все кланы", en: "All clans"},
+	"clan.roster":  {ru: "Состав", en: "Members"},
+	"clan.empty":   {ru: "В этом клане пока нет карточек.", en: "No player cards in this clan yet."},
+
+	// --- признаки ---
+	"traits.title":            {ru: "Признаки — Vendetta", en: "Traits — Vendetta"},
+	"traits.how":              {ru: "Как считаются шкалы", en: "How the scales are calculated"},
+	"traits.how.1":            {ru: "Отрицательные веса формируют шкалу риска, положительные — шкалу лояльности. Признак с весом 0 остаётся пометкой и ни на что не влияет.", en: "Negative weights build the risk scale, positive ones the loyalty scale. A trait with weight 0 stays a plain label and affects nothing."},
+	"traits.how.2":            {ru: "Проценты считаются от суммы весов всех активных признаков своего знака: сейчас это", en: "Percentages are taken from the sum of all active traits of the same sign: right now that is"},
+	"traits.how.forrisk":      {ru: "для риска и", en: "for risk and"},
+	"traits.how.forloyalty":   {ru: "для лояльности.", en: "for loyalty."},
+	"traits.how.3":            {ru: "Изменение веса сразу пересчитывает оценки всех игроков — ничего перезаписывать не нужно.", en: "Changing a weight recalculates every player’s score at once — nothing needs to be rewritten."},
+	"traits.new":              {ru: "Новый признак", en: "New trait"},
+	"traits.name.placeholder": {ru: "Использует читы", en: "Uses cheats"},
+	"traits.col.code":         {ru: "Код", en: "Code"},
+	"traits.col.weight":       {ru: "Вес", en: "Weight"},
+	"traits.col.order":        {ru: "Порядок", en: "Order"},
+	"traits.col.active":       {ru: "Активен", en: "Active"},
+	"traits.col.used":         {ru: "Отмечен", en: "Marked"},
+	"traits.code.note":        {ru: "Код менять нельзя — он идентифицирует признак. Название и вес правятся в любой момент.", en: "The code cannot be changed — it identifies the trait. The name and weight can be edited at any time."},
+	"traits.delete.confirm":   {ru: "Удалить признак «%s» и снять его у %d игроков?", en: "Delete the trait “%s” and remove it from %d players?"},
+	"traits.active.note":      {ru: "Снятый флаг «активен» убирает признак из форм и из знаменателя шкал, но сохраняет уже проставленные отметки. Удаление снимает отметки навсегда.", en: "Clearing “active” hides the trait from the forms and drops it from the scale denominator, but keeps the marks already made. Deleting removes those marks for good."},
+
+	// --- общие подписи таблиц и форм ---
+	"common.name":      {ru: "Название", en: "Name"},
+	"common.status":    {ru: "Статус", en: "Status"},
+	"common.add":       {ru: "Добавить", en: "Add"},
+	"common.actions":   {ru: "Действия", en: "Actions"},
+	"common.directory": {ru: "Справочник", en: "Directory"},
+
+	// --- личные списки: враги и друзья ---
+	// Разделы устроены одинаково и различаются только словами, поэтому
+	// ключи у них парные: разойтись формулировкам труднее, когда они рядом.
+	"rel.enemies.title":     {ru: "Мои враги", en: "My enemies"},
+	"rel.enemies.intro":     {ru: "Список личный: его видите только вы, у каждого он свой. Это пометка «за что» о конкретном человеке, а не позиция альянса — вражда с кланом целиком помечается статусом в разделе «Кланы». На шкалы риска и лояльности список не влияет.", en: "The list is personal: only you see it, and everyone has their own. It is a “what for” note about one person, not an alliance stance — hostility towards a whole clan is marked by its status in the Clans section. The list does not affect the risk and loyalty scales."},
+	"rel.enemies.pick":      {ru: "Кого добавить во враги", en: "Whom to add to enemies"},
+	"rel.enemies.empty":     {ru: "Список пуст. Найдите игрока выше и добавьте — комментарий можно оставить пустым.", en: "The list is empty. Find a player above and add them — the comment may be left blank."},
+	"rel.enemies.alllisted": {ru: "Все найденные уже у вас во врагах.", en: "Everyone found is already among your enemies."},
+	"rel.enemies.already":   {ru: "Этот игрок уже у вас во врагах — комментарий правится прямо в списке", en: "This player is already among your enemies — edit the comment right in the list"},
+	"rel.enemies.missing":   {ru: "Этого игрока нет в вашем списке врагов", en: "This player is not in your enemies list"},
+	"rel.enemies.confirm":   {ru: "Убрать %s из списка врагов?", en: "Remove %s from the enemies list?"},
+	"rel.enemies.markadd":   {ru: "во враги", en: "to enemies"},
+	"rel.enemies.markdone":  {ru: "во врагах", en: "in enemies"},
+	"rel.enemies.addtitle":  {ru: "В личный список врагов, без комментария — «за что» допишете в разделе «Враги»", en: "To your personal enemies list, without a comment — add the “what for” in the Enemies section"},
+	"rel.enemies.donetitle": {ru: "Уже в вашем списке врагов — комментарий пишется там", en: "Already in your enemies list — the comment is written there"},
+
+	"rel.friends.title":     {ru: "Мои друзья", en: "My friends"},
+	"rel.friends.intro":     {ru: "Список личный: его видите только вы, у каждого он свой. Это пометка о конкретном человеке, а не позиция альянса — союз с кланом целиком помечается статусом в разделе «Кланы». На шкалы риска и лояльности список не влияет.", en: "The list is personal: only you see it, and everyone has their own. It is a note about one person, not an alliance stance — an alliance with a whole clan is marked by its status in the Clans section. The list does not affect the risk and loyalty scales."},
+	"rel.friends.pick":      {ru: "Кого добавить в друзья", en: "Whom to add to friends"},
+	"rel.friends.empty":     {ru: "Список пуст. Найдите игрока выше и добавьте — комментарий можно оставить пустым.", en: "The list is empty. Find a player above and add them — the comment may be left blank."},
+	"rel.friends.alllisted": {ru: "Все найденные уже у вас в друзьях.", en: "Everyone found is already among your friends."},
+	"rel.friends.already":   {ru: "Этот игрок уже у вас в друзьях — комментарий правится прямо в списке", en: "This player is already among your friends — edit the comment right in the list"},
+	"rel.friends.missing":   {ru: "Этого игрока нет в вашем списке друзей", en: "This player is not in your friends list"},
+	"rel.friends.confirm":   {ru: "Убрать %s из списка друзей?", en: "Remove %s from the friends list?"},
+	"rel.friends.markadd":   {ru: "в друзья", en: "to friends"},
+	"rel.friends.markdone":  {ru: "в друзьях", en: "in friends"},
+	"rel.friends.addtitle":  {ru: "В личный список друзей, без комментария — заметку допишете в разделе «Друзья»", en: "To your personal friends list, without a comment — add the note in the Friends section"},
+	"rel.friends.donetitle": {ru: "Уже в вашем списке друзей — комментарий пишется там", en: "Already in your friends list — the comment is written there"},
+
+	"rel.search.placeholder":  {ru: "Найти по игровому ID или нику", en: "Search by game ID or nickname"},
+	"rel.comment":             {ru: "Комментарий", en: "Comment"},
+	"rel.comment.placeholder": {ru: "За что", en: "What for"},
+	"rel.list":                {ru: "Список", en: "List"},
+	"rel.noid":                {ru: "без ID", en: "no ID"},
+	"rel.already":             {ru: "уже в списке", en: "already listed"},
+	"rel.remove":              {ru: "убрать", en: "remove"},
+	"rel.notfound":            {ru: "По запросу «%s» никого не нашли. В список записываются только те, у кого есть карточка в базе, — новую заводит админ на главной.", en: "Nothing found for “%s”. Only people who already have a card in the database can be listed — an admin creates new ones on the main page."},
+	"rel.hint":                {ru: "Наберите ник или игровой ID — подходящие карточки появятся в списке.", en: "Type a nickname or game ID — matching cards will appear in the list."},
+
+	// --- доступы ---
+	"users.title":          {ru: "Доступы — Vendetta", en: "Access — Vendetta"},
+	"users.grant":          {ru: "Выдать доступ", en: "Grant access"},
+	"users.email":          {ru: "Почта", en: "Email"},
+	"users.optional":       {ru: "необязательно", en: "optional"},
+	"users.role":           {ru: "Роль", en: "Role"},
+	"users.create":         {ru: "Создать", en: "Create"},
+	"users.note":           {ru: "Входить можно и по нику, и по почте, поэтому почту можно не указывать. Пароль не хранится в открытом виде — передайте его пользователю лично.", en: "Signing in works by nickname as well as by email, so the email is optional. The password is not stored in plain text — hand it to the user in person."},
+	"users.heading":        {ru: "Пользователи", en: "Users"},
+	"users.created":        {ru: "Создан", en: "Created"},
+	"users.you":            {ru: "(это вы)", en: "(that’s you)"},
+	"users.always":         {ru: "всегда", en: "always"},
+	"users.close":          {ru: "Закрыть", en: "Revoke"},
+	"users.open":           {ru: "Открыть", en: "Grant"},
+	"users.active":         {ru: "активен", en: "active"},
+	"users.blocked":        {ru: "заблокирован", en: "blocked"},
+	"users.demote":         {ru: "Понизить", en: "Demote"},
+	"users.promote":        {ru: "Повысить", en: "Promote"},
+	"users.block":          {ru: "Заблокировать", en: "Block"},
+	"users.unblock":        {ru: "Разблокировать", en: "Unblock"},
+	"users.newpassword":    {ru: "Новый пароль", en: "New password"},
+	"users.change":         {ru: "Сменить", en: "Change"},
+	"users.delete.confirm": {ru: "Удалить %s безвозвратно?", en: "Delete %s permanently?"},
+
+	// --- раздел «Игры»: список и проверка по номеру ---
+	"games.title":             {ru: "Игры — Vendetta", en: "Games — Vendetta"},
+	"games.check":             {ru: "Проверить игру", en: "Check a game"},
+	"games.check.placeholder": {ru: "номер партии", en: "game number"},
+	"games.check.submit":      {ru: "Проверить", en: "Check"},
+	"games.check.note":        {ru: "Введите номер партии — покажем, что о ней знает игра: название, сценарий, состояние, день и число игроков. Номер виден в адресе партии и годится любой, не только наш. У чужой партии на её странице будет ещё и карта с составом: смотрим мы её со стороны, и входом в партию это не считается.", en: "Enter a game number and we will show what the game knows about it: name, scenario, state, day and player count. The number is visible in the game’s address and any number works, not just ours. A game we do not play in still gets a map and a roster on its page: we look at it from the outside, and that does not count as entering the game."},
+	"games.active":            {ru: "Активные игры", en: "Active games"},
+	"games.open":              {ru: "Открыть игру", en: "Open the game"},
+	"games.refresh":           {ru: "Обновить", en: "Refresh"},
+	"games.active.note":       {ru: "Партии аккаунта, под которым админка ходит в Supremacy 1914, — то же, что показывает вкладка «Обзор» в игре. Список берётся из игры в момент открытия страницы и нигде не хранится; завершённые партии сюда не попадают.", en: "Games of the account the admin panel uses for Supremacy 1914 — the same as the game’s own “Overview” tab. The list is fetched from the game when the page opens and is not stored anywhere; finished games do not appear here."},
+	"games.col.game":          {ru: "Игра", en: "Game"},
+	"games.col.state":         {ru: "Состояние", en: "State"},
+	"games.col.day":           {ru: "День", en: "Day"},
+	"games.col.started":       {ru: "Начало", en: "Started"},
+	"games.col.joined":        {ru: "Вошли", en: "Joined"},
+	"games.col.lang":          {ru: "Язык", en: "Language"},
+	"games.account.player":    {ru: "аккаунт — игрок №%s", en: "the account is player #%s"},
+	"games.list.failed":       {ru: "Список не получен.", en: "Could not fetch the list."},
+	"games.list.empty":        {ru: "Сейчас аккаунт не играет ни в одной партии.", en: "The account is not playing any game right now."},
+
+	// --- страница партии ---
+	"game.title":        {ru: "Партия — Vendetta", en: "Game — Vendetta"},
+	"game.unnamed":      {ru: "Партия %s", en: "Game %s"},
+	"game.all":          {ru: "Все партии", en: "All games"},
+	"game.state":        {ru: "Состояние:", en: "State:"},
+	"game.day":          {ru: "день %s", en: "day %s"},
+	"game.players":      {ru: "игроков %s", en: "%s players"},
+	"game.language":     {ru: "язык %s", en: "language %s"},
+	"game.startedat":    {ru: "начата", en: "started"},
+	"game.ourplayer":    {ru: "аккаунт проекта — игрок №%s", en: "the project account is player #%s"},
+	"game.foreign.note": {ru: "В этой партии общий аккаунт проекта не играет, поэтому смотрим на неё со стороны: карта, состав, кланы и коалиции видны, а вот делать в партии что-либо — призывать пехоту, например — некому. Партия про такой взгляд не узнаёт: входом в неё он не считается.", en: "The shared project account does not play in this game, so we look at it from the outside: the map, the roster, clans and coalitions are all visible, but there is no one to act in the game — to deploy infantry, for one. The game never learns about such a look: it does not count as entering."},
+
+	"game.we":            {ru: "Что делаем сами", en: "What we do ourselves"},
+	"game.hero.on":       {ru: "Включить призыв пехоты", en: "Turn infantry deployment on"},
+	"game.hero.off":      {ru: "Выключить призыв пехоты", en: "Turn infantry deployment off"},
+	"game.hero.now":      {ru: "Призвать сейчас", en: "Deploy now"},
+	"game.hero.on.note":  {ru: "Включено: воркер заходит в партию каждые %s и жмёт у Мейв «призвать пехоту».", en: "On: the worker enters the game every %s and presses Maeve’s “deploy infantry”."},
+	"game.hero.off.note": {ru: "Выключено. Если включить, воркер будет заходить в партию каждые %s и жать у Мейв «призвать пехоту».", en: "Off. Once on, the worker will enter the game every %s and press Maeve’s “deploy infantry”."},
+	"game.hero.last":     {ru: "Последний заход:", en: "Last run:"},
+
+	"game.inside":         {ru: "Что в партии", en: "Inside the game"},
+	"game.inside.ours":    {ru: "Что у нас в партии", en: "What we have in this game"},
+	"game.enter":          {ru: "Заглянуть в партию", en: "Look inside"},
+	"game.enter.note":     {ru: "Состав партии берётся с игрового сервера, и такой заход игра засчитывает как вход в партию — поэтому он делается только по нажатию, а не при каждом открытии страницы.", en: "The roster comes from the game server, and such a visit counts as entering the game — so it happens on a click, not on every page load."},
+	"game.observe.failed": {ru: "Посмотреть партию со стороны не вышло — причина сказана выше. Ниже то, что о ней знает сайт игры.", en: "Looking at the game from the outside did not work — the reason is above. Below is what the game’s website knows about it."},
+
+	// Карта и её режимы.
+	"game.map.mine":           {ru: "Мои списки", en: "My lists"},
+	"game.map.teams":          {ru: "Коалиции", en: "Coalitions"},
+	"game.map.premium":        {ru: "Премиум", en: "Premium"},
+	"game.map.aria":           {ru: "Карта партии: провинции раскрашены по кланам владельцев, по вашим личным спискам, по коалициям или по премиуму", en: "Game map: provinces are coloured by their owners’ clans, by your personal lists, by coalitions or by premium"},
+	"game.map.clans.note":     {ru: "Цвет провинции — клан её владельца, число в легенде — сколько у клана провинций. Кланы берутся из самой Supremacy, а не из нашего справочника: важно, кто с кем в игре, а не кого мы как записали. Цвета раздаются на партию по убыванию владений, поэтому в соседней партии тот же клан будет другого цвета. Серым закрашены ничейные земли и все, кто ни в каком клане не состоит.", en: "A province’s colour is its owner’s clan; the number in the legend is how many provinces that clan holds. Clans come from Supremacy itself, not from our directory: what matters is who is with whom in the game, not how we recorded them. Colours are handed out per game by holdings, so the same clan will be a different colour in the next game. Grey covers neutral land and everyone with no clan."},
+	"game.map.clans.empty":    {ru: "Карта серая: ни один игрок этой партии в клане не состоит — по крайней мере, так отвечает сайт игры.", en: "The map is grey: no player in this game is in a clan — at least that is what the game’s website says."},
+	"game.map.clans.pending":  {ru: "Про %d игроков этой партии клан ещё не знаем — они пока серые. Обычно кланы приезжают вместе с составом партии, так что это те, кто вошёл в неё совсем недавно; их спросит фоновый воркер, загляните позже.", en: "We do not know the clan of %d players in this game yet — they stay grey for now. Clans usually arrive with the roster, so these are the ones who joined very recently; the background worker will ask about them, come back later."},
+	"game.map.sides.enemies":  {ru: "Во врагах", en: "In enemies"},
+	"game.map.sides.friends":  {ru: "В друзьях", en: "In friends"},
+	"game.map.sides.note":     {ru: "Красным закрашены владения ваших врагов, зелёным — друзей, серым — все остальные; названия их стран подписаны мечом и рукопожатием. Списки личные: сосед видит эту же партию размеченной по-своему.", en: "Red covers your enemies’ holdings, green your friends’, grey everyone else; their country names carry a sword and a handshake. The lists are personal: your neighbour sees the same game marked their own way."},
+	"game.map.teams.yours":    {ru: "ваша", en: "yours"},
+	"game.map.teams.note":     {ru: "Цвет провинции — коалиция её владельца, число в легенде — сколько в ней игроков этой партии. И коалиции, и цвета к ним берутся из самой игры, а не из нашей базы: она красит себя сама, поэтому цвет здесь тот же, что в клиенте, и верен он на тот момент, когда мы смотрели партию. Серым — все, кто ни в какой коалиции не состоит.", en: "A province’s colour is its owner’s coalition; the number in the legend is how many players of this game belong to it. Both the coalitions and their colours come from the game itself, not from our database: it colours itself, so the colour here is the same as in the client, and it is accurate as of the moment we looked at the game. Grey is everyone in no coalition."},
+	"game.map.teams.empty":    {ru: "В этой партии коалиций нет — ни одной живой игра не показала, красить нечего.", en: "There are no coalitions in this game — the game showed no live ones, so there is nothing to colour."},
+	"game.map.premium.legend": {ru: "С премиумом", en: "With premium"},
+	"game.map.premium.list":   {ru: "Закрашены страны игроков с «Высоким командованием»:", en: "Coloured are the countries of players with High Command:"},
+	"game.map.premium.note":   {ru: "Подписку игра сообщает про всех участников партии, хотя в самом клиенте чужой премиум ничем не отмечен. Серым — все остальные, включая компьютерных игроков: у них подписки не бывает.", en: "The game reports the subscription for every participant, even though the client itself marks no one else’s premium. Grey is everyone else, computer players included: they never have a subscription."},
+	"game.map.premium.empty":  {ru: "Карта серая: премиума в этой партии нет ни у кого.", en: "The map is grey: no one in this game has premium."},
+	"game.map.yours":          {ru: "Ваши провинции обведены жёлтым во всех режимах.", en: "Your provinces are outlined in yellow in every mode."},
+	"game.map.hover":          {ru: "Наведите на провинцию, чтобы увидеть, чья она: подсказка говорит всё сразу — страну, игрока, клан, премиум и оба ваших списка.", en: "Hover a province to see whose it is: the tooltip says it all at once — country, player, clan, premium and both of your lists."},
+
+	"game.friends.here":  {ru: "Из ваших друзей здесь играют:", en: "Friends of yours playing here:"},
+	"game.friends.none":  {ru: "Из ваших друзей в этой партии никого.", en: "None of your friends are in this game."},
+	"game.enemies.here":  {ru: "Из вашего списка врагов здесь играют:", en: "Enemies from your list playing here:"},
+	"game.enemies.none":  {ru: "Из вашего списка врагов в этой партии никого.", en: "None of your enemies are in this game."},
+	"game.premium":       {ru: "премиум", en: "premium"},
+	"game.premium.count": {ru: "Премиум («Высокое командование») в этой партии у %d игроков:", en: "Premium (High Command) in this game belongs to %d players:"},
+	"game.premium.none":  {ru: "Премиума в этой партии нет ни у кого.", en: "No one in this game has premium."},
+	"game.thatsyou":      {ru: "это вы", en: "that’s you"},
+	"game.banned":        {ru: "Забанены:", en: "Banned:"},
+
+	"game.noprofile.pre":  {ru: "Чтобы видеть на этой странице свою страну, укажите игровой ID в", en: "To see your own country on this page, set your game ID in your"},
+	"game.noprofile.link": {ru: "профиле", en: "profile"},
+	"game.noprofile.post": {ru: ": по нему вас и находят среди игроков партии.", en: ": that is how you are found among the game’s players."},
+	"game.notplaying":     {ru: "В этой партии вы не играете — своей страны здесь нет.", en: "You do not play in this game — there is no country of yours here."},
+
+	"game.me":           {ru: "День %d, вы играете за %s (%s), номер в партии %d.", en: "Day %d, you play as %s (%s), player number %d."},
+	"game.me.provinces": {ru: "Провинций под контролем %d из %d на карте.", en: "You control %d of the %d provinces on the map."},
+	"game.col.province": {ru: "Провинция", en: "Province"},
+	"game.col.morale":   {ru: "Мораль", en: "Morale"},
+	"game.capital":      {ru: "столица", en: "capital"},
+
+	// Состав по данным сайта игры.
+	"game.roster":      {ru: "Кто играет", en: "Who is playing"},
+	"game.roster.note": {ru: "Состав партии по данным сайта игры: ник, клан, коалиция и уровень. Названий у коалиций здесь нет — их знает только игровой сервер, поэтому стоит номер: одинаковый номер значит «эти заодно». Кого мы знаем, тот подписан ссылкой на карточку.", en: "The roster as the game’s website reports it: nickname, clan, coalition and level. Coalitions have no names here — only the game server knows those — so a number stands in: the same number means “these are together”. Anyone we know is linked to their card."},
+	"game.col.player":  {ru: "Игрок", en: "Player"},
+	"game.col.team":    {ru: "Коалиция", en: "Coalition"},
+	"game.col.level":   {ru: "Уровень", en: "Level"},
+	"game.team.no":     {ru: "№%s", en: "#%s"},
+
+	// --- справка ---
+	"faq.title": {ru: "Справка — Vendetta", en: "Help — Vendetta"},
+	"faq.intro": {ru: "Частые вопросы. Первый пункт — короткая инструкция по админке, с него и стоит начать.", en: "Frequently asked questions. The first item is a short guide to the admin panel — start there."},
+
+	"faq.howto.q":        {ru: "Как пользоваться админкой", en: "How to use the admin panel"},
+	"faq.howto.login.h":  {ru: "Вход.", en: "Signing in."},
+	"faq.howto.login":    {ru: "В поле «Почта или ник» подойдёт и ник, и почта — что вам выдали; регистр не важен. Пароль выдаёт администратор. Вы остаётесь в системе неделю, кнопка «Выйти» — справа сверху.", en: "The “Email or nickname” field takes either — whichever you were given; case does not matter. The password comes from an administrator. You stay signed in for a week; the “Log out” button is at the top right."},
+	"faq.howto.search.h": {ru: "Поиск.", en: "Search."},
+	"faq.howto.search":   {ru: "Главная страница и есть поиск: результаты обновляются во время набора. Искать можно по игровому ID и по нику, целиком или по части. Показываются первые 50 совпадений — если нужного нет, уточните запрос.", en: "The main page is the search: results update as you type. You can search by game ID or nickname, whole or partial. The first 50 matches are shown — narrow the query if what you need is missing."},
+	"faq.howto.card.h":   {ru: "Карточка.", en: "The card."},
+	"faq.howto.card":     {ru: "Ник, клан, игровой ID, две шкалы, признаки и заметки. Риск и лояльность — проценты от возможного, а не очки: подробнее в вопросе про шкалы ниже.", en: "Nickname, clan, game ID, two scales, traits and notes. Risk and loyalty are percentages of what is possible, not points — see the question about the scales below."},
+	"faq.howto.notes.h":  {ru: "Заметки.", en: "Notes."},
+	"faq.howto.notes":    {ru: "Пишет любой, у кого есть доступ, — ради этого база и заводилась. Поле внизу карточки, до 4000 символов. Пишите, что произошло, когда и кто ещё видел; не пишите оскорблений и личных данных. Свою заметку удаляете вы сами, чужие удаляют админы.", en: "Anyone with access writes them — that is what the database is for. The field is at the bottom of the card, up to 4000 characters. Write what happened, when, and who else saw it; do not write insults or personal data. You delete your own notes; admins delete other people’s."},
+	"faq.howto.cards.h":  {ru: "Карточки игроков.", en: "Player cards."},
+	"faq.howto.cards":    {ru: "Кнопка «Добавить игрока» на главной. Игровой ID обязателен — по нему игрок опознаётся после смены ника. Клан можно оставить пустым, новый клан заводится сам — статус ему потом ставят в разделе «Кланы». Признаки — галочки из справочника, сохраняются целиком: снятая галочка означает «признака нет».", en: "The “Add player” button on the main page. The game ID is required — it is how a player is recognised after a rename. The clan may be left empty; a new clan appears on its own, and its status is set later in the Clans section. Traits are checkboxes from the directory and are saved as a whole: an unchecked box means “the trait is absent”."},
+	"faq.howto.admin.h":  {ru: "Разделы «Признаки», «Доступы» и «Журнал»", en: "The Traits, Access and Audit log sections"},
+	"faq.howto.admin":    {ru: "видны только вам как админу — по ним есть отдельные вопросы ниже.", en: "are visible only to you as an admin — there are separate questions about them below."},
+
+	"faq.signin.q":  {ru: "Не могу войти. Что делать?", en: "I cannot sign in. What should I do?"},
+	"faq.signin.a1": {ru: "Проверьте, что вводите тот логин, который вам выдали: подойдёт и ник, и почта, но почта есть не у всех. Регистр значения не имеет.", en: "Check that you are typing the login you were given: either the nickname or the email works, but not everyone has an email. Case does not matter."},
+	"faq.signin.a2": {ru: "Свой пароль изменить нельзя — новый выдаёт администратор. Если доступ закрыли, вход тоже не сработает: об этом скажет та же ошибка «Неверная почта, ник или пароль». Обратитесь к тому, кто выдавал доступ.", en: "You cannot change your own password — an administrator issues a new one. If your access was revoked, signing in will also fail, with the same “Wrong email, nickname or password” error. Ask whoever granted you access."},
+
+	"faq.session.q": {ru: "Почему меня выкинуло из системы?", en: "Why was I signed out?"},
+	"faq.session.a": {ru: "Сессия живёт неделю — после этого нужно войти заново. Кроме того, все сессии обрываются сразу, если админ сменил вам роль, выдал новый пароль или закрыл доступ. Это не сбой.", en: "A session lives for a week — after that you sign in again. Besides, all sessions end at once if an admin changed your role, issued a new password or revoked your access. That is not a malfunction."},
+
+	"faq.renamed.q":  {ru: "Не нахожу игрока по нику — он пропал?", en: "I cannot find a player by nickname — are they gone?"},
+	"faq.renamed.a1": {ru: "Скорее всего, он сменил ник. Поэтому у карточек есть игровой ID: ник в игре меняют, ID — нет. Ищите по ID, и карточка найдётся всегда.", en: "Most likely they renamed themselves. That is why cards carry a game ID: nicknames change in the game, IDs do not. Search by ID and the card will always turn up."},
+	"faq.renamed.a2": {ru: "Заметили, что игрок переименовался, — скажите админу, он поправит ник в карточке. Старый ник при этом не сохраняется, а вот заметки и признаки остаются на месте.", en: "If you notice a rename, tell an admin and they will fix the nickname on the card. The old nickname is not kept, but the notes and traits stay where they are."},
+
+	"faq.clancolor.q":        {ru: "Что значит цвет клана и как помечают своих и чужих?", en: "What does a clan colour mean, and how are friends and foes marked?"},
+	"faq.clancolor.a1":       {ru: "У клана есть статус: союзный, нейтральный или враждебный. Он стоит у клана целиком, поэтому пометить альянс достаточно один раз — цвет получат все его карточки в поиске. Зелёный клан союзный, красный враждебный, серый нейтральный; нейтральных большинство, и отдельной подписи у них нет.", en: "A clan has a status: allied, neutral or hostile. It belongs to the whole clan, so marking an alliance once is enough — all of its cards get the colour in search. Green is allied, red is hostile, grey is neutral; most are neutral and carry no separate label."},
+	"faq.clancolor.a2":       {ru: "На главной есть фильтр рядом со строкой поиска: «только союзные», «только нейтральные», «только враждебные». Фильтр смотрит на клан, поэтому игроки без клана в него не попадают.", en: "The main page has a filter next to the search box: allied only, neutral only, hostile only. The filter looks at the clan, so players without one never match."},
+	"faq.clancolor.a3":       {ru: "Раздел «Кланы» показывает все кланы, сколько в каждом карточек и что за состав. Статус на шкалы не влияет: риск и лояльность — про репутацию человека, статус — про политику его альянса.", en: "The Clans section lists every clan, how many cards each holds and who is in it. The status does not affect the scales: risk and loyalty are about a person’s reputation, the status is about their alliance’s politics."},
+	"faq.clancolor.a3.admin": {ru: "Менять статус и название клана может админ — в списке кланов или на странице клана.", en: "An admin can change a clan’s status and name — in the clan list or on the clan’s page."},
+
+	"faq.scales.q":  {ru: "Что означают «риск» и «лояльность»?", en: "What do “risk” and “loyalty” mean?"},
+	"faq.scales.a1": {ru: "Это проценты, а не очки. У каждого признака есть вес со знаком: отрицательный работает на риск («Мультиаккаунт» −10), положительный — на лояльность («Хорошо играет» +6), нулевой остаётся просто пометкой.", en: "They are percentages, not points. Every trait has a signed weight: a negative one feeds risk (“Multi-accounting”, −10), a positive one feeds loyalty (“Plays well”, +6), and a zero one stays a plain label."},
+	"faq.scales.a2": {ru: "Процент показывает, сколько набрано из возможного: 100% риска — это когда у игрока отмечены вообще все отрицательные признаки справочника. Шкалы независимы, поэтому высокий риск и высокая лояльность у одного человека вполне уживаются.", en: "The percentage shows how much of the possible has been scored: 100% risk means every negative trait in the directory is marked on that player. The scales are independent, so high risk and high loyalty coexist perfectly well in one person."},
+
+	"faq.percents.q": {ru: "Почему проценты у всех игроков вдруг изменились?", en: "Why did everyone’s percentages suddenly change?"},
+	"faq.percents.a": {ru: "Проценты нигде не хранятся и считаются заново при каждом открытии. Значит, кто-то поправил вес признака или завёл новый: сумма весов — это знаменатель, поэтому новый признак уменьшает проценты у всех уже заведённых карточек. Так и задумано: процент означает «сколько набрано из возможного».", en: "Percentages are stored nowhere and are recalculated on every page load. So someone changed a trait’s weight or added a new one: the sum of the weights is the denominator, so a new trait lowers the percentages on every existing card. That is by design: the percentage means “how much of the possible has been scored”."},
+
+	"faq.notes.q": {ru: "Кто видит мои заметки и можно ли их удалить?", en: "Who sees my notes, and can they be deleted?"},
+	"faq.notes.a": {ru: "Заметки видит каждый, у кого есть доступ к базе, и подписаны они вашим ником — анонимных заметок нет. Свою заметку вы удаляете сами, кнопкой рядом с ней. Чужие удаляют администраторы. Удаление записывается в журнал.", en: "Everyone with access to the database sees the notes, and they carry your nickname — there are no anonymous notes. You delete your own with the button next to it. Administrators delete other people’s. Every deletion goes into the audit log."},
+
+	"faq.lists.q":  {ru: "Зачем разделы «Друзья» и «Враги» и кто их видит?", en: "What are the Friends and Enemies sections for, and who sees them?"},
+	"faq.lists.a1": {ru: "Оба списка ваши личные: кого туда записали вы, видите только вы. У каждого он свой, и один и тот же игрок бывает у одного в друзьях, у другого во врагах — с разными комментариями. В журнал разделы не пишутся, администраторам чужие списки не показываются.", en: "Both lists are yours alone: only you see whom you put there. Everyone has their own, and the same player can be a friend to one person and an enemy to another, with different comments. These sections are not written to the audit log, and administrators are not shown anyone else’s lists."},
+	"faq.lists.a2": {ru: "Это пометка о конкретном человеке, а не позиция альянса: отношение к клану целиком помечается статусом в разделе «Кланы». На шкалы риска и лояльности списки не влияют — они про репутацию игрока, а личный список дело того, кто его ведёт.", en: "It is a note about one person, not an alliance stance: your attitude to a whole clan is marked by its status in the Clans section. The lists do not affect the risk and loyalty scales — those are about a player’s reputation, while a personal list is the business of whoever keeps it."},
+	"faq.lists.a3": {ru: "Добавляют двумя путями. Быстрый — кнопки «в друзья» и «во враги» справа в строке поиска: один клик, поиск не сбрасывается, комментарий дописывается потом. С комментарием сразу — в самом разделе: наберите в поиске игровой ID или ник, выберите нужного в выпадающем списке и нажмите «Добавить». Записать можно только того, у кого есть карточка в базе; нет карточки — попросите админа завести. Комментарий необязателен, до 4000 символов, и правится прямо в списке.", en: "There are two ways to add someone. The quick one is the “to friends” and “to enemies” buttons on the right of a search row: one click, the search is not reset, and the comment is added later. To add with a comment right away, use the section itself: type a game ID or nickname in the search, pick the person from the dropdown and press “Add”. Only someone who already has a card in the database can be listed; if there is no card, ask an admin to create one. The comment is optional, up to 4000 characters, and is edited right in the list."},
+	"faq.lists.a4": {ru: "В карточке партии оба списка видны на карте: враги обведены красным и подписаны мечом, друзья — зелёным и рукопожатием.", en: "On a game’s page both lists show up on the map: enemies are outlined in red and marked with a sword, friends in green with a handshake."},
+
+	"faq.rights.q":          {ru: "Кому что доступно?", en: "Who can do what?"},
+	"faq.rights.admin":      {ru: "Админ", en: "Admin"},
+	"faq.rights.yes":        {ru: "да", en: "yes"},
+	"faq.rights.granted":    {ru: "по доступу", en: "if granted"},
+	"faq.rights.search":     {ru: "Искать и смотреть карточки", en: "Search and view cards"},
+	"faq.rights.notes":      {ru: "Писать заметки и удалять свои", en: "Write notes and delete their own"},
+	"faq.rights.lists":      {ru: "Вести свои списки друзей и врагов", en: "Keep their own friend and enemy lists"},
+	"faq.rights.othernotes": {ru: "Удалять чужие заметки", en: "Delete other people’s notes"},
+	"faq.rights.cards":      {ru: "Заводить и править карточки", en: "Create and edit cards"},
+	"faq.rights.traits":     {ru: "Заводить, править и удалять признаки", en: "Create, edit and delete traits"},
+	"faq.rights.access":     {ru: "Выдавать доступы и менять пароли", en: "Grant access and change passwords"},
+	"faq.rights.audit":      {ru: "Смотреть журнал", en: "View the audit log"},
+	"faq.rights.delcards":   {ru: "Удалять карточки игроков", en: "Delete player cards"},
+	"faq.rights.delusers":   {ru: "Удалять пользователей", en: "Delete users"},
+	"faq.rights.games":      {ru: "Раздел «Игры»", en: "The Games section"},
+	"faq.rights.hero":       {ru: "Призывать пехоту в партии", en: "Deploy infantry in a game"},
+
+	"faq.newtrait.q":  {ru: "Как завести новый признак и что будет со шкалами?", en: "How do I add a trait, and what happens to the scales?"},
+	"faq.newtrait.a1": {ru: "Раздел «Признаки». Код латиницей менять нельзя — он идентифицирует признак; название, вес и порядок правятся в любой момент.", en: "The Traits section. The Latin code cannot be changed — it identifies the trait; the name, weight and order can be edited at any time."},
+	"faq.newtrait.a2": {ru: "Снятый флаг «Активен» убирает признак из форм и из расчёта шкал, но сохраняет уже проставленные отметки — так гасят устаревшие признаки. Удаление снимает отметки у всех навсегда; в колонке «Отмечен» видно, скольких это затронет.", en: "Clearing the “Active” flag hides the trait from the forms and from the scale calculation but keeps the marks already made — that is how outdated traits are retired. Deleting removes those marks from everyone for good; the “Marked” column shows how many people that touches."},
+
+	"faq.grant.q":  {ru: "Как выдать доступ новому человеку?", en: "How do I grant access to someone new?"},
+	"faq.grant.a1": {ru: "Раздел «Доступы». Обязателен ник, почта — по желанию: входить можно и по нику, и по почте. Пароль не короче 12 символов; в открытом виде он нигде не хранится и посмотреть его потом нельзя, поэтому передайте пароль человеку сразу и лично.", en: "The Access section. The nickname is required, the email optional: signing in works with either. The password must be at least 12 characters; it is stored nowhere in plain text and cannot be looked up later, so hand it over right away and in person."},
+	"faq.grant.a2": {ru: "Блокировка — мягкая мера: доступ закрывается, а заметки и история остаются. Блокировка, смена роли и смена пароля тут же обрывают все сессии человека. Свою запись менять нельзя, рута — тоже.", en: "Blocking is the gentle measure: access closes while the notes and history stay. Blocking, a role change and a password change all end the person’s sessions at once. You cannot edit your own record, nor the root’s."},
+
+	"faq.bug.q": {ru: "Нашёл ошибку или нужен доступ", en: "I found a bug or need access"},
+	"faq.bug.a": {ru: "Пишите тому, кто выдавал вам доступ. Все действия в базе видны в журнале, так что разобраться, кто и что менял, можно всегда.", en: "Write to whoever granted you access. Every action in the database is visible in the audit log, so it is always possible to work out who changed what."},
+
+	// --- сообщения обработчиков: ошибки форм и отказы ---
+	"err.badform":  {ru: "Некорректная форма", en: "Malformed form"},
+	"err.badlogin": {ru: "Неверная почта, ник или пароль", en: "Wrong email, nickname or password"},
+	"err.badid":    {ru: "Некорректный id", en: "Malformed id"},
+
+	"err.notfound":       {ru: "не найдено", en: "not found"},
+	"err.email.taken":    {ru: "почта уже используется", en: "that email is already in use"},
+	"err.nick.taken":     {ru: "такой ник уже есть в базе", en: "that nickname is already in the database"},
+	"err.gameid.taken":   {ru: "такой игровой ID уже есть в базе", en: "that game ID is already in the database"},
+	"err.code.taken":     {ru: "такой код признака уже есть", en: "a trait with that code already exists"},
+	"err.clan.taken":     {ru: "клан с таким названием уже есть", en: "a clan with that name already exists"},
+	"err.already.listed": {ru: "игрок уже в списке", en: "the player is already listed"},
+	"err.forbidden":      {ru: "недостаточно прав", en: "not enough rights"},
+	"err.invalid.login":  {ru: "неверная почта или пароль", en: "wrong email or password"},
+
+	"err.nick.required":  {ru: "ник обязателен", en: "a nickname is required"},
+	"err.nick.format":    {ru: "ник: 3–32 символа, буквы, цифры, точка, дефис и подчёркивание; начинается с буквы или цифры", en: "nickname: 3–32 characters — letters, digits, dot, hyphen and underscore; starts with a letter or digit"},
+	"err.name.toolong":   {ru: "имя длиннее 100 символов", en: "the name is longer than 100 characters"},
+	"err.city.toolong":   {ru: "город длиннее 100 символов", en: "the city is longer than 100 characters"},
+	"err.gameid.toolong": {ru: "игровой ID длиннее 32 символов", en: "the game ID is longer than 32 characters"},
+	"err.gameid.spaces":  {ru: "игровой ID не должен содержать пробелов", en: "the game ID must not contain spaces"},
+
+	"err.clan.name.required": {ru: "Укажите название клана", en: "Enter a clan name"},
+	"err.clan.name.toolong":  {ru: "Название длиннее 64 символов", en: "The name is longer than 64 characters"},
+	"err.clan.notfound":      {ru: "Клан не найден", en: "Clan not found"},
+
+	"err.trait.code":     {ru: "Код: латиница в нижнем регистре, цифры и подчёркивание, от 2 до 40 символов", en: "Code: lowercase Latin letters, digits and underscore, 2 to 40 characters"},
+	"err.trait.name":     {ru: "Укажите название не длиннее 80 символов", en: "Enter a name no longer than 80 characters"},
+	"err.trait.weight":   {ru: "Вес — целое число от -100 до 100", en: "The weight is a whole number from -100 to 100"},
+	"err.trait.notfound": {ru: "Признак не найден", en: "Trait not found"},
+
+	"profile.saved": {ru: "Сохранено", en: "Saved"},
+
+	// Состояние партии игра называет своими словами — переводим их сами.
+	"gamestate.running":     {ru: "идёт", en: "running"},
+	"gamestate.readytojoin": {ru: "набор", en: "recruiting"},
+	"gamestate.finished":    {ru: "завершена", en: "finished"},
+
+	// Подсказка над провинцией собирается из кусков, поэтому и переводится
+	// кусками: клан и коалиция называются, остальное — готовые слова.
+	"tip.clan":       {ru: "клан %s", en: "clan %s"},
+	"tip.team":       {ru: "коалиция %s", en: "coalition %s"},
+	"game.unknown":   {ru: "неизвестно", en: "unknown"},
+	"game.noname":    {ru: "без названия", en: "unnamed"},
+	"game.bannedone": {ru: "забанен", en: "banned"},
+
+	"games.noaccount":       {ru: "Аккаунт Supremacy 1914 не настроен: задайте S1914_USER и S1914_PASSWORD.", en: "The Supremacy 1914 account is not configured: set S1914_USER and S1914_PASSWORD."},
+	"games.noaccount.short": {ru: "Аккаунт Supremacy 1914 не настроен.", en: "The Supremacy 1914 account is not configured."},
+	"games.badnumber":       {ru: "Не похоже на номер партии. Номер — это число, его видно в адресе партии.", en: "That does not look like a game number. The number is a numeral, visible in the game’s address."},
+	"games.list.error":      {ru: "Не удалось получить список игр: %v", en: "Could not fetch the list of games: %v"},
+	"game.notfound":         {ru: "Партии %s не нашлось: %v", en: "Game %s was not found: %v"},
+	"game.roster.error":     {ru: "Состав партии не получен: %v", en: "Could not fetch the roster: %v"},
+	"game.enter.error":      {ru: "Не удалось зайти в партию: %v", en: "Could not enter the game: %v"},
+	"game.observe.error":    {ru: "Не удалось посмотреть партию со стороны: %v", en: "Could not look at the game from the outside: %v"},
+	"game.map.error":        {ru: "Карту нарисовать не вышло: %v", en: "Drawing the map did not work out: %v"},
+
+	// --- ошибки форм: игроки, списки, доступы ---
+	"err.player.nick.taken":    {ru: "Игрок с таким ником уже есть в базе", en: "A player with that nickname is already in the database"},
+	"err.player.id.taken":      {ru: "Игрок с таким игровым ID уже есть в базе", en: "A player with that game ID is already in the database"},
+	"err.player.nick.required": {ru: "Укажите ник игрока", en: "Enter the player’s nickname"},
+	"err.player.nick.toolong":  {ru: "Ник длиннее 64 символов", en: "The nickname is longer than 64 characters"},
+	"err.player.id.required":   {ru: "Укажите игровой ID — по нему карточка ищется после смены ника", en: "Enter the game ID — it is how the card is found after a rename"},
+	"err.player.id.toolong":    {ru: "Игровой ID длиннее 32 символов", en: "The game ID is longer than 32 characters"},
+	"err.player.id.spaces":     {ru: "Игровой ID не должен содержать пробелов", en: "The game ID must not contain spaces"},
+	"err.note.length":          {ru: "Заметка не может быть пустой и длиннее 4000 символов", en: "A note cannot be empty or longer than 4000 characters"},
+
+	"err.rel.pick":    {ru: "Выберите игрока из найденных — в выпадающем списке под поиском", en: "Pick a player from the results — in the dropdown under the search"},
+	"err.rel.nocard":  {ru: "Такой карточки в базе нет", en: "There is no such card in the database"},
+	"err.rel.comment": {ru: "Комментарий длиннее %d символов", en: "The comment is longer than %d characters"},
+
+	"err.email.bad":        {ru: "Некорректный адрес почты", en: "Malformed email address"},
+	"err.role.bad":         {ru: "Можно выдать только роль «пользователь» или «администратор»", en: "Only the user and administrator roles can be granted"},
+	"err.user.email.taken": {ru: "Пользователь с такой почтой уже есть", en: "A user with that email already exists"},
+	"err.user.nick.taken":  {ru: "Пользователь с таким ником уже есть", en: "A user with that nickname already exists"},
+	"err.password.short":   {ru: "пароль должен быть не короче 12 символов", en: "the password must be at least 12 characters"},
+	"err.password.long":    {ru: "пароль слишком длинный", en: "the password is too long"},
+}

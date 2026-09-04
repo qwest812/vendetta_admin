@@ -1,53 +1,52 @@
-{{define "title"}}Доступы — Vendetta{{end}}
+{{define "title"}}{{t "users.title"}}{{end}}
 
 {{define "content"}}
 <div class="card">
-    <h1>Выдать доступ</h1>
+    <h1>{{t "users.grant"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
     <form class="row-form" method="post" action="/users">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <label>
-            Ник
+            {{t "profile.nick"}}
             <input type="text" name="nickname" value="{{.FormNickname}}" required minlength="3" maxlength="32" autocomplete="off">
         </label>
         <label>
-            Почта <span class="muted">— необязательно</span>
+            {{t "users.email"}} <span class="muted">— {{t "users.optional"}}</span>
             <input type="email" name="email" value="{{.FormEmail}}" autocomplete="off">
         </label>
         <label>
-            Пароль
+            {{t "login.password"}}
             <input type="password" name="password" required minlength="12" autocomplete="new-password">
         </label>
         <label>
-            Роль
+            {{t "users.role"}}
             <select name="role">
-                <option value="user" {{if ne .FormRole "admin"}}selected{{end}}>Пользователь</option>
-                <option value="admin" {{if eq .FormRole "admin"}}selected{{end}}>Администратор</option>
+                <option value="user" {{if ne .FormRole "admin"}}selected{{end}}>{{t "role.user"}}</option>
+                <option value="admin" {{if eq .FormRole "admin"}}selected{{end}}>{{t "role.admin"}}</option>
             </select>
         </label>
-        <button type="submit">Создать</button>
+        <button type="submit">{{t "users.create"}}</button>
     </form>
-    <p class="muted">Входить можно и по нику, и по почте, поэтому почту можно не указывать.
-        Пароль не хранится в открытом виде — передайте его пользователю лично.</p>
+    <p class="muted">{{t "users.note"}}</p>
 </div>
 
 <div class="card">
-    <h1>Пользователи</h1>
+    <h1>{{t "users.heading"}}</h1>
     {{$root := .CurrentUser.IsRoot}}
     <table>
         <thead>
         <tr>
-            <th>Ник</th>
-            <th>Имя</th>
-            <th>Город</th>
-            <th>Игровой ID</th>
-            <th>Почта</th>
-            <th>Роль</th>
+            <th>{{t "profile.nick"}}</th>
+            <th>{{t "profile.fullname"}}</th>
+            <th>{{t "profile.city"}}</th>
+            <th>{{t "profile.gameid"}}</th>
+            <th>{{t "users.email"}}</th>
+            <th>{{t "users.role"}}</th>
             {{/* Доступ к играм раздаёт только рут, остальным колонку не показываем. */}}
-            {{if $root}}<th>Игры</th>{{end}}
-            <th>Статус</th>
-            <th>Создан</th>
-            <th class="actions">Действия</th>
+            {{if $root}}<th>{{t "nav.games"}}</th>{{end}}
+            <th>{{t "common.status"}}</th>
+            <th>{{t "users.created"}}</th>
+            <th class="actions">{{t "common.actions"}}</th>
         </tr>
         </thead>
         <tbody>
@@ -55,31 +54,31 @@
         {{$me := .CurrentUser.ID}}
         {{range .Users}}
             <tr class="{{if not .IsActive}}inactive{{end}}">
-                <td>{{.Nickname}}{{if eq .ID $me}} <span class="muted">(это вы)</span>{{end}}</td>
+                <td>{{.Nickname}}{{if eq .ID $me}} <span class="muted">{{t "users.you"}}</span>{{end}}</td>
                 {{/* Профиль человек заполняет сам, поэтому пустые поля здесь
                      обычное дело — прочерк, а не пустая ячейка. */}}
                 <td>{{if .FullName}}{{.FullName}}{{else}}<span class="muted">—</span>{{end}}</td>
                 <td>{{if .City}}{{.City}}{{else}}<span class="muted">—</span>{{end}}</td>
                 <td>{{if .GameID}}<span class="game-id">{{.GameID}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
                 <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
-                <td><span class="badge role-{{.Role}}">{{.Role.Title}}</span></td>
+                <td><span class="badge role-{{.Role}}">{{role .Role}}</span></td>
                 {{if $root}}
                     {{/* Колонка обычная, не «Действия»: та прижимает содержимое
                          к правому краю, и столбец читался бы съехавшим. */}}
                     <td class="access">
                         {{if .IsRoot}}
                             {{/* Рут ходит в игры по роли: снимать у него нечего. */}}
-                            <span class="muted">всегда</span>
+                            <span class="muted">{{t "users.always"}}</span>
                         {{else}}
                             <form method="post" action="/users/{{.ID}}/games">
                                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
                                 <input type="hidden" name="access" value="{{if .GamesAccess}}false{{else}}true{{end}}">
-                                <button type="submit">{{if .GamesAccess}}Закрыть{{else}}Открыть{{end}}</button>
+                                <button type="submit">{{if .GamesAccess}}{{t "users.close"}}{{else}}{{t "users.open"}}{{end}}</button>
                             </form>
                         {{end}}
                     </td>
                 {{end}}
-                <td>{{if .IsActive}}активен{{else}}заблокирован{{end}}</td>
+                <td>{{if .IsActive}}{{t "users.active"}}{{else}}{{t "users.blocked"}}{{end}}</td>
                 <td class="muted">{{datetime .CreatedAt}}</td>
                 <td class="actions">
                     {{if or .IsRoot (eq .ID $me)}}
@@ -89,33 +88,33 @@
                             <form method="post" action="/users/{{.ID}}/role">
                                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
                                 <input type="hidden" name="role" value="user">
-                                <button type="submit">Понизить</button>
+                                <button type="submit">{{t "users.demote"}}</button>
                             </form>
                         {{else}}
                             <form method="post" action="/users/{{.ID}}/role">
                                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
                                 <input type="hidden" name="role" value="admin">
-                                <button type="submit">Повысить</button>
+                                <button type="submit">{{t "users.promote"}}</button>
                             </form>
                         {{end}}
 
                         <form method="post" action="/users/{{.ID}}/active">
                             <input type="hidden" name="csrf_token" value="{{$csrf}}">
                             <input type="hidden" name="active" value="{{if .IsActive}}false{{else}}true{{end}}">
-                            <button type="submit">{{if .IsActive}}Заблокировать{{else}}Разблокировать{{end}}</button>
+                            <button type="submit">{{if .IsActive}}{{t "users.block"}}{{else}}{{t "users.unblock"}}{{end}}</button>
                         </form>
 
                         <form method="post" action="/users/{{.ID}}/password" class="inline-pass">
                             <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                            <input type="password" name="password" placeholder="Новый пароль" minlength="12" required autocomplete="new-password">
-                            <button type="submit">Сменить</button>
+                            <input type="password" name="password" placeholder="{{t "users.newpassword"}}" minlength="12" required autocomplete="new-password">
+                            <button type="submit">{{t "users.change"}}</button>
                         </form>
 
                         {{if $root}}
                             <form method="post" action="/users/{{.ID}}/delete"
-                                  onsubmit="return confirm('Удалить {{.Nickname}} безвозвратно?')">
+                                  onsubmit="return confirm('{{t "users.delete.confirm" .Nickname}}')">
                                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                                <button type="submit" class="danger">Удалить</button>
+                                <button type="submit" class="danger">{{t "common.delete"}}</button>
                             </form>
                         {{end}}
                     {{end}}

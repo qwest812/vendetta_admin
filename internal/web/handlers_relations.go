@@ -16,7 +16,10 @@ const relationCandidates = 20
 
 // relationWords — слова раздела. Списки врагов и друзей устроены одинаково,
 // а говорят о разном, и подставить «врагов» в страницу друзей нельзя, поэтому
-// весь текст, который отличается, собран здесь.
+// всё, что отличается, собрано здесь.
+//
+// Здесь не сам текст, а ключи сообщений: страницу читают на разных языках,
+// и раздел не должен решать, на каком именно.
 type relationWords struct {
 	Path      string // корень путей и имя шаблона: "enemies" или "friends"
 	Title     string // заголовок страницы
@@ -38,42 +41,36 @@ type relationWords struct {
 }
 
 var enemyWords = relationWords{
-	Path:  "enemies",
-	Title: "Мои враги",
-	Intro: "Список личный: его видите только вы, у каждого он свой. Это пометка " +
-		"«за что» о конкретном человеке, а не позиция альянса — вражда с кланом " +
-		"целиком помечается статусом в разделе «Кланы». На шкалы риска и " +
-		"лояльности список не влияет.",
-	Pick:      "Кого добавить во враги",
-	Empty:     "Список пуст. Найдите игрока выше и добавьте — комментарий можно оставить пустым.",
-	AllListed: "Все найденные уже у вас во врагах.",
-	Already:   "Этот игрок уже у вас во врагах — комментарий правится прямо в списке",
-	Missing:   "Этого игрока нет в вашем списке врагов",
-	Confirm:   "Убрать %s из списка врагов?",
-	MarkAdd:   "во враги",
-	MarkDone:  "во врагах",
-	AddTitle:  "В личный список врагов, без комментария — «за что» допишете в разделе «Враги»",
-	DoneTitle: "Уже в вашем списке врагов — комментарий пишется там",
+	Path:      "enemies",
+	Title:     "rel.enemies.title",
+	Intro:     "rel.enemies.intro",
+	Pick:      "rel.enemies.pick",
+	Empty:     "rel.enemies.empty",
+	AllListed: "rel.enemies.alllisted",
+	Already:   "rel.enemies.already",
+	Missing:   "rel.enemies.missing",
+	Confirm:   "rel.enemies.confirm",
+	MarkAdd:   "rel.enemies.markadd",
+	MarkDone:  "rel.enemies.markdone",
+	AddTitle:  "rel.enemies.addtitle",
+	DoneTitle: "rel.enemies.donetitle",
 	Class:     "enemy",
 }
 
 var friendWords = relationWords{
-	Path:  "friends",
-	Title: "Мои друзья",
-	Intro: "Список личный: его видите только вы, у каждого он свой. Это пометка " +
-		"о конкретном человеке, а не позиция альянса — союз с кланом целиком " +
-		"помечается статусом в разделе «Кланы». На шкалы риска и лояльности " +
-		"список не влияет.",
-	Pick:      "Кого добавить в друзья",
-	Empty:     "Список пуст. Найдите игрока выше и добавьте — комментарий можно оставить пустым.",
-	AllListed: "Все найденные уже у вас в друзьях.",
-	Already:   "Этот игрок уже у вас в друзьях — комментарий правится прямо в списке",
-	Missing:   "Этого игрока нет в вашем списке друзей",
-	Confirm:   "Убрать %s из списка друзей?",
-	MarkAdd:   "в друзья",
-	MarkDone:  "в друзьях",
-	AddTitle:  "В личный список друзей, без комментария — заметку допишете в разделе «Друзья»",
-	DoneTitle: "Уже в вашем списке друзей — комментарий пишется там",
+	Path:      "friends",
+	Title:     "rel.friends.title",
+	Intro:     "rel.friends.intro",
+	Pick:      "rel.friends.pick",
+	Empty:     "rel.friends.empty",
+	AllListed: "rel.friends.alllisted",
+	Already:   "rel.friends.already",
+	Missing:   "rel.friends.missing",
+	Confirm:   "rel.friends.confirm",
+	MarkAdd:   "rel.friends.markadd",
+	MarkDone:  "rel.friends.markdone",
+	AddTitle:  "rel.friends.addtitle",
+	DoneTitle: "rel.friends.donetitle",
 	Class:     "friend",
 }
 
@@ -220,8 +217,7 @@ func (rs *relationSection) markData(playerID int64, marked bool, csrf string) ma
 func (rs *relationSection) add(w http.ResponseWriter, r *http.Request) {
 	playerID, err := strconv.ParseInt(r.PostFormValue("player_id"), 10, 64)
 	if err != nil {
-		rs.render(w, r, http.StatusUnprocessableEntity,
-			"Выберите игрока из найденных — в выпадающем списке под поиском")
+		rs.render(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.rel.pick"))
 		return
 	}
 	comment, ok := rs.comment(w, r)
@@ -230,7 +226,7 @@ func (rs *relationSection) add(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := rs.srv.players.ByID(r.Context(), playerID); errors.Is(err, domain.ErrNotFound) {
-		rs.render(w, r, http.StatusNotFound, "Такой карточки в базе нет")
+		rs.render(w, r, http.StatusNotFound, langOf(r).T("err.rel.nocard"))
 		return
 	} else if err != nil {
 		rs.srv.serverError(w, r, err)
@@ -239,7 +235,7 @@ func (rs *relationSection) add(w http.ResponseWriter, r *http.Request) {
 
 	err = rs.repo.Add(r.Context(), currentUser(r).ID, playerID, comment)
 	if errors.Is(err, domain.ErrAlreadyListed) {
-		rs.render(w, r, http.StatusUnprocessableEntity, rs.words.Already)
+		rs.render(w, r, http.StatusUnprocessableEntity, langOf(r).T(rs.words.Already))
 		return
 	}
 	if err != nil {
@@ -261,7 +257,7 @@ func (rs *relationSection) update(w http.ResponseWriter, r *http.Request) {
 
 	err := rs.repo.SetComment(r.Context(), currentUser(r).ID, playerID, comment)
 	if errors.Is(err, domain.ErrNotFound) {
-		http.Error(w, rs.words.Missing, http.StatusNotFound)
+		http.Error(w, langOf(r).T(rs.words.Missing), http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -278,7 +274,7 @@ func (rs *relationSection) remove(w http.ResponseWriter, r *http.Request) {
 	}
 	err := rs.repo.Remove(r.Context(), currentUser(r).ID, playerID)
 	if errors.Is(err, domain.ErrNotFound) {
-		http.Error(w, rs.words.Missing, http.StatusNotFound)
+		http.Error(w, langOf(r).T(rs.words.Missing), http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -293,8 +289,7 @@ func (rs *relationSection) remove(w http.ResponseWriter, r *http.Request) {
 func (rs *relationSection) comment(w http.ResponseWriter, r *http.Request) (string, bool) {
 	comment := strings.TrimSpace(r.PostFormValue("comment"))
 	if len([]rune(comment)) > domain.MaxCommentLen {
-		rs.render(w, r, http.StatusUnprocessableEntity,
-			"Комментарий длиннее "+strconv.Itoa(domain.MaxCommentLen)+" символов")
+		rs.render(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.rel.comment", domain.MaxCommentLen))
 		return "", false
 	}
 	return comment, true

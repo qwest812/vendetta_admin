@@ -1,12 +1,12 @@
-{{define "title"}}Профиль — Vendetta{{end}}
+{{define "title"}}{{t "profile.title"}}{{end}}
 
 {{define "content"}}
 {{$p := .Profile}}
 <div class="card">
     <div class="card-head">
-        <h1>Профиль</h1>
+        <h1>{{t "profile.heading"}}</h1>
         <div class="head-actions">
-            <span class="badge role-{{$p.Role}}">{{$p.Role.Title}}</span>
+            <span class="badge role-{{$p.Role}}">{{role $p.Role}}</span>
         </div>
     </div>
 
@@ -14,28 +14,27 @@
     {{if .Notice}}<p class="muted">{{.Notice}}</p>{{end}}
 
     <p class="muted">
-        Ник <b>{{$p.Nickname}}</b>{{if $p.Email}}, почта {{$p.Email}}{{end}}.
-        Их и пароль меняют в разделе «Доступы» — здесь только то, что вы
-        рассказываете о себе сами.
+        {{t "profile.nick"}} <b>{{$p.Nickname}}</b>{{if $p.Email}}, {{t "profile.email"}} {{$p.Email}}{{end}}.
+        {{t "profile.note"}}
     </p>
 
     <form method="post" action="/profile">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <div class="row-form">
             <label>
-                Имя
+                {{t "profile.fullname"}}
                 <input type="text" name="full_name" value="{{$p.FullName}}" maxlength="100" autocomplete="name">
             </label>
             <label>
-                Город
+                {{t "profile.city"}}
                 <input type="text" name="city" value="{{$p.City}}" maxlength="100" autocomplete="address-level2">
             </label>
             <label>
-                Игровой ID
+                {{t "profile.gameid"}}
                 <input type="text" name="game_id" value="{{$p.GameID}}" maxlength="32" autocomplete="off"
-                       placeholder="ваш ID в Supremacy">
+                       placeholder="{{t "profile.gameid.placeholder"}}">
             </label>
-            <button type="submit">Сохранить</button>
+            <button type="submit">{{t "common.save"}}</button>
         </div>
     </form>
 </div>

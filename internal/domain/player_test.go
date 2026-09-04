@@ -35,16 +35,16 @@ func TestComputeScore(t *testing.T) {
 		ids         []int64
 		risk        int
 		loyalty     int
-		wantLevel   string
+		wantLevel   string // ключ подписи: словами её скажет интерфейс
 		wantRiskCls string
 	}{
-		{"без отметок", nil, 0, 0, "чисто", "none"},
-		{"только нейтральный", []int64{6}, 0, 0, "чисто", "none"},
-		{"мультиаккаунт", []int64{1}, 45, 0, "средний", "mid"},
-		{"все минусы", []int64{1, 2, 3}, 100, 0, "высокий", "high"},
-		{"все плюсы", []int64{4, 5}, 0, 100, "чисто", "none"},
-		{"сквернословит и хорошо играет", []int64{3, 4}, 18, 67, "низкий", "low"},
-		{"всё сразу", []int64{1, 2, 3, 4, 5, 6}, 100, 100, "высокий", "high"},
+		{"без отметок", nil, 0, 0, "level.clean", "none"},
+		{"только нейтральный", []int64{6}, 0, 0, "level.clean", "none"},
+		{"мультиаккаунт", []int64{1}, 45, 0, "level.medium", "mid"},
+		{"все минусы", []int64{1, 2, 3}, 100, 0, "level.high", "high"},
+		{"все плюсы", []int64{4, 5}, 0, 100, "level.clean", "none"},
+		{"сквернословит и хорошо играет", []int64{3, 4}, 18, 67, "level.low", "low"},
+		{"всё сразу", []int64{1, 2, 3, 4, 5, 6}, 100, 100, "level.high", "high"},
 	}
 
 	for _, c := range cases {
@@ -93,8 +93,8 @@ func TestComputeScoreEmptyRegistry(t *testing.T) {
 	if s.Risk != 0 || s.Loyalty != 0 {
 		t.Errorf("ожидались нули, получено risk=%d loyalty=%d", s.Risk, s.Loyalty)
 	}
-	if got := s.RiskLevel(); got != "не задан" {
-		t.Errorf("RiskLevel = %q, ожидалось \"не задан\"", got)
+	if got := s.RiskLevel(); got != "level.none" {
+		t.Errorf("RiskLevel = %q, ожидалось \"level.none\"", got)
 	}
 }
 

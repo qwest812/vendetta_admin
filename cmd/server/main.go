@@ -76,7 +76,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
-		Health: pool.Ping,
+		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
 	// на проверку `== nil` не отвечает, и раздел счёл бы аккаунт настроенным.

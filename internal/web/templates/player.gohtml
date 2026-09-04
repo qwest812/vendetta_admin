@@ -9,31 +9,31 @@
             {{if $p.ClanName}}
                 <a class="clan clan-{{$p.ClanStatus}}" href="/clans/{{$p.ClanID}}">[{{$p.ClanName}}]</a>
                 {{if $p.ClanStatus.Marked}}
-                    <span class="badge clan-{{$p.ClanStatus}}">{{$p.ClanStatus.Title}} клан</span>
+                    <span class="badge clan-{{$p.ClanStatus}}">{{t "player.clan.status" (clanStatus $p.ClanStatus)}}</span>
                 {{end}}
             {{end}}
             {{if $p.GameID}}
                 <span class="game-id">ID {{$p.GameID}}</span>
             {{else}}
-                <span class="muted">ID не указан</span>
+                <span class="muted">{{t "player.noid"}}</span>
             {{end}}
             {{/* Что игра рассказала про этого человека при последнем заходе
                  в партию с ним. Бан — свойство аккаунта, поэтому ему тут
                  самое место. */}}
             {{with .Seen}}
                 {{if .Banned}}
-                    <span class="badge clan-enemy">забанен в игре</span>
+                    <span class="badge clan-enemy">{{t "player.banned"}}</span>
                 {{end}}
             {{end}}
         </div>
         {{if .CurrentUser.IsAdmin}}
             <div class="head-actions">
-                <a class="button" href="/players/{{$p.ID}}/edit">Изменить</a>
+                <a class="button" href="/players/{{$p.ID}}/edit">{{t "common.edit"}}</a>
                 {{if .CurrentUser.IsRoot}}
                     <form method="post" action="/players/{{$p.ID}}/delete"
-                          onsubmit="return confirm('Удалить карточку {{$p.Nickname}} со всеми заметками?')">
+                          onsubmit="return confirm('{{t "player.delete.confirm" $p.Nickname}}')">
                         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-                        <button class="danger" type="submit">Удалить</button>
+                        <button class="danger" type="submit">{{t "common.delete"}}</button>
                     </form>
                 {{end}}
             </div>
@@ -43,15 +43,15 @@
     <div class="scales">
         <div class="scale">
             <div class="scale-head">
-                <span>Риск: <b>{{$p.Score.Risk}}%</b> <span class="muted">({{$p.Score.RiskLevel}})</span></span>
-                <span class="muted">{{$p.Score.RiskPoints}} из {{$p.Score.RiskMax}}</span>
+                <span>{{t "player.risk"}}: <b>{{$p.Score.Risk}}%</b> <span class="muted">({{level $p.Score.RiskLevel}})</span></span>
+                <span class="muted">{{t "player.of" $p.Score.RiskPoints $p.Score.RiskMax}}</span>
             </div>
             <div class="bar"><div class="fill risk-{{$p.Score.RiskClass}}" style="width: {{$p.Score.Risk}}%"></div></div>
         </div>
         <div class="scale">
             <div class="scale-head">
-                <span>Лояльность: <b>{{$p.Score.Loyalty}}%</b></span>
-                <span class="muted">{{$p.Score.LoyaltyPoints}} из {{$p.Score.LoyaltyMax}}</span>
+                <span>{{t "player.loyalty"}}: <b>{{$p.Score.Loyalty}}%</b></span>
+                <span class="muted">{{t "player.of" $p.Score.LoyaltyPoints $p.Score.LoyaltyMax}}</span>
             </div>
             <div class="bar"><div class="fill loyalty" style="width: {{$p.Score.Loyalty}}%"></div></div>
         </div>
@@ -66,29 +66,29 @@
             {{end}}
         </div>
     {{else}}
-        <p class="muted">Признаки не отмечены.</p>
+        <p class="muted">{{t "player.notraits"}}</p>
     {{end}}
 
     {{/* Что игра рассказала про игрока сама. Появляется только у тех,
          кого мы встретили в партии: связь идёт по игровому ID. */}}
     {{with .Seen}}
         <p class="muted">
-            В игре{{if .Nickname}} под ником {{.Nickname}}{{end}};
-            {{if .Banned}}аккаунт забанен{{with .BannedAt}} — заметили {{datetime .}}{{end}}{{else}}бана нет{{end}}.
-            Видели {{datetime .SeenAt}}{{if .SeenGameID}} в <a href="/games/{{.SeenGameID}}">партии {{.SeenGameID}}</a>{{end}}.
+            {{t "player.seen.ingame"}}{{if .Nickname}} {{t "player.seen.as" .Nickname}}{{end}};
+            {{if .Banned}}{{t "player.seen.banned"}}{{with .BannedAt}} — {{t "player.seen.noticed"}} {{datetime .}}{{end}}{{else}}{{t "player.seen.notbanned"}}{{end}}.
+            {{t "player.seen.at"}} {{datetime .SeenAt}}{{if .SeenGameID}} {{t "player.seen.ingamepre"}} <a href="/games/{{.SeenGameID}}">{{t "player.seen.game" .SeenGameID}}</a>{{end}}.
         </p>
     {{end}}
-    <p class="muted">Добавлен {{datetime $p.CreatedAt}}, изменён {{datetime $p.UpdatedAt}}</p>
+    <p class="muted">{{t "player.added"}} {{datetime $p.CreatedAt}}, {{t "player.changed"}} {{datetime $p.UpdatedAt}}</p>
 </div>
 
 <div class="card">
-    <h1>Заметки</h1>
+    <h1>{{t "player.notes"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
     <form method="post" action="/players/{{$p.ID}}/notes" class="note-form">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <textarea name="body" rows="3" placeholder="Что известно об игроке" required></textarea>
-        <button type="submit">Добавить заметку</button>
+        <textarea name="body" rows="3" placeholder="{{t "player.note.placeholder"}}" required></textarea>
+        <button type="submit">{{t "player.note.add"}}</button>
     </form>
 
     {{$me := .CurrentUser}}
@@ -101,16 +101,16 @@
                     <span class="muted">{{datetime .CreatedAt}}</span>
                     {{if .CanDelete $me}}
                         <form method="post" action="/notes/{{.ID}}/delete"
-                              onsubmit="return confirm('Удалить заметку?')">
+                              onsubmit="return confirm('{{t "player.note.delete.confirm"}}')">
                             <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                            <button class="link" type="submit">удалить</button>
+                            <button class="link" type="submit">{{t "common.delete.lower"}}</button>
                         </form>
                     {{end}}
                 </div>
                 <p class="note-body">{{.Body}}</p>
             </li>
         {{else}}
-            <li class="muted">Заметок пока нет.</li>
+            <li class="muted">{{t "player.notes.empty"}}</li>
         {{end}}
     </ul>
 </div>

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/argon2"
+
+	"Vendetta_admin/internal/domain"
 )
 
 // Параметры argon2id. Меняя их, старые хеши остаются валидными:
@@ -72,10 +74,10 @@ func VerifyPassword(password, encoded string) error {
 // ValidatePassword — минимальные требования к паролю, выдаваемому админом.
 func ValidatePassword(p string) error {
 	if len([]rune(p)) < 12 {
-		return errors.New("пароль должен быть не короче 12 символов")
+		return domain.ErrPasswordShort
 	}
 	if len(p) > 256 {
-		return errors.New("пароль слишком длинный")
+		return domain.ErrPasswordLong
 	}
 	return nil
 }

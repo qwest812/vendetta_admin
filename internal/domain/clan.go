@@ -22,10 +22,12 @@ const (
 // ClanStatuses — порядок для выпадающих списков: от своих к чужим.
 var ClanStatuses = []ClanStatus{ClanAlly, ClanNeutral, ClanEnemy}
 
-var clanStatusTitles = map[ClanStatus]string{
-	ClanAlly:    "Союзный",
-	ClanNeutral: "Нейтральный",
-	ClanEnemy:   "Враждебный",
+// clanStatusKeys — ключи подписей к статусам. Сам текст живёт в словаре
+// интерфейса: подпись зависит от языка смотрящего, а статус — нет.
+var clanStatusKeys = map[ClanStatus]string{
+	ClanAlly:    "clanstatus.ally",
+	ClanNeutral: "clanstatus.neutral",
+	ClanEnemy:   "clanstatus.enemy",
 }
 
 // ParseClanStatus разбирает значение из формы или строки запроса. Второе
@@ -33,17 +35,20 @@ var clanStatusTitles = map[ClanStatus]string{
 // «все кланы», и решает это уже вызывающий.
 func ParseClanStatus(s string) (ClanStatus, bool) {
 	status := ClanStatus(strings.TrimSpace(s))
-	_, ok := clanStatusTitles[status]
+	_, ok := clanStatusKeys[status]
 	return status, ok
 }
 
-func (s ClanStatus) Valid() bool { return clanStatusTitles[s] != "" }
+func (s ClanStatus) Valid() bool { return clanStatusKeys[s] != "" }
 
-func (s ClanStatus) Title() string {
-	if title, ok := clanStatusTitles[s]; ok {
-		return title
+// TitleKey — ключ подписи к статусу. Пустой статус приходит с игроком
+// без клана, и подписать его надо словом «нейтральный», а не пустотой:
+// в интерфейсе это одно и то же — «ничего особенного про этот клан».
+func (s ClanStatus) TitleKey() string {
+	if key, ok := clanStatusKeys[s]; ok {
+		return key
 	}
-	return "Нейтральный"
+	return "clanstatus.neutral"
 }
 
 func (s ClanStatus) IsAlly() bool  { return s == ClanAlly }

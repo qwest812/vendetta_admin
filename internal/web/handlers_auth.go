@@ -18,7 +18,7 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Некорректная форма", http.StatusBadRequest)
+		http.Error(w, langOf(r).T("err.badform"), http.StatusBadRequest)
 		return
 	}
 	// В одно поле вводят либо почту, либо ник — что удобнее.
@@ -29,7 +29,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, domain.ErrInvalidLogin) {
 		s.log.Warn("неудачный вход", "login", login, "ip", r.RemoteAddr)
 		s.render(w, r, http.StatusUnauthorized, "login", map[string]any{
-			"Error": "Неверная почта, ник или пароль",
+			"Error": langOf(r).T("err.badlogin"),
 			"Login": login,
 		})
 		return

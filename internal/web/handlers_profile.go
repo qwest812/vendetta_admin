@@ -24,7 +24,7 @@ func (s *Server) profileSave(w http.ResponseWriter, r *http.Request) {
 		// Введённое возвращаем в форму: перенабирать из-за одной ошибки обидно.
 		draft := *me
 		draft.FullName, draft.City, draft.GameID = fullName, city, gameID
-		s.renderProfile(w, r, http.StatusBadRequest, &draft, err.Error(), "")
+		s.renderProfile(w, r, http.StatusBadRequest, &draft, errText(r, err), "")
 		return
 	}
 
@@ -36,7 +36,7 @@ func (s *Server) profileSave(w http.ResponseWriter, r *http.Request) {
 
 	saved := *me
 	saved.FullName, saved.City, saved.GameID = fullName, city, gameID
-	s.renderProfile(w, r, http.StatusOK, &saved, "", "Сохранено")
+	s.renderProfile(w, r, http.StatusOK, &saved, "", langOf(r).T("profile.saved"))
 }
 
 func (s *Server) renderProfile(w http.ResponseWriter, r *http.Request, status int,

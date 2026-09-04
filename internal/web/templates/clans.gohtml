@@ -1,53 +1,49 @@
-{{define "title"}}Кланы — Vendetta{{end}}
+{{define "title"}}{{t "clans.title"}}{{end}}
 
 {{define "content"}}
 <div class="card">
-    <h1>Кланы</h1>
+    <h1>{{t "nav.clans"}}</h1>
     <p class="muted">
-        Статус — это отношение к альянсу целиком: помеченный клан красит все свои
-        карточки в поиске, а фильтр на главной показывает только своих или только
-        чужих. На шкалы риска и лояльности статус не влияет — они про репутацию
-        человека, а не про политику его альянса.
+        {{t "clans.intro"}}
     </p>
 </div>
 
 {{if .CurrentUser.IsAdmin}}
     <div class="card">
-        <h1>Новый клан</h1>
+        <h1>{{t "clans.new"}}</h1>
         {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
         <form class="row-form" method="post" action="/clans">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
             <label>
-                Название
+                {{t "common.name"}}
                 <input name="name" maxlength="64" required autocomplete="off">
             </label>
             <label class="narrow">
-                Статус
+                {{t "common.status"}}
                 <select name="status">
-                    {{range .Statuses}}<option value="{{.}}" {{if eq . "neutral"}}selected{{end}}>{{.Title}}</option>{{end}}
+                    {{range .Statuses}}<option value="{{.}}" {{if eq . "neutral"}}selected{{end}}>{{clanStatus .}}</option>{{end}}
                 </select>
             </label>
-            <button type="submit">Добавить</button>
+            <button type="submit">{{t "common.add"}}</button>
         </form>
         <p class="muted">
-            Обычно клан заводить не нужно — он появляется сам, когда его вписывают
-            в карточку игрока. Вручную удобно пометить альянс заранее.
+            {{t "clans.new.note"}}
         </p>
     </div>
 {{end}}
 
 <div class="card">
-    <h1>Справочник</h1>
+    <h1>{{t "common.directory"}}</h1>
     {{$admin := .CurrentUser.IsAdmin}}
     {{$csrf := .CSRFToken}}
     {{$statuses := .Statuses}}
     <table>
         <thead>
         <tr>
-            <th>Клан</th>
-            <th class="narrow">Статус</th>
-            <th class="narrow">Игроков</th>
-            <th class="actions">Действия</th>
+            <th>{{t "clans.col.clan"}}</th>
+            <th class="narrow">{{t "common.status"}}</th>
+            <th class="narrow">{{t "clans.col.players"}}</th>
+            <th class="actions">{{t "common.actions"}}</th>
         </tr>
         </thead>
         <tbody>
@@ -63,22 +59,22 @@
                     {{if $admin}}
                         <select form="clan-{{.ID}}" name="status">
                             {{$cur := .Status}}
-                            {{range $statuses}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.Title}}</option>{{end}}
+                            {{range $statuses}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{clanStatus .}}</option>{{end}}
                         </select>
                     {{else}}
-                        <span class="badge clan-{{.Status}}">{{.Status.Title}}</span>
+                        <span class="badge clan-{{.Status}}">{{clanStatus .Status}}</span>
                     {{end}}
                 </td>
                 <td class="narrow muted">{{.Players}}</td>
                 <td class="actions">
                     {{if $admin}}
-                        <button form="clan-{{.ID}}" type="submit">Сохранить</button>
-                        <button form="clan-del-{{.ID}}" class="danger" type="submit">Удалить</button>
+                        <button form="clan-{{.ID}}" type="submit">{{t "common.save"}}</button>
+                        <button form="clan-del-{{.ID}}" class="danger" type="submit">{{t "common.delete"}}</button>
                     {{end}}
                 </td>
             </tr>
         {{else}}
-            <tr><td colspan="4" class="muted">Кланов пока нет.</td></tr>
+            <tr><td colspan="4" class="muted">{{t "clans.empty"}}</td></tr>
         {{end}}
         </tbody>
     </table>
@@ -90,12 +86,12 @@
                 <input type="hidden" name="back" value="/clans">
             </form>
             <form id="clan-del-{{.ID}}" method="post" action="/clans/{{.ID}}/delete" hidden
-                  onsubmit="return confirm('Удалить клан «{{.Name}}»? Карточки {{.Players}} игроков останутся, но клан у них пропадёт.')">
+                  onsubmit="return confirm('{{t "clans.delete.confirm" .Name .Players}}')">
                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
             </form>
         {{end}}
         <p class="muted">
-            Удаление убирает клан из карточек игроков, сами карточки и заметки остаются.
+            {{t "clans.delete.note"}}
         </p>
     {{end}}
 </div>

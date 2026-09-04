@@ -74,19 +74,21 @@ type Score struct {
 	LoyaltyMax    int
 }
 
-// RiskLevel даёт словесную оценку риска для карточки и списка.
+// RiskLevel даёт словесную оценку риска для карточки и списка — ключом
+// сообщения, а не готовым текстом: словами это скажет интерфейс, и на том
+// языке, который выбрал смотрящий.
 func (s Score) RiskLevel() string {
 	switch {
 	case s.RiskMax == 0:
-		return "не задан"
+		return "level.none"
 	case s.Risk >= 70:
-		return "высокий"
+		return "level.high"
 	case s.Risk >= 40:
-		return "средний"
+		return "level.medium"
 	case s.Risk > 0:
-		return "низкий"
+		return "level.low"
 	}
-	return "чисто"
+	return "level.clean"
 }
 
 // RiskClass — CSS-класс для окраски шкалы.

@@ -1,9 +1,9 @@
-{{define "title"}}{{if .Player}}Изменение карточки{{else}}Новый игрок{{end}} — Vendetta{{end}}
+{{define "title"}}{{if .Player}}{{t "playerform.edit"}}{{else}}{{t "playerform.new"}}{{end}} — Vendetta{{end}}
 
 {{define "content"}}
 {{$sel := .Selected}}
 <div class="card">
-    <h1>{{if .Player}}Изменение карточки{{else}}Новый игрок{{end}}</h1>
+    <h1>{{if .Player}}{{t "playerform.edit"}}{{else}}{{t "playerform.new"}}{{end}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
     <form method="post" action="{{if .Player}}/players/{{.Player.ID}}{{else}}/players{{end}}">
@@ -11,26 +11,26 @@
 
         <div class="row-form">
             <label>
-                Игровой ID
+                {{t "profile.gameid"}}
                 <input name="game_id" value="{{if .Player}}{{.Player.GameID}}{{end}}"
                        maxlength="32" required {{if not .Player}}autofocus{{end}} autocomplete="off">
             </label>
             <label>
-                Ник
+                {{t "profile.nick"}}
                 <input name="nickname" value="{{if .Player}}{{.Player.Nickname}}{{end}}"
                        maxlength="64" required {{if .Player}}autofocus{{end}} autocomplete="off">
             </label>
             <label>
-                Клан
+                {{t "playerform.clan"}}
                 <input name="clan" value="{{if .Player}}{{.Player.ClanName}}{{end}}"
-                       list="clans" placeholder="можно оставить пустым" autocomplete="off">
+                       list="clans" placeholder="{{t "playerform.clan.placeholder"}}" autocomplete="off">
                 <datalist id="clans">
                     {{range .Clans}}<option value="{{.Name}}">{{end}}
                 </datalist>
             </label>
         </div>
 
-        <h2>Признаки</h2>
+        <h2>{{t "nav.traits"}}</h2>
         <div class="checks">
             {{range .Traits}}
                 <label class="check {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">
@@ -39,20 +39,20 @@
                     <span class="w">{{if gt .Weight 0}}+{{end}}{{.Weight}}</span>
                 </label>
             {{else}}
-                <p class="muted">Справочник пуст — сначала заведите признаки в разделе «Признаки».</p>
+                <p class="muted">{{t "playerform.notraits"}}</p>
             {{end}}
         </div>
 
         {{if not .Player}}
             <label class="block">
-                Первая заметка <span class="muted">(необязательно)</span>
-                <textarea name="note" rows="3" placeholder="Почему заводим карточку"></textarea>
+                {{t "playerform.firstnote"}} <span class="muted">{{t "common.optional"}}</span>
+                <textarea name="note" rows="3" placeholder="{{t "playerform.firstnote.placeholder"}}"></textarea>
             </label>
         {{end}}
 
         <div class="form-actions">
-            <button type="submit">Сохранить</button>
-            <a class="button ghost" href="{{if .Player}}/players/{{.Player.ID}}{{else}}/{{end}}">Отмена</a>
+            <button type="submit">{{t "common.save"}}</button>
+            <a class="button ghost" href="{{if .Player}}/players/{{.Player.ID}}{{else}}/{{end}}">{{t "common.cancel"}}</a>
         </div>
     </form>
 </div>

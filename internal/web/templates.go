@@ -9,6 +9,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/i18n"
 )
 
 //go:embed templates/*.gohtml
@@ -17,36 +20,71 @@ var templatesFS embed.FS
 //go:embed static
 var staticFS embed.FS
 
-var funcs = template.FuncMap{
-	"datetime": func(t time.Time) string { return t.Local().Format("02.01.2006 15:04") },
-	// Интервал воркера в интерфейсе читается словами: «45 мин» вместо «45m0s».
-	"every": func(d time.Duration) string {
-		if h := int(d.Hours()); h > 0 && d%time.Hour == 0 {
-			return fmt.Sprintf("%d ч", h)
-		}
-		return fmt.Sprintf("%d мин", int(d.Minutes()))
-	},
-	"dict": func(values ...any) (map[string]any, error) {
-		if len(values)%2 != 0 {
-			return nil, fmt.Errorf("dict: нечётное число аргументов")
-		}
-		m := make(map[string]any, len(values)/2)
-		for i := 0; i < len(values); i += 2 {
-			key, ok := values[i].(string)
-			if !ok {
-				return nil, fmt.Errorf("dict: ключ должен быть строкой")
+// funcsFor — функции шаблона для одного языка. Язык здесь замыкается,
+// а не передаётся аргументом: наборов шаблонов у нас по одному на язык,
+// поэтому в самих шаблонах достаточно {{t "ключ"}} — и внутри range,
+// и внутри вложенных шаблонов, где «точка» уже не та.
+func funcsFor(l i18n.Lang) template.FuncMap {
+	return template.FuncMap{
+		"t":    l.T,
+		"lang": func() i18n.Lang { return l },
+		// otherLangs — что показать в переключателе: все языки, кроме
+		// текущего. Их пока два, но пусть шаблон не знает и об этом.
+		"otherLangs": func() []i18n.Lang { return otherLangs(l) },
+		// Формат даты — часть перевода: русский и английский пишут её
+		// по-разному, и подставлять один в оба было бы небрежностью.
+		"datetime": func(t time.Time) string { return t.Local().Format(l.T("format.datetime")) },
+		// Интервал воркера в интерфейсе читается словами: «45 мин» вместо «45m0s».
+		"every": func(d time.Duration) string {
+			if h := int(d.Hours()); h > 0 && d%time.Hour == 0 {
+				return l.T("unit.hours", h)
 			}
-			m[key] = values[i+1]
-		}
-		return m, nil
-	},
+			return l.T("unit.minutes", int(d.Minutes()))
+		},
+		// Роль, статус клана и уровень шкалы приходят из domain кодами:
+		// подпись к коду — дело языка, а не предметной области.
+		"role":       func(r domain.Role) string { return l.T(r.TitleKey()) },
+		"clanStatus": func(c domain.ClanStatus) string { return l.T(c.TitleKey()) },
+		"level":      l.T,
+		"dict": func(values ...any) (map[string]any, error) {
+			if len(values)%2 != 0 {
+				return nil, fmt.Errorf("dict: нечётное число аргументов")
+			}
+			m := make(map[string]any, len(values)/2)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict: ключ должен быть строкой")
+				}
+				m[key] = values[i+1]
+			}
+			return m, nil
+		},
+	}
 }
 
 // pages — по одному дереву шаблонов на страницу: каждая страница
 // подмешивается к общему каркасу base.gohtml.
 type pages map[string]*template.Template
 
-func parseTemplates() (pages, error) {
+// site — шаблоны всех страниц на всех языках. Разбор один и тот же, разные
+// только функции: дешевле держать по набору на язык, чем таскать язык через
+// каждую «точку» в шаблонах.
+type site map[i18n.Lang]pages
+
+func parseSite() (site, error) {
+	out := site{}
+	for _, l := range i18n.All {
+		p, err := parseTemplates(l)
+		if err != nil {
+			return nil, fmt.Errorf("язык %s: %w", l, err)
+		}
+		out[l] = p
+	}
+	return out, nil
+}
+
+func parseTemplates(l i18n.Lang) (pages, error) {
 	names, err := fs.Glob(templatesFS, "templates/*.gohtml")
 	if err != nil {
 		return nil, err
@@ -62,7 +100,7 @@ func parseTemplates() (pages, error) {
 		if partials, _ := fs.Glob(templatesFS, "templates/_*.gohtml"); len(partials) > 0 {
 			files = append(files, partials...)
 		}
-		tmpl, err := template.New("base.gohtml").Funcs(funcs).ParseFS(templatesFS, files...)
+		tmpl, err := template.New("base.gohtml").Funcs(funcsFor(l)).ParseFS(templatesFS, files...)
 		if err != nil {
 			return nil, fmt.Errorf("шаблон %s: %w", name, err)
 		}
@@ -74,7 +112,8 @@ func parseTemplates() (pages, error) {
 // render буферизует вывод, чтобы ошибка шаблона не отдавалась
 // пользователю посреди наполовину сформированной страницы.
 func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page string, data map[string]any) {
-	tmpl, ok := s.pages[page]
+	lang := langOf(r)
+	tmpl, ok := s.pages[lang][page]
 	if !ok {
 		s.serverError(w, r, fmt.Errorf("нет шаблона %q", page))
 		return
@@ -85,6 +124,10 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	data["CurrentUser"] = currentUser(r)
 	data["CSRFToken"] = csrfToken(r)
 	data["Path"] = r.URL.Path
+	data["Lang"] = lang
+	// Back — куда вернуться после переключения языка: на ту же страницу
+	// со всеми её параметрами, а не на главную.
+	data["Back"] = r.URL.RequestURI()
 
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base.gohtml", data); err != nil {
@@ -98,7 +141,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 
 // renderPartial отдаёт один блок шаблона — для ответов HTMX.
 func (s *Server) renderPartial(w http.ResponseWriter, r *http.Request, page, block string, data map[string]any) {
-	tmpl, ok := s.pages[page]
+	tmpl, ok := s.pages[langOf(r)][page]
 	if !ok {
 		s.serverError(w, r, fmt.Errorf("нет шаблона %q", page))
 		return
@@ -108,6 +151,7 @@ func (s *Server) renderPartial(w http.ResponseWriter, r *http.Request, page, blo
 	}
 	data["CurrentUser"] = currentUser(r)
 	data["CSRFToken"] = csrfToken(r)
+	data["Lang"] = langOf(r)
 
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, block, data); err != nil {

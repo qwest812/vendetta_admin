@@ -47,24 +47,24 @@ func (s *Server) usersCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := domain.ValidateNickname(nickname); err != nil {
-		fail(err.Error())
+		fail(errText(r, err))
 		return
 	}
 	// Почта необязательна: входить можно по нику. Но если её указали,
 	// адрес должен быть разбираемым — по нему тоже пускают в систему.
 	if email != "" {
 		if _, err := mail.ParseAddress(email); err != nil {
-			fail("Некорректный адрес почты")
+			fail(langOf(r).T("err.email.bad"))
 			return
 		}
 	}
 	// Рута назначить нельзя: он один и заводится при первом запуске.
 	if role != domain.RoleUser && role != domain.RoleAdmin {
-		fail("Можно выдать только роль «пользователь» или «администратор»")
+		fail(langOf(r).T("err.role.bad"))
 		return
 	}
 	if err := auth.ValidatePassword(password); err != nil {
-		fail(err.Error())
+		fail(errText(r, err))
 		return
 	}
 
@@ -76,11 +76,11 @@ func (s *Server) usersCreate(w http.ResponseWriter, r *http.Request) {
 
 	created, err := s.users.Create(r.Context(), email, nickname, hash, role, &actor.ID)
 	if errors.Is(err, domain.ErrEmailTaken) {
-		fail("Пользователь с такой почтой уже есть")
+		fail(langOf(r).T("err.user.email.taken"))
 		return
 	}
 	if errors.Is(err, domain.ErrNickTaken) {
-		fail("Пользователь с таким ником уже есть")
+		fail(langOf(r).T("err.user.nick.taken"))
 		return
 	}
 	if err != nil {
@@ -164,7 +164,7 @@ func (s *Server) usersResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	password := r.PostFormValue("password")
 	if err := auth.ValidatePassword(password); err != nil {
-		s.renderUsers(w, r, http.StatusUnprocessableEntity, map[string]any{"Error": err.Error()})
+		s.renderUsers(w, r, http.StatusUnprocessableEntity, map[string]any{"Error": errText(r, err)})
 		return
 	}
 	hash, err := auth.HashPassword(password)

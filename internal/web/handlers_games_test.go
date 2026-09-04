@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/i18n"
 	"Vendetta_admin/internal/supremacy"
 )
 
 // Игра отдаёт время строкой с секундами, а порядок игр — как ей удобно.
 // Наверх ставим самую свежую партию: за ней и следят.
 func TestGameViews(t *testing.T) {
-	views := gameViews([]supremacy.Game{
+	views := gameViews(i18n.RU, []supremacy.Game{
 		{GameID: "1", Title: "старая", State: "running", StartOfGame: "1785920128"},
 		{GameID: "2", Title: "свежая", State: "running", StartOfGame: "1785999999"},
 		{GameID: "3", Title: "без даты", State: "readytojoin", StartOfGame: "0"},
@@ -37,8 +38,8 @@ func TestGameViews(t *testing.T) {
 // Незнакомое состояние лучше показать как есть, чем спрятать: список игр
 // молча потерял бы смысл.
 func TestGameStateKeepsUnknown(t *testing.T) {
-	if got := gameState("paused"); got != "paused" {
-		t.Errorf("gameState(paused) = %q", got)
+	if got := gameState(i18n.RU, "paused"); got != "paused" {
+		t.Errorf("gameState(i18n.RU, paused) = %q", got)
 	}
 }
 
@@ -90,7 +91,7 @@ func TestGameMapColors(t *testing.T) {
 		12: {SiteUserID: "101408369", ID: "843930", Name: "VEN.DETTA", Tag: "-V.D-"},
 	}}
 
-	view := gameMap(geo, state, sides, 12)
+	view := gameMap(i18n.RU, geo, state, sides, 12)
 	if view.Width != 100 || len(view.Shapes) != 3 {
 		t.Fatalf("карта %dx%d, фигур %d", view.Width, view.Height, len(view.Shapes))
 	}
@@ -165,7 +166,7 @@ func TestGameMapMarksEnemies(t *testing.T) {
 		Enemies: map[int]*domain.Player{29: enemy},
 	}
 
-	view := gameMap(geo, state, sides, 12)
+	view := gameMap(i18n.RU, geo, state, sides, 12)
 
 	foreign := view.Shapes[1]
 	if strings.Contains(foreign.Class, "own") {
@@ -237,7 +238,7 @@ func TestGameMapWithoutViewer(t *testing.T) {
 		},
 	}
 
-	view := gameMap(geo, state, nil, 0)
+	view := gameMap(i18n.RU, geo, state, nil, 0)
 	for i, shape := range view.Shapes {
 		if strings.Contains(shape.Class, "own") {
 			t.Errorf("фигура %d помечена своей (%q), хотя своей страны у смотрящего нет", i, shape.Class)
@@ -285,7 +286,7 @@ func TestGameMapMarksFriends(t *testing.T) {
 		Enemies: map[int]*domain.Player{31: both},
 	}
 
-	view := gameMap(geo, state, sides, 12)
+	view := gameMap(i18n.RU, geo, state, sides, 12)
 
 	if got := view.Shapes[1].Class; got != "side-friend" {
 		t.Errorf("классы провинции друга = %q", got)
@@ -344,7 +345,7 @@ func TestAllianceFills(t *testing.T) {
 	// Ничейная земля в счёт клана не идёт.
 	state.Provinces = append(state.Provinces, supremacy.Province{ID: 999})
 
-	fills, legend := allianceFills(state, alliances)
+	fills, legend := allianceFills(i18n.RU, state, alliances)
 	if len(legend) != clans {
 		t.Fatalf("в легенде %d кланов, ожидалось %d", len(legend), clans)
 	}
@@ -381,7 +382,7 @@ func TestAllianceFillsWithoutAlliances(t *testing.T) {
 	}
 	alliances := map[int]domain.Alliance{12: {SiteUserID: "777"}}
 
-	if fills, legend := allianceFills(state, alliances); len(fills) != 0 || legend != nil {
+	if fills, legend := allianceFills(i18n.RU, state, alliances); len(fills) != 0 || legend != nil {
 		t.Errorf("заливка = %v, легенда = %v", fills, legend)
 	}
 }
@@ -406,7 +407,7 @@ func TestTeamFills(t *testing.T) {
 		},
 	}
 
-	fills, legend := teamFills(state, 12)
+	fills, legend := teamFills(i18n.RU, state, 12)
 
 	if len(legend) != 2 || legend[0].Name != "КСГ" || legend[0].Members != 2 || !legend[0].Mine {
 		t.Fatalf("легенда = %+v", legend)
@@ -432,7 +433,7 @@ func TestTeamFills(t *testing.T) {
 // Без коалиций в партии режим карты нечем наполнять — и легенды тогда нет.
 func TestTeamFillsWithoutTeams(t *testing.T) {
 	state := &supremacy.GameState{Players: map[int]supremacy.Player{12: {ID: 12, TeamID: 3}}}
-	if fills, legend := teamFills(state, 12); len(fills) != 0 || legend != nil {
+	if fills, legend := teamFills(i18n.RU, state, 12); len(fills) != 0 || legend != nil {
 		t.Errorf("заливки = %v, легенда = %v", fills, legend)
 	}
 }
@@ -455,7 +456,7 @@ func TestGameMapFillsTeams(t *testing.T) {
 		12: {SiteUserID: "101408369", ID: "843930", Name: "VEN.DETTA"},
 	}}
 
-	view := gameMap(geo, state, sides, 12)
+	view := gameMap(i18n.RU, geo, state, sides, 12)
 
 	shape := view.Shapes[0]
 	if shape.Class != "clan team premium own" {
@@ -487,7 +488,7 @@ func TestPremiumViews(t *testing.T) {
 		},
 	}
 
-	got := premiumViews(state, 12)
+	got := premiumViews(i18n.RU, state, 12)
 	if len(got) != 2 {
 		t.Fatalf("с премиумом = %+v, ожидались двое живых", got)
 	}
@@ -531,7 +532,7 @@ func TestBannedViews(t *testing.T) {
 		},
 	}
 
-	got := bannedViews(state)
+	got := bannedViews(i18n.RU, state)
 	if len(got) != 2 {
 		t.Fatalf("забаненные = %+v, ожидались двое", got)
 	}

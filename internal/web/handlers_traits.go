@@ -58,20 +58,19 @@ func (s *Server) traitCreate(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case !traitCodeRe.MatchString(code):
-		s.renderTraits(w, r, http.StatusUnprocessableEntity,
-			"Код: латиница в нижнем регистре, цифры и подчёркивание, от 2 до 40 символов")
+		s.renderTraits(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.trait.code"))
 		return
 	case name == "" || len([]rune(name)) > 80:
-		s.renderTraits(w, r, http.StatusUnprocessableEntity, "Укажите название не длиннее 80 символов")
+		s.renderTraits(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.trait.name"))
 		return
 	case weightErr != nil || weight < -100 || weight > 100:
-		s.renderTraits(w, r, http.StatusUnprocessableEntity, "Вес — целое число от -100 до 100")
+		s.renderTraits(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.trait.weight"))
 		return
 	}
 
 	trait, err := s.traits.Create(r.Context(), code, name, weight, sortOrder)
 	if errors.Is(err, domain.ErrCodeTaken) {
-		s.renderTraits(w, r, http.StatusUnprocessableEntity, "Признак с таким кодом уже есть")
+		s.renderTraits(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.code.taken"))
 		return
 	}
 	if err != nil {
@@ -99,10 +98,10 @@ func (s *Server) traitUpdate(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case name == "" || len([]rune(name)) > 80:
-		s.renderTraits(w, r, http.StatusUnprocessableEntity, "Укажите название не длиннее 80 символов")
+		s.renderTraits(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.trait.name"))
 		return
 	case weightErr != nil || weight < -100 || weight > 100:
-		s.renderTraits(w, r, http.StatusUnprocessableEntity, "Вес — целое число от -100 до 100")
+		s.renderTraits(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.trait.weight"))
 		return
 	}
 
@@ -137,12 +136,12 @@ func (s *Server) traitDelete(w http.ResponseWriter, r *http.Request) {
 func (s *Server) loadTrait(w http.ResponseWriter, r *http.Request) (domain.Trait, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Error(w, "Некорректный id", http.StatusBadRequest)
+		http.Error(w, langOf(r).T("err.badid"), http.StatusBadRequest)
 		return domain.Trait{}, false
 	}
 	trait, err := s.traits.ByID(r.Context(), id)
 	if errors.Is(err, domain.ErrNotFound) {
-		http.Error(w, "Признак не найден", http.StatusNotFound)
+		http.Error(w, langOf(r).T("err.trait.notfound"), http.StatusNotFound)
 		return domain.Trait{}, false
 	}
 	if err != nil {

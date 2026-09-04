@@ -59,13 +59,13 @@ func (s *Server) clanCreate(w http.ResponseWriter, r *http.Request) {
 		status = domain.ClanNeutral
 	}
 	if err := validateClanName(name); err != nil {
-		s.renderClans(w, r, http.StatusUnprocessableEntity, err.Error())
+		s.renderClans(w, r, http.StatusUnprocessableEntity, errText(r, err))
 		return
 	}
 
 	clan, err := s.clans.Create(r.Context(), name, status)
 	if errors.Is(err, domain.ErrClanTaken) {
-		s.renderClans(w, r, http.StatusUnprocessableEntity, "Клан с таким названием уже есть")
+		s.renderClans(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.clan.taken"))
 		return
 	}
 	if err != nil {
@@ -89,13 +89,13 @@ func (s *Server) clanUpdate(w http.ResponseWriter, r *http.Request) {
 		status = clan.Status
 	}
 	if err := validateClanName(name); err != nil {
-		s.renderClans(w, r, http.StatusUnprocessableEntity, err.Error())
+		s.renderClans(w, r, http.StatusUnprocessableEntity, errText(r, err))
 		return
 	}
 
 	err := s.clans.Update(r.Context(), clan.ID, name, status)
 	if errors.Is(err, domain.ErrClanTaken) {
-		s.renderClans(w, r, http.StatusUnprocessableEntity, "Клан с таким названием уже есть")
+		s.renderClans(w, r, http.StatusUnprocessableEntity, langOf(r).T("err.clan.taken"))
 		return
 	}
 	if err != nil {
@@ -129,12 +129,12 @@ func (s *Server) clanDelete(w http.ResponseWriter, r *http.Request) {
 func (s *Server) loadClan(w http.ResponseWriter, r *http.Request) (domain.Clan, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Error(w, "Некорректный id", http.StatusBadRequest)
+		http.Error(w, langOf(r).T("err.badid"), http.StatusBadRequest)
 		return domain.Clan{}, false
 	}
 	clan, err := s.clans.ByID(r.Context(), id)
 	if errors.Is(err, domain.ErrNotFound) {
-		http.Error(w, "Клан не найден", http.StatusNotFound)
+		http.Error(w, langOf(r).T("err.clan.notfound"), http.StatusNotFound)
 		return domain.Clan{}, false
 	}
 	if err != nil {
@@ -158,9 +158,9 @@ func redirectBack(r *http.Request, fallback string) string {
 func validateClanName(name string) error {
 	switch n := len([]rune(name)); {
 	case n == 0:
-		return errors.New("Укажите название клана")
+		return domain.ErrClanNameRequired
 	case n > 64:
-		return errors.New("Название длиннее 64 символов")
+		return domain.ErrClanNameTooLong
 	}
 	return nil
 }

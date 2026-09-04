@@ -1,5 +1,5 @@
 {{define "base.gohtml"}}<!doctype html>
-<html lang="ru">
+<html lang="{{lang}}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,33 +12,50 @@
     <header class="topbar">
         <a class="brand" href="/">Vendetta</a>
         <nav>
-            <a href="/" {{if eq .Path "/"}}class="active"{{end}}>Поиск</a>
-            <a href="/clans" {{if eq .Path "/clans"}}class="active"{{end}}>Кланы</a>
-            <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>Друзья</a>
-            <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>Враги</a>
+            <a href="/" {{if eq .Path "/"}}class="active"{{end}}>{{t "nav.search"}}</a>
+            <a href="/clans" {{if eq .Path "/clans"}}class="active"{{end}}>{{t "nav.clans"}}</a>
+            <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>{{t "nav.friends"}}</a>
+            <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>{{t "nav.enemies"}}</a>
             {{if .CurrentUser.IsAdmin}}
-                <a href="/traits" {{if eq .Path "/traits"}}class="active"{{end}}>Признаки</a>
-                <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>Доступы</a>
-                <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>Журнал</a>
+                <a href="/traits" {{if eq .Path "/traits"}}class="active"{{end}}>{{t "nav.traits"}}</a>
+                <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>{{t "nav.users"}}</a>
+                <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>{{t "nav.audit"}}</a>
             {{end}}
             {{/* Раздел «Игры» — по персональному доступу от рута, а не по роли. */}}
             {{if .CurrentUser.CanViewGames}}
-                <a href="/games" {{if eq .Path "/games"}}class="active"{{end}}>Игры</a>
+                <a href="/games" {{if eq .Path "/games"}}class="active"{{end}}>{{t "nav.games"}}</a>
             {{end}}
-            <a href="/faq" {{if eq .Path "/faq"}}class="active"{{end}}>Справка</a>
+            <a href="/faq" {{if eq .Path "/faq"}}class="active"{{end}}>{{t "nav.faq"}}</a>
         </nav>
         <div class="me">
             <a class="email" href="/profile">{{.CurrentUser.Display}}</a>
-            <span class="badge role-{{.CurrentUser.Role}}">{{.CurrentUser.Role.Title}}</span>
+            <span class="badge role-{{.CurrentUser.Role}}">{{role .CurrentUser.Role}}</span>
+            {{template "langswitch" .}}
             <form method="post" action="/logout">
                 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-                <button class="link" type="submit">Выйти</button>
+                <button class="link" type="submit">{{t "top.logout"}}</button>
             </form>
         </div>
     </header>
 {{end}}
 <main class="{{if not .CurrentUser}}centered{{end}}">
+    {{/* До входа шапки нет, а язык выбрать надо: переключатель тогда
+         висит в том же правом углу сам по себе. */}}
+    {{if not .CurrentUser}}
+        <div class="langs floating">{{template "langswitch" .}}</div>
+    {{end}}
     {{template "content" .}}
 </main>
 </body>
 </html>{{end}}
+
+{{/* Переключатель языка: языки, кроме текущего. Ссылка, а не форма, —
+     она нужна и на странице входа, где csrf-токена ещё нет, а кука
+     с языком ничего в базе не меняет. */}}
+{{define "langswitch"}}
+    {{$back := .Back}}
+    {{range otherLangs}}
+        <a class="lang" href="/lang/{{.}}{{if $back}}?back={{$back}}{{end}}"
+           title="{{t "top.lang.to" .Title}}" lang="{{.}}">{{.Short}}</a>
+    {{end}}
+{{end}}

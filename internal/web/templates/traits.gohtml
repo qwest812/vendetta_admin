@@ -1,58 +1,56 @@
-{{define "title"}}Признаки — Vendetta{{end}}
+{{define "title"}}{{t "traits.title"}}{{end}}
 
 {{define "content"}}
 <div class="card">
-    <h1>Как считаются шкалы</h1>
+    <h1>{{t "traits.how"}}</h1>
     <p class="muted">
-        Отрицательные веса формируют шкалу риска, положительные — шкалу лояльности.
-        Признак с весом 0 остаётся пометкой и ни на что не влияет.
-        Проценты считаются от суммы весов всех активных признаков своего знака:
-        сейчас это <b>{{.RiskMax}}</b> для риска и <b>{{.LoyaltyMax}}</b> для лояльности.
-        Изменение веса сразу пересчитывает оценки всех игроков — ничего перезаписывать не нужно.
+        {{t "traits.how.1"}}
+        {{t "traits.how.2"}} <b>{{.RiskMax}}</b> {{t "traits.how.forrisk"}} <b>{{.LoyaltyMax}}</b> {{t "traits.how.forloyalty"}}
+        {{t "traits.how.3"}}
     </p>
 </div>
 
 <div class="card">
-    <h1>Новый признак</h1>
+    <h1>{{t "traits.new"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
     <form class="row-form" method="post" action="/traits">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <label>
-            Код
+            {{t "traits.col.code"}}
             <input name="code" placeholder="uses_cheats" pattern="[a-z][a-z0-9_]{1,39}" required autocomplete="off">
         </label>
         <label>
-            Название
-            <input name="name" placeholder="Использует читы" maxlength="80" required autocomplete="off">
+            {{t "common.name"}}
+            <input name="name" placeholder="{{t "traits.name.placeholder"}}" maxlength="80" required autocomplete="off">
         </label>
         <label class="narrow">
-            Вес
+            {{t "traits.col.weight"}}
             <input type="number" name="weight" value="0" min="-100" max="100" required>
         </label>
         <label class="narrow">
-            Порядок
+            {{t "traits.col.order"}}
             <input type="number" name="sort_order" value="100" min="0" max="9999">
         </label>
-        <button type="submit">Добавить</button>
+        <button type="submit">{{t "common.add"}}</button>
     </form>
-    <p class="muted">Код менять нельзя — он идентифицирует признак. Название и вес правятся в любой момент.</p>
+    <p class="muted">{{t "traits.code.note"}}</p>
 </div>
 
 <div class="card">
-    <h1>Справочник</h1>
+    <h1>{{t "common.directory"}}</h1>
     {{$canDelete := .CurrentUser.IsAdmin}}
     {{$csrf := .CSRFToken}}
     {{$usage := .Usage}}
     <table>
         <thead>
         <tr>
-            <th>Код</th>
-            <th>Название</th>
-            <th class="narrow">Вес</th>
-            <th class="narrow">Порядок</th>
-            <th class="narrow">Активен</th>
-            <th class="narrow">Отмечен</th>
-            <th class="actions">Действия</th>
+            <th>{{t "traits.col.code"}}</th>
+            <th>{{t "common.name"}}</th>
+            <th class="narrow">{{t "traits.col.weight"}}</th>
+            <th class="narrow">{{t "traits.col.order"}}</th>
+            <th class="narrow">{{t "traits.col.active"}}</th>
+            <th class="narrow">{{t "traits.col.used"}}</th>
+            <th class="actions">{{t "common.actions"}}</th>
         </tr>
         </thead>
         <tbody>
@@ -70,9 +68,9 @@
                 </td>
                 <td class="narrow muted">{{index $usage .ID}}</td>
                 <td class="actions">
-                    <button form="trait-{{.ID}}" type="submit">Сохранить</button>
+                    <button form="trait-{{.ID}}" type="submit">{{t "common.save"}}</button>
                     {{if $canDelete}}
-                        <button form="trait-del-{{.ID}}" class="danger" type="submit">Удалить</button>
+                        <button form="trait-del-{{.ID}}" class="danger" type="submit">{{t "common.delete"}}</button>
                     {{end}}
                 </td>
             </tr>
@@ -86,14 +84,13 @@
         </form>
         {{if $canDelete}}
             <form id="trait-del-{{.ID}}" method="post" action="/traits/{{.ID}}/delete" hidden
-                  onsubmit="return confirm('Удалить признак «{{.Name}}» и снять его у {{index $usage .ID}} игроков?')">
+                  onsubmit="return confirm('{{t "traits.delete.confirm" .Name (index $usage .ID)}}')">
                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
             </form>
         {{end}}
     {{end}}
     <p class="muted">
-        Снятый флаг «активен» убирает признак из форм и из знаменателя шкал,
-        но сохраняет уже проставленные отметки. Удаление снимает отметки навсегда.
+        {{t "traits.active.note"}}
     </p>
 </div>
 {{end}}

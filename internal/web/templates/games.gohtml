@@ -1,4 +1,4 @@
-{{define "title"}}Игры — Vendetta{{end}}
+{{define "title"}}{{t "games.title"}}{{end}}
 
 {{define "content"}}
 {{/* Проверка по номеру доступна всем, кому открыт раздел: сведения
@@ -6,36 +6,30 @@
      А вот список партий аккаунта — рутовый. */}}
 <div class="card">
     <div class="card-head">
-        <h1>Проверить игру</h1>
+        <h1>{{t "games.check"}}</h1>
     </div>
     <form class="row-form" method="get" action="/games/check">
-        <input type="text" name="id" value="{{.Query}}" placeholder="номер партии"
+        <input type="text" name="id" value="{{.Query}}" placeholder="{{t "games.check.placeholder"}}"
                autocomplete="off" inputmode="numeric" autofocus>
-        <button type="submit">Проверить</button>
+        <button type="submit">{{t "games.check.submit"}}</button>
     </form>
     {{if .CheckError}}<p class="error">{{.CheckError}}</p>{{end}}
     <p class="muted">
-        Введите номер партии — покажем, что о ней знает игра: название,
-        сценарий, состояние, день и число игроков. Номер виден в адресе партии
-        и годится любой, не только наш. Если в партии играет общий аккаунт
-        проекта, на её странице будет ещё и карта с составом.
+        {{t "games.check.note"}}
     </p>
 </div>
 
 {{if .CurrentUser.IsRoot}}
 <div class="card">
     <div class="card-head">
-        <h1>Активные игры</h1>
+        <h1>{{t "games.active"}}</h1>
         <div class="head-actions">
-            {{if .PlayURL}}<a class="button" href="{{.PlayURL}}" target="_blank" rel="noopener">Открыть игру</a>{{end}}
-            <a class="button ghost" href="/games">Обновить</a>
+            {{if .PlayURL}}<a class="button" href="{{.PlayURL}}" target="_blank" rel="noopener">{{t "games.open"}}</a>{{end}}
+            <a class="button ghost" href="/games">{{t "games.refresh"}}</a>
         </div>
     </div>
     <p class="muted">
-        Партии аккаунта, под которым админка ходит в Supremacy 1914, — то же,
-        что показывает вкладка «Обзор» в игре. Список берётся из игры в момент
-        открытия страницы и нигде не хранится; завершённые партии сюда
-        не попадают.
+        {{t "games.active.note"}}
     </p>
 
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
@@ -44,13 +38,13 @@
     <table>
         <thead>
         <tr>
-            <th>Игра</th>
-            <th>Состояние</th>
-            <th>День</th>
-            <th>Игроков</th>
-            <th>Начало</th>
-            <th>Вошли</th>
-            <th>Язык</th>
+            <th>{{t "games.col.game"}}</th>
+            <th>{{t "games.col.state"}}</th>
+            <th>{{t "games.col.day"}}</th>
+            <th>{{t "clans.col.players"}}</th>
+            <th>{{t "games.col.started"}}</th>
+            <th>{{t "games.col.joined"}}</th>
+            <th>{{t "games.col.lang"}}</th>
         </tr>
         </thead>
         <tbody>
@@ -60,7 +54,7 @@
                     <a class="nick" href="/games/{{.ID}}">{{.Title}}</a>
                     <span class="game-id">ID {{.ID}}</span>
                     {{/* Номер в партии здесь про аккаунт проекта, а не про смотрящего. */}}
-                    {{if and $root .PlayerID}}<span class="muted">аккаунт — игрок №{{.PlayerID}}</span>{{end}}
+                    {{if and $root .PlayerID}}<span class="muted">{{t "games.account.player" .PlayerID}}</span>{{end}}
                 </td>
                 <td class="nowrap">{{.State}}</td>
                 <td>{{.Day}}</td>
@@ -72,7 +66,7 @@
         {{else}}
             <tr>
                 <td colspan="7" class="muted">
-                    {{if .Error}}Список не получен.{{else}}Сейчас аккаунт не играет ни в одной партии.{{end}}
+                    {{if .Error}}{{t "games.list.failed"}}{{else}}{{t "games.list.empty"}}{{end}}
                 </td>
             </tr>
         {{end}}

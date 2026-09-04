@@ -36,6 +36,20 @@ a:hover { color: var(--accent); }
 .topbar .me { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .topbar .email { color: var(--muted); font-size: 13px; }
 
+/* Переключатель языка — в правом углу шапки, рядом с выходом. До входа
+   шапки нет, и он висит там же сам по себе. */
+.langs { display: inline-flex; gap: 6px; }
+a.lang {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: .5px;
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+a.lang:hover { color: var(--accent); border-color: var(--accent); }
+.langs.floating { position: fixed; top: 16px; right: 24px; }
+
 main { padding: 24px; max-width: 1100px; margin: 0 auto; }
 main.centered { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
 

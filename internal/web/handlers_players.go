@@ -202,21 +202,21 @@ func (s *Server) playerCreate(w http.ResponseWriter, r *http.Request) {
 	// У новой карточки игровой ID обязателен: ник игрок может сменить,
 	// и без ID карточку потом не опознать.
 	if err := validateGameID(gameID, true); err != nil {
-		fail(err.Error())
+		fail(errText(r, err))
 		return
 	}
 	if err := validateNickname(nickname); err != nil {
-		fail(err.Error())
+		fail(errText(r, err))
 		return
 	}
 
 	player, err := s.players.Create(r.Context(), gameID, nickname, clan, traitIDs, actor.ID)
 	if errors.Is(err, domain.ErrNickTaken) {
-		fail("Игрок с таким ником уже есть в базе")
+		fail(langOf(r).T("err.player.nick.taken"))
 		return
 	}
 	if errors.Is(err, domain.ErrGameIDTaken) {
-		fail("Игрок с таким игровым ID уже есть в базе")
+		fail(langOf(r).T("err.player.id.taken"))
 		return
 	}
 	if err != nil {
@@ -256,21 +256,21 @@ func (s *Server) playerUpdate(w http.ResponseWriter, r *http.Request) {
 	// появления, так и остались бы без него. Правка — тот самый момент,
 	// когда его удобно дописать.
 	if err := validateGameID(gameID, true); err != nil {
-		fail(err.Error())
+		fail(errText(r, err))
 		return
 	}
 	if err := validateNickname(nickname); err != nil {
-		fail(err.Error())
+		fail(errText(r, err))
 		return
 	}
 
 	err := s.players.Update(r.Context(), player.ID, gameID, nickname, clan, traitIDs)
 	if errors.Is(err, domain.ErrNickTaken) {
-		fail("Игрок с таким ником уже есть в базе")
+		fail(langOf(r).T("err.player.nick.taken"))
 		return
 	}
 	if errors.Is(err, domain.ErrGameIDTaken) {
-		fail("Игрок с таким игровым ID уже есть в базе")
+		fail(langOf(r).T("err.player.id.taken"))
 		return
 	}
 	if err != nil {
@@ -312,7 +312,7 @@ func (s *Server) noteCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		s.render(w, r, http.StatusUnprocessableEntity, "player", map[string]any{
 			"Player": player, "Notes": notes,
-			"Error": "Заметка не может быть пустой и длиннее 4000 символов",
+			"Error": langOf(r).T("err.note.length"),
 		})
 		return
 	}
@@ -381,9 +381,9 @@ func (s *Server) loadPlayer(w http.ResponseWriter, r *http.Request) (*domain.Pla
 func validateNickname(nick string) error {
 	switch n := len([]rune(nick)); {
 	case n == 0:
-		return errors.New("Укажите ник игрока")
+		return domain.ErrPlayerNickRequired
 	case n > 64:
-		return errors.New("Ник длиннее 64 символов")
+		return domain.ErrPlayerNickTooLong
 	}
 	return nil
 }
@@ -393,15 +393,15 @@ func validateNickname(nick string) error {
 func validateGameID(gameID string, required bool) error {
 	if gameID == "" {
 		if required {
-			return errors.New("Укажите игровой ID — по нему карточка ищется после смены ника")
+			return domain.ErrPlayerIDRequired
 		}
 		return nil
 	}
 	if len([]rune(gameID)) > 32 {
-		return errors.New("Игровой ID длиннее 32 символов")
+		return domain.ErrPlayerIDTooLong
 	}
 	if strings.ContainsAny(gameID, " \t\n") {
-		return errors.New("Игровой ID не должен содержать пробелов")
+		return domain.ErrPlayerIDSpaces
 	}
 	return nil
 }

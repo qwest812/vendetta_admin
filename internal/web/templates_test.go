@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/i18n"
 	"Vendetta_admin/internal/supremacy"
 )
 
@@ -397,7 +398,7 @@ func TestPagesRender(t *testing.T) {
 		},
 	}
 
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -441,7 +442,7 @@ func TestPagesRender(t *testing.T) {
 // Пустой состав клана подписывается иначе, чем пустой поиск: «никого не нашли»
 // на карточке клана означало бы не то.
 func TestEmptyResultsWording(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -473,7 +474,7 @@ func TestEmptyResultsWording(t *testing.T) {
 // Пользователю без прав админа кланы показываются, но не правятся: статус —
 // это политика, её ставит админ.
 func TestClansPageIsReadOnlyForUser(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -505,7 +506,7 @@ func TestClansPageIsReadOnlyForUser(t *testing.T) {
 // нельзя было добавить дважды, и чтобы без запроса он ничего не предлагал:
 // иначе свежая карточка стоит первой строкой и её принимают за врага.
 func TestEnemyCandidates(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -612,7 +613,7 @@ func TestEnemyCandidates(t *testing.T) {
 // Кнопка «во враги» в строке поиска. Уже помеченному кнопки не место: нажать
 // второй раз нечего, зато нужен путь к списку, где пишется комментарий.
 func TestSearchRowMark(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -680,7 +681,7 @@ func TestSearchRowMark(t *testing.T) {
 // а состав клана смотрят как справку. Данных для кнопки там нет, и шаблон
 // не должен на этом падать.
 func TestClanRosterHasNoMark(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -703,7 +704,7 @@ func TestClanRosterHasNoMark(t *testing.T) {
 // Раздел «Игры» — про общий игровой аккаунт проекта, поэтому в меню он
 // только у рута: у админа прав на него нет, а ссылка ведёт в 403.
 func TestGamesLinkIsRootOnly(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -737,7 +738,7 @@ func TestGamesLinkIsRootOnly(t *testing.T) {
 // Аккаунт игры может быть не настроен или не ответить: страница обязана
 // объяснить это словами, а не показать пустую таблицу как «игр нет».
 func TestGamesPageExplainsFailure(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -764,7 +765,7 @@ func TestGamesPageExplainsFailure(t *testing.T) {
 // Состав партии стоит захода на игровой сервер, поэтому по умолчанию его
 // на странице нет — вместо него объяснение и кнопка.
 func TestGamePageAsksBeforeEnteringGame(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}
@@ -797,7 +798,7 @@ func TestGamePageAsksBeforeEnteringGame(t *testing.T) {
 // Игровой ID обязателен и в форме правки: без него карточку не опознать
 // после смены ника, а старые записи иначе так и остались бы без ID.
 func TestPlayerFormRequiresGameID(t *testing.T) {
-	pages, err := parseTemplates()
+	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
 		t.Fatalf("разбор шаблонов: %v", err)
 	}

@@ -1,14 +1,14 @@
-{{define "title"}}Партия — Vendetta{{end}}
+{{define "title"}}{{t "game.title"}}{{end}}
 
 {{define "content"}}
 <div class="card">
     <div class="card-head">
         <h1>
-            {{if .Game}}{{.Game.Title}}{{else}}Партия {{.GameID}}{{end}}
+            {{if .Game}}{{.Game.Title}}{{else}}{{t "game.unnamed" .GameID}}{{end}}
             <span class="game-id">ID {{.GameID}}</span>
         </h1>
         <div class="head-actions">
-            <a class="button ghost" href="/games">Все партии</a>
+            <a class="button ghost" href="/games">{{t "game.all"}}</a>
         </div>
     </div>
 
@@ -16,21 +16,18 @@
 
     {{if .Game}}
         <p class="muted">
-            Состояние: {{.Game.State}}{{if .Game.Day}}, день {{.Game.Day}}{{end}},
-            игроков {{.Game.Players}}{{if .Game.Language}}, язык {{.Game.Language}}{{end}}{{if not .Game.Started.IsZero}},
-            начата {{datetime .Game.Started}}{{end}}{{/* Номер аккаунта проекта — внутренняя кухня,
+            {{t "game.state"}} {{.Game.State}}{{if .Game.Day}}, {{t "game.day" .Game.Day}}{{end}},
+            {{t "game.players" .Game.Players}}{{if .Game.Language}}, {{t "game.language" .Game.Language}}{{end}}{{if not .Game.Started.IsZero}},
+            {{t "game.startedat"}} {{datetime .Game.Started}}{{end}}{{/* Номер аккаунта проекта — внутренняя кухня,
             и «мы» здесь означает именно его, а не того, кто смотрит. */}}{{if and .CurrentUser.IsRoot .Game.PlayerID}},
-            аккаунт проекта — игрок №{{.Game.PlayerID}}{{end}}.
+            {{t "game.ourplayer" .Game.PlayerID}}{{end}}.
         </p>
         {{if not .Ours}}
             {{/* Чужая партия: общий аккаунт в ней не играет, но смотреть
                  со стороны игра не мешает — она отдаёт состояние партии
                  и без входа в неё. */}}
             <p class="muted">
-                В этой партии общий аккаунт проекта не играет, поэтому смотрим
-                на неё со стороны: карта, состав, кланы и коалиции видны, а вот
-                делать в партии что-либо — призывать пехоту, например — некому.
-                Партия про такой взгляд не узнаёт: входом в неё он не считается.
+                {{t "game.foreign.note"}}
             </p>
         {{end}}
     {{end}}
@@ -38,7 +35,7 @@
 
 {{if and .CurrentUser.IsRoot .Ours}}
 <div class="card">
-    <h1>Что делаем сами</h1>
+    <h1>{{t "game.we"}}</h1>
     {{$t := .Task}}
     <div class="row-form">
         <form method="post" action="/games/{{.GameID}}/hero">
@@ -46,28 +43,26 @@
             <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
             <input type="hidden" name="on" value="{{if and $t $t.HeroDeploy}}0{{else}}1{{end}}">
             <button type="submit">
-                {{if and $t $t.HeroDeploy}}Выключить призыв пехоты{{else}}Включить призыв пехоты{{end}}
+                {{if and $t $t.HeroDeploy}}{{t "game.hero.off"}}{{else}}{{t "game.hero.on"}}{{end}}
             </button>
         </form>
         {{/* Ручной призыв стоит рядом с переключателем: проверять кнопку,
              дожидаясь тика воркера, невозможно. */}}
         <form method="post" action="/games/{{.GameID}}/hero/run">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button type="submit">Призвать сейчас</button>
+            <button type="submit">{{t "game.hero.now"}}</button>
         </form>
         <p class="muted">
             {{if and $t $t.HeroDeploy}}
-                Включено: воркер заходит в партию каждые {{every .Interval}} и жмёт у Мейв
-                «призвать пехоту».
+                {{t "game.hero.on.note" (every .Interval)}}
             {{else}}
-                Выключено. Если включить, воркер будет заходить в партию каждые
-                {{every .Interval}} и жать у Мейв «призвать пехоту».
+                {{t "game.hero.off.note" (every .Interval)}}
             {{end}}
         </p>
     </div>
 
     {{if and $t (not $t.LastRunAt.IsZero)}}
-        <p class="muted">Последний заход: {{datetime $t.LastRunAt}} — {{$t.LastResult}}</p>
+        <p class="muted">{{t "game.hero.last"}} {{datetime $t.LastRunAt}} — {{$t.LastResult}}</p>
     {{end}}
 </div>
 {{end}}
@@ -78,10 +73,10 @@
 {{if or .Ours .Game}}
 <div class="card">
     <div class="card-head">
-        <h1>{{if .Ours}}Что у нас в партии{{else}}Что в партии{{end}}</h1>
+        <h1>{{if .Ours}}{{t "game.inside.ours"}}{{else}}{{t "game.inside"}}{{end}}</h1>
         {{if .Ours}}
             <div class="head-actions">
-                <a class="button" href="/games/{{.GameID}}?state=1">Заглянуть в партию</a>
+                <a class="button" href="/games/{{.GameID}}?state=1">{{t "game.enter"}}</a>
             </div>
         {{end}}
     </div>
@@ -99,16 +94,16 @@
             <input class="map-mode" type="radio" name="map-mode" id="map-teams">
             <input class="map-mode" type="radio" name="map-mode" id="map-premium">
             <div class="map-tabs">
-                <label for="map-clans">Кланы</label>
-                <label for="map-sides">Мои списки</label>
-                <label for="map-teams">Коалиции</label>
-                <label for="map-premium">Премиум</label>
+                <label for="map-clans">{{t "nav.clans"}}</label>
+                <label for="map-sides">{{t "game.map.mine"}}</label>
+                <label for="map-teams">{{t "game.map.teams"}}</label>
+                <label for="map-premium">{{t "game.map.premium"}}</label>
             </div>
             {{/* Карта в собственных координатах игры: viewBox их и берёт,
                  а размер на странице задаёт css. */}}
             <svg class="game-map" viewBox="0 0 {{.Map.Width}} {{.Map.Height}}"
                  preserveAspectRatio="xMidYMid meet" role="img"
-                 aria-label="Карта партии: провинции раскрашены по кланам владельцев, по вашим личным спискам, по коалициям или по премиуму">
+                 aria-label="{{t "game.map.aria"}}">
                 <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
                 {{range .Map.Shapes}}
                     <polygon points="{{.Points}}" class="{{.Class}}"
@@ -140,28 +135,18 @@
                         {{end}}
                     </ul>
                     <p class="muted">
-                        Цвет провинции — клан её владельца, число в легенде —
-                        сколько у клана провинций. Кланы берутся из самой
-                        Supremacy, а не из нашего справочника: важно, кто с кем
-                        в игре, а не кого мы как записали. Цвета раздаются
-                        на партию по убыванию владений, поэтому в соседней партии
-                        тот же клан будет другого цвета. Серым закрашены ничейные
-                        земли и все, кто ни в каком клане не состоит.
+                        {{t "game.map.clans.note"}}
                     </p>
                 {{else}}
                     <p class="muted">
-                        Карта серая: ни один игрок этой партии в клане
-                        не состоит — по крайней мере, так отвечает сайт игры.
+                        {{t "game.map.clans.empty"}}
                     </p>
                 {{end}}
                 {{if .AlliancesPending}}
                     {{/* Серый у неспрошенного и у одиночки одинаковый,
                          поэтому про очередь надо сказать словами. */}}
                     <p class="muted">
-                        Про {{.AlliancesPending}} игроков этой партии клан ещё
-                        не знаем — они пока серые. Обычно кланы приезжают вместе
-                        с составом партии, так что это те, кто вошёл в неё совсем
-                        недавно; их спросит фоновый воркер, загляните позже.
+                        {{t "game.map.clans.pending" .AlliancesPending}}
                     </p>
                 {{end}}
             </div>
@@ -171,14 +156,11 @@
                     {{/* Счётчик через with: пустой список — это и нет никого,
                          и «состав партии ещё не смотрели», а обоим случаям
                          подходит просто отсутствие числа. */}}
-                    <li><span class="swatch side-enemy"></span> Во врагах{{with .Enemies}} <span class="muted">— {{len .}}</span>{{end}}</li>
-                    <li><span class="swatch side-friend"></span> В друзьях{{with .Friends}} <span class="muted">— {{len .}}</span>{{end}}</li>
+                    <li><span class="swatch side-enemy"></span> {{t "game.map.sides.enemies"}}{{with .Enemies}} <span class="muted">— {{len .}}</span>{{end}}</li>
+                    <li><span class="swatch side-friend"></span> {{t "game.map.sides.friends"}}{{with .Friends}} <span class="muted">— {{len .}}</span>{{end}}</li>
                 </ul>
                 <p class="muted">
-                    Красным закрашены владения ваших врагов, зелёным — друзей,
-                    серым — все остальные; названия их стран подписаны мечом
-                    и рукопожатием. Списки личные: сосед видит эту же партию
-                    размеченной по-своему.
+                    {{t "game.map.sides.note"}}
                 </p>
             </div>
 
@@ -188,52 +170,40 @@
                         {{range .Map.Teams}}
                             <li>
                                 <span class="swatch" style="background: {{.Color}}"></span>
-                                {{.Name}}{{if .Mine}} <span class="badge">ваша</span>{{end}}
+                                {{.Name}}{{if .Mine}} <span class="badge">{{t "game.map.teams.yours"}}</span>{{end}}
                                 <span class="muted">— {{.Members}}</span>
                             </li>
                         {{end}}
                     </ul>
                     <p class="muted">
-                        Цвет провинции — коалиция её владельца, число в легенде —
-                        сколько в ней игроков этой партии. И коалиции, и цвета
-                        к ним берутся из самой игры, а не из нашей базы: она
-                        красит себя сама, поэтому цвет здесь тот же, что
-                        в клиенте, и верен он на тот момент, когда мы
-                        смотрели партию.
-                        Серым — все, кто ни в какой коалиции не состоит.
+                        {{t "game.map.teams.note"}}
                     </p>
                 {{else}}
                     <p class="muted">
-                        В этой партии коалиций нет — ни одной живой игра
-                        не показала, красить нечего.
+                        {{t "game.map.teams.empty"}}
                     </p>
                 {{end}}
             </div>
 
             <div class="map-pane pane-premium">
                 <ul class="map-legend">
-                    <li><span class="swatch premium"></span> С премиумом{{with .Premium}} <span class="muted">— {{len .}}</span>{{end}}</li>
+                    <li><span class="swatch premium"></span> {{t "game.map.premium.legend"}}{{with .Premium}} <span class="muted">— {{len .}}</span>{{end}}</li>
                 </ul>
                 {{if .Premium}}
                     <p class="muted">
-                        Закрашены страны игроков с «Высоким командованием»:
-                        {{range $i, $p := .Premium}}{{if $i}}, {{end}}{{$p.Nation}}{{if $p.Name}} ({{$p.Name}}){{end}}{{if $p.Mine}} — это вы{{end}}{{end}}.
-                        Подписку игра сообщает про всех участников партии, хотя
-                        в самом клиенте чужой премиум ничем не отмечен. Серым —
-                        все остальные, включая компьютерных игроков: у них
-                        подписки не бывает.
+                        {{t "game.map.premium.list"}}
+                        {{range $i, $p := .Premium}}{{if $i}}, {{end}}{{$p.Nation}}{{if $p.Name}} ({{$p.Name}}){{end}}{{if $p.Mine}} — {{t "game.thatsyou"}}{{end}}{{end}}.
+                        {{t "game.map.premium.note"}}
                     </p>
                 {{else}}
                     <p class="muted">
-                        Карта серая: премиума в этой партии нет ни у кого.
+                        {{t "game.map.premium.empty"}}
                     </p>
                 {{end}}
             </div>
 
             <p class="muted">
-                {{if .Me}}Ваши провинции обведены жёлтым во всех режимах. {{end}}Наведите
-                на провинцию, чтобы увидеть, чья она: подсказка говорит всё сразу —
-                страну, игрока, клан, премиум и оба ваших списка.
+                {{if .Me}}{{t "game.map.yours"}} {{end}}{{t "game.map.hover"}}
             </p>
         </div>
     {{end}}
@@ -245,21 +215,21 @@
              кто смотрит, у соседа они свои. */}}
         {{if .Friends}}
             <p class="muted">
-                Из ваших друзей здесь играют:
+                {{t "game.friends.here"}}
                 {{range $i, $f := .Friends}}{{if $i}}, {{end}}<a href="/players/{{$f.Card.ID}}">{{$f.Card.Nickname}}</a>
-                    — {{$f.Nation}}{{if $f.Name}} ({{$f.Name}}){{end}}{{if $f.Premium}} <span class="badge">премиум</span>{{end}}{{end}}.
+                    — {{$f.Nation}}{{if $f.Name}} ({{$f.Name}}){{end}}{{if $f.Premium}} <span class="badge">{{t "game.premium"}}</span>{{end}}{{end}}.
             </p>
         {{else}}
-            <p class="muted">Из ваших друзей в этой партии никого.</p>
+            <p class="muted">{{t "game.friends.none"}}</p>
         {{end}}
         {{if .Enemies}}
             <p class="muted">
-                Из вашего списка врагов здесь играют:
+                {{t "game.enemies.here"}}
                 {{range $i, $e := .Enemies}}{{if $i}}, {{end}}<a href="/players/{{$e.Card.ID}}">{{$e.Card.Nickname}}</a>
-                    — {{$e.Nation}}{{if $e.Name}} ({{$e.Name}}){{end}}{{if $e.Premium}} <span class="badge">премиум</span>{{end}}{{end}}.
+                    — {{$e.Nation}}{{if $e.Name}} ({{$e.Name}}){{end}}{{if $e.Premium}} <span class="badge">{{t "game.premium"}}</span>{{end}}{{end}}.
             </p>
         {{else}}
-            <p class="muted">Из вашего списка врагов в этой партии никого.</p>
+            <p class="muted">{{t "game.enemies.none"}}</p>
         {{end}}
     {{end}}
 
@@ -269,50 +239,46 @@
              больше негде. */}}
         {{if .Premium}}
             <p class="muted">
-                Премиум («Высокое командование») в этой партии у {{len .Premium}}
-                игроков:
-                {{range $i, $p := .Premium}}{{if $i}}, {{end}}{{$p.Nation}}{{if $p.Name}} ({{$p.Name}}){{end}}{{if $p.Mine}} — это вы{{end}}{{end}}.
+                {{t "game.premium.count" (len .Premium)}}
+                {{range $i, $p := .Premium}}{{if $i}}, {{end}}{{$p.Nation}}{{if $p.Name}} ({{$p.Name}}){{end}}{{if $p.Mine}} — {{t "game.thatsyou"}}{{end}}{{end}}.
             </p>
         {{else}}
-            <p class="muted">Премиума в этой партии нет ни у кого.</p>
+            <p class="muted">{{t "game.premium.none"}}</p>
         {{end}}
         {{/* Бан — свойство аккаунта, а не партии, поэтому он же уходит
              в базу и потом виден в карточке игрока. */}}
         {{if .Banned}}
             <p class="muted">
-                Забанены: {{range $i, $b := .Banned}}{{if $i}}, {{end}}{{$b.Nation}}{{if $b.Name}} ({{$b.Name}}){{end}}{{end}}.
+                {{t "game.banned"}} {{range $i, $b := .Banned}}{{if $i}}, {{end}}{{$b.Nation}}{{if $b.Name}} ({{$b.Name}}){{end}}{{end}}.
             </p>
         {{end}}
     {{end}}
 
     {{if .NoProfileGameID}}
         <p class="muted">
-            Чтобы видеть на этой странице свою страну, укажите игровой ID
-            в <a href="/profile">профиле</a>: по нему вас и находят среди
-            игроков партии.
+            {{t "game.noprofile.pre"}} <a href="/profile">{{t "game.noprofile.link"}}</a>{{t "game.noprofile.post"}}
         </p>
     {{end}}
     {{if .NotPlaying}}
-        <p class="muted">В этой партии вы не играете — своей страны здесь нет.</p>
+        <p class="muted">{{t "game.notplaying"}}</p>
     {{end}}
 
     {{if .Me}}
         <p class="muted">
-            День {{.State.Day}}, вы играете за {{.Me.Nation}} ({{.Me.Name}}),
-            номер в партии {{.Me.ID}}.
-            Провинций под контролем {{len .Mine}} из {{len .State.Provinces}} на карте.
+            {{t "game.me" .State.Day .Me.Nation .Me.Name .Me.ID}}
+            {{t "game.me.provinces" (len .Mine) (len .State.Provinces)}}
         </p>
         <table>
             <thead>
             <tr>
-                <th>Провинция</th>
-                <th>Мораль</th>
+                <th>{{t "game.col.province"}}</th>
+                <th>{{t "game.col.morale"}}</th>
             </tr>
             </thead>
             <tbody>
             {{range .Mine}}
                 <tr>
-                    <td>{{.Name}}{{if .Capital}} <span class="badge">столица</span>{{end}}</td>
+                    <td>{{.Name}}{{if .Capital}} <span class="badge">{{t "game.capital"}}</span>{{end}}</td>
                     <td class="muted nowrap">{{printf "%.0f" .Morale}}%</td>
                 </tr>
             {{end}}
@@ -323,12 +289,9 @@
     {{if not .State}}
         <p class="muted">
             {{if .Ours}}
-                Состав партии берётся с игрового сервера, и такой заход игра
-                засчитывает как вход в партию — поэтому он делается только по
-                нажатию, а не при каждом открытии страницы.
+                {{t "game.enter.note"}}
             {{else}}
-                Посмотреть партию со стороны не вышло — причина сказана выше.
-                Ниже то, что о ней знает сайт игры.
+                {{t "game.observe.failed"}}
             {{end}}
         </p>
     {{end}}
@@ -339,20 +302,17 @@
      партию и тогда, когда со стороны посмотреть не удалось. */}}
 {{if and .Roster (not .State)}}
 <div class="card">
-    <h1>Кто играет</h1>
+    <h1>{{t "game.roster"}}</h1>
     <p class="muted">
-        Состав партии по данным сайта игры: ник, клан, коалиция и уровень.
-        Названий у коалиций здесь нет — их знает только игровой сервер,
-        поэтому стоит номер: одинаковый номер значит «эти заодно».
-        Кого мы знаем, тот подписан ссылкой на карточку.
+        {{t "game.roster.note"}}
     </p>
     <table>
         <thead>
         <tr>
-            <th>Игрок</th>
-            <th>Клан</th>
-            <th>Коалиция</th>
-            <th>Уровень</th>
+            <th>{{t "game.col.player"}}</th>
+            <th>{{t "playerform.clan"}}</th>
+            <th>{{t "game.col.team"}}</th>
+            <th>{{t "game.col.level"}}</th>
         </tr>
         </thead>
         <tbody>
@@ -361,14 +321,14 @@
                 <td>
                     {{if .Card}}
                         <a class="nick" href="/players/{{.Card.ID}}">{{.Login}}</a>
-                        {{if .Enemy}}<span class="badge clan-enemy">во врагах</span>{{end}}
-                        {{if .Friend}}<span class="badge clan-ally">в друзьях</span>{{end}}
+                        {{if .Enemy}}<span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}
+                        {{if .Friend}}<span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}
                     {{else}}
                         {{.Login}}
                     {{end}}
                 </td>
                 <td>{{if .Clan}}{{.Clan}}{{else}}<span class="muted">—</span>{{end}}</td>
-                <td class="muted">{{if .Team}}№{{.Team}}{{else}}—{{end}}</td>
+                <td class="muted">{{if .Team}}{{t "game.team.no" .Team}}{{else}}—{{end}}</td>
                 <td class="muted">{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
             </tr>
         {{end}}

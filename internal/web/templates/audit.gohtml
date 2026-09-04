@@ -1,17 +1,17 @@
-{{define "title"}}Журнал — Vendetta{{end}}
+{{define "title"}}{{t "audit.title"}}{{end}}
 
 {{define "content"}}
 <div class="card">
-    <h1>Журнал действий</h1>
-    <p class="muted">Последние 200 записей. Журнал неизменяем и его нельзя очистить из интерфейса.</p>
+    <h1>{{t "audit.heading"}}</h1>
+    <p class="muted">{{t "audit.note"}}</p>
     <table>
         <thead>
         <tr>
-            <th>Когда</th>
-            <th>Кто</th>
-            <th>Действие</th>
-            <th>Объект</th>
-            <th>Детали</th>
+            <th>{{t "audit.when"}}</th>
+            <th>{{t "audit.who"}}</th>
+            <th>{{t "audit.action"}}</th>
+            <th>{{t "audit.target"}}</th>
+            <th>{{t "audit.details"}}</th>
         </tr>
         </thead>
         <tbody>
@@ -26,7 +26,7 @@
                 </td>
             </tr>
         {{else}}
-            <tr><td colspan="5" class="muted">Пока пусто</td></tr>
+            <tr><td colspan="5" class="muted">{{t "audit.empty"}}</td></tr>
         {{end}}
         </tbody>
     </table>

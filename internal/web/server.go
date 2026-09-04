@@ -36,7 +36,10 @@ type Server struct {
 	// странице партии, чтобы обещание в интерфейсе не расходилось с делом.
 	heroEvery time.Duration
 	health    func(context.Context) error
-	pages     pages
+	// cookieSecure — тот же флаг, что у куки сессии: язык хранится в куке,
+	// и жить она должна по тем же правилам.
+	cookieSecure bool
+	pages        site
 }
 
 type Deps struct {
@@ -62,10 +65,12 @@ type Deps struct {
 	HeroEvery time.Duration
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
+	// CookieSecure — ставить ли кукам флаг Secure. Тот же, что у сессии.
+	CookieSecure bool
 }
 
 func NewServer(d Deps) (*Server, error) {
-	tmpls, err := parseTemplates()
+	tmpls, err := parseSite()
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +79,7 @@ func NewServer(d Deps) (*Server, error) {
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
 		games: d.Games, alliances: d.Alliances, gamePlayers: d.GamePlayers,
 		tasks: d.Tasks, heroEvery: d.HeroEvery,
-		health: d.Health, pages: tmpls,
+		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
 	s.friends = newRelationSection(s, d.Friends, friendWords)
@@ -90,8 +95,10 @@ func (s *Server) Handler() http.Handler {
 	}
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 
-	// Публичное: проверка живости и вход.
+	// Публичное: проверка живости, вход и выбор языка. Язык публичен
+	// намеренно: переключатель нужен и на странице входа.
 	mux.HandleFunc("GET /healthz", s.healthz)
+	mux.HandleFunc("GET /lang/{lang}", s.setLang)
 	mux.HandleFunc("GET /login", s.loginForm)
 	mux.Handle("POST /login", http.HandlerFunc(s.loginSubmit))
 	mux.Handle("POST /logout", auth.VerifyCSRF(http.HandlerFunc(s.logout)))
@@ -190,7 +197,7 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 	if s.health != nil {
 		if err := s.health(ctx); err != nil {
 			s.log.Error("проверка живости не прошла", "err", err)
-			http.Error(w, "база недоступна", http.StatusServiceUnavailable)
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 			return
 		}
 	}

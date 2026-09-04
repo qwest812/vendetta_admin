@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"errors"
 	"regexp"
 	"strings"
 	"time"
@@ -23,14 +22,11 @@ func (r Role) Valid() bool { _, ok := roleWeight[r]; return ok }
 // AtLeast сообщает, что роль не ниже требуемой.
 func (r Role) AtLeast(min Role) bool { return roleWeight[r] >= roleWeight[min] }
 
-func (r Role) Title() string {
-	switch r {
-	case RoleRoot:
-		return "Рут"
-	case RoleAdmin:
-		return "Администратор"
-	case RoleUser:
-		return "Пользователь"
+// TitleKey — ключ подписи к роли. Незнакомую роль подписываем её же кодом:
+// в базе таких нет, но выдумывать ей название хуже, чем показать как есть.
+func (r Role) TitleKey() string {
+	if _, ok := roleWeight[r]; ok {
+		return "role." + string(r)
 	}
 	return string(r)
 }
@@ -80,10 +76,10 @@ var nicknameRe = regexp.MustCompile(`^[\p{L}\p{N}][\p{L}\p{N}._-]{2,31}$`)
 
 func ValidateNickname(nick string) error {
 	if nick == "" {
-		return errors.New("ник обязателен")
+		return ErrNickRequired
 	}
 	if !nicknameRe.MatchString(nick) {
-		return errors.New("ник: 3–32 символа, буквы, цифры, точка, дефис и подчёркивание; начинается с буквы или цифры")
+		return ErrNickFormat
 	}
 	return nil
 }
@@ -92,30 +88,59 @@ func ValidateNickname(nick string) error {
 // мягкие: это справка для своих, а не документ.
 func ValidateProfile(fullName, city, gameID string) error {
 	if len([]rune(fullName)) > 100 {
-		return errors.New("имя длиннее 100 символов")
+		return ErrNameTooLong
 	}
 	if len([]rune(city)) > 100 {
-		return errors.New("город длиннее 100 символов")
+		return ErrCityTooLong
 	}
 	if len([]rune(gameID)) > 32 {
-		return errors.New("игровой ID длиннее 32 символов")
+		return ErrGameIDTooLong
 	}
 	if strings.ContainsAny(gameID, " \t\n") {
-		return errors.New("игровой ID не должен содержать пробелов")
+		return ErrGameIDSpaces
 	}
 	return nil
 }
 
+// MsgError — ошибка, которую увидит человек. Носит не текст, а ключ
+// сообщения: язык страницы выбирает тот, кто смотрит, и предметная
+// область не должна решать этот вопрос за него.
+//
+// Error() отдаёт ключ: в лог он попадёт как «err.nick.taken» — читаемо
+// и однозначно, а на страницу его переводит веб-слой.
+type MsgError struct{ Key string }
+
+func (e *MsgError) Error() string { return e.Key }
+
 var (
-	ErrNotFound      = errors.New("не найдено")
-	ErrEmailTaken    = errors.New("почта уже используется")
-	ErrNickTaken     = errors.New("такой ник уже есть в базе")
-	ErrGameIDTaken   = errors.New("такой игровой ID уже есть в базе")
-	ErrCodeTaken     = errors.New("такой код признака уже есть")
-	ErrClanTaken     = errors.New("клан с таким названием уже есть")
-	ErrAlreadyListed = errors.New("игрок уже в списке")
-	ErrForbidden     = errors.New("недостаточно прав")
-	ErrInvalidLogin  = errors.New("неверная почта или пароль")
+	ErrNotFound      = &MsgError{"err.notfound"}
+	ErrEmailTaken    = &MsgError{"err.email.taken"}
+	ErrNickTaken     = &MsgError{"err.nick.taken"}
+	ErrGameIDTaken   = &MsgError{"err.gameid.taken"}
+	ErrCodeTaken     = &MsgError{"err.code.taken"}
+	ErrClanTaken     = &MsgError{"err.clan.taken"}
+	ErrAlreadyListed = &MsgError{"err.already.listed"}
+	ErrForbidden     = &MsgError{"err.forbidden"}
+	ErrInvalidLogin  = &MsgError{"err.invalid.login"}
+
+	ErrNickRequired  = &MsgError{"err.nick.required"}
+	ErrNickFormat    = &MsgError{"err.nick.format"}
+	ErrNameTooLong   = &MsgError{"err.name.toolong"}
+	ErrCityTooLong   = &MsgError{"err.city.toolong"}
+	ErrGameIDTooLong = &MsgError{"err.gameid.toolong"}
+	ErrGameIDSpaces  = &MsgError{"err.gameid.spaces"}
+
+	ErrClanNameRequired = &MsgError{"err.clan.name.required"}
+	ErrClanNameTooLong  = &MsgError{"err.clan.name.toolong"}
+
+	ErrPlayerNickRequired = &MsgError{"err.player.nick.required"}
+	ErrPlayerNickTooLong  = &MsgError{"err.player.nick.toolong"}
+	ErrPlayerIDRequired   = &MsgError{"err.player.id.required"}
+	ErrPlayerIDTooLong    = &MsgError{"err.player.id.toolong"}
+	ErrPlayerIDSpaces     = &MsgError{"err.player.id.spaces"}
+
+	ErrPasswordShort = &MsgError{"err.password.short"}
+	ErrPasswordLong  = &MsgError{"err.password.long"}
 )
 
 // CanManage описывает, кто кого вправе изменять: рут — всех кроме себя,

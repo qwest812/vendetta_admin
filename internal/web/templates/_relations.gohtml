@@ -4,37 +4,37 @@
 {{define "relation-page"}}
 {{$words := .Words}}
 <div class="card">
-    <h1>{{$words.Title}}</h1>
-    <p class="muted">{{$words.Intro}}</p>
+    <h1>{{t $words.Title}}</h1>
+    <p class="muted">{{t $words.Intro}}</p>
 </div>
 
 <div class="card">
-    <h1>Добавить</h1>
+    <h1>{{t "common.add"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
     {{/* Поиск вынесен из формы намеренно: иначе Enter в нём отправлял бы
          форму, не дав выбрать из подобранного. */}}
     <div class="filters">
-        <input type="search" name="q" value="{{.Query}}" placeholder="Найти по игровому ID или нику"
+        <input type="search" name="q" value="{{.Query}}" placeholder="{{t "rel.search.placeholder"}}"
                autocomplete="off"
                hx-get="/{{$words.Path}}/search" hx-trigger="input changed delay:250ms, search"
                hx-target="#candidates" hx-swap="innerHTML"
                hx-indicator="#searching">
-        <span id="searching" class="htmx-indicator muted">ищем…</span>
+        <span id="searching" class="htmx-indicator muted">{{t "home.searching"}}</span>
     </div>
 
     <form method="post" action="/{{$words.Path}}">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <label class="block">
-            Комментарий
-            <textarea name="comment" rows="2" maxlength="4000" placeholder="За что">{{.Comment}}</textarea>
+            {{t "rel.comment"}}
+            <textarea name="comment" rows="2" maxlength="4000" placeholder="{{t "rel.comment.placeholder"}}">{{.Comment}}</textarea>
         </label>
         <div id="candidates">{{template "candidates" .}}</div>
     </form>
 </div>
 
 <div class="card">
-    <h1>Список</h1>
+    <h1>{{t "rel.list"}}</h1>
     {{$csrf := .CSRFToken}}
     <ul class="notes enemies">
         {{range .List}}
@@ -44,24 +44,24 @@
                     <a class="nick" href="/players/{{$p.ID}}">{{$p.Nickname}}</a>
                     {{if $p.ClanName}}<span class="clan clan-{{$p.ClanStatus}}">[{{$p.ClanName}}]</span>{{end}}
                     {{if $p.GameID}}<span class="game-id">ID {{$p.GameID}}</span>
-                    {{else}}<span class="muted">без ID</span>{{end}}
+                    {{else}}<span class="muted">{{t "rel.noid"}}</span>{{end}}
                     <span class="muted">{{datetime .CreatedAt}}</span>
                     <form method="post" action="/{{$words.Path}}/{{$p.ID}}/delete"
-                          onsubmit="return confirm('{{printf $words.Confirm $p.Nickname}}')">
+                          onsubmit="return confirm('{{t $words.Confirm $p.Nickname}}')">
                         <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                        <button class="link" type="submit">убрать</button>
+                        <button class="link" type="submit">{{t "rel.remove"}}</button>
                     </form>
                 </div>
                 {{/* Комментарий правится на месте: отдельная страница ради
                      одного поля была бы лишним шагом. */}}
                 <form class="enemy-comment" method="post" action="/{{$words.Path}}/{{$p.ID}}">
                     <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                    <textarea name="comment" rows="2" maxlength="4000" placeholder="За что">{{.Comment}}</textarea>
-                    <button type="submit">Сохранить</button>
+                    <textarea name="comment" rows="2" maxlength="4000" placeholder="{{t "rel.comment.placeholder"}}">{{.Comment}}</textarea>
+                    <button type="submit">{{t "common.save"}}</button>
                 </form>
             </li>
         {{else}}
-            <li class="muted">{{$words.Empty}}</li>
+            <li class="muted">{{t $words.Empty}}</li>
         {{end}}
     </ul>
 </div>
@@ -74,30 +74,29 @@
 {{if .Candidates}}
     <div class="row-form">
         <label>
-            {{.Words.Pick}}
+            {{t .Words.Pick}}
             <select name="player_id">
                 {{range .Candidates}}
                     {{/* Уже добавленных из списка не убираем, но и выбрать
                          не даём: иначе непонятно, куда делся найденный. */}}
-                    <option value="{{.ID}}" {{if index $marked .ID}}disabled{{end}}>{{.Nickname}}{{if .ClanName}} [{{.ClanName}}]{{end}}{{if .GameID}} — ID {{.GameID}}{{else}} — без ID{{end}}{{if index $marked .ID}} — уже в списке{{end}}</option>
+                    <option value="{{.ID}}" {{if index $marked .ID}}disabled{{end}}>{{.Nickname}}{{if .ClanName}} [{{.ClanName}}]{{end}}{{if .GameID}} — ID {{.GameID}}{{else}} — {{t "rel.noid"}}{{end}}{{if index $marked .ID}} — {{t "rel.already"}}{{end}}</option>
                 {{end}}
             </select>
         </label>
         {{if .CanAdd}}
-            <button type="submit">Добавить</button>
+            <button type="submit">{{t "common.add"}}</button>
         {{else}}
-            <span class="muted">{{.Words.AllListed}}</span>
+            <span class="muted">{{t .Words.AllListed}}</span>
         {{end}}
     </div>
     {{if ge (len .Candidates) .Limit}}
-        <p class="muted">Показаны первые {{.Limit}} — уточните запрос.</p>
+        <p class="muted">{{t "results.truncated" .Limit}}</p>
     {{end}}
 {{else if .Query}}
     <p class="muted">
-        По запросу «{{.Query}}» никого не нашли. В список записываются только те,
-        у кого есть карточка в базе, — новую заводит админ на главной.
+        {{t "rel.notfound" .Query}}
     </p>
 {{else}}
-    <p class="muted">Наберите ник или игровой ID — подходящие карточки появятся в списке.</p>
+    <p class="muted">{{t "rel.hint"}}</p>
 {{end}}
 {{end}}

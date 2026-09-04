@@ -27,8 +27,8 @@
                         {{end}}
                     </div>
                     <div class="player-score">
-                        <span class="risk-pill risk-{{.Score.RiskClass}}">Риск {{.Score.Risk}}%</span>
-                        <span class="loyalty-pill">Лояльность {{.Score.Loyalty}}%</span>
+                        <span class="risk-pill risk-{{.Score.RiskClass}}">{{t "player.risk"}} {{.Score.Risk}}%</span>
+                        <span class="loyalty-pill">{{t "player.loyalty"}} {{.Score.Loyalty}}%</span>
                     </div>
                 </a>
                 {{if $canMark}}
@@ -41,18 +41,18 @@
         {{end}}
     </div>
     {{if ge (len .Players) .Limit}}
-        <p class="muted center">Показаны первые {{.Limit}} — уточните запрос.</p>
+        <p class="muted center">{{t "results.truncated" .Limit}}</p>
     {{end}}
 {{else}}
     <div class="card empty">
         {{if .Empty}}
             {{.Empty}}
         {{else if .Query}}
-            По запросу «{{.Query}}» никого не нашли.
+            {{t "results.empty.query" .Query}}
         {{else if .Status}}
-            С таким статусом клана никого нет.
+            {{t "results.empty.status"}}
         {{else}}
-            В базе пока нет игроков.
+            {{t "results.empty.all"}}
         {{end}}
     </div>
 {{end}}
@@ -64,12 +64,12 @@
 {{define "mark"}}
 {{$w := .Words}}
 {{if .Marked}}
-    <a class="mark done {{$w.Class}}" href="/{{$w.Path}}" title="{{$w.DoneTitle}}">{{$w.MarkDone}}</a>
+    <a class="mark done {{$w.Class}}" href="/{{$w.Path}}" title="{{t $w.DoneTitle}}">{{t $w.MarkDone}}</a>
 {{else}}
     <form method="post" action="/{{$w.Path}}/{{.ID}}/mark"
           hx-post="/{{$w.Path}}/{{.ID}}/mark" hx-target="this" hx-swap="outerHTML">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <button class="mark {{$w.Class}}" type="submit" title="{{$w.AddTitle}}">{{$w.MarkAdd}}</button>
+        <button class="mark {{$w.Class}}" type="submit" title="{{t $w.AddTitle}}">{{t $w.MarkAdd}}</button>
     </form>
 {{end}}
 {{end}}
