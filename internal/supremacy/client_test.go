@@ -605,3 +605,47 @@ func TestParseGameLogins(t *testing.T) {
 		t.Errorf("игрок без клана = %+v", res.Logins[1])
 	}
 }
+
+// Время игра шлёт секундами в строке, и мусор в этом поле — обычное дело:
+// у партии из лобби нет времени входа, у не начавшейся — времени старта.
+func TestGameTimes(t *testing.T) {
+	tests := []struct {
+		in   string
+		want time.Time
+	}{
+		{"1785920128", time.Unix(1785920128, 0)},
+		{"0", time.Time{}},
+		{"", time.Time{}},
+		{"null", time.Time{}},
+	}
+	for _, tt := range tests {
+		if got := (Game{StartOfGame: tt.in}).Started(); !got.Equal(tt.want) {
+			t.Errorf("Started(%q) = %v, ожидалось %v", tt.in, got, tt.want)
+		}
+	}
+}
+
+// Скорость игра называет обратной величиной, и в двух местах по-разному:
+// список лобби шлёт строку, свойства партии — число.
+func TestGameSpeed(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want float64
+	}{
+		{`{"timeScale":"0.25"}`, 4},
+		{`{"timeScale":0.25}`, 4},
+		{`{"timeScale":"1"}`, 1},
+		{`{"timeScale":0.10000000149011612}`, 10},
+		// Поля не было вовсе: считаем партию обычной, а не бесконечно быстрой.
+		{`{}`, 1},
+	}
+	for _, tt := range tests {
+		var g Game
+		if err := json.Unmarshal([]byte(tt.raw), &g); err != nil {
+			t.Fatalf("разбор %s: %v", tt.raw, err)
+		}
+		if got := g.Speed(); got != tt.want {
+			t.Errorf("Speed(%s) = %v, ожидалось x%v", tt.raw, got, tt.want)
+		}
+	}
+}

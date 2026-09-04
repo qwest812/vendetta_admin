@@ -297,6 +297,47 @@
     {{end}}
 </div>
 {{end}}
+{{/* Архив коалиций отвечает на вопрос, которого на карте не видно: эти двое
+     уже союзничали раньше? Показываем только пересечения внутри этой партии —
+     старые связи посторонних людей здесь никому не нужны. */}}
+{{if .State}}
+<div class="card">
+    <h1>{{t "pairs.title"}}</h1>
+    {{if .Pairs}}
+        <p class="muted">{{t "pairs.note"}}</p>
+        <table>
+            <thead>
+            <tr>
+                <th>{{t "pairs.who"}}</th>
+                <th class="narrow">{{t "pairs.together"}}</th>
+                <th>{{t "pairs.where"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .Pairs}}
+                <tr>
+                    <td>
+                        {{template "pairside" .A}}
+                        <span class="muted">—</span>
+                        {{template "pairside" .B}}
+                    </td>
+                    <td class="narrow nowrap muted">
+                        {{range $i, $s := .BySpeed}}{{if $i}}, {{end}}{{$s.Label}} — {{$s.Games}}{{end}}
+                    </td>
+                    <td class="muted">
+                        {{range $i, $g := .Games}}{{if $i}}, {{end}}<a href="/games/{{$g}}">{{$g}}</a>{{end}}
+                    </td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    {{else}}
+        <p class="muted">{{t "pairs.empty"}}</p>
+    {{end}}
+</div>
+{{end}}
+
+
 {{/* Состав сайт отдаёт про любую партию, не спрашивая, играем ли мы в ней,
      и стоит он дёшево. Показываем его там, где карты нет: до захода в свою
      партию и тогда, когда со стороны посмотреть не удалось. */}}
@@ -338,3 +379,6 @@
 {{end}}
 
 {{end}}
+
+{{/* Одна сторона пары: карточка, если она у нас есть, иначе ник из игры. */}}
+{{define "pairside"}}{{if .Card}}<a class="nick" href="/players/{{.Card.ID}}">{{.Card.Nickname}}</a>{{else if .Name}}{{.Name}}{{else}}{{t "game.unknown"}}{{end}}<span class="muted"> ({{.Nation}})</span>{{if .Enemy}} <span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}{{if .Friend}} <span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}{{end}}

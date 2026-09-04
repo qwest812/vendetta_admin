@@ -57,6 +57,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	tasks := repo.NewGameTasks(pool)
 	alliances := repo.NewAlliances(pool)
 	gamePlayers := repo.NewGamePlayers(pool)
+	coalitions := repo.NewCoalitions(pool)
+	settings := repo.NewSettings(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -76,6 +78,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
+		Coalitions: coalitions, Settings: settings,
 		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
@@ -107,7 +110,15 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		}
 
 		watcher := supremacy.NewWatcher(s1914, cfg.S1914Titles, cfg.S1914PollEvery, log, notifier, seen)
+
+		// Архив коалиций кормится тем же опросом лобби: заводить второй
+		// незачем. Фильтр названий на него не распространяется — он про то,
+		// о чём сообщать человеку, а собираем мы про все партии.
+		scanner := supremacy.NewCoalitionScanner(s1914, coalitions, settings, cfg.S1914CoalitionEvery, log)
+		watcher.Feed(scanner)
+
 		go watcher.Run(ctx)
+		go scanner.Run(ctx)
 
 		// Автопилот ходит только в те партии, где кнопку включили руками,
 		// поэтому запускается всегда: без включённых партий он молчит.

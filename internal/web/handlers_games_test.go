@@ -43,23 +43,6 @@ func TestGameStateKeepsUnknown(t *testing.T) {
 	}
 }
 
-func TestUnixTime(t *testing.T) {
-	tests := []struct {
-		in   string
-		want time.Time
-	}{
-		{"1785920128", time.Unix(1785920128, 0)},
-		{"0", time.Time{}},
-		{"", time.Time{}},
-		{"null", time.Time{}},
-	}
-	for _, tt := range tests {
-		if got := unixTime(tt.in); !got.Equal(tt.want) {
-			t.Errorf("unixTime(%q) = %v, ожидалось %v", tt.in, got, tt.want)
-		}
-	}
-}
-
 // Карта раскрашивается по кланам: клан владельца из базы даёт цвет,
 // остальное — серым, свои провинции обведены.
 func TestGameMapColors(t *testing.T) {

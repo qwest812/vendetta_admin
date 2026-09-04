@@ -73,5 +73,30 @@
         </tbody>
     </table>
 </div>
+
+{{/* Архив коалиций и его рубильник. Обход ходит в игру от общего аккаунта
+     проекта, поэтому и кнопка рутовая. */}}
+{{with .Coalitions}}
+<div class="card">
+    <div class="card-head">
+        <h1>{{t "coalitions.title"}}</h1>
+        <div class="head-actions">
+            <form method="post" action="/games/coalitions">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <input type="hidden" name="on" value="{{if .On}}0{{else}}1{{end}}">
+                <button type="submit" {{if .On}}class="danger"{{end}}>
+                    {{if .On}}{{t "coalitions.stop"}}{{else}}{{t "coalitions.start"}}{{end}}
+                </button>
+            </form>
+        </div>
+    </div>
+    <p class="muted">{{t "coalitions.note"}}</p>
+    <p class="muted">
+        {{if .On}}{{t "coalitions.on"}}{{else}}{{t "coalitions.off"}}{{end}}
+        {{t "coalitions.stats" .Watched .Pending .Games .Members}}
+        {{if not .LastCheck.IsZero}}{{t "coalitions.last"}} {{datetime .LastCheck}}.{{end}}
+    </p>
+</div>
+{{end}}
 {{end}}
 {{end}}

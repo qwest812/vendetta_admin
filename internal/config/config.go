@@ -38,6 +38,10 @@ type Config struct {
 	// Спрашивает он сайт игры, а не игровой сервер, поэтому заходом
 	// в партию это не считается и частить можно смелее.
 	S1914AllianceEvery time.Duration
+	// S1914CoalitionEvery — как часто обход берёт следующую порцию партий
+	// за коалициями. Не путать со сроком возврата в саму партию: тот
+	// считается от её скорости и живёт в воркере.
+	S1914CoalitionEvery time.Duration
 
 	// Куда воркер пишет о найденных играх. Без токена и чата сообщения
 	// остаются в логе приложения. Тема нужна только для групп-форумов.
@@ -105,6 +109,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("S1914_ALLIANCE_INTERVAL: не чаще раза в минуту")
 	}
 	cfg.S1914AllianceEvery = alliances
+
+	coalitions, err := time.ParseDuration(env("S1914_COALITION_INTERVAL", "10m"))
+	if err != nil {
+		return nil, fmt.Errorf("S1914_COALITION_INTERVAL: %w", err)
+	}
+	// Каждый заход — полтора мегабайта с игрового сервера, и спешить
+	// с ними некуда: коалиции складываются днями.
+	if coalitions < time.Minute {
+		return nil, fmt.Errorf("S1914_COALITION_INTERVAL: не чаще раза в минуту")
+	}
+	cfg.S1914CoalitionEvery = coalitions
 
 	for _, t := range strings.Split(env("S1914_WATCH_TITLES", ""), ",") {
 		if t = strings.TrimSpace(t); t != "" {

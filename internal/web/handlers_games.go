@@ -56,6 +56,9 @@ func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
 		"Games": nil, "Error": "", "PlayURL": "", "CheckError": "",
 		"Query": strings.TrimSpace(r.URL.Query().Get("id")),
+		// Coalitions — сводка архива и состояние его рубильника. Только
+		// руту: обход ходит в игру от общего аккаунта проекта.
+		"Coalitions": nil,
 	}
 
 	if s.games == nil {
@@ -76,6 +79,23 @@ func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
 	defer cancel()
+
+	// Архив коалиций читается из базы и молчания игры не боится, поэтому
+	// считается до похода за списком партий: даже когда игра не ответит,
+	// рубильник останется на месте.
+	if s.coalitions != nil && s.settings != nil {
+		on, err := s.settings.CoalitionScanEnabled(ctx)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		stats, err := s.coalitions.Stats(ctx)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		data["Coalitions"] = coalitionStatsView{On: on, CoalitionStats: stats}
+	}
 
 	games, err := s.games.MyGames(ctx)
 	if err != nil {
@@ -137,8 +157,8 @@ func gameViews(l i18n.Lang, games []supremacy.Game) []gameView {
 			Players:  g.NrOfPlayers,
 			Language: g.Language,
 			PlayerID: g.PlayerID,
-			Started:  unixTime(g.StartOfGame),
-			Joined:   unixTime(g.JoinTime),
+			Started:  g.Started(),
+			Joined:   g.Joined(),
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Started.After(out[j].Started) })
@@ -157,16 +177,6 @@ func gameState(l i18n.Lang, state string) string {
 		return l.T("gamestate.finished")
 	}
 	return state
-}
-
-// unixTime разбирает время игры: секунды строкой, ноль и мусор означают
-// «неизвестно».
-func unixTime(s string) time.Time {
-	sec, err := strconv.ParseInt(s, 10, 64)
-	if err != nil || sec <= 0 {
-		return time.Time{}
-	}
-	return time.Unix(sec, 0)
 }
 
 // mapShape — одна провинция на рисунке карты. Ни заливки, ни обводки здесь
@@ -965,6 +975,8 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		"Premium": nil, "Banned": nil, "Roster": nil,
 		// AlliancesPending — сколько игроков партии воркер ещё не спросил.
 		"AlliancesPending": 0,
+		// Pairs — кто из игроков этой партии уже союзничал раньше.
+		"Pairs": nil,
 		// Ours — играет ли общий аккаунт в этой партии. От этого зависит,
 		// как мы смотрим на неё: в свою заходим игроком по кнопке, в чужую
 		// — наблюдателем и сразу, потому что входом в партию это не считается.
@@ -985,9 +997,13 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		s.render(w, r, http.StatusOK, "game", data)
 		return
 	}
-	for _, g := range gameViews(lang, games) {
-		if g.ID == gameID {
-			view := g
+	// mine — сама партия из списка своих, а не только её вид: архиву
+	// коалиций нужна скорость, а её вид не несёт.
+	var mine *supremacy.Game
+	for i, g := range games {
+		if g.GameID == gameID {
+			mine = &games[i]
+			view := gameViews(lang, []supremacy.Game{g})[0]
 			data["Game"] = &view
 			data["Ours"] = true
 			break
@@ -1109,6 +1125,23 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		}
 		sides.Alliances = alliances
 		data["AlliancesPending"] = pending
+
+		// Коалиции этой партии оседают в архиве: состояние всё равно перед
+		// глазами. Сведения о партии берём откуда есть — у своей они из
+		// списка своих, у чужой из ответа сайта.
+		about := game
+		if about == nil {
+			about = mine
+		}
+		s.rememberCoalitions(ctx, about, state)
+
+		// И сразу обратный вопрос к архиву: кто из здешних уже союзничал.
+		pairs, err := s.coalitionPairs(r, state, sides)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		data["Pairs"] = pairs
 
 		if geo, err := s.games.MapGeometry(ctx, state.MapID); err != nil {
 			s.log.Warn("очертания карты", "gameID", gameID, "mapID", state.MapID, "err", err)

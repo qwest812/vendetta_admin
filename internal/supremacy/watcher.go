@@ -53,11 +53,19 @@ type SeenStore interface {
 }
 
 // Watcher раз в interval смотрит лобби и сообщает о подходящих играх.
+// gameQueue — куда складывать увиденные партии для дальнейшего разбора.
+// Сейчас это архив коалиций. Необязателен: без него воркер просто смотрит
+// лобби, как и раньше.
+type gameQueue interface {
+	Enqueue(ctx context.Context, games []Game)
+}
+
 type Watcher struct {
 	client   gameLister
 	log      *slog.Logger
 	notifier Notifier
 	store    SeenStore
+	queue    gameQueue
 	titles   []string
 	interval time.Duration
 
@@ -121,6 +129,10 @@ func NewWatcher(c gameLister, titles []string, interval time.Duration, log *slog
 		now:      time.Now,
 	}
 }
+
+// Feed подключает очередь на разбор. Лобби воркер и так опрашивает раз
+// в минуту — второй такой опрос заводить незачем.
+func (w *Watcher) Feed(q gameQueue) { w.queue = q }
 
 // Run крутится до отмены контекста. Первый проход делает сразу, не дожидаясь
 // первого тика.
@@ -207,6 +219,13 @@ func (w *Watcher) poll(ctx context.Context) error {
 	}
 
 	now := w.now()
+
+	// Очередь берёт всё лобби, а не только подходящее под фильтр названий:
+	// фильтр — про то, о чём сообщать человеку, а архив коалиций собирает
+	// про всех. Уже известные партии очередь пропустит сама.
+	if w.queue != nil {
+		w.queue.Enqueue(ctx, games)
+	}
 
 	// Чистка кеша некритична: не вышла — просто попробуем в следующий раз.
 	if n, err := w.store.Forget(ctx, now.Add(-seenRetention)); err != nil {

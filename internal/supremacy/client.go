@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -148,11 +149,69 @@ type Game struct {
 	Ranked      string `json:"ranked"`
 	StartOfGame string `json:"startofgame2"`
 	MinRank     string `json:"minRank"`
+	// TimeScale — во сколько игровое время медленнее ускоренного предела:
+	// 1 у обычной партии, 0.25 у «[Speed]», 0.1 у «[Event]».
+	TimeScale looseFloat `json:"timeScale"`
 
 	// Приходят только в списке своих игр: наш номер в партии и когда мы
 	// в неё вошли. У игр из лобби они пустые.
 	PlayerID string `json:"playerID"`
 	JoinTime string `json:"joinTime"`
+}
+
+// looseFloat — число, которое игра шлёт то так, то эдак: в списке лобби
+// timeScale приходит строкой «0.25», а в свойствах одной партии — числом
+// 0.25. Один и тот же ключ, два разных вида, и выбирать не нам.
+type looseFloat float64
+
+func (n *looseFloat) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	if s == "" || s == "null" {
+		*n = 0
+		return nil
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return err
+	}
+	*n = looseFloat(f)
+	return nil
+}
+
+// Speed — во сколько раз партия быстрее обычной: 1, 2, 4, 10. Игра называет
+// обратную величину, а считать и группировать удобнее по скорости: «в x4»
+// читается, «в 0.25» — нет.
+//
+// Округление здесь не косметика. Игра шлёт timeScale приближённо — у x10 это
+// 0.10000000149011612, и деление даёт 9.99999985. По такой скорости партии
+// группируются в аналитике, и без округления одна и та же x10 разъезжалась бы
+// на несколько групп.
+//
+// Ноль у timeScale означает, что поля не было: такую партию считаем обычной —
+// это худшее, что может случиться от догадки.
+func (g Game) Speed() float64 {
+	if g.TimeScale <= 0 {
+		return 1
+	}
+	speed := math.Round(1 / float64(g.TimeScale))
+	if speed < 1 {
+		return 1
+	}
+	return speed
+}
+
+// Started и Joined — время начала партии и нашего входа в неё. Игра шлёт
+// секунды строкой; ноль и мусор одинаково означают «неизвестно», и разбирать
+// это стоит здесь, у самой партии, а не у каждого, кто её показывает.
+func (g Game) Started() time.Time { return unixSeconds(g.StartOfGame) }
+func (g Game) Joined() time.Time  { return unixSeconds(g.JoinTime) }
+
+func unixSeconds(s string) time.Time {
+	sec, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || sec <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(sec, 0)
 }
 
 // PlayURL — ссылка, по которой в браузере открывается игра. Конкретную игру

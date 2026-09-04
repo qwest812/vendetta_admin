@@ -31,7 +31,12 @@ type Server struct {
 	// gamePlayers — что игра рассказала про игроков при заходе в партию:
 	// ник и бан. Пишется на каждом заходе, читается в карточке игрока.
 	gamePlayers *repo.GamePlayers
-	tasks       *repo.GameTasks
+	// coalitions — архив «кто с кем союзничал»: очередь обхода и то,
+	// что в ней нашлось. settings — общие переключатели, из них раздел
+	// берёт один: включён ли обход.
+	coalitions *repo.Coalitions
+	settings   *repo.Settings
+	tasks      *repo.GameTasks
 	// heroEvery — как часто воркер жмёт кнопку Мейв; показывается на
 	// странице партии, чтобы обещание в интерфейсе не расходилось с делом.
 	heroEvery time.Duration
@@ -63,6 +68,9 @@ type Deps struct {
 	// Tasks — что админка делает в партиях сама, и HeroEvery — как часто.
 	Tasks     *repo.GameTasks
 	HeroEvery time.Duration
+	// Coalitions — архив коалиций, Settings — общие переключатели админки.
+	Coalitions *repo.Coalitions
+	Settings   *repo.Settings
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
 	// CookieSecure — ставить ли кукам флаг Secure. Тот же, что у сессии.
@@ -78,6 +86,7 @@ func NewServer(d Deps) (*Server, error) {
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
 		games: d.Games, alliances: d.Alliances, gamePlayers: d.GamePlayers,
+		coalitions: d.Coalitions, settings: d.Settings,
 		tasks: d.Tasks, heroEvery: d.HeroEvery,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}
@@ -179,6 +188,9 @@ func (s *Server) Handler() http.Handler {
 
 	// Только рут: он один жмёт кнопки в чужой партии от имени общего
 	// аккаунта, выдаёт доступ к разделу и удаляет пользователей и карточки.
+	// Сбор коалиций ходит в игру от общего аккаунта, поэтому и рубильник
+	// у него рутовый. Роут стоит раньше /games/{id}: он точнее.
+	mux.Handle("POST /games/coalitions", root(auth.VerifyCSRF(http.HandlerFunc(s.coalitionScanToggle))))
 	mux.Handle("POST /games/{id}/hero", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroToggle))))
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
 	mux.Handle("POST /users/{id}/games", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetGamesAccess))))
