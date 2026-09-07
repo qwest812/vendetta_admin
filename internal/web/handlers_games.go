@@ -675,7 +675,7 @@ func (s *Server) gameAlliances(ctx context.Context, state *supremacy.GameState,
 func allianceRows(roster []supremacy.GameLogin, at time.Time) []domain.Alliance {
 	out := make([]domain.Alliance, 0, len(roster))
 	for _, l := range roster {
-		if l.SiteUserID == "" {
+		if !l.Known() {
 			continue
 		}
 		row := domain.Alliance{SiteUserID: l.SiteUserID, CheckedAt: &at}
@@ -887,7 +887,7 @@ func (s *Server) rosterViews(r *http.Request, roster []supremacy.GameLogin) ([]r
 
 	ids := make([]string, 0, len(roster))
 	for _, l := range roster {
-		if l.SiteUserID != "" {
+		if l.Known() {
 			ids = append(ids, l.SiteUserID)
 		}
 	}

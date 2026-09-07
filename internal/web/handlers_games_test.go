@@ -533,6 +533,9 @@ func TestAllianceRows(t *testing.T) {
 		{Login: "Vakyla", SiteUserID: "2953349", AllianceID: "11781", AllianceName: "F L O W"},
 		{Login: "MigoV", SiteUserID: "11075095", AllianceID: "0"},
 		{Login: "без номера"},
+		// Удалённый аккаунт: сайт шлёт ему номер «0». Такой записи быть
+		// не должно — иначе все удалённые слипаются в одного игрока.
+		{Login: "Deleted User", SiteUserID: "0", AllianceID: "0"},
 	}, at)
 
 	if len(rows) != 2 {

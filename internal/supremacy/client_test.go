@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -145,6 +146,143 @@ func TestParseMyGames(t *testing.T) {
 			t.Errorf("%s = %q, ожидалось %q", tt.name, tt.got, tt.want)
 		}
 	}
+}
+
+// Те же поля игра шлёт и числами — так приходит список своих игр с живого
+// аккаунта. Раньше на этом падал разбор всего списка, и игр не было ни одной.
+func TestParseMyGamesNumbers(t *testing.T) {
+	const raw = `[{"@c":"hup.model.games.Game","properties":{` +
+		`"gameID":10867066,"startofgame2":1785920128,"nrofplayers":31,` +
+		`"openSlots":0,"dayofgame":6,"language":"ru",` +
+		`"title":"[Speed] - The Great War","state":"running","timeScale":0.25,` +
+		`"playerID":32,"joinTime":1785920263,"isSystemGame":true}}]`
+
+	games, err := parseMyGames([]byte(raw))
+	if err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+	if len(games) != 1 {
+		t.Fatalf("игр = %d, ожидалась 1", len(games))
+	}
+
+	g := games[0]
+	for _, tt := range []struct{ name, got, want string }{
+		{"gameID", g.GameID, "10867066"},
+		{"title", g.Title, "[Speed] - The Great War"},
+		{"state", g.State, "running"},
+		{"день", g.DayOfGame, "6"},
+		{"игроков", g.NrOfPlayers, "31"},
+		{"playerID", g.PlayerID, "32"},
+	} {
+		if tt.got != tt.want {
+			t.Errorf("%s = %q, ожидалось %q", tt.name, tt.got, tt.want)
+		}
+	}
+	if got := g.Started().Unix(); got != 1785920128 {
+		t.Errorf("начало партии = %d, ожидалось 1785920128", got)
+	}
+	if got := g.Speed(); got != 4 {
+		t.Errorf("скорость = %v, ожидалась 4", got)
+	}
+}
+
+// Состав партии сайт отдаёт медленно — партию на 500 игроков секунд
+// двадцать, — поэтому ответ живёт в кэше. Проверяем без сети: транспорт
+// клиента всегда отказывает, значит всё, что вернулось, пришло из кэша.
+func TestGameCache(t *testing.T) {
+	c := newOfflineClient()
+	c.games = map[string]*gameEntry{"10875491": cachedGame(time.Now())}
+
+	game, roster, err := c.Game(context.Background(), "10875491")
+	if err != nil {
+		t.Fatalf("свежий состав должен браться из кэша: %v", err)
+	}
+	if game.Title != "The Great War - 500 players" || len(roster) != 1 {
+		t.Fatalf("из кэша пришло %+v, состав %+v", game, roster)
+	}
+
+	// Партию отдаём копией: страница, поправившая её у себя, не должна
+	// испортить ответ следующей.
+	game.Title = "чужая правка"
+	again, _, err := c.Game(context.Background(), "10875491")
+	if err != nil {
+		t.Fatalf("повторный вопрос: %v", err)
+	}
+	if again.Title != "The Great War - 500 players" {
+		t.Errorf("кэш испорчен снаружи: %+v", again)
+	}
+}
+
+// Протухший ответ спрашивается заново — а сети нет, значит и ошибка.
+// Молча отдать вчерашний состав было бы хуже: кланы на карте разъедутся
+// с настоящими, и понять этого будет нельзя.
+func TestGameCacheExpires(t *testing.T) {
+	c := newOfflineClient()
+	c.games = map[string]*gameEntry{"10875491": cachedGame(time.Now().Add(-rosterTTL - time.Minute))}
+
+	if _, _, err := c.Game(context.Background(), "10875491"); err == nil {
+		t.Error("протухший состав должен спрашиваться у сайта заново")
+	}
+}
+
+// Пока одну партию спрашивают, второй спрашивающий ждёт — но не дольше,
+// чем нужен его собственной странице.
+func TestGameCacheWaitsUnderContext(t *testing.T) {
+	c := newOfflineClient()
+	entry := cachedGame(time.Now())
+	entry.busy <- struct{}{} // партию уже кто-то спрашивает
+	c.games = map[string]*gameEntry{"10875491": entry}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, _, err := c.Game(ctx, "10875491"); !errors.Is(err, context.Canceled) {
+		t.Errorf("ожидание = %v, ожидалась отмена", err)
+	}
+}
+
+// Протухшие ячейки выбрасываются, но не те, что прямо сейчас заполняют:
+// у них ещё нет времени ответа, и по нему они выглядят древними.
+func TestGameEntrySweep(t *testing.T) {
+	c := newOfflineClient()
+	c.games = map[string]*gameEntry{
+		"свежая":     cachedGame(time.Now()),
+		"протухшая":  cachedGame(time.Now().Add(-rosterTTL - time.Minute)),
+		"в процессе": {busy: make(chan struct{}, 1)},
+	}
+
+	c.gameEntry("новая")
+
+	for _, id := range []string{"свежая", "в процессе", "новая"} {
+		if _, ok := c.games[id]; !ok {
+			t.Errorf("ячейка %q пропала", id)
+		}
+	}
+	if _, ok := c.games["протухшая"]; ok {
+		t.Error("протухшая ячейка осталась в кэше")
+	}
+}
+
+func cachedGame(at time.Time) *gameEntry {
+	return &gameEntry{
+		busy:   make(chan struct{}, 1),
+		game:   &Game{GameID: "10875491", Title: "The Great War - 500 players"},
+		logins: []GameLogin{{Login: "Vakyla", SiteUserID: "2953349"}},
+		at:     at,
+	}
+}
+
+// newOfflineClient — клиент, которому запрещено ходить в сеть: всё, что
+// он отдал, он взял из кэша.
+func newOfflineClient() *Client {
+	c := NewClient("user", "pass", "ru", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	c.http = &http.Client{Transport: offlineTransport{}}
+	return c
+}
+
+type offlineTransport struct{}
+
+func (offlineTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("сети нет")
 }
 
 // Лобби отдаёт result объектом, и его формат сюда попасть не должен:
@@ -603,6 +741,39 @@ func TestParseGameLogins(t *testing.T) {
 	// «0» у сайта означает «ни в каком клане», и за клан это считать нельзя.
 	if res.Logins[1].InClan() {
 		t.Errorf("игрок без клана = %+v", res.Logins[1])
+	}
+}
+
+// Удалённый игрок остаётся в составе партии, но siteUserID и allianceID
+// приходят у него нулём-числом вместо строки. В партии на 500 человек такой
+// один ронял разбор всего состава — из-за него не читалась вся партия.
+func TestParseGameLoginsDeletedUser(t *testing.T) {
+	const body = `{"logins": [
+	   {"login": "Fanuel Mota", "siteUserID": "1175522", "allianceID": "453796",
+	    "allianceName": "ASSEMBLEIA GERAL DO BRASIL", "teamID": "0", "playerLevel": 18},
+	   {"login": "Deleted User", "siteUserID": 0, "allianceID": 0,
+	    "faction": "0", "teamID": "0", "achievementTitleItemID": 0}
+	 ]}`
+
+	var res struct {
+		Logins []GameLogin `json:"logins"`
+	}
+	if err := json.Unmarshal([]byte(body), &res); err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+	if len(res.Logins) != 2 {
+		t.Fatalf("состав = %+v", res.Logins)
+	}
+	if got := res.Logins[0]; !got.InClan() || got.Level != 18 {
+		t.Errorf("живой игрок = %+v", got)
+	}
+	gone := res.Logins[1]
+	if gone.SiteUserID != "0" || gone.AllianceID != "0" {
+		t.Errorf("удалённый игрок = %+v", gone)
+	}
+	// Ноль клана у удалённого — такое же «ни в каком», как и строковый «0».
+	if gone.InClan() {
+		t.Errorf("удалённый игрок в клане: %+v", gone)
 	}
 }
 

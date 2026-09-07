@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -63,6 +64,9 @@ type Client struct {
 	// maps — очертания карт, скачанные с static-сервера. Файл на карту один
 	// и не меняется, так что держим его до перезапуска.
 	maps map[string]*MapGeometry
+	// games — ответы сайта о партиях: сведения и состав. Живут недолго,
+	// см. rosterTTL.
+	games map[string]*gameEntry
 }
 
 // session — то, что даёт странице право подписывать вызовы API.
@@ -161,6 +165,70 @@ type Game struct {
 	// в неё вошли. У игр из лобби они пустые.
 	PlayerID string `json:"playerID"`
 	JoinTime string `json:"joinTime"`
+}
+
+// UnmarshalJSON — разбор, терпимый к тому, что игра шлёт число вместо строки.
+// Подробности у looseUnmarshal.
+func (g *Game) UnmarshalJSON(b []byte) error {
+	// plain — та же структура без этого метода, иначе разбор зациклится.
+	type plain Game
+	return looseUnmarshal(b, (*plain)(g))
+}
+
+// looseUnmarshal заворачивает в кавычки числа, попавшие в строковые поля,
+// и только потом разбирает. Один и тот же ключ игра шлёт то так, то эдак:
+// в лобби startofgame2 приходит как "1785920128", а в списке своих игр —
+// как 1785920128; siteUserID и allianceID у обычного игрока строки, а у
+// удалённого — ноль числом. Одна такая мелочь роняла разбор целиком:
+// не поле терялось, а весь список игр или весь состав партии.
+//
+// Чинить это здесь дешевле, чем заводить свой тип на каждый капризный ключ:
+// поля структур остаются строками, а новые ключи лечатся сами. Числовые
+// поля (playerLevel, timeScale) не трогаем — их разбирают как числа.
+func looseUnmarshal(b []byte, v any) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(b, &fields); err != nil {
+		return err
+	}
+
+	asString := stringFields(reflect.TypeOf(v).Elem())
+	for k, raw := range fields {
+		if asString[k] && isJSONNumber(raw) {
+			fields[k] = strconv.AppendQuote(nil, string(raw))
+		}
+	}
+
+	normalized, err := json.Marshal(fields)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(normalized, v)
+}
+
+// stringFields — имена ключей json, которые структура держит строками.
+func stringFields(t reflect.Type) map[string]bool {
+	out := make(map[string]bool, t.NumField())
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.Type.Kind() != reflect.String {
+			continue
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "" {
+			name = f.Name
+		}
+		if name != "-" {
+			out[name] = true
+		}
+	}
+	return out
+}
+
+func isJSONNumber(v json.RawMessage) bool {
+	if len(v) == 0 {
+		return false
+	}
+	return v[0] == '-' || (v[0] >= '0' && v[0] <= '9')
 }
 
 // looseFloat — число, которое игра шлёт то так, то эдак: в списке лобби
@@ -317,12 +385,110 @@ type GameLogin struct {
 // и отличить его от пустоты стоит здесь, а не у каждого вызывающего.
 func (l GameLogin) InClan() bool { return l.AllianceID != "" && l.AllianceID != "0" }
 
+// Known — настоящий ли это игрок сайта. У удалённого аккаунта siteUserID
+// приходит нулём, и спрашивать про такого клан или заводить ему карточку
+// нечего: все удалённые в партии слились бы в одного игрока с номером «0».
+// В составе партии они при этом остаются и место в ней занимают.
+func (l GameLogin) Known() bool { return l.SiteUserID != "" && l.SiteUserID != "0" }
+
+// UnmarshalJSON — тот же терпимый разбор, что и у Game: у удалённых игроков
+// siteUserID и allianceID приходят нулём-числом вместо строки.
+func (l *GameLogin) UnmarshalJSON(b []byte) error {
+	type plain GameLogin
+	return looseUnmarshal(b, (*plain)(l))
+}
+
 // Game спрашивает у сайта одну партию по её номеру — любую, не только свою.
 // Отвечает сайт из общего списка партий, поэтому заходом в партию это
 // не считается и работает для чужих игр тоже: по номеру можно узнать
 // название, сценарий, день, число игроков и весь состав с кланами,
 // ничего в партию не отправляя.
+//
+// Ответ держим в кэше: сайт отдаёт его медленно и тем медленнее, чем
+// больше партия. Партию на 500 игроков он собирает секунд двадцать,
+// и всё это время страница стоит и ждёт. Подробности у rosterTTL.
 func (c *Client) Game(ctx context.Context, gameID string) (*Game, []GameLogin, error) {
+	entry := c.gameEntry(gameID)
+
+	// Спрашиваем по одному на партию: иначе двое, открывшие её разом,
+	// ждут по двадцать секунд каждый и дёргают сайт дважды вместо раза.
+	// Ждём под ctx, а не на мьютексе: если страница, стоящая второй,
+	// уже никому не нужна, держать её незачем.
+	select {
+	case entry.busy <- struct{}{}:
+		defer func() { <-entry.busy }()
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	}
+
+	if game, logins, ok := entry.fresh(); ok {
+		return game, logins, nil
+	}
+
+	game, logins, err := c.fetchGame(ctx, gameID)
+	if err != nil {
+		return nil, nil, err
+	}
+	entry.game, entry.logins, entry.at = game, logins, time.Now()
+
+	// Отдаём через тот же fresh, что и попадание в кэш: первый
+	// спрашивающий должен получить ровно то же, что и все следующие.
+	game, logins, _ = entry.fresh()
+	return game, logins, nil
+}
+
+// rosterTTL — сколько ответ сайта о партии считается свежим. Полчаса тут
+// не осторожность, а осознанный размен: за это время в партии успевает
+// смениться разве что чей-то клан, а стоит каждый такой вопрос двадцати
+// секунд ожидания на самой большой партии.
+const rosterTTL = 30 * time.Minute
+
+// gameEntry — ячейка кэша под одну партию. Заодно выбрасываем протухшие:
+// ячейка живёт до следующего вопроса о любой партии, а вопросов этих
+// столько же, сколько открытий страницы.
+func (c *Client) gameEntry(gameID string) *gameEntry {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.games == nil {
+		c.games = make(map[string]*gameEntry)
+	}
+	for id, e := range c.games {
+		// Пустое время — ячейка, которую прямо сейчас заполняют: её
+		// выбрасывать нельзя, иначе спрашивающий останется ни с чем.
+		if id != gameID && !e.at.IsZero() && time.Since(e.at) > rosterTTL {
+			delete(c.games, id)
+		}
+	}
+	if e, ok := c.games[gameID]; ok {
+		return e
+	}
+	e := &gameEntry{busy: make(chan struct{}, 1)}
+	c.games[gameID] = e
+	return e
+}
+
+// gameEntry — что сайт рассказал об одной партии и когда. Читают и пишут
+// его под busy, поэтому своего замка полям не нужно.
+type gameEntry struct {
+	busy   chan struct{}
+	game   *Game
+	logins []GameLogin
+	at     time.Time
+}
+
+// fresh отдаёт ответ, если он ещё не протух. Партию отдаём копией — она
+// маленькая, а вот делить один указатель между страницами не стоит. Состав
+// общий: он только читается, как и очертания карты.
+func (e *gameEntry) fresh() (*Game, []GameLogin, bool) {
+	if e.game == nil || time.Since(e.at) > rosterTTL {
+		return nil, nil, false
+	}
+	game := *e.game
+	return &game, e.logins, true
+}
+
+func (c *Client) fetchGame(ctx context.Context, gameID string) (*Game, []GameLogin, error) {
 	raw, err := c.call(ctx, "getGame", []param{{"gameID", gameID}})
 	if err != nil {
 		return nil, nil, err
