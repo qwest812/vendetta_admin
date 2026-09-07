@@ -581,3 +581,93 @@ func TestRosterOrder(t *testing.T) {
 		}
 	}
 }
+
+// Режим «Топ кланов» красит только тех, чей клан стоит в верхушке рейтинга,
+// и цвет раздаёт по местам: первый номер должен выглядеть одинаково во всех
+// партиях, иначе сравнивать соседние партии глазами нечем.
+func TestGameMapTopAlliances(t *testing.T) {
+	geo := &supremacy.MapGeometry{
+		Width: 100, Height: 50,
+		Land: map[int][]supremacy.Point{
+			1: {{X: 0, Y: 0}, {X: 10, Y: 0}},
+			2: {{X: 20, Y: 0}, {X: 30, Y: 0}},
+			3: {{X: 40, Y: 0}, {X: 50, Y: 0}},
+		},
+	}
+	state := &supremacy.GameState{
+		Players: map[int]supremacy.Player{
+			1: {ID: 1, Nation: "Греция"},
+			2: {ID: 2, Nation: "Франция"},
+			3: {ID: 3, Nation: "Швеция"},
+		},
+		Provinces: []supremacy.Province{
+			{ID: 1, Name: "Афины", Owner: 1},
+			{ID: 2, Name: "Париж", Owner: 2},
+			{ID: 3, Name: "Стокгольм", Owner: 3},
+		},
+	}
+	sides := &gameSides{
+		Alliances: map[int]domain.Alliance{
+			// Второе место в рейтинге, первое и третье — не из топа.
+			1: {SiteUserID: "1", ID: "127956", Name: "Pride of LIONS", Tag: "*SNG*"},
+			2: {SiteUserID: "2", ID: "212184", Name: "Operation Blitzkrieg", Tag: "OP BG"},
+			3: {SiteUserID: "3", ID: "843930", Name: "VEN.DETTA", Tag: "-V.D-"},
+		},
+		Top: map[string]domain.TopAlliance{
+			"212184": {ID: "212184", Rank: 1, Name: "Operation Blitzkrieg", Tag: "OP BG"},
+			"127956": {ID: "127956", Rank: 2, Name: "Pride of LIONS", Tag: "*SNG*"},
+		},
+	}
+
+	view := gameMap(i18n.RU, geo, state, sides, 0)
+
+	// Цвет — по месту в рейтинге, а не по владениям и не по порядку
+	// игроков в партии: первое место берёт первый цвет палитры.
+	first, second, none := view.Shapes[1], view.Shapes[0], view.Shapes[2]
+	if !strings.Contains(first.Class, "top") || string(first.TopColor) != mapPalette[0] {
+		t.Errorf("первое место: class=%q top=%q", first.Class, first.TopColor)
+	}
+	if !strings.Contains(second.Class, "top") || string(second.TopColor) != mapPalette[1] {
+		t.Errorf("второе место: class=%q top=%q", second.Class, second.TopColor)
+	}
+	// Клан не из топа в этом режиме ничем не отличается от игрока без клана:
+	// пометка означает «из первой десятки», а не «в каком-то клане».
+	if strings.Contains(none.Class, "top") || none.TopColor != "" {
+		t.Errorf("клан не из топа: class=%q top=%q", none.Class, none.TopColor)
+	}
+	// Место в рейтинге ещё и словами: по цвету номер не восстановить.
+	if !strings.Contains(first.Title, "1 место в рейтинге кланов") {
+		t.Errorf("подсказка = %q", first.Title)
+	}
+
+	if len(view.Top) != 2 {
+		t.Fatalf("легенда топа: %d строк", len(view.Top))
+	}
+	if view.Top[0].Rank != 1 || view.Top[0].Players != 1 || view.Top[0].Provinces != 1 {
+		t.Errorf("первая строка легенды = %+v", view.Top[0])
+	}
+	if view.Top[1].Name != "Pride of LIONS" || view.Top[1].Tag != "*SNG*" {
+		t.Errorf("вторая строка легенды = %+v", view.Top[1])
+	}
+}
+
+// Без снимка рейтинга режим топа просто пуст: пометка «из топа» без топа
+// означала бы, что в партии нет никого известного, а это неправда.
+func TestGameMapTopWithoutSnapshot(t *testing.T) {
+	geo := &supremacy.MapGeometry{
+		Width: 10, Height: 10,
+		Land: map[int][]supremacy.Point{1: {{X: 0, Y: 0}, {X: 1, Y: 1}}},
+	}
+	state := &supremacy.GameState{
+		Players:   map[int]supremacy.Player{1: {ID: 1, Nation: "Греция"}},
+		Provinces: []supremacy.Province{{ID: 1, Name: "Афины", Owner: 1}},
+	}
+	sides := &gameSides{Alliances: map[int]domain.Alliance{
+		1: {SiteUserID: "1", ID: "212184", Name: "Operation Blitzkrieg"},
+	}}
+
+	view := gameMap(i18n.RU, geo, state, sides, 0)
+	if len(view.Top) != 0 || strings.Contains(view.Shapes[0].Class, "top") {
+		t.Errorf("топ без снимка: легенда %d, class=%q", len(view.Top), view.Shapes[0].Class)
+	}
+}

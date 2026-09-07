@@ -420,6 +420,10 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
    намеренно: он не спорит ни с жёлтой обводкой своих провинций, ни с красным
    и зелёным из личных списков. */
 #map-premium:checked ~ .game-map polygon.premium { fill: #7d63a8; }
+/* Режим «Топ кланов»: цвет тоже переменной, но раздаётся он не по владениям,
+   а по месту в рейтинге — первый номер должен быть одного цвета во всех
+   партиях. */
+#map-top:checked ~ .game-map polygon.top { fill: var(--top); }
 .game-map text {
     font: 600 34px system-ui, -apple-system, "Segoe UI", sans-serif;
     fill: rgba(255, 255, 255, .92);
@@ -464,7 +468,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-clans:checked ~ .map-tabs label[for="map-clans"],
 #map-sides:checked ~ .map-tabs label[for="map-sides"],
 #map-teams:checked ~ .map-tabs label[for="map-teams"],
-#map-premium:checked ~ .map-tabs label[for="map-premium"] {
+#map-premium:checked ~ .map-tabs label[for="map-premium"],
+#map-top:checked ~ .map-tabs label[for="map-top"] {
     border-color: var(--accent);
     color: var(--text);
 }
@@ -473,7 +478,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-clans:focus-visible ~ .map-tabs label[for="map-clans"],
 #map-sides:focus-visible ~ .map-tabs label[for="map-sides"],
 #map-teams:focus-visible ~ .map-tabs label[for="map-teams"],
-#map-premium:focus-visible ~ .map-tabs label[for="map-premium"] { outline: 2px solid var(--accent); }
+#map-premium:focus-visible ~ .map-tabs label[for="map-premium"],
+#map-top:focus-visible ~ .map-tabs label[for="map-top"] { outline: 2px solid var(--accent); }
 
 /* Легенда и пояснение — свои у каждого режима, показывается только пара
    выбранного. */
@@ -481,7 +487,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-clans:checked ~ .pane-clans,
 #map-sides:checked ~ .pane-sides,
 #map-teams:checked ~ .pane-teams,
-#map-premium:checked ~ .pane-premium { display: block; }
+#map-premium:checked ~ .pane-premium,
+#map-top:checked ~ .pane-top { display: block; }
 
 /* Легенда карты: цвет раздаётся кланам на партию, поэтому она идёт сразу
    под картой и читается как её продолжение. Строки в ряд и с переносом —
@@ -515,6 +522,13 @@ a.button.waiting, a.waiting { opacity: .45; pointer-events: none; }
 
 /* Число проверок карты правится прямо в строке пользователя: поле узкое,
    счёт там двузначный. */
+/* Слово о только что изменённой настройке: подтверждение или отказ. Стоит
+   там же, где меняли, — у поля проверок или в конце строки. Мелкое и без
+   рамки: это не сообщение об ошибке страницы, а подпись к одному нажатию. */
+.row-said { display: inline-block; margin-left: 8px; font-size: 12px; white-space: nowrap; }
+.row-said.done { color: var(--ok); }
+.row-said.bad { color: var(--danger); }
+
 .inline-checks { display: flex; gap: 6px; align-items: center; }
 .inline-checks input { width: 68px; }
 

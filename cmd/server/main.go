@@ -62,6 +62,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	settings := repo.NewSettings(pool)
 	checked := repo.NewCheckedGames(pool)
 	mapChecks := repo.NewMapChecks(pool)
+	topAlliances := repo.NewTopAlliances(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -82,7 +83,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Enemies: enemies, Friends: friends, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
 		Coalitions: coalitions, Settings: settings, Checked: checked, Checks: mapChecks,
-		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
+		TopAlliances: topAlliances,
+		Health:       pool.Ping, CookieSecure: cfg.CookieSecure,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
 	// на проверку `== nil` не отвечает, и раздел счёл бы аккаунт настроенным.
@@ -133,6 +135,10 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// отвечает про одного игрока за раз. Очередь ему наполняют сами
 		// открытые партии, поэтому без них он молчит.
 		go supremacy.NewAllianceWatcher(s1914, alliances, cfg.S1914AllianceEvery, log).Run(ctx)
+
+		// Топ кланов, в отличие от них, ни от каких партий не зависит:
+		// он спрашивает рейтинг игры и сам решает, не пора ли обновиться.
+		go supremacy.NewTopWatcher(s1914, topAlliances, cfg.S1914TopEvery, log).Run(ctx)
 	}
 
 	httpSrv := &http.Server{

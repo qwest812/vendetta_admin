@@ -58,6 +58,38 @@ func TestPagesRender(t *testing.T) {
 			},
 		},
 		{
+			// Доступы: рут меняет их прямо в строке, поэтому у каждой формы
+			// есть и обычный action, и hx-post — и строка целится в себя.
+			name: "users/строка доступов",
+			page: "users",
+			user: root,
+			data: map[string]any{
+				"Users": []*domain.User{
+					{ID: 1, Nickname: "root", Role: domain.RoleRoot, IsActive: true},
+					{ID: 9, Nickname: "tester", Role: domain.RoleUser, IsActive: true,
+						GamesAccess: true, MapChecks: 5},
+				},
+				"Error": "", "FormEmail": "", "FormNickname": "", "FormRole": "user",
+			},
+			want: []string{
+				`hx-post="/users/9/checks"`, `hx-target="closest tr"`, `hx-swap="outerHTML"`,
+				`hx-post="/users/9/games"`, `hx-post="/users/9/role"`,
+				`hx-post="/users/9/active"`, `hx-post="/users/9/password"`,
+				// Удаление спрашивает через htmx: обычный onsubmit спорил бы
+				// с перехваченным submit.
+				`hx-confirm=`,
+				// Число проверок — из базы, поле подставляет именно его.
+				`value="5"`,
+				// Руту проверки не считают и доступ не снимают.
+				"всегда",
+				// 422 в ответе — не повод оставить строку прежней.
+				"htmx:beforeSwap",
+			},
+			// В обычной строке страницы говорить не о чем: сообщения
+			// приезжают только с ответом на нажатие.
+			deny: []string{"row-said"},
+		},
+		{
 			page: "profile",
 			data: map[string]any{
 				"Profile": &domain.User{
@@ -274,7 +306,8 @@ func TestPagesRender(t *testing.T) {
 				// Обе кнопки режимов и обе легенды на странице: переключает
 				// их css, поэтому в разметке они есть всегда.
 				`id="map-clans"`, `id="map-sides"`, `id="map-teams"`, `id="map-premium"`,
-				"Кланы", "Мои списки", "Коалиции", "Премиум",
+				`id="map-top"`,
+				"Кланы", "Мои списки", "Коалиции", "Премиум", "Топ кланов",
 				"Во врагах", "В друзьях",
 				// Коалиция — из игры: своё название, свой цвет, и своя
 				// помечается отдельно.
@@ -294,7 +327,50 @@ func TestPagesRender(t *testing.T) {
 				// Клан без цвета остаётся в легенде: на карте он серый,
 				// и узнать его больше неоткуда.
 				"Мелкий", "#4a5b68",
+				// Снимка рейтинга в этих данных нет, и режим топа объясняет
+				// пустоту сам: серая карта без пояснения читается как
+				// «в партии никого из топа».
+				"Топ кланов ещё не снимали",
 			},
+		},
+		{
+			// Легенда топа: место в рейтинге, цвет по этому месту и счёт
+			// игроков с провинциями. Без места строка не значит ничего —
+			// весь режим про то, кто в партии из первой десятки.
+			name: "game/легенда топа кланов",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID":   "10886819",
+				"Game":     &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
+				"Interval": 45 * time.Minute, "Ours": true,
+				"State": &supremacy.GameState{Day: 13},
+				"Map": &gameMapView{
+					Width: 100, Height: 50,
+					Shapes: []mapShape{{
+						Points: "0,0 10,0 10,10", Class: "clan top",
+						ClanColor: template.CSS(mapPalette[2]),
+						TopColor:  template.CSS(mapPalette[0]),
+						Title:     "Афины — Греция, 1 место в рейтинге кланов, Operation Blitzkrieg",
+					}},
+					Top: []topLegendView{
+						{ID: "212184", Rank: 1, Name: "Operation Blitzkrieg", Tag: "OP BG",
+							Color: mapPalette[0], Players: 3, Provinces: 17},
+					},
+				},
+				"TopAt":      time.Unix(1788984426, 0),
+				"TopKnown":   true,
+				"NotPlaying": true,
+			},
+			want: []string{
+				"Operation Blitzkrieg", "OP BG", "#1",
+				"3 игроков", "17 провинций",
+				// Цвет топа едет отдельной переменной: в режиме кланов
+				// у той же провинции цвет другой, и спорить они не должны.
+				"--top: " + mapPalette[0], "--clan: " + mapPalette[2],
+				"Рейтинг снят",
+			},
+			deny: []string{"Топ кланов ещё не снимали", "игроков из первой десятки"},
 		},
 		{
 			// Без игрового ID в профиле своей страны не найти — и об этом
@@ -909,5 +985,53 @@ func TestPlayerFormRequiresGameID(t *testing.T) {
 				t.Error("подсказка о необязательности ID устарела")
 			}
 		})
+	}
+}
+
+// Ответ на изменение настройки — это та же строка таблицы, но уже с тем,
+// что легло в базу, и со словом о том, что произошло. Проверяем оба конца:
+// удавшееся изменение и отказ, при котором набранное должно остаться в поле.
+func TestUserRowPartial(t *testing.T) {
+	pages, err := parseTemplates(i18n.RU)
+	if err != nil {
+		t.Fatalf("разбор шаблонов: %v", err)
+	}
+	user := &domain.User{ID: 9, Nickname: "tester", Role: domain.RoleUser,
+		IsActive: true, GamesAccess: true, MapChecks: 5}
+	row := func(extra map[string]any) string {
+		data := map[string]any{
+			"User": user, "Root": true, "Me": int64(1), "CSRFToken": "csrf", "Field": "",
+		}
+		for k, v := range extra {
+			data[k] = v
+		}
+		var buf bytes.Buffer
+		if err := pages["users"].ExecuteTemplate(&buf, "user-row", data); err != nil {
+			t.Fatalf("отрисовка: %v", err)
+		}
+		return buf.String()
+	}
+
+	// Обычная строка страницы: сказать не о чем, пока ничего не меняли.
+	if got := row(nil); strings.Contains(got, "row-said") || !strings.Contains(got, `value="5"`) {
+		t.Errorf("строка страницы = %s", got)
+	}
+
+	// Удалось: подтверждение стоит у того поля, которое меняли.
+	done := row(map[string]any{"Field": "checks", "Note": "сохранено"})
+	if !strings.Contains(done, `row-said done">сохранено`) {
+		t.Errorf("подтверждение = %s", done)
+	}
+
+	// Отказ: в поле остаётся набранное, а не сохранённое — иначе опечатка
+	// пропадает с глаз вместе с причиной отказа.
+	bad := row(map[string]any{
+		"Field": "checks", "Error": "так нельзя", "ChecksInput": "900",
+	})
+	if !strings.Contains(bad, `value="900"`) || !strings.Contains(bad, `row-said bad">так нельзя`) {
+		t.Errorf("отказ = %s", bad)
+	}
+	if strings.Contains(bad, `value="5"`) {
+		t.Errorf("набранное подменили сохранённым: %s", bad)
 	}
 }

@@ -38,6 +38,11 @@ type Config struct {
 	// Спрашивает он сайт игры, а не игровой сервер, поэтому заходом
 	// в партию это не считается и частить можно смелее.
 	S1914AllianceEvery time.Duration
+	// S1914TopEvery — как часто воркер проверяет, не протух ли снимок топа
+	// кланов. Не срок годности снимка: тот месяц и живёт в самом воркере,
+	// а проверка нужна чаще, иначе после простоя топ обновлялся бы
+	// не через месяц, а через месяц с хвостом.
+	S1914TopEvery time.Duration
 	// S1914CoalitionEvery — как часто обход берёт следующую порцию партий
 	// за коалициями. Не путать со сроком возврата в саму партию: тот
 	// считается от её скорости и живёт в воркере.
@@ -109,6 +114,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("S1914_ALLIANCE_INTERVAL: не чаще раза в минуту")
 	}
 	cfg.S1914AllianceEvery = alliances
+
+	top, err := time.ParseDuration(env("S1914_TOP_INTERVAL", "6h"))
+	if err != nil {
+		return nil, fmt.Errorf("S1914_TOP_INTERVAL: %w", err)
+	}
+	// Это только сверка даты снимка с часами: за рейтингом воркер сходит
+	// раз в месяц, чаще проверять просто нечего.
+	if top < time.Minute {
+		return nil, fmt.Errorf("S1914_TOP_INTERVAL: не чаще раза в минуту")
+	}
+	cfg.S1914TopEvery = top
 
 	coalitions, err := time.ParseDuration(env("S1914_COALITION_INTERVAL", "10m"))
 	if err != nil {

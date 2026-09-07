@@ -119,11 +119,13 @@
             <input class="map-mode" type="radio" name="map-mode" id="map-sides">
             <input class="map-mode" type="radio" name="map-mode" id="map-teams">
             <input class="map-mode" type="radio" name="map-mode" id="map-premium">
+            <input class="map-mode" type="radio" name="map-mode" id="map-top">
             <div class="map-tabs">
                 <label for="map-clans">{{t "nav.clans"}}</label>
                 <label for="map-sides">{{t "game.map.mine"}}</label>
                 <label for="map-teams">{{t "game.map.teams"}}</label>
                 <label for="map-premium">{{t "game.map.premium"}}</label>
+                <label for="map-top">{{t "game.map.top"}}</label>
             </div>
             {{/* Карта в собственных координатах игры: viewBox их и берёт,
                  а размер на странице задаёт css. */}}
@@ -133,7 +135,7 @@
                 <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
                 {{range .Map.Shapes}}
                     <polygon points="{{.Points}}" class="{{.Class}}"
-                             {{if or .ClanColor .TeamColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}"{{end}}><title>{{.Title}}</title></polygon>
+                             {{if or .ClanColor .TeamColor .TopColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}; --top: {{.TopColor}}"{{end}}><title>{{.Title}}</title></polygon>
                 {{end}}
                 {{/* Подписи поверх заливки: страна пишется один раз, посередине
                      своих владений. */}}
@@ -224,6 +226,39 @@
                 {{else}}
                     <p class="muted">
                         {{t "game.map.premium.empty"}}
+                    </p>
+                {{end}}
+            </div>
+
+            <div class="map-pane pane-top">
+                {{/* Три разных пустоты, и путать их нельзя: снимка ещё нет,
+                     снимок есть и никого из топа тут нет, и обычный случай
+                     с легендой. */}}
+                {{/* TopKnown отдельным флагом, а не проверкой времени:
+                     на нулевое время шаблон смотреть не умеет — у структуры
+                     в {{if}} всегда «истина». */}}
+                {{if .Map.Top}}
+                    <ul class="map-legend">
+                        {{range .Map.Top}}
+                            <li>
+                                <span class="swatch" style="background: {{if .Color}}{{.Color}}{{else}}#4a5b68{{end}}"></span>
+                                <b>#{{.Rank}}</b> {{.Name}}{{if .Tag}} <span class="muted">[{{.Tag}}]</span>{{end}}
+                                <span class="muted">— {{.Players}} {{t "game.map.top.players"}}, {{.Provinces}} {{t "game.map.top.provinces"}}</span>
+                            </li>
+                        {{end}}
+                    </ul>
+                    <p class="muted">
+                        {{t "game.map.top.note"}}
+                        {{if .TopKnown}} {{t "game.map.top.at" (datetime .TopAt)}}{{end}}
+                    </p>
+                {{else if .TopKnown}}
+                    <p class="muted">
+                        {{t "game.map.top.empty"}}
+                        {{t "game.map.top.at" (datetime .TopAt)}}
+                    </p>
+                {{else}}
+                    <p class="muted">
+                        {{t "game.map.top.none"}}
                     </p>
                 {{end}}
             </div>

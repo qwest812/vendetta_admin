@@ -127,26 +127,35 @@
 {{/* Архив коалиций и его рубильник. Обход ходит в игру от общего аккаунта
      проекта, поэтому и кнопка рутовая. */}}
 {{with .Coalitions}}
-<div class="card">
+    {{/* Карточка отдельным блоком: рубильник возвращает её же заново, вместе
+         со строкой состояния. Перезагружать ради одного переключателя всю
+         страницу незачем — за её списком партий мы ходим в игру. */}}
+    {{template "coalitions-card" (dict "C" . "CSRFToken" $.CSRFToken)}}
+{{end}}
+{{end}}
+{{end}}
+
+{{define "coalitions-card"}}
+{{$c := .C}}
+<div class="card" id="coalitions">
     <div class="card-head">
         <h1>{{t "coalitions.title"}}</h1>
         <div class="head-actions">
-            <form method="post" action="/games/coalitions">
-                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                <input type="hidden" name="on" value="{{if .On}}0{{else}}1{{end}}">
-                <button type="submit" {{if .On}}class="danger"{{end}}>
-                    {{if .On}}{{t "coalitions.stop"}}{{else}}{{t "coalitions.start"}}{{end}}
+            <form method="post" action="/games/coalitions"
+                  hx-post="/games/coalitions" hx-target="#coalitions" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="on" value="{{if $c.On}}0{{else}}1{{end}}">
+                <button type="submit" {{if $c.On}}class="danger"{{end}}>
+                    {{if $c.On}}{{t "coalitions.stop"}}{{else}}{{t "coalitions.start"}}{{end}}
                 </button>
             </form>
         </div>
     </div>
     <p class="muted">{{t "coalitions.note"}}</p>
     <p class="muted">
-        {{if .On}}{{t "coalitions.on"}}{{else}}{{t "coalitions.off"}}{{end}}
-        {{t "coalitions.stats" .Watched .Pending .Games .Members}}
-        {{if not .LastCheck.IsZero}}{{t "coalitions.last"}} {{datetime .LastCheck}}.{{end}}
+        {{if $c.On}}{{t "coalitions.on"}}{{else}}{{t "coalitions.off"}}{{end}}
+        {{t "coalitions.stats" $c.Watched $c.Pending $c.Games $c.Members}}
+        {{if not $c.LastCheck.IsZero}}{{t "coalitions.last"}} {{datetime $c.LastCheck}}.{{end}}
     </p>
 </div>
-{{end}}
-{{end}}
 {{end}}

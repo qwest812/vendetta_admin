@@ -29,7 +29,34 @@ func (s *Server) coalitionScanToggle(w http.ResponseWriter, r *http.Request) {
 	// остановка должна оставлять запись так же, как выдача доступа.
 	s.logAuditOn(r, "coalition_scan", "settings", 0, map[string]any{"on": on})
 
-	http.Redirect(w, r, "/games", http.StatusSeeOther)
+	// Без htmx подменять карточку в странице некому — возвращаемся в раздел.
+	if !hx(r) {
+		http.Redirect(w, r, "/games", http.StatusSeeOther)
+		return
+	}
+	// Состояние перечитывается из базы, а не берётся из того, что просили:
+	// показывать надо то, что записалось. Счётчики заодно приезжают свежие.
+	view, err := s.coalitionCard(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.renderPartial(w, r, "games", "coalitions-card",
+		map[string]any{"C": view, "CSRFToken": csrfToken(r)})
+}
+
+// coalitionCard собирает карточку архива: рубильник и счётчики. Одно место
+// на страницу и на ответ рубильника — иначе они разошлись бы.
+func (s *Server) coalitionCard(ctx context.Context) (coalitionStatsView, error) {
+	on, err := s.settings.CoalitionScanEnabled(ctx)
+	if err != nil {
+		return coalitionStatsView{}, err
+	}
+	stats, err := s.coalitions.Stats(ctx)
+	if err != nil {
+		return coalitionStatsView{}, err
+	}
+	return coalitionStatsView{On: on, CoalitionStats: stats}, nil
 }
 
 // rememberCoalitions кладёт коалиции открытой партии в архив. Состояние

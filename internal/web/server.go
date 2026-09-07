@@ -28,6 +28,9 @@ type Server struct {
 	// alliances — кеш кланов Supremacy: сайт игры отвечает про одного
 	// игрока за раз, а карту красят все сразу.
 	alliances *repo.Alliances
+	// topAlliances — снимок верхушки рейтинга кланов игры. Отдельно
+	// от alliances: там клан игрока, здесь место клана в рейтинге.
+	topAlliances *repo.TopAlliances
 	// gamePlayers — что игра рассказала про игроков при заходе в партию:
 	// ник и бан. Пишется на каждом заходе, читается в карточке игрока.
 	gamePlayers *repo.GamePlayers
@@ -67,6 +70,9 @@ type Deps struct {
 	Games gameSource
 	// Alliances — кеш кланов из самой Supremacy, по ним красится карта партии.
 	Alliances *repo.Alliances
+	// TopAlliances — верхушка рейтинга кланов: по ней карта отмечает,
+	// кто в партии играет за топовый клан.
+	TopAlliances *repo.TopAlliances
 	// GamePlayers — ники и баны игроков, увиденные при заходах в партии.
 	GamePlayers *repo.GamePlayers
 	// Tasks — что админка делает в партиях сама, и HeroEvery — как часто.
@@ -93,8 +99,9 @@ func NewServer(d Deps) (*Server, error) {
 	s := &Server{
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
-		games: d.Games, alliances: d.Alliances, gamePlayers: d.GamePlayers,
-		coalitions: d.Coalitions, settings: d.Settings, checked: d.Checked, checks: d.Checks,
+		games: d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
+		gamePlayers: d.GamePlayers,
+		coalitions:  d.Coalitions, settings: d.Settings, checked: d.Checked, checks: d.Checks,
 		tasks: d.Tasks, heroEvery: d.HeroEvery,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}

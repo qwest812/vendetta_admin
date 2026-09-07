@@ -141,6 +141,15 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 
 // renderPartial отдаёт один блок шаблона — для ответов HTMX.
 func (s *Server) renderPartial(w http.ResponseWriter, r *http.Request, page, block string, data map[string]any) {
+	s.renderPartialStatus(w, r, http.StatusOK, page, block, data)
+}
+
+// renderPartialStatus — тот же блок, но со своим кодом ответа. Нужен там,
+// где htmx отдаёт не «получилось», а «так нельзя»: код должен остаться
+// честным, а разметка всё равно приезжает — в ней и написано, что не так.
+func (s *Server) renderPartialStatus(w http.ResponseWriter, r *http.Request, status int,
+	page, block string, data map[string]any) {
+
 	tmpl, ok := s.pages[langOf(r)][page]
 	if !ok {
 		s.serverError(w, r, fmt.Errorf("нет шаблона %q", page))
@@ -159,6 +168,7 @@ func (s *Server) renderPartial(w http.ResponseWriter, r *http.Request, page, blo
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
 	_, _ = buf.WriteTo(w)
 }
 

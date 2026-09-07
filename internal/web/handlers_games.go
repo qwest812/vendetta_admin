@@ -118,17 +118,12 @@ func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
 	// считается до похода за списком партий: даже когда игра не ответит,
 	// рубильник останется на месте.
 	if s.coalitions != nil && s.settings != nil {
-		on, err := s.settings.CoalitionScanEnabled(ctx)
+		view, err := s.coalitionCard(ctx)
 		if err != nil {
 			s.serverError(w, r, err)
 			return
 		}
-		stats, err := s.coalitions.Stats(ctx)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		data["Coalitions"] = coalitionStatsView{On: on, CoalitionStats: stats}
+		data["Coalitions"] = view
 	}
 
 	games, err := s.games.MyGames(ctx)
@@ -219,17 +214,18 @@ func gameState(l i18n.Lang, state string) string {
 // а цвет из них выбирает css.
 //
 // Class — «neutral» у ничейной земли, «clan» у той, чей клан получил цвет,
-// «side-enemy» и «side-friend» у стран из личных списков смотрящего,
-// «team» у состоящей в коалиции, «premium» у страны игрока с подпиской,
-// «own» у своей: эта последняя пометка одна на все режимы, потому что
-// обводка везде означает одно и то же.
-// ClanColor и TeamColor — цвета клана и коалиции, они же css-переменные
-// --clan и --team; пусто, если красить нечем.
+// «top» у страны игрока из клана-топа, «side-enemy» и «side-friend» у стран
+// из личных списков смотрящего, «team» у состоящей в коалиции, «premium»
+// у страны игрока с подпиской, «own» у своей: эта последняя пометка одна
+// на все режимы, потому что обводка везде означает одно и то же.
+// ClanColor, TeamColor и TopColor — цвета клана, коалиции и клана из топа,
+// они же css-переменные --clan, --team и --top; пусто, если красить нечем.
 type mapShape struct {
 	Points    string
 	Class     string
 	ClanColor template.CSS
 	TeamColor template.CSS
+	TopColor  template.CSS
 	Title     string
 }
 
@@ -268,6 +264,22 @@ type gameMapView struct {
 	// Teams — коалиции партии для своего режима карты. Цвет у них свой,
 	// игровой, поэтому раздавать его почти не приходится.
 	Teams []teamLegendView
+	// Top — кланы из верхушки рейтинга игры, чьи игроки нашлись в этой
+	// партии. Пусто и когда таких нет, и когда топ ещё не снимали.
+	Top []topLegendView
+}
+
+// topLegendView — строка легенды режима «Топ кланов»: клан из верхушки
+// рейтинга и его место там. Место важнее владений: в этом режиме смотрят
+// не на то, кто больше занял, а на то, с кем имеешь дело.
+type topLegendView struct {
+	ID        string
+	Rank      int
+	Name      string
+	Tag       string
+	Color     string
+	Players   int
+	Provinces int
 }
 
 // teamLegendView — строка легенды режима «Коалиции»: название из игры,
@@ -345,9 +357,10 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 	}
 	fills, legend := allianceFills(l, state, sides.Alliances)
 	teamOf, teams := teamFills(l, state, meID)
+	topOf, topLegend := topFills(l, state, sides.Alliances, sides.Top)
 
 	view := &gameMapView{
-		Width: geo.Width, Height: geo.Height, Legend: legend, Teams: teams,
+		Width: geo.Width, Height: geo.Height, Legend: legend, Teams: teams, Top: topLegend,
 	}
 	// Середина владений каждой страны — там и будет её имя.
 	centers := map[int]*center{}
@@ -382,6 +395,20 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 			// от игроков без клана вовсе.
 			if a, ok := sides.Alliances[p.Owner]; ok && a.InClan() {
 				shape.Title += ", " + l.T("tip.clan", nonEmpty(a.Name, l.T("game.noname")))
+			}
+			// Клан из верхушки рейтинга — свой режим и своя пометка
+			// в подсказке: цвет говорит, из какого именно клана игрок,
+			// а место в рейтинге словами.
+			if top, ok := topOf[p.Owner]; ok {
+				// Класс — только вместе с цветом: как и в режиме кланов,
+				// не влезший в палитру остаётся серым, но в подсказке
+				// и в легенде он есть.
+				if top.Color != "" {
+					classes = append(classes, "top")
+					shape.TopColor = template.CSS(top.Color)
+				}
+				shape.Title += ", " + l.T("tip.top", top.Rank,
+					nonEmpty(top.Name, l.T("game.noname")))
 			}
 			// Личные списки красят карту в своём режиме, а в подсказке
 			// живут всегда: наводят как раз чтобы понять, чья провинция.
@@ -549,6 +576,97 @@ func allianceFills(l i18n.Lang, state *supremacy.GameState, alliances map[int]do
 		if color, ok := colors[id]; ok {
 			fills[playerID] = color
 		}
+	}
+	return fills, out
+}
+
+// topCapturedAt — когда снимали топ. Время у всех строк снимка одно,
+// поэтому берётся у первой; пустой снимок отдаёт нулевое время, и страница
+// о давности молчит.
+func topCapturedAt(top []domain.TopAlliance) time.Time {
+	if len(top) == 0 {
+		return time.Time{}
+	}
+	return top[0].CapturedAt
+}
+
+// topFills отмечает игроков, чей клан стоит в верхушке рейтинга игры.
+// Клан берётся тот же, что и в режиме «Кланы», — из самой Supremacy;
+// топовым его делает только то, что он нашёлся в снимке рейтинга.
+//
+// Цвет раздаётся по местам в рейтинге, а не по владениям: в этом режиме
+// вопрос не «кто больше занял», а «с кем имеешь дело», и первый номер
+// должен выглядеть одинаково от партии к партии. Клан ниже палитры
+// остаётся серым, но в легенде — как и в режиме кланов.
+//
+// Первый ответ — строка легенды по номеру игрока в партии, чтобы карта
+// одним взглядом получила и цвет, и место; второй — сама легенда.
+func topFills(l i18n.Lang, state *supremacy.GameState, alliances map[int]domain.Alliance,
+	top map[string]domain.TopAlliance) (map[int]topLegendView, []topLegendView) {
+
+	if len(top) == 0 {
+		return nil, nil
+	}
+
+	memberOf := make(map[int]string)
+	rows := map[string]*topLegendView{}
+	for playerID, a := range alliances {
+		if !a.InClan() {
+			continue
+		}
+		t, ok := top[a.ID]
+		if !ok {
+			continue
+		}
+		memberOf[playerID] = a.ID
+		row := rows[a.ID]
+		if row == nil {
+			// Имя берём из снимка рейтинга, а не из ответа про игрока:
+			// в рейтинге оно заведомо есть, а у игрока может быть пустым.
+			row = &topLegendView{
+				ID: a.ID, Rank: t.Rank,
+				Name: nonEmpty(t.Name, a.Name), Tag: nonEmpty(t.Tag, a.Tag),
+			}
+			rows[a.ID] = row
+		}
+		row.Players++
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	for _, p := range state.Provinces {
+		if id, ok := memberOf[p.Owner]; ok {
+			rows[id].Provinces++
+		}
+	}
+
+	out := make([]topLegendView, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, *row)
+	}
+	// Мест в рейтинге двух одинаковых не бывает, но порядок всё равно
+	// доопределяем номером клана: пустой снимок или сбой рейтинга не должны
+	// делать страницу разной от захода к заходу.
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Rank != out[j].Rank {
+			return out[i].Rank < out[j].Rank
+		}
+		return out[i].ID < out[j].ID
+	})
+	for i := range out {
+		if i < len(mapPalette) {
+			out[i].Color = mapPalette[i]
+		}
+	}
+
+	fills := make(map[int]topLegendView, len(memberOf))
+	byID := make(map[string]topLegendView, len(out))
+	for _, row := range out {
+		byID[row.ID] = row
+	}
+	for playerID, id := range memberOf {
+		fills[playerID] = byID[id]
 	}
 	return fills, out
 }
@@ -755,6 +873,9 @@ type gameSides struct {
 	Enemies   map[int]*domain.Player
 	Friends   map[int]*domain.Player
 	Alliances map[int]domain.Alliance
+	// Top — верхушка рейтинга кланов по номеру клана. Общая на всю
+	// админку, а не на партию: место в рейтинге принадлежит клану.
+	Top map[string]domain.TopAlliance
 }
 
 // gameLists сводит игроков партии с базой по игровому ID и раскладывает их
@@ -1283,6 +1404,22 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		}
 		sides.Alliances = alliances
 		data["AlliancesPending"] = pending
+
+		// Верхушка рейтинга — десяток строк на всю админку, поэтому
+		// читается целиком и на каждую страницу. Её отсутствие карту
+		// не ломает: режим топа просто останется серым.
+		top, err := s.topAlliances.All(ctx)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		sides.Top = make(map[string]domain.TopAlliance, len(top))
+		for _, t := range top {
+			sides.Top[t.ID] = t
+		}
+		at := topCapturedAt(top)
+		data["TopAt"] = at
+		data["TopKnown"] = !at.IsZero()
 
 		// Коалиции этой партии оседают в архиве: состояние всё равно перед
 		// глазами. Сведения о партии берём откуда есть — у своей они из

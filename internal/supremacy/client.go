@@ -678,6 +678,71 @@ func parseRoster(raw json.RawMessage, allianceID string) (*Alliance, []AllianceM
 	return alliance, members, nil
 }
 
+// RankedAlliance — строка рейтинга кланов: сам клан и его место. Из всей
+// статистики берём только очки: место и очки объясняют друг друга, а победы,
+// поражения и средний счёт на карте не нужны ни в каком виде.
+type RankedAlliance struct {
+	Alliance
+	Rank int
+	Elo  int
+}
+
+// AllianceRanking забирает страницу рейтинга кланов. Нумерация страниц
+// с нуля, на странице numEntries записей — так их считает сам клиент игры,
+// откуда имя вызова и параметры и взяты.
+//
+// Заходом в партию это не считается: вопрос идёт на сайт. Рейтинг общий
+// для всех доменов игры, поэтому спрашивать его можно откуда угодно.
+func (c *Client) AllianceRanking(ctx context.Context, page, numEntries int) ([]RankedAlliance, error) {
+	raw, err := c.call(ctx, "getAllianceRanking", []param{
+		{"page", strconv.Itoa(page)},
+		{"numEntries", strconv.Itoa(numEntries)},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return parseRanking(raw)
+}
+
+// parseRanking разбирает ответ рейтинга. Клан лежит там же, где и в других
+// ответах про кланы, — в properties; место и очки едут рядом, в stats.
+//
+// Пустой ответ — не ошибка: так рейтинг сообщает, что страница за концом
+// списка. Общего числа кланов он не отдаёт вовсе, и глубину списка узнать
+// можно только листанием до пустой страницы.
+func parseRanking(raw json.RawMessage) ([]RankedAlliance, error) {
+	var res struct {
+		Entries []struct {
+			Properties struct {
+				UID  string `json:"uid"`
+				Name string `json:"name"`
+				Tag  string `json:"tag"`
+			} `json:"properties"`
+			Stats struct {
+				Elo        int `json:"elo"`
+				GlobalRank int `json:"globalRank"`
+			} `json:"stats"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil, fmt.Errorf("разбор рейтинга кланов: %w", err)
+	}
+
+	out := make([]RankedAlliance, 0, len(res.Entries))
+	for _, e := range res.Entries {
+		p := e.Properties
+		if p.UID == "" {
+			continue
+		}
+		out = append(out, RankedAlliance{
+			Alliance: Alliance{ID: p.UID, Name: p.Name, Tag: p.Tag},
+			Rank:     e.Stats.GlobalRank,
+			Elo:      e.Stats.Elo,
+		})
+	}
+	return out, nil
+}
+
 // allianceWorkers — сколько альянсов спрашиваем одновременно. Игроков
 // в партии до сорока, а сайт отвечает не мгновенно: последовательный обход
 // не уложился бы в терпение человека, открывшего страницу. Больше десятка

@@ -33,6 +33,42 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, status int,
 	s.render(w, r, status, "users", data)
 }
 
+// hx — пришёл ли запрос от htmx. Без него обработчики отвечают как раньше,
+// переходом на /users: подменять строку в странице некому.
+func hx(r *http.Request) bool { return r.Header.Get("HX-Request") != "" }
+
+// userRow отдаёт одну строку таблицы доступов заново — уже с тем, что легло
+// в базу. Пользователь перечитывается, а не берётся из того, что было до
+// изменения: строка должна показывать состояние, а не намерение.
+//
+// field говорит, около чего показать сообщение: у поля проверок или в конце
+// строки. Пустой field — обычная строка без сообщений.
+func (s *Server) userRow(w http.ResponseWriter, r *http.Request, id int64, status int,
+	field string, said map[string]any) {
+
+	u, err := s.users.ByID(r.Context(), id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	data := map[string]any{
+		"User": u, "Root": currentUser(r).IsRoot(), "Me": currentUser(r).ID,
+		"CSRFToken": csrfToken(r), "Field": field,
+	}
+	for k, v := range said {
+		data[k] = v
+	}
+	s.renderPartialStatus(w, r, status, "users", "user-row", data)
+}
+
+// rowDone — ответ на удавшееся изменение: свежая строка и слово о том,
+// что оно применилось. Без слова htmx-ответ читался бы как «ничего
+// не произошло»: половина настроек меняет строку незаметно.
+func (s *Server) rowDone(w http.ResponseWriter, r *http.Request, id int64, field string) {
+	s.userRow(w, r, id, http.StatusOK, field,
+		map[string]any{"Note": langOf(r).T("users.saved")})
+}
+
 func (s *Server) usersCreate(w http.ResponseWriter, r *http.Request) {
 	actor := currentUser(r)
 	email := strings.TrimSpace(r.PostFormValue("email"))
@@ -114,7 +150,11 @@ func (s *Server) usersSetRole(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logAudit(r, "user.set_role", target.ID,
 		map[string]any{"user": target.Display(), "from": string(target.Role), "to": string(role)})
-	http.Redirect(w, r, "/users", http.StatusSeeOther)
+	if !hx(r) {
+		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		return
+	}
+	s.rowDone(w, r, target.ID, "role")
 }
 
 func (s *Server) usersSetActive(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +174,11 @@ func (s *Server) usersSetActive(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.logAudit(r, "user.set_active", target.ID, map[string]any{"user": target.Display(), "active": active})
-	http.Redirect(w, r, "/users", http.StatusSeeOther)
+	if !hx(r) {
+		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		return
+	}
+	s.rowDone(w, r, target.ID, "active")
 }
 
 // usersSetGamesAccess выдаёт и снимает доступ к разделу «Игры». Роут стоит
@@ -154,7 +198,11 @@ func (s *Server) usersSetGamesAccess(w http.ResponseWriter, r *http.Request) {
 	// так что снятый доступ действует со следующей же страницы.
 	s.logAudit(r, "user.set_games_access", target.ID,
 		map[string]any{"user": target.Display(), "access": allowed})
-	http.Redirect(w, r, "/users", http.StatusSeeOther)
+	if !hx(r) {
+		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		return
+	}
+	s.rowDone(w, r, target.ID, "games")
 }
 
 // usersSetMapChecks меняет дневное число проверок карты. Право рутовое
@@ -165,12 +213,20 @@ func (s *Server) usersSetMapChecks(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	checks, err := strconv.Atoi(strings.TrimSpace(r.PostFormValue("checks")))
+	typed := strings.TrimSpace(r.PostFormValue("checks"))
+	checks, err := strconv.Atoi(typed)
 	// Ноль — это запрет смотреть карты, и он осмысленный. А вот отрицательное
 	// число и мусор в поле означают опечатку, а не намерение.
 	if err != nil || checks < 0 || checks > maxMapChecks {
-		s.renderUsers(w, r, http.StatusUnprocessableEntity,
-			map[string]any{"Error": langOf(r).T("err.checks.bad", maxMapChecks)})
+		msg := langOf(r).T("err.checks.bad", maxMapChecks)
+		if !hx(r) {
+			s.renderUsers(w, r, http.StatusUnprocessableEntity, map[string]any{"Error": msg})
+			return
+		}
+		// Набранное возвращаем в поле: молча подменить его сохранённым
+		// значило бы спрятать опечатку, а не показать её.
+		s.userRow(w, r, target.ID, http.StatusUnprocessableEntity, "checks",
+			map[string]any{"Error": msg, "ChecksInput": typed})
 		return
 	}
 	if err := s.users.SetMapChecks(r.Context(), target.ID, checks); err != nil {
@@ -181,7 +237,11 @@ func (s *Server) usersSetMapChecks(w http.ResponseWriter, r *http.Request) {
 	// по дню, а новое число действует с этого мгновения.
 	s.logAudit(r, "user.set_map_checks", target.ID,
 		map[string]any{"user": target.Display(), "checks": checks})
-	http.Redirect(w, r, "/users", http.StatusSeeOther)
+	if !hx(r) {
+		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		return
+	}
+	s.rowDone(w, r, target.ID, "checks")
 }
 
 // maxMapChecks — потолок для поля: не запрет, а защита от лишнего нуля
@@ -195,7 +255,13 @@ func (s *Server) usersResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	password := r.PostFormValue("password")
 	if err := auth.ValidatePassword(password); err != nil {
-		s.renderUsers(w, r, http.StatusUnprocessableEntity, map[string]any{"Error": errText(r, err)})
+		if !hx(r) {
+			s.renderUsers(w, r, http.StatusUnprocessableEntity,
+				map[string]any{"Error": errText(r, err)})
+			return
+		}
+		s.userRow(w, r, target.ID, http.StatusUnprocessableEntity, "password",
+			map[string]any{"Error": errText(r, err)})
 		return
 	}
 	hash, err := auth.HashPassword(password)
@@ -212,7 +278,14 @@ func (s *Server) usersResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logAudit(r, "user.reset_password", target.ID, map[string]any{"user": target.Display()})
-	http.Redirect(w, r, "/users", http.StatusSeeOther)
+	if !hx(r) {
+		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		return
+	}
+	// Своё слово: «сохранено» о пароле звучало бы как о настройке, а сброс
+	// пароля ещё и выкидывает человека из всех сессий.
+	s.userRow(w, r, target.ID, http.StatusOK, "password",
+		map[string]any{"Note": langOf(r).T("users.password.done")})
 }
 
 func (s *Server) usersDelete(w http.ResponseWriter, r *http.Request) {
@@ -226,7 +299,13 @@ func (s *Server) usersDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logAudit(r, "user.delete", target.ID,
 		map[string]any{"user": target.Display(), "role": string(target.Role)})
-	http.Redirect(w, r, "/users", http.StatusSeeOther)
+	if !hx(r) {
+		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		return
+	}
+	// Пустой ответ на месте строки — она и пропадает. Показывать нечего:
+	// пользователя больше нет.
+	w.WriteHeader(http.StatusOK)
 }
 
 // manageableTarget разбирает id из пути и проверяет право актора им управлять.

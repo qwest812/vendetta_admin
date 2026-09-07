@@ -53,90 +53,147 @@
         {{$csrf := .CSRFToken}}
         {{$me := .CurrentUser.ID}}
         {{range .Users}}
-            <tr class="{{if not .IsActive}}inactive{{end}}">
-                <td>{{.Nickname}}{{if eq .ID $me}} <span class="muted">{{t "users.you"}}</span>{{end}}</td>
-                {{/* Профиль человек заполняет сам, поэтому пустые поля здесь
-                     обычное дело — прочерк, а не пустая ячейка. */}}
-                <td>{{if .FullName}}{{.FullName}}{{else}}<span class="muted">—</span>{{end}}</td>
-                <td>{{if .City}}{{.City}}{{else}}<span class="muted">—</span>{{end}}</td>
-                <td>{{if .GameID}}<span class="game-id">{{.GameID}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
-                <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
-                <td><span class="badge role-{{.Role}}">{{role .Role}}</span></td>
-                {{if $root}}
-                    {{/* Колонка обычная, не «Действия»: та прижимает содержимое
-                         к правому краю, и столбец читался бы съехавшим. */}}
-                    <td class="access">
-                        {{if .IsRoot}}
-                            {{/* Рут ходит в игры по роли: снимать у него нечего. */}}
-                            <span class="muted">{{t "users.always"}}</span>
-                        {{else}}
-                            <form method="post" action="/users/{{.ID}}/games">
-                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                                <input type="hidden" name="access" value="{{if .GamesAccess}}false{{else}}true{{end}}">
-                                <button type="submit">{{if .GamesAccess}}{{t "users.close"}}{{else}}{{t "users.open"}}{{end}}</button>
-                            </form>
-                        {{end}}
-                    </td>
-                    {{/* Число проверок карты в сутки. Поле, а не кнопка:
-                         значений тут не два, и у каждого своё. */}}
-                    <td class="access">
-                        {{if .IsRoot}}
-                            {{/* Руту проверки не считают вовсе. */}}
-                            <span class="muted">{{t "users.always"}}</span>
-                        {{else}}
-                            <form method="post" action="/users/{{.ID}}/checks" class="inline-checks">
-                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                                <input type="number" name="checks" value="{{.MapChecks}}" min="0" max="500" required>
-                                <button type="submit">{{t "users.checks.save"}}</button>
-                            </form>
-                        {{end}}
-                    </td>
-                {{end}}
-                <td>{{if .IsActive}}{{t "users.active"}}{{else}}{{t "users.blocked"}}{{end}}</td>
-                <td class="muted">{{datetime .CreatedAt}}</td>
-                <td class="actions">
-                    {{if or .IsRoot (eq .ID $me)}}
-                        <span class="muted">—</span>
-                    {{else}}
-                        {{if eq .Role "admin"}}
-                            <form method="post" action="/users/{{.ID}}/role">
-                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                                <input type="hidden" name="role" value="user">
-                                <button type="submit">{{t "users.demote"}}</button>
-                            </form>
-                        {{else}}
-                            <form method="post" action="/users/{{.ID}}/role">
-                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                                <input type="hidden" name="role" value="admin">
-                                <button type="submit">{{t "users.promote"}}</button>
-                            </form>
-                        {{end}}
-
-                        <form method="post" action="/users/{{.ID}}/active">
-                            <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                            <input type="hidden" name="active" value="{{if .IsActive}}false{{else}}true{{end}}">
-                            <button type="submit">{{if .IsActive}}{{t "users.block"}}{{else}}{{t "users.unblock"}}{{end}}</button>
-                        </form>
-
-                        <form method="post" action="/users/{{.ID}}/password" class="inline-pass">
-                            <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                            <input type="password" name="password" placeholder="{{t "users.newpassword"}}" minlength="12" required autocomplete="new-password">
-                            <button type="submit">{{t "users.change"}}</button>
-                        </form>
-
-                        {{if $root}}
-                            <form method="post" action="/users/{{.ID}}/delete"
-                                  onsubmit="return confirm('{{t "users.delete.confirm" .Nickname}}')">
-                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                                <button type="submit" class="danger">{{t "common.delete"}}</button>
-                            </form>
-                        {{end}}
-                    {{end}}
-                </td>
-            </tr>
+            {{/* Строка отдельным блоком: ту же разметку отдают и страница,
+                 и ответы на нажатия — иначе после правки настройки строка
+                 показывала бы одно, а база хранила другое. */}}
+            {{template "user-row" (dict "User" . "Root" $root "Me" $me "CSRFToken" $csrf "Field" "")}}
         {{end}}
         </tbody>
     </table>
     {{if $root}}<p class="muted">{{t "users.checks.note"}}</p>{{end}}
 </div>
+
+{{/* Отказ приезжает с кодом 422 и разметкой строки, в которой и написано,
+     что не так. htmx на ответы 4xx разметку по умолчанию не подменяет —
+     разрешаем ему это здесь: код остаётся честным, а человек видит причину
+     на месте, а не в пустоте. */}}
+<script>
+    document.body.addEventListener("htmx:beforeSwap", function (e) {
+        if (e.detail.xhr.status === 422) {
+            e.detail.shouldSwap = true;
+            e.detail.isError = false;
+        }
+    });
+</script>
+{{end}}
+
+{{/* Одна строка таблицы доступов. Живёт отдельным блоком, потому что
+     возвращается и в ответ на каждое изменение: htmx подменяет ею ту же
+     строку, и человек видит ровно то, что легло в базу, — без перезагрузки
+     страницы и без прыжка к её началу.
+
+     Error и Note — что сказать об этом изменении: они приезжают только
+     с ответом на нажатие и пропадают со следующим. ChecksInput — то, что
+     человек набрал в поле: при отказе поле должно остаться с его числом,
+     а не молча вернуться к сохранённому. */}}
+{{define "user-row"}}
+{{$u := .User}}{{$root := .Root}}{{$me := .Me}}{{$csrf := .CSRFToken}}
+{{$checks := printf "%d" $u.MapChecks}}{{if .ChecksInput}}{{$checks = .ChecksInput}}{{end}}
+<tr class="{{if not $u.IsActive}}inactive{{end}}">
+    <td>{{$u.Nickname}}{{if eq $u.ID $me}} <span class="muted">{{t "users.you"}}</span>{{end}}</td>
+    {{/* Профиль человек заполняет сам, поэтому пустые поля здесь
+         обычное дело — прочерк, а не пустая ячейка. */}}
+    <td>{{if $u.FullName}}{{$u.FullName}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td>{{if $u.City}}{{$u.City}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td>{{if $u.GameID}}<span class="game-id">{{$u.GameID}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td>{{if $u.Email}}{{$u.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td><span class="badge role-{{$u.Role}}">{{role $u.Role}}</span></td>
+    {{if $root}}
+        {{/* Колонка обычная, не «Действия»: та прижимает содержимое
+             к правому краю, и столбец читался бы съехавшим. */}}
+        <td class="access">
+            {{if $u.IsRoot}}
+                {{/* Рут ходит в игры по роли: снимать у него нечего. */}}
+                <span class="muted">{{t "users.always"}}</span>
+            {{else}}
+                {{/* hx-post рядом с обычным action: с htmx подменяется одна
+                     строка, без него форма уходит как всегда и страница
+                     перезагружается. Цель — своя же строка: в ответе приезжает
+                     она заново, уже с новым значением. */}}
+                <form method="post" action="/users/{{$u.ID}}/games"
+                      hx-post="/users/{{$u.ID}}/games" hx-target="closest tr" hx-swap="outerHTML">
+                    <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                    <input type="hidden" name="access" value="{{if $u.GamesAccess}}false{{else}}true{{end}}">
+                    <button type="submit">{{if $u.GamesAccess}}{{t "users.close"}}{{else}}{{t "users.open"}}{{end}}</button>
+                </form>
+            {{end}}
+        </td>
+        {{/* Число проверок карты в сутки. Поле, а не кнопка:
+             значений тут не два, и у каждого своё. */}}
+        <td class="access">
+            {{if $u.IsRoot}}
+                {{/* Руту проверки не считают вовсе. */}}
+                <span class="muted">{{t "users.always"}}</span>
+            {{else}}
+                <form method="post" action="/users/{{$u.ID}}/checks" class="inline-checks"
+                      hx-post="/users/{{$u.ID}}/checks" hx-target="closest tr" hx-swap="outerHTML">
+                    <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                    <input type="number" name="checks" value="{{$checks}}" min="0" max="500" required>
+                    <button type="submit">{{t "users.checks.save"}}</button>
+                </form>
+                {{/* Сказанное о самом поле стоит у поля, а не в конце строки:
+                     до правого края таблицы отсюда далеко. */}}
+                {{if eq .Field "checks"}}{{template "row-said" .}}{{end}}
+            {{end}}
+        </td>
+    {{end}}
+    <td>{{if $u.IsActive}}{{t "users.active"}}{{else}}{{t "users.blocked"}}{{end}}</td>
+    <td class="muted">{{datetime $u.CreatedAt}}</td>
+    <td class="actions">
+        {{if or $u.IsRoot (eq $u.ID $me)}}
+            <span class="muted">—</span>
+        {{else}}
+            {{if eq $u.Role "admin"}}
+                <form method="post" action="/users/{{$u.ID}}/role"
+                      hx-post="/users/{{$u.ID}}/role" hx-target="closest tr" hx-swap="outerHTML">
+                    <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                    <input type="hidden" name="role" value="user">
+                    <button type="submit">{{t "users.demote"}}</button>
+                </form>
+            {{else}}
+                <form method="post" action="/users/{{$u.ID}}/role"
+                      hx-post="/users/{{$u.ID}}/role" hx-target="closest tr" hx-swap="outerHTML">
+                    <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                    <input type="hidden" name="role" value="admin">
+                    <button type="submit">{{t "users.promote"}}</button>
+                </form>
+            {{end}}
+
+            <form method="post" action="/users/{{$u.ID}}/active"
+                  hx-post="/users/{{$u.ID}}/active" hx-target="closest tr" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                <input type="hidden" name="active" value="{{if $u.IsActive}}false{{else}}true{{end}}">
+                <button type="submit">{{if $u.IsActive}}{{t "users.block"}}{{else}}{{t "users.unblock"}}{{end}}</button>
+            </form>
+
+            <form method="post" action="/users/{{$u.ID}}/password" class="inline-pass"
+                  hx-post="/users/{{$u.ID}}/password" hx-target="closest tr" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                <input type="password" name="password" placeholder="{{t "users.newpassword"}}" minlength="12" required autocomplete="new-password">
+                <button type="submit">{{t "users.change"}}</button>
+            </form>
+
+            {{if $root}}
+                {{/* Спрашивает htmx, а не onsubmit: submit у формы перехвачен
+                     им же, и два обработчика на одно событие спорили бы. */}}
+                <form method="post" action="/users/{{$u.ID}}/delete"
+                      hx-post="/users/{{$u.ID}}/delete" hx-target="closest tr" hx-swap="outerHTML"
+                      hx-confirm="{{t "users.delete.confirm" $u.Nickname}}">
+                    <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                    <button type="submit" class="danger">{{t "common.delete"}}</button>
+                </form>
+            {{end}}
+            {{if ne .Field "checks"}}{{template "row-said" .}}{{end}}
+        {{end}}
+    </td>
+</tr>
+{{end}}
+
+{{/* Что сказать об изменении: отказ или подтверждение. Отдельным блоком,
+     потому что место у сообщения разное — у поля проверок или в конце
+     строки, смотря что меняли. Пусто в обычной строке страницы: сказать
+     нечего, пока ничего не меняли. */}}
+{{define "row-said"}}
+{{if .Error}}<span class="row-said bad">{{.Error}}</span>{{end}}
+{{if .Note}}<span class="row-said done">{{.Note}}</span>{{end}}
 {{end}}
