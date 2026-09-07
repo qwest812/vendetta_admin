@@ -16,14 +16,14 @@ type Users struct{ pool *pgxpool.Pool }
 
 func NewUsers(pool *pgxpool.Pool) *Users { return &Users{pool: pool} }
 
-const userColumns = `id, email, nickname, password_hash, role, is_active, games_access, created_by, created_at, full_name, city, game_id`
+const userColumns = `id, email, nickname, password_hash, role, is_active, games_access, map_checks, created_by, created_at, full_name, city, game_id`
 
 func scanUser(row pgx.Row) (*domain.User, error) {
 	var u domain.User
 	// Почта необязательна и хранится как NULL, в домене — пустая строка.
 	var email *string
 	err := row.Scan(&u.ID, &email, &u.Nickname, &u.PasswordHash, &u.Role, &u.IsActive,
-		&u.GamesAccess, &u.CreatedBy, &u.CreatedAt, &u.FullName, &u.City, &u.GameID)
+		&u.GamesAccess, &u.MapChecks, &u.CreatedBy, &u.CreatedAt, &u.FullName, &u.City, &u.GameID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}
@@ -101,6 +101,12 @@ func (r *Users) SetRole(ctx context.Context, id int64, role domain.Role) error {
 // он проходит по роли, и флаг у него ничего не решает.
 func (r *Users) SetGamesAccess(ctx context.Context, id int64, allowed bool) error {
 	return r.exec(ctx, `UPDATE users SET games_access = $2 WHERE id = $1 AND role <> 'root'`, id, allowed)
+}
+
+// SetMapChecks меняет дневное число проверок карты. Рута не трогаем, как
+// и в остальных правах: он вне счёта.
+func (r *Users) SetMapChecks(ctx context.Context, id int64, checks int) error {
+	return r.exec(ctx, `UPDATE users SET map_checks = $2 WHERE id = $1 AND role <> 'root'`, id, checks)
 }
 
 func (r *Users) SetActive(ctx context.Context, id int64, active bool) error {

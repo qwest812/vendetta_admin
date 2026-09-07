@@ -76,10 +76,36 @@
         <h1>{{if .Ours}}{{t "game.inside.ours"}}{{else}}{{t "game.inside"}}{{end}}</h1>
         {{if .Ours}}
             <div class="head-actions">
-                <a class="button" href="/games/{{.GameID}}?state=1">{{t "game.enter"}}</a>
+                {{/* Класс map-again — метка для таймера: пока срок не вышел,
+                     скрипт гасит все такие ссылки. */}}
+                <a class="button map-again" href="/games/{{.GameID}}?state=1">{{t "game.enter"}}</a>
             </div>
         {{end}}
     </div>
+
+    {{/* Проверки и возраст данных. Про то, кто именно привёз копию,
+         здесь не говорится ни слова: данные о партии общие, и чей это был
+         поход — не то, что стоит показывать. */}}
+    {{if .ChecksOut}}
+        <p class="muted">{{t "game.limit.out"}}</p>
+    {{end}}
+    {{if .ChecksCounted}}
+        <p class="muted">
+            {{if .ChecksTotal}}{{t "game.limit.left" .ChecksLeft .ChecksTotal}}{{else}}{{t "game.limit.none"}}{{end}}
+        </p>
+    {{end}}
+    {{/* Строку показываем по готовому тексту таймера: он есть тогда же,
+         когда есть и время съёмки, а отсутствующий ключ карты «точки»
+         на метод не проверить. */}}
+    {{if .MapWaitText}}
+        {{/* Когда сняли копию и когда будет новая. Секунды тикает скрипт,
+             он же гасит на это время ссылки: нажимать их раньше срока
+             незачем — данные вернутся те же, а проверку съедят. */}}
+        <p class="muted map-wait" data-wait="{{.MapWait}}" data-ready="{{t "game.limit.ready"}}">
+            {{t "game.limit.at"}} {{datetime .MapAt}}.
+            <span class="wait-left">{{t "game.limit.next"}} <b class="timer">{{.MapWaitText}}</b></span>
+        </p>
+    {{end}}
 
     {{if .Map}}
         {{/* Карта одна, режимов два: в каждом заливка говорит об одном
@@ -286,7 +312,9 @@
         </table>
     {{end}}
 
-    {{if not .State}}
+    {{/* Кончившиеся проверки — не поломка: про них сказано выше своими
+         словами, и жаловаться на молчание игры тут не за что. */}}
+    {{if and (not .State) (or .Ours (not .ChecksOut))}}
         <p class="muted">
             {{if .Ours}}
                 {{t "game.enter.note"}}
@@ -294,6 +322,54 @@
                 {{t "game.observe.failed"}}
             {{end}}
         </p>
+    {{end}}
+
+    {{if .MapWait}}
+        <script>
+            // Таймер до следующей копии. Сервер назвал число секунд, страница
+            // их тикает и в конце сама оживляет ссылки: нажатая раньше срока,
+            // любая из них вернёт ту же копию, а проверку потратит.
+            (function () {
+                var box = document.querySelector('.map-wait');
+                if (!box) return;
+                var out = box.querySelector('.timer');
+                var left = parseInt(box.dataset.wait, 10) || 0;
+                var links = document.querySelectorAll('a.map-again');
+                links.forEach(function (a) { a.classList.add('waiting'); });
+                // Час ожидания секундами не показать: «2951» ни о чём
+                // не говорит, а «49:11» читается сразу.
+                var clock = function (sec) {
+                    if (sec < 0) sec = 0;
+                    return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2);
+                };
+                var tick = setInterval(function () {
+                    left -= 1;
+                    out.textContent = clock(left);
+                    if (left > 0) return;
+                    clearInterval(tick);
+                    box.querySelector('.wait-left').textContent = box.dataset.ready;
+                    links.forEach(function (a) { a.classList.remove('waiting'); });
+                }, 1000);
+            })();
+        </script>
+    {{end}}
+
+    {{if .LoaderMs}}
+        <script>
+            // Сбор данных о партии занимает секунды, и выглядеть он должен
+            // одинаково всегда — сколько бы страница ни собиралась на самом
+            // деле. Сервер сказал, сколько не хватило до обычного времени;
+            // столько и держим карту закрытой.
+            (function () {
+                var ms = {{.LoaderMs}}, view = document.querySelector('.map-view');
+                if (!view || ms <= 0) return;
+                var box = document.createElement('div');
+                box.className = 'map-loading';
+                box.textContent = {{t "game.limit.loading"}};
+                view.appendChild(box);
+                setTimeout(function () { box.remove(); }, ms);
+            })();
+        </script>
     {{end}}
 </div>
 {{end}}

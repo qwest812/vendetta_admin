@@ -133,6 +133,9 @@ func TestPagesRender(t *testing.T) {
 				"game.php?bust=1&amp;uid=101408369",
 				`action="/games/check"`, "Проверить игру",
 			},
+			// Проверки рута не касаются — незачем и обещать ему счёт,
+			// которого он не увидит.
+			deny: []string{"в сутки их у вас"},
 		},
 		{
 			// Список партий говорит, где аккаунт играет прямо сейчас, — это
@@ -143,9 +146,39 @@ func TestPagesRender(t *testing.T) {
 			data: map[string]any{
 				"Games": nil, "Error": "", "PlayURL": "",
 				"CheckError": "", "Query": "",
+				"ChecksCounted": true, "ChecksTotal": 5, "ChecksLeft": 2,
 			},
-			want: []string{`action="/games/check"`, "Проверить игру", `name="id"`},
+			// Про проверки сказано прямо в разделе: человек должен знать
+			// и правило, и остаток до того, как упрётся.
+			want: []string{
+				`action="/games/check"`, "Проверить игру", `name="id"`,
+				// Счётчик стоит у формы, правило — под ней.
+				"Проверок осталось:", "<b>2</b>", "в сутки их у вас 5",
+			},
 			deny: []string{"Активные игры", "Обновить"},
+		},
+		{
+			// Проверенные партии — список личный, поэтому он есть и у того,
+			// кому список партий аккаунта не положен. Партия без названия
+			// из списка не выпадает: её зовут по номеру.
+			name: "games/проверенные партии",
+			page: "games",
+			user: player,
+			data: map[string]any{
+				"Games": nil, "Error": "", "PlayURL": "",
+				"CheckError": "", "Query": "", "CheckedDays": 7,
+				"Checked": []domain.CheckedGame{
+					{GameID: "10895766", Title: "[Event] - Colonial Uprising",
+						CheckedAt: time.Unix(1788984426, 0)},
+					{GameID: "10896278", CheckedAt: time.Unix(1788900000, 0)},
+				},
+			},
+			want: []string{
+				"Проверенные партии", "не возвращались 7 дней",
+				"[Event] - Colonial Uprising", `href="/games/10895766"`,
+				"Партия 10896278", `href="/games/10896278"`,
+			},
+			deny: []string{"Активные игры"},
 		},
 		{
 			name: "game/root",
@@ -308,6 +341,50 @@ func TestPagesRender(t *testing.T) {
 				"MigoV",
 			},
 			deny: []string{"Заглянуть в партию", "Что у нас в партии", "Призвать сейчас"},
+		},
+		{
+			// Проверки кончились: карты нет, но состав с сайта и объяснение
+			// на месте. Жаловаться на молчание игры тут не за что.
+			name: "game/проверки кончились",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID":   "10895766",
+				"Game":     &gameView{ID: "10895766", Title: "Партия", State: "идёт"},
+				"Interval": 45 * time.Minute, "Ours": false,
+				"ChecksOut": true, "ChecksCounted": true,
+				"ChecksTotal": 5, "ChecksLeft": 0,
+				"Roster": []rosterView{{Login: "MigoV", Level: 13}},
+			},
+			want: []string{
+				"Проверки карты на сегодня кончились", "в полночь",
+				"осталось сегодня: 0 из 5", "MigoV",
+			},
+			deny: []string{"Посмотреть партию со стороны не вышло"},
+		},
+		{
+			// Карта показана: рядом время съёмки копии и таймер до новой.
+			// Про то, кто копию привёз, не говорится ни слова.
+			name: "game/возраст данных",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID":   "10895766",
+				"Game":     &gameView{ID: "10895766", Title: "Партия", State: "идёт"},
+				"Interval": 45 * time.Minute, "Ours": false,
+				"State":         &supremacy.GameState{Day: 3},
+				"ChecksCounted": true, "ChecksTotal": 5, "ChecksLeft": 4,
+				"MapAt":   time.Unix(1788984426, 0),
+				"MapWait": 2951, "MapWaitText": "49:11",
+				"LoaderMs": 4200,
+			},
+			want: []string{
+				"Данные о партии сняты", "Новые можно будет взять через",
+				">49:11<", `data-wait="2951"`,
+				// Ожидание сбора данных уезжает в скрипт вместе с текстом.
+				"4200", "Собираем данные о партии",
+			},
+			deny: []string{"кончились", "бот", "кто-то"},
 		},
 		{
 			// Чужая партия глазами наблюдателя: карта с коалициями есть,

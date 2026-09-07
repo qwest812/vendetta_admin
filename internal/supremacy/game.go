@@ -278,7 +278,16 @@ func (c *Client) gameState(ctx context.Context, acc *gameAccess, gameID string,
 	}, &state); err != nil {
 		return nil, err
 	}
-	return state.build(gameID, playerID)
+
+	built, err := state.build(gameID, playerID)
+	if err != nil {
+		return nil, err
+	}
+	// Единственное место, где состояние приезжает с игрового сервера, —
+	// значит, и единственное, где кэш надо наполнять. Кладут сюда все
+	// разом: и страница, и сборщик коалиций, и автопилот.
+	c.cacheState(gameID, built)
+	return built, nil
 }
 
 // gameAccess спрашивает у сайта, на каком сервере идёт партия и с каким

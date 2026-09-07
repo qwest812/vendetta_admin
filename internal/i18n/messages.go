@@ -241,6 +241,9 @@ var messages = map[string]entry{
 	"users.unblock":        {ru: "Разблокировать", en: "Unblock"},
 	"users.newpassword":    {ru: "Новый пароль", en: "New password"},
 	"users.change":         {ru: "Сменить", en: "Change"},
+	"users.checks":         {ru: "Проверки карты", en: "Map checks"},
+	"users.checks.save":    {ru: "Сохранить", en: "Save"},
+	"users.checks.note":    {ru: "Сколько раз в сутки человек может посмотреть карту партии. Каждый показ — проверка, даже обновление страницы; счёт обнуляется в полночь. Ноль закрывает карты совсем. Руту проверки не считают.", en: "How many times a day the person may look at a game map. Every view is a check, a page refresh included; the count resets at midnight. Zero closes maps entirely. The root is not counted."},
 	"users.delete.confirm": {ru: "Удалить %s безвозвратно?", en: "Delete %s permanently?"},
 
 	// --- раздел «Игры»: список и проверка по номеру ---
@@ -262,6 +265,15 @@ var messages = map[string]entry{
 	"games.account.player":    {ru: "аккаунт — игрок №%s", en: "the account is player #%s"},
 	"games.list.failed":       {ru: "Список не получен.", en: "Could not fetch the list."},
 	"games.list.empty":        {ru: "Сейчас аккаунт не играет ни в одной партии.", en: "The account is not playing any game right now."},
+
+	// Личный список проверенных партий. Он у каждого свой и живёт неделю
+	// с последней проверки, поэтому в подписи и число дней, и про личность.
+	"games.check.counter":    {ru: "Проверок осталось:", en: "Checks left:"},
+	"games.check.limit":      {ru: "Каждый показ карты — проверка, и в сутки их у вас %d; счёт обнуляется в полночь. Проверка тратится на любой показ карты, даже на обновление страницы. Данные о партии живут полтора игровых часа: пока они свежие, новых мы не берём, и на странице партии видно, когда они сняты.", en: "Every look at a map is a check, and you get %d a day; the count resets at midnight. A check is spent on any map view, a page refresh included. Game data lives for an hour and a half of game time: while it is fresh we do not fetch new data, and the game’s page shows when it was taken."},
+	"games.check.none":       {ru: "Проверок карты вам не выдано: смотреть карты нельзя, пока рут не изменит это в «Доступах».", en: "You have no map checks: maps stay closed until the root changes that in the Access section."},
+	"games.checked":          {ru: "Проверенные партии", en: "Games you have checked"},
+	"games.checked.note":     {ru: "Партии, которые вы открывали: сверху те, что смотрели недавно. Список личный — у соседа он свой. Партия, к которой вы не возвращались %d дней, уходит из списка сама.", en: "Games you have opened, the most recently checked first. The list is personal — your neighbour has their own. A game you have not come back to for %d days leaves the list by itself."},
+	"games.checked.col.when": {ru: "Проверена", en: "Checked"},
 
 	// --- страница партии ---
 	"game.title":        {ru: "Партия — Vendetta", en: "Game — Vendetta"},
@@ -288,6 +300,18 @@ var messages = map[string]entry{
 	"game.enter":          {ru: "Заглянуть в партию", en: "Look inside"},
 	"game.enter.note":     {ru: "Состав партии берётся с игрового сервера, и такой заход игра засчитывает как вход в партию — поэтому он делается только по нажатию, а не при каждом открытии страницы.", en: "The roster comes from the game server, and such a visit counts as entering the game — so it happens on a click, not on every page load."},
 	"game.observe.failed": {ru: "Посмотреть партию со стороны не вышло — причина сказана выше. Ниже то, что о ней знает сайт игры.", en: "Looking at the game from the outside did not work — the reason is above. Below is what the game’s website knows about it."},
+
+	// Счёт походов за картой. Ограничение общее на все партии: считаем
+	// не открытия страницы, а обращения к игровому серверу.
+	// Проверки карты и возраст данных. Про то, кто именно привёз копию,
+	// не говорится нигде: людям это знать незачем, а нам — врать про это.
+	"game.limit.out":     {ru: "Проверки карты на сегодня кончились, поэтому карты здесь нет — только то, что знает о партии сайт игры. Новые появятся в полночь.", en: "You are out of map checks for today, so there is no map here — only what the game’s website knows about this game. New ones arrive at midnight."},
+	"game.limit.left":    {ru: "Проверок карты осталось сегодня: %d из %d.", en: "Map checks left today: %d of %d."},
+	"game.limit.none":    {ru: "Смотреть карты вам не выдано ни одной проверки в сутки. Это решает рут.", en: "You have no map checks a day at all. That is the root’s decision."},
+	"game.limit.at":      {ru: "Данные о партии сняты", en: "Game data taken at"},
+	"game.limit.next":    {ru: "Новые можно будет взять через", en: "New ones can be taken in"},
+	"game.limit.ready":   {ru: "Можно взять новые.", en: "New ones can be taken now."},
+	"game.limit.loading": {ru: "Собираем данные о партии…", en: "Collecting the game data…"},
 
 	// Карта и её режимы.
 	"game.map.mine":           {ru: "Мои списки", en: "My lists"},
@@ -405,6 +429,7 @@ var messages = map[string]entry{
 	"faq.rights.delcards":   {ru: "Удалять карточки игроков", en: "Delete player cards"},
 	"faq.rights.delusers":   {ru: "Удалять пользователей", en: "Delete users"},
 	"faq.rights.games":      {ru: "Раздел «Игры»", en: "The Games section"},
+	"faq.rights.checks":     {ru: "Менять число проверок карты", en: "Change the number of map checks"},
 	"faq.rights.hero":       {ru: "Призывать пехоту в партии", en: "Deploy infantry in a game"},
 
 	"faq.newtrait.q":  {ru: "Как завести новый признак и что будет со шкалами?", en: "How do I add a trait, and what happens to the scales?"},
@@ -494,6 +519,7 @@ var messages = map[string]entry{
 	"err.user.nick.taken":  {ru: "Пользователь с таким ником уже есть", en: "A user with that nickname already exists"},
 	"err.password.short":   {ru: "пароль должен быть не короче 12 символов", en: "the password must be at least 12 characters"},
 	"err.password.long":    {ru: "пароль слишком длинный", en: "the password is too long"},
+	"err.checks.bad":       {ru: "Проверок в сутки — целое число от 0 до %d", en: "Checks a day must be a whole number from 0 to %d"},
 
 	// --- архив коалиций: рубильник и сводка (только руту) ---
 	"coalitions.title": {ru: "Сбор коалиций", en: "Coalition archive"},

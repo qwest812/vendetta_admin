@@ -67,6 +67,12 @@ type Client struct {
 	// games — ответы сайта о партиях: сведения и состав. Живут недолго,
 	// см. rosterTTL.
 	games map[string]*gameEntry
+	// states — состояния партий с игрового сервера: копия одна на всех,
+	// кто бы её ни привёз. Подробности в state_cache.go.
+	states map[string]*stateEntry
+	// speeds — скорость увиденных партий: по ней считается, сколько копия
+	// состояния считается свежей.
+	speeds map[string]float64
 }
 
 // session — то, что даёт странице право подписывать вызовы API.
@@ -356,6 +362,7 @@ func (c *Client) OpenGames(ctx context.Context) ([]Game, error) {
 		}
 		for _, g := range res.Games {
 			out = append(out, g.Properties)
+			c.noteSpeeds(g.Properties)
 		}
 		// Страница пришла неполной или мы уже собрали всё обещанное —
 		// дальше листать нечего.
@@ -504,6 +511,7 @@ func (c *Client) fetchGame(ctx context.Context, gameID string) (*Game, []GameLog
 	if res.Properties.GameID == "" {
 		return nil, nil, fmt.Errorf("партии %s у игры нет", gameID)
 	}
+	c.noteSpeeds(res.Properties)
 	return &res.Properties, res.Logins, nil
 }
 
@@ -523,7 +531,12 @@ func (c *Client) MyGames(ctx context.Context) ([]Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseMyGames(raw)
+	games, err := parseMyGames(raw)
+	if err != nil {
+		return nil, err
+	}
+	c.noteSpeeds(games...)
+	return games, nil
 }
 
 // myGamesParams вынесены отдельно, чтобы порядок параметров можно было

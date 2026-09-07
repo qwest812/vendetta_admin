@@ -12,6 +12,7 @@ import (
 
 	"Vendetta_admin/internal/domain"
 	"Vendetta_admin/internal/i18n"
+	"Vendetta_admin/internal/repo"
 	"Vendetta_admin/internal/supremacy"
 )
 
@@ -25,8 +26,12 @@ const gamesTimeout = 20 * time.Second
 type gameSource interface {
 	MyGames(ctx context.Context) ([]supremacy.Game, error)
 	Game(ctx context.Context, gameID string) (*supremacy.Game, []supremacy.GameLogin, error)
-	GameState(ctx context.Context, gameID string) (*supremacy.GameState, error)
-	ObserveGame(ctx context.Context, gameID string) (*supremacy.GameState, error)
+	// StateFor — состояние партии из общего кэша или с игрового сервера,
+	// вместе с временем съёмки копии; StateFresh — сколько эта копия
+	// считается свежей. Оба знают про скорость партии и про то, что руту
+	// нужно свежее остальных.
+	StateFor(ctx context.Context, gameID string, ours, root bool) (*supremacy.GameState, time.Time, error)
+	StateFresh(gameID string, root bool) time.Duration
 	DeployInfantry(ctx context.Context, gameID string) (string, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
 	UserID() string
@@ -59,6 +64,35 @@ func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
 		// Coalitions — сводка архива и состояние его рубильника. Только
 		// руту: обход ходит в игру от общего аккаунта проекта.
 		"Coalitions": nil,
+		// Checked — партии, которые смотрел тот, кто сейчас на странице,
+		// и через сколько дней они из списка уходят.
+		"Checked": nil, "CheckedDays": int(domain.CheckedGamesTTL.Hours() / 24),
+		// Проверки карты: сколько их в сутки и сколько осталось на сегодня.
+		// Руту не считают — ему и показывать нечего.
+		"ChecksTotal": 0, "ChecksLeft": 0, "ChecksCounted": false,
+	}
+
+	// Список проверенных партий читается из базы и есть у всех, кому открыт
+	// раздел: он ничего не спрашивает у игры, поэтому считается до неё —
+	// даже когда игровой аккаунт не настроен, список остаётся на месте.
+	checked, err := s.checked.List(r.Context(),
+		currentUser(r).ID, time.Now().Add(-domain.CheckedGamesTTL))
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	data["Checked"] = checked
+
+	// Остаток проверок на сегодня — там же, откуда партии открывают.
+	if me := currentUser(r); !me.IsRoot() {
+		left, err := s.checks.Left(r.Context(), me.ID, me.MapChecks, repo.Day(time.Now()))
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		data["ChecksCounted"] = true
+		data["ChecksTotal"] = me.MapChecks
+		data["ChecksLeft"] = left
 	}
 
 	if s.games == nil {
@@ -956,7 +990,18 @@ type gameAbout struct {
 
 type gameLive struct {
 	state *supremacy.GameState
-	err   error
+	// at — когда сняли копию состояния. Может быть заметно раньше запроса:
+	// копия общая, и привезти её мог кто угодно.
+	at  time.Time
+	err error
+}
+
+// setMapWait кладёт на страницу таймер до следующей копии: секунды тикает
+// скрипт, готовую строку видит тот, у кого скрипта нет.
+func setMapWait(data map[string]any, left time.Duration) {
+	sec := waitSeconds(left)
+	data["MapWait"] = sec
+	data["MapWaitText"] = waitClock(sec)
 }
 
 // gameCard — страница одной партии: что это за партия и что админка делает
@@ -967,6 +1012,10 @@ func (s *Server) gameCard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID string, withState bool, errMsg string) {
+	// Засекаем сразу: «собираем данные» показывается ровно столько, сколько
+	// не хватило странице до обычного времени сбора. См. loaderMs.
+	started := time.Now()
+
 	if s.games == nil {
 		s.render(w, r, http.StatusOK, "game", map[string]any{
 			"GameID": gameID,
@@ -999,6 +1048,15 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		// Своя страна — от профиля смотрящего. Её может не быть по двум
 		// разным причинам, и сказать об этом надо по-разному.
 		"Me": nil, "NoProfileGameID": false, "NotPlaying": false,
+		// Когда сняли копию состояния и сколько ждать новой: секундами
+		// для скрипта, строкой для глаз. Плюс адрес, по которому просить
+		// её заново.
+		"MapAt": time.Time{}, "MapWait": 0, "MapWaitText": "",
+		// Проверки: сколько их в сутки у смотрящего, сколько осталось,
+		// считают ли их ему вообще и не кончились ли они прямо сейчас.
+		"ChecksTotal": 0, "ChecksLeft": 0, "ChecksCounted": false, "ChecksOut": false,
+		// LoaderMs — сколько держать «собираем данные». Ноль — не держать.
+		"LoaderMs": 0,
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
@@ -1042,21 +1100,51 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	// Цена решения: по выдуманному номеру партии мы теперь сходим в игру
 	// зря — сайт скажет «такой нет» уже после. Один лишний запрос на опечатку
 	// против секунды на каждом честном открытии.
-	var live chan gameLive
-	if withState || !ours {
+	//
+	// Показ карты стоит проверки: рут выдаёт их на сутки, и тратятся они
+	// на каждый показ — даже когда данные пришли из общего кэша. Человек
+	// смотрит партию, а откуда взялись данные, его не касается.
+	who := currentUser(r)
+	root := who.IsRoot()
+	day := repo.Day(time.Now())
+	data["ChecksCounted"] = !root
+	data["ChecksTotal"] = who.MapChecks
+
+	var (
+		live  chan gameLive
+		spent bool
+	)
+	switch {
+	case withState || !ours:
+		if !root {
+			ok, left, err := s.checks.Spend(ctx, who.ID, who.MapChecks, day)
+			if err != nil {
+				s.serverError(w, r, err)
+				return
+			}
+			data["ChecksLeft"] = left
+			if !ok {
+				// Проверки кончились — карты не будет. Остальное собирается
+				// ниже: сведения с сайта и состав ничего не стоят.
+				data["ChecksOut"] = true
+				break
+			}
+			spent = true
+		}
 		live = make(chan gameLive, 1)
 		go func() {
-			var (
-				state *supremacy.GameState
-				err   error
-			)
-			if ours {
-				state, err = s.games.GameState(ctx, gameID)
-			} else {
-				state, err = s.games.ObserveGame(ctx, gameID)
-			}
-			live <- gameLive{state: state, err: err}
+			state, at, err := s.games.StateFor(ctx, gameID, ours, root)
+			live <- gameLive{state: state, at: at, err: err}
 		}()
+	case !root:
+		// В свою партию не ходили — её открывают кнопкой. Остаток проверок
+		// надо показать до того, как человек в него упрётся.
+		left, err := s.checks.Left(ctx, who.ID, who.MapChecks, day)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		data["ChecksLeft"] = left
 	}
 
 	// Состав сайт отдаёт вместе с самой партией и про любую партию, поэтому
@@ -1098,6 +1186,19 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		data["Game"] = &view
 	}
 
+	// Партия нашлась — значит, она проверена, и место ей в личном списке
+	// того, кто смотрит. Отметка ставится и на чужую партию, и на свою
+	// до захода внутрь: проверкой считается сам взгляд на партию, а не то,
+	// как далеко он зашёл. Название пишем то, что видно сейчас: партия
+	// когда-нибудь кончится, а список должен читаться и без похода в игру.
+	if view, ok := data["Game"].(*gameView); ok {
+		if err := s.checked.Mark(ctx, who.ID, gameID, view.Title, time.Now()); err != nil {
+			// Список — удобство, а не суть страницы: не вышло записать,
+			// значит партия просто не всплывёт наверх.
+			s.log.Error("запись проверенной партии", "gameID", gameID, "err", err)
+		}
+	}
+
 	// В свою партию заходим только по кнопке: такой заход игра засчитывает
 	// как вход. В чужую смотрим наблюдателем, и вот это уже ничего не стоит
 	// — значит, и прятать за кнопкой незачем.
@@ -1105,6 +1206,14 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		res := <-live
 		state, err := res.state, res.err
 		if err != nil {
+			// Проверку возвращаем: человек ничего не увидел, брать за это
+			// плату нечестно. Не вышло вернуть — не беда, скажем в лог.
+			if spent {
+				if err := s.checks.Refund(ctx, who.ID, day); err != nil {
+					s.log.Error("возврат проверки карты", "user_id", who.ID, "err", err)
+				}
+				data["ChecksLeft"] = data["ChecksLeft"].(int) + 1
+			}
 			s.log.Warn("состояние партии", "gameID", gameID, "наша", ours, "err", err)
 			if ours {
 				data["Error"] = joinErrors(errMsg, lang.T("game.enter.error", err))
@@ -1115,10 +1224,14 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 			return
 		}
 		data["State"] = state
+		// Копия общая, и снята она могла быть заметно раньше — скажем,
+		// когда именно, и когда можно будет взять новую.
+		data["MapAt"] = res.at
+		setMapWait(data, time.Until(res.at.Add(s.games.StateFresh(gameID, root))))
 
 		// Своя страна ищется по игровому ID из профиля: у каждого смотрящего
 		// она своя, а у кого-то её в этой партии и нет вовсе.
-		viewer := currentUser(r).GameID
+		viewer := who.GameID
 		me, playing := viewerPlayer(state, viewer)
 		meID := 0
 		switch {
@@ -1193,6 +1306,7 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 			data["MapError"] = lang.T("game.map.error", err)
 		} else {
 			data["Map"] = gameMap(lang, geo, state, sides, meID)
+			data["LoaderMs"] = loaderMs(time.Since(started))
 		}
 	}
 

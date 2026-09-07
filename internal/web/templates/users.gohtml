@@ -43,7 +43,7 @@
             <th>{{t "users.email"}}</th>
             <th>{{t "users.role"}}</th>
             {{/* Доступ к играм раздаёт только рут, остальным колонку не показываем. */}}
-            {{if $root}}<th>{{t "nav.games"}}</th>{{end}}
+            {{if $root}}<th>{{t "nav.games"}}</th><th>{{t "users.checks"}}</th>{{end}}
             <th>{{t "common.status"}}</th>
             <th>{{t "users.created"}}</th>
             <th class="actions">{{t "common.actions"}}</th>
@@ -74,6 +74,20 @@
                                 <input type="hidden" name="csrf_token" value="{{$csrf}}">
                                 <input type="hidden" name="access" value="{{if .GamesAccess}}false{{else}}true{{end}}">
                                 <button type="submit">{{if .GamesAccess}}{{t "users.close"}}{{else}}{{t "users.open"}}{{end}}</button>
+                            </form>
+                        {{end}}
+                    </td>
+                    {{/* Число проверок карты в сутки. Поле, а не кнопка:
+                         значений тут не два, и у каждого своё. */}}
+                    <td class="access">
+                        {{if .IsRoot}}
+                            {{/* Руту проверки не считают вовсе. */}}
+                            <span class="muted">{{t "users.always"}}</span>
+                        {{else}}
+                            <form method="post" action="/users/{{.ID}}/checks" class="inline-checks">
+                                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                                <input type="number" name="checks" value="{{.MapChecks}}" min="0" max="500" required>
+                                <button type="submit">{{t "users.checks.save"}}</button>
                             </form>
                         {{end}}
                     </td>
@@ -123,5 +137,6 @@
         {{end}}
         </tbody>
     </table>
+    {{if $root}}<p class="muted">{{t "users.checks.note"}}</p>{{end}}
 </div>
 {{end}}

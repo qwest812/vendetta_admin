@@ -157,6 +157,37 @@ func (s *Server) usersSetGamesAccess(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
+// usersSetMapChecks меняет дневное число проверок карты. Право рутовое
+// по той же причине, что и доступ к разделу: каждая проверка — это данные
+// с игрового сервера, добытые общим аккаунтом проекта.
+func (s *Server) usersSetMapChecks(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.manageableTarget(w, r)
+	if !ok {
+		return
+	}
+	checks, err := strconv.Atoi(strings.TrimSpace(r.PostFormValue("checks")))
+	// Ноль — это запрет смотреть карты, и он осмысленный. А вот отрицательное
+	// число и мусор в поле означают опечатку, а не намерение.
+	if err != nil || checks < 0 || checks > maxMapChecks {
+		s.renderUsers(w, r, http.StatusUnprocessableEntity,
+			map[string]any{"Error": langOf(r).T("err.checks.bad", maxMapChecks)})
+		return
+	}
+	if err := s.users.SetMapChecks(r.Context(), target.ID, checks); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	// Уже потраченное за сегодня не возвращаем и не отбираем: счёт идёт
+	// по дню, а новое число действует с этого мгновения.
+	s.logAudit(r, "user.set_map_checks", target.ID,
+		map[string]any{"user": target.Display(), "checks": checks})
+	http.Redirect(w, r, "/users", http.StatusSeeOther)
+}
+
+// maxMapChecks — потолок для поля: не запрет, а защита от лишнего нуля
+// в конце. Столько раз в сутки карту всё равно никто не смотрит.
+const maxMapChecks = 500
+
 func (s *Server) usersResetPassword(w http.ResponseWriter, r *http.Request) {
 	target, ok := s.manageableTarget(w, r)
 	if !ok {

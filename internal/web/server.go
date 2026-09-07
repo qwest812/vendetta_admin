@@ -40,7 +40,11 @@ type Server struct {
 	// heroEvery — как часто воркер жмёт кнопку Мейв; показывается на
 	// странице партии, чтобы обещание в интерфейсе не расходилось с делом.
 	heroEvery time.Duration
-	health    func(context.Context) error
+	// checks — дневной счёт проверок карты: сколько их у кого осталось.
+	checks *repo.MapChecks
+	// checked — личные списки проверенных партий: у каждого свой.
+	checked *repo.CheckedGames
+	health  func(context.Context) error
 	// cookieSecure — тот же флаг, что у куки сессии: язык хранится в куке,
 	// и жить она должна по тем же правилам.
 	cookieSecure bool
@@ -71,6 +75,10 @@ type Deps struct {
 	// Coalitions — архив коалиций, Settings — общие переключатели админки.
 	Coalitions *repo.Coalitions
 	Settings   *repo.Settings
+	// Checked — какие партии кто смотрел: список у каждого свой.
+	Checked *repo.CheckedGames
+	// Checks — дневной счёт проверок карты.
+	Checks *repo.MapChecks
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
 	// CookieSecure — ставить ли кукам флаг Secure. Тот же, что у сессии.
@@ -86,7 +94,7 @@ func NewServer(d Deps) (*Server, error) {
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
 		games: d.Games, alliances: d.Alliances, gamePlayers: d.GamePlayers,
-		coalitions: d.Coalitions, settings: d.Settings,
+		coalitions: d.Coalitions, settings: d.Settings, checked: d.Checked, checks: d.Checks,
 		tasks: d.Tasks, heroEvery: d.HeroEvery,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}
@@ -194,6 +202,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /games/{id}/hero", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroToggle))))
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
 	mux.Handle("POST /users/{id}/games", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetGamesAccess))))
+	mux.Handle("POST /users/{id}/checks", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetMapChecks))))
 	mux.Handle("POST /users/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.usersDelete))))
 	mux.Handle("POST /players/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.playerDelete))))
 

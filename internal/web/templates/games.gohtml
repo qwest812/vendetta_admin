@@ -7,6 +7,16 @@
 <div class="card">
     <div class="card-head">
         <h1>{{t "games.check"}}</h1>
+        {{/* Счётчик стоит у самой формы: сколько партий ещё можно посмотреть
+             — это первое, что нужно знать перед тем, как вводить номер,
+             а не примечание под ней. */}}
+        {{if and .ChecksCounted .ChecksTotal}}
+            <div class="head-actions">
+                <span class="checks-left{{if not .ChecksLeft}} out{{end}}">
+                    {{t "games.check.counter"}} <b>{{.ChecksLeft}}</b> / {{.ChecksTotal}}
+                </span>
+            </div>
+        {{end}}
     </div>
     <form class="row-form" method="get" action="/games/check">
         <input type="text" name="id" value="{{.Query}}" placeholder="{{t "games.check.placeholder"}}"
@@ -17,7 +27,47 @@
     <p class="muted">
         {{t "games.check.note"}}
     </p>
+    {{/* Проверки рута не касаются, поэтому и пометка не ему: обещать
+         ожидание тому, кто его не увидит, незачем. */}}
+    {{if .ChecksCounted}}
+        <p class="muted">
+            {{if .ChecksTotal}}{{t "games.check.limit" .ChecksTotal}}{{else}}{{t "games.check.none"}}{{end}}
+        </p>
+    {{end}}
 </div>
+
+{{/* Проверенные партии — личный список того, кто смотрит: он есть у всех,
+     кому открыт раздел, и читается из базы, а не из игры. Пока ничего
+     не проверяли, карточки нет вовсе: пустая таблица не объясняет себя. */}}
+{{with .Checked}}
+<div class="card">
+    <div class="card-head">
+        <h1>{{t "games.checked"}}</h1>
+    </div>
+    <p class="muted">{{t "games.checked.note" $.CheckedDays}}</p>
+    <table>
+        <thead>
+        <tr>
+            <th>{{t "games.col.game"}}</th>
+            <th>{{t "games.checked.col.when"}}</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .}}
+            <tr>
+                <td>
+                    {{/* Название могло не приехать: партия у нас всё равно
+                         остаётся, и звать её тогда по номеру. */}}
+                    <a class="nick" href="/games/{{.GameID}}">{{if .Title}}{{.Title}}{{else}}{{t "game.unnamed" .GameID}}{{end}}</a>
+                    <span class="game-id">ID {{.GameID}}</span>
+                </td>
+                <td class="muted nowrap">{{datetime .CheckedAt}}</td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
 
 {{if .CurrentUser.IsRoot}}
 <div class="card">

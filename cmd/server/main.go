@@ -12,6 +12,7 @@ import (
 
 	"Vendetta_admin/internal/auth"
 	"Vendetta_admin/internal/config"
+	"Vendetta_admin/internal/domain"
 	"Vendetta_admin/internal/repo"
 	"Vendetta_admin/internal/storage"
 	"Vendetta_admin/internal/supremacy"
@@ -59,6 +60,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	gamePlayers := repo.NewGamePlayers(pool)
 	coalitions := repo.NewCoalitions(pool)
 	settings := repo.NewSettings(pool)
+	checked := repo.NewCheckedGames(pool)
+	mapChecks := repo.NewMapChecks(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -78,7 +81,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
-		Coalitions: coalitions, Settings: settings,
+		Coalitions: coalitions, Settings: settings, Checked: checked, Checks: mapChecks,
 		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
@@ -93,6 +96,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	}
 
 	go cleanupSessions(ctx, log, sessions)
+	go cleanupCheckedGames(ctx, log, checked)
+	go cleanupMapChecks(ctx, log, mapChecks)
 
 	if s1914 != nil {
 		seen := repo.NewSupremacyGames(pool)
@@ -172,6 +177,52 @@ func seedRoot(ctx context.Context, log *slog.Logger, users *repo.Users, cfg *con
 		log.Info("создан рут-пользователь", "nickname", cfg.RootNickname, "email", cfg.RootEmail)
 	}
 	return nil
+}
+
+// cleanupMapChecks раз в час выбрасывает счёт проверок за прошедшие дни.
+// На сам лимит это не влияет — он считается по сегодняшнему дню, — но
+// таблице незачем помнить каждый день каждого.
+func cleanupMapChecks(ctx context.Context, log *slog.Logger, checks *repo.MapChecks) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n, err := checks.Forget(ctx, repo.Day(time.Now()))
+			if err != nil {
+				log.Error("очистка счёта проверок", "err", err)
+				continue
+			}
+			if n > 0 {
+				log.Info("забыт счёт проверок за прошлые дни", "count", n)
+			}
+		}
+	}
+}
+
+// cleanupCheckedGames раз в час убирает из личных списков партии, к которым
+// не возвращались дольше срока. Страница и без этого показывает только свежее
+// — уборка нужна затем, чтобы таблица не росла вечно.
+func cleanupCheckedGames(ctx context.Context, log *slog.Logger, checked *repo.CheckedGames) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n, err := checked.Forget(ctx, time.Now().Add(-domain.CheckedGamesTTL))
+			if err != nil {
+				log.Error("очистка проверенных партий", "err", err)
+				continue
+			}
+			if n > 0 {
+				log.Info("забыты давние проверки партий", "count", n)
+			}
+		}
+	}
 }
 
 // cleanupSessions раз в час подчищает протухшие сессии.

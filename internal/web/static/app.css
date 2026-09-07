@@ -505,3 +505,38 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 .map-legend .swatch.side-enemy { background: #a2453c; }
 .map-legend .swatch.side-friend { background: #3f7d5a; }
 .map-legend .swatch.premium { background: #7d63a8; }
+
+/* Ссылка, которой ещё рано: пока идёт счёт до следующего похода за картой,
+   скрипт вешает этот класс, а по нулю снимает. Нажатие гасим и вида ради,
+   и по делу — раньше срока оно вернёт тот же отказ. */
+a.button.waiting, a.waiting { opacity: .45; pointer-events: none; }
+/* Секунды в таймере не должны прыгать шириной. */
+.map-wait .timer { font-variant-numeric: tabular-nums; }
+
+/* Число проверок карты правится прямо в строке пользователя: поле узкое,
+   счёт там двузначный. */
+.inline-checks { display: flex; gap: 6px; align-items: center; }
+.inline-checks input { width: 68px; }
+
+/* «Собираем данные о партии»: накрывает карту вместе с легендой на то время,
+   которого не хватило странице до обычного времени сбора. Ставит и снимает
+   его скрипт — без него карта видна сразу. */
+.map-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 14px;
+}
+
+/* Счётчик проверок у формы «Проверить игру»: число крупнее подписи, потому
+   что смотрят именно на него. Ноль краснеет — дальше формой не воспользуешься.
+   Имя не «checks»: так зовётся сетка галочек в карточке игрока, и счётчик
+   разъезжало её колонками. Строка короткая — переносить её незачем. */
+.checks-left { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.checks-left b { color: var(--text); font-size: 16px; }
+.checks-left.out, .checks-left.out b { color: var(--danger); }
