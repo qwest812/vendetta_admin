@@ -118,13 +118,13 @@
             <input class="map-mode" type="radio" name="map-mode" id="map-clans" checked>
             <input class="map-mode" type="radio" name="map-mode" id="map-sides">
             <input class="map-mode" type="radio" name="map-mode" id="map-teams">
-            <input class="map-mode" type="radio" name="map-mode" id="map-premium">
+            <input class="map-mode" type="radio" name="map-mode" id="map-players">
             <input class="map-mode" type="radio" name="map-mode" id="map-top">
             <div class="map-tabs">
                 <label for="map-clans">{{t "nav.clans"}}</label>
                 <label for="map-sides">{{t "game.map.mine"}}</label>
                 <label for="map-teams">{{t "game.map.teams"}}</label>
-                <label for="map-premium">{{t "game.map.premium"}}</label>
+                <label for="map-players">{{t "game.map.players"}}</label>
                 <label for="map-top">{{t "game.map.top"}}</label>
             </div>
             {{/* Карта в собственных координатах игры: viewBox их и берёт,
@@ -213,19 +213,32 @@
                 {{end}}
             </div>
 
-            <div class="map-pane pane-premium">
-                <ul class="map-legend">
-                    <li><span class="swatch premium"></span> {{t "game.map.premium.legend"}}{{with .Premium}} <span class="muted">— {{len .}}</span>{{end}}</li>
-                </ul>
+            <div class="map-pane pane-players">
+                {{/* Четыре рода владельцев — четыре цвета, и число рядом
+                     с каждым считает людей, а не провинции: цвет здесь
+                     говорит про игрока. Ничейная земля остаётся тёмной
+                     и в счёт не идёт. */}}
+                {{with .Map.Kinds}}
+                    <ul class="map-legend">
+                        <li><span class="swatch human"></span> {{t "game.map.players.regular"}} <span class="muted">— {{.Regular}}</span></li>
+                        <li><span class="swatch ai"></span> {{t "game.map.players.ai"}} <span class="muted">— {{.AI}}</span></li>
+                        <li><span class="swatch premium"></span> {{t "game.map.premium.legend"}} <span class="muted">— {{.Premium}}</span></li>
+                        <li><span class="swatch banned"></span> {{t "game.map.players.banned"}} <span class="muted">— {{.Banned}}</span></li>
+                    </ul>
+                {{end}}
+                <p class="muted">
+                    {{t "game.map.players.note"}}
+                </p>
                 {{if .Premium}}
                     <p class="muted">
                         {{t "game.map.premium.list"}}
                         {{range $i, $p := .Premium}}{{if $i}}, {{end}}{{$p.Nation}}{{if $p.Name}} ({{$p.Name}}){{end}}{{if $p.Mine}} — {{t "game.thatsyou"}}{{end}}{{end}}.
-                        {{t "game.map.premium.note"}}
                     </p>
-                {{else}}
+                {{end}}
+                {{if .Banned}}
                     <p class="muted">
-                        {{t "game.map.premium.empty"}}
+                        {{t "game.banned"}}
+                        {{range $i, $b := .Banned}}{{if $i}}, {{end}}{{$b.Nation}}{{if $b.Name}} ({{$b.Name}}){{end}}{{end}}.
                     </p>
                 {{end}}
             </div>

@@ -78,6 +78,27 @@
             {{t "player.seen.at"}} {{datetime .SeenAt}}{{if .SeenGameID}} {{t "player.seen.ingamepre"}} <a href="/games/{{.SeenGameID}}">{{t "player.seen.game" .SeenGameID}}</a>{{end}}.
         </p>
     {{end}}
+
+    {{/* История банов. Строка выше говорит только про сегодня, и снятый
+         бан из неё исчезает бесследно, — а здесь остаётся. */}}
+    {{with .Bans}}
+        <p class="muted">{{t "player.bans.title"}} — {{t "player.bans.hint"}}.</p>
+        <ul class="bans">
+            {{range .}}
+                <li>
+                    <span>{{datetime .NoticedAt}}</span>
+                    {{if .Banned}}
+                        <span class="badge clan-enemy">{{t "player.bans.banned"}}</span>
+                    {{else}}
+                        <span class="badge clan-ally">{{t "player.bans.lifted"}}</span>
+                    {{end}}
+                    {{if .GameID}}
+                        <span>{{t "player.seen.ingamepre"}} <a href="/games/{{.GameID}}">{{t "player.seen.game" .GameID}}</a></span>
+                    {{end}}
+                </li>
+            {{end}}
+        </ul>
+    {{end}}
     <p class="muted">{{t "player.added"}} {{datetime $p.CreatedAt}}, {{t "player.changed"}} {{datetime $p.UpdatedAt}}</p>
 </div>
 

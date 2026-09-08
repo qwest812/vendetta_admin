@@ -82,7 +82,7 @@ func TestGameMapColors(t *testing.T) {
 	// Цвет даёт клан из базы, а не собственный цвет страны в игре, и едет
 	// он переменной: заливку выбирает режим карты уже в css.
 	mine := view.Shapes[0]
-	if mine.Class != "clan own" || string(mine.ClanColor) != mapPalette[0] {
+	if mine.Class != "clan human own" || string(mine.ClanColor) != mapPalette[0] {
 		t.Errorf("своя провинция: class=%q clan=%q", mine.Class, mine.ClanColor)
 	}
 	if mine.Points != "0,0 10,0 10,10" {
@@ -93,9 +93,10 @@ func TestGameMapColors(t *testing.T) {
 		t.Errorf("подпись = %q", mine.Title)
 	}
 
-	// Игрок, которого нет в базе, остаётся без классов совсем: в любом
-	// режиме его закрасит серый по умолчанию.
-	if foreign := view.Shapes[1]; foreign.Class != "" || foreign.ClanColor != "" {
+	// У игрока, которого нет в базе, остаётся один класс — род владельца:
+	// клана мы про него не знаем, и в режиме кланов его закрасит серый
+	// по умолчанию.
+	if foreign := view.Shapes[1]; foreign.Class != "human" || foreign.ClanColor != "" {
 		t.Errorf("чужая провинция: class=%q clan=%q", foreign.Class, foreign.ClanColor)
 	}
 	// Ничейная земля помечена отдельно: она серая в обоих режимах, но темнее
@@ -227,9 +228,10 @@ func TestGameMapWithoutViewer(t *testing.T) {
 			t.Errorf("фигура %d помечена своей (%q), хотя своей страны у смотрящего нет", i, shape.Class)
 		}
 	}
-	// Аккаунт проекта на карте — обычная страна: без карточки в базе он
-	// красится общим серым, как и все остальные, а значит без классов.
-	if view.Shapes[0].Class != "" {
+	// Аккаунт проекта на карте — обычная страна: карточки в базе у него
+	// нет, ни в какой клан и коалицию он не входит, и остаётся при нём
+	// только род владельца — живой игрок.
+	if view.Shapes[0].Class != "human" {
 		t.Errorf("страна аккаунта = %q", view.Shapes[0].Class)
 	}
 	if view.Legend != nil {
@@ -271,12 +273,12 @@ func TestGameMapMarksFriends(t *testing.T) {
 
 	view := gameMap(i18n.RU, geo, state, sides, 12)
 
-	if got := view.Shapes[1].Class; got != "side-friend" {
+	if got := view.Shapes[1].Class; got != "side-friend human" {
 		t.Errorf("классы провинции друга = %q", got)
 	}
 	// Спорная провинция несёт оба класса, а какой победит — решает порядок
 	// правил в app.css: там вражда стоит ниже дружбы.
-	if got := view.Shapes[2].Class; got != "side-friend side-enemy" {
+	if got := view.Shapes[2].Class; got != "side-friend side-enemy human" {
 		t.Errorf("классы спорной провинции = %q", got)
 	}
 	if !strings.Contains(view.Shapes[1].Title, "в друзьях") {
@@ -442,7 +444,7 @@ func TestGameMapFillsTeams(t *testing.T) {
 	view := gameMap(i18n.RU, geo, state, sides, 12)
 
 	shape := view.Shapes[0]
-	if shape.Class != "clan team premium own" {
+	if shape.Class != "clan team human premium own" {
 		t.Errorf("классы провинции = %q", shape.Class)
 	}
 	if string(shape.TeamColor) != "rgb(120,90,120)" || string(shape.ClanColor) != mapPalette[0] {
@@ -455,6 +457,57 @@ func TestGameMapFillsTeams(t *testing.T) {
 	}
 	if len(view.Teams) != 1 || !view.Teams[0].Mine {
 		t.Errorf("легенда коалиций = %+v", view.Teams)
+	}
+}
+
+// Режим «Игроки» красит землю по её владельцу, и родов там четыре.
+// Классы провинция несёт все сразу, а спор между ними разбирает css;
+// счёт легенды разбирает его так же, поэтому проверяются они вместе.
+func TestGameMapPlayerKinds(t *testing.T) {
+	geo := &supremacy.MapGeometry{
+		Width: 100, Height: 50,
+		Land: map[int][]supremacy.Point{
+			1: {{X: 0, Y: 0}, {X: 10, Y: 0}, {X: 10, Y: 10}},
+			2: {{X: 20, Y: 0}, {X: 30, Y: 0}, {X: 30, Y: 10}},
+			3: {{X: 40, Y: 0}, {X: 50, Y: 0}, {X: 50, Y: 10}},
+			4: {{X: 60, Y: 0}, {X: 70, Y: 0}, {X: 70, Y: 10}},
+			5: {{X: 80, Y: 0}, {X: 90, Y: 0}, {X: 90, Y: 10}},
+			6: {{X: 0, Y: 20}, {X: 10, Y: 20}, {X: 10, Y: 30}},
+		},
+	}
+	state := &supremacy.GameState{
+		Players: map[int]supremacy.Player{
+			12: {ID: 12, Nation: "Греция", Name: "Обычный"},
+			29: {ID: 29, Nation: "Франция", IsAI: true},
+			31: {ID: 31, Nation: "Швеция", Name: "Богатый", Premium: true},
+			33: {ID: 33, Nation: "Бельгия", Name: "Мультовод", Banned: true},
+			35: {ID: 35, Nation: "Италия", Name: "И то и то", Premium: true, Banned: true},
+		},
+		Provinces: []supremacy.Province{
+			{ID: 1, Name: "Афины", Owner: 12},
+			{ID: 2, Name: "Париж", Owner: 29},
+			{ID: 3, Name: "Стокгольм", Owner: 31},
+			{ID: 4, Name: "Брюссель", Owner: 33},
+			{ID: 5, Name: "Рим", Owner: 35},
+			// Вторая провинция того же человека: легенда считает людей,
+			// а не земли, и от неё числа меняться не должны.
+			{ID: 6, Name: "Милан", Owner: 35},
+			{ID: 7, Name: "Ничьё"},
+		},
+	}
+
+	view := gameMap(i18n.RU, geo, state, nil, 0)
+
+	want := []string{"human", "ai", "human premium", "human banned", "human premium banned"}
+	for i, w := range want {
+		if got := view.Shapes[i].Class; got != w {
+			t.Errorf("классы провинции %d = %q, ожидались %q", i, got, w)
+		}
+	}
+	// Забаненного с премиумом легенда считает забаненным: в css его
+	// правило стоит ниже и побеждает, а расходиться им нельзя.
+	if got := (playerKinds{Regular: 1, AI: 1, Premium: 1, Banned: 2}); view.Kinds != got {
+		t.Errorf("счёт владельцев = %+v, ожидался %+v", view.Kinds, got)
 	}
 }
 
@@ -504,8 +557,9 @@ func TestGameIDFromInput(t *testing.T) {
 	}
 }
 
-// Бан игра сообщает про всех участников партии, и на странице его надо
-// показать отдельно: на карте страна забаненного ничем не отличается.
+// Бан игра сообщает про всех участников партии. На карте забаненный
+// закрашен своим цветом, но там он только цвет — списком его видно
+// в этом отдельном перечне.
 func TestBannedViews(t *testing.T) {
 	state := &supremacy.GameState{
 		Players: map[int]supremacy.Player{

@@ -31,7 +31,8 @@ func (a Alliance) InClan() bool { return a.ID != "" }
 // из партии — конкретной игре, и в базе им делать нечего.
 //
 // BannedAt — когда бан увидели впервые; у неснятого бана он и остаётся
-// первой встречей, а снятие обнуляет дату вместе с флагом.
+// первой встречей, а снятие обнуляет дату вместе с флагом. Прошлые баны
+// хранятся отдельно — см. BanEvent.
 type GamePlayer struct {
 	SiteUserID string
 	Nickname   string
@@ -39,4 +40,18 @@ type GamePlayer struct {
 	BannedAt   *time.Time
 	SeenAt     time.Time
 	SeenGameID string
+}
+
+// BanEvent — замеченная смена статуса бана: Banned говорит, каким статус
+// стал, а не каким был. Из таких строк складывается история: сегодняшнее
+// состояние живёт в GamePlayer и снятие бана его затирает, а здесь
+// остаётся и то, что было раньше.
+//
+// NoticedAt — когда мы это увидели, а не когда случилось: игра сообщает
+// только текущий статус, и узнаём мы о нём в момент захода в партию.
+type BanEvent struct {
+	SiteUserID string
+	Banned     bool
+	NoticedAt  time.Time
+	GameID     string
 }

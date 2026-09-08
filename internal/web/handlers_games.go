@@ -215,9 +215,10 @@ func gameState(l i18n.Lang, state string) string {
 //
 // Class — «neutral» у ничейной земли, «clan» у той, чей клан получил цвет,
 // «top» у страны игрока из клана-топа, «side-enemy» и «side-friend» у стран
-// из личных списков смотрящего, «team» у состоящей в коалиции, «premium»
-// у страны игрока с подпиской, «own» у своей: эта последняя пометка одна
-// на все режимы, потому что обводка везде означает одно и то же.
+// из личных списков смотрящего, «team» у состоящей в коалиции, «human»
+// и «ai» у страны живого игрока и бота, «premium» и «banned» у страны
+// игрока с подпиской и забаненного, «own» у своей: эта последняя пометка
+// одна на все режимы, потому что обводка везде означает одно и то же.
 // ClanColor, TeamColor и TopColor — цвета клана, коалиции и клана из топа,
 // они же css-переменные --clan, --team и --top; пусто, если красить нечем.
 type mapShape struct {
@@ -267,6 +268,22 @@ type gameMapView struct {
 	// Top — кланы из верхушки рейтинга игры, чьи игроки нашлись в этой
 	// партии. Пусто и когда таких нет, и когда топ ещё не снимали.
 	Top []topLegendView
+	// Kinds — счёт владельцев для легенды режима «Игроки».
+	Kinds playerKinds
+}
+
+// playerKinds — сколько на карте владельцев каждого рода. Легенда режима
+// «Игроки» только этим и живёт: цвет там говорит не про клан и не про
+// коалицию, а про самого человека, и список имён к нему не нужен —
+// достаточно чисел.
+//
+// Роды не пересекаются: каждый владелец попадает ровно в один, тот же,
+// в какой его красит css.
+type playerKinds struct {
+	Regular int
+	AI      int
+	Premium int
+	Banned  int
 }
 
 // topLegendView — строка легенды режима «Топ кланов»: клан из верхушки
@@ -430,13 +447,22 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 				shape.TeamColor = template.CSS(color)
 				shape.Title += ", " + l.T("tip.team", nonEmpty(state.Teams[owner.TeamID].Name, l.T("game.noname")))
 			}
-			// Премиум — свойство самого игрока, из состояния партии.
-			// В своём режиме он и есть вся разметка.
+			// Режим «Игроки» различает четверых: живого человека, бота,
+			// подписку и бан. Все четыре — свойства самого игрока, из
+			// состояния партии, и класс нужен каждому: серой заливкой
+			// по умолчанию помечена ничейная земля, и обычный игрок
+			// не должен выглядеть как она.
+			if owner.IsAI {
+				classes = append(classes, "ai")
+			} else {
+				classes = append(classes, "human")
+			}
 			if owner.Premium {
 				classes = append(classes, "premium")
 				shape.Title += ", " + l.T("game.premium")
 			}
 			if owner.Banned {
+				classes = append(classes, "banned")
 				shape.Title += ", " + l.T("game.bannedone")
 			}
 
@@ -455,6 +481,24 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 		}
 		shape.Class = strings.Join(classes, " ")
 		view.Shapes = append(view.Shapes, shape)
+	}
+
+	// Легенда режима «Игроки» считает владельцев, а не провинции: цвет
+	// говорит про человека, и в centers лежат ровно те, у кого земля есть.
+	// Порядок веток тот же, в каком спорят правила css: бан важнее
+	// подписки, подписка — всего остального.
+	for playerID := range centers {
+		owner := state.Players[playerID]
+		switch {
+		case owner.Banned:
+			view.Kinds.Banned++
+		case owner.Premium:
+			view.Kinds.Premium++
+		case owner.IsAI:
+			view.Kinds.AI++
+		default:
+			view.Kinds.Regular++
+		}
 	}
 
 	for playerID, c := range centers {

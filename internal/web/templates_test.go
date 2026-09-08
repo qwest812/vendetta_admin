@@ -122,11 +122,11 @@ func TestPagesRender(t *testing.T) {
 		},
 		{
 			page: "player",
-			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil},
+			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil},
 			// Клан на карточке — ссылка на клан, а не текст.
 			want: []string{`href="/clans/7"`, "Враждебный клан"},
 			// Про игру мы ничего не знаем — и молчим об этом.
-			deny: []string{"В игре", "забанен"},
+			deny: []string{"В игре", "забанен", "История банов"},
 		},
 		{
 			// Бан игра рассказывает про аккаунт, поэтому он и живёт
@@ -139,11 +139,38 @@ func TestPagesRender(t *testing.T) {
 					SiteUserID: "777", Nickname: "Мультовод", Banned: true,
 					BannedAt: &banSeen, SeenAt: banSeen, SeenGameID: "10892960",
 				},
+				"Bans": nil,
 			},
 			want: []string{
 				"забанен в игре", "под ником Мультовод",
 				`href="/games/10892960"`,
 			},
+			// Одного бана без истории мало: журнал пуст, и говорить не о чем.
+			deny: []string{"История банов"},
+		},
+		{
+			// Снятый бан из сегодняшнего статуса исчезает совсем, поэтому
+			// про прошлое карточка спрашивает журнал — и он единственный,
+			// кто помнит, что человек однажды сидел.
+			name: "player/история банов",
+			page: "player",
+			data: map[string]any{
+				"Player": enemy, "Notes": nil, "Error": "",
+				"Seen": &domain.GamePlayer{
+					SiteUserID: "777", Nickname: "Мультовод", Banned: false,
+					SeenAt: banSeen, SeenGameID: "10892960",
+				},
+				"Bans": []domain.BanEvent{
+					{SiteUserID: "777", Banned: false, NoticedAt: banSeen, GameID: "10892960"},
+					{SiteUserID: "777", Banned: true, NoticedAt: banSeen.Add(-72 * time.Hour), GameID: "10867066"},
+				},
+			},
+			want: []string{
+				"История банов", ">бан снят<", ">забанен<",
+				`href="/games/10867066"`,
+			},
+			// Сегодня бана нет, и значок «забанен в игре» в шапке лишний.
+			deny: []string{"забанен в игре"},
 		},
 		{
 			name: "games/root",
@@ -290,6 +317,7 @@ func TestPagesRender(t *testing.T) {
 					Teams: []teamLegendView{
 						{Name: "КСГ", Color: "rgb(120,90,120)", Members: 4, Mine: true},
 					},
+					Kinds: playerKinds{Regular: 9, AI: 4, Premium: 2, Banned: 1},
 				},
 				"Enemies": []gameRelationView{{
 					Nation: "Франция", Name: "Враг", Premium: true,
@@ -305,9 +333,9 @@ func TestPagesRender(t *testing.T) {
 			want: []string{
 				// Обе кнопки режимов и обе легенды на странице: переключает
 				// их css, поэтому в разметке они есть всегда.
-				`id="map-clans"`, `id="map-sides"`, `id="map-teams"`, `id="map-premium"`,
+				`id="map-clans"`, `id="map-sides"`, `id="map-teams"`, `id="map-players"`,
 				`id="map-top"`,
-				"Кланы", "Мои списки", "Коалиции", "Премиум", "Топ кланов",
+				"Кланы", "Мои списки", "Коалиции", "Игроки", "Топ кланов",
 				"Во врагах", "В друзьях",
 				// Коалиция — из игры: своё название, свой цвет, и своя
 				// помечается отдельно.
@@ -316,6 +344,9 @@ func TestPagesRender(t *testing.T) {
 				// в личном списке.
 				"Премиум («Высокое командование») в этой партии", "премиум", "Швеция",
 				"Забанены:",
+				// Легенда режима «Игроки»: четыре рода владельцев со счётом
+				// каждого. Числа берутся из карты, а не из списков рядом.
+				"Обычные игроки", "— 9", "Компьютерные", "— 4", "Забаненные", "— 1",
 				// Цвета едут переменными: нужную из них берёт css того
 				// режима, который выбран.
 				"--clan: " + mapPalette[0], "--team: rgb(120,90,120)",

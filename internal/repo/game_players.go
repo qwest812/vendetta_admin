@@ -12,13 +12,17 @@ import (
 // GamePlayers — то, что игра рассказала про игроков при заходе в партию.
 // Пишется целиком на каждый заход: состав всё равно перед глазами, а знать
 // о бане полезно и потом, когда человек больше не попадётся.
+//
+// Таблиц у раздела две: в supremacy_players лежит сегодняшнее состояние,
+// в supremacy_ban_events — история банов, по строке на замеченную смену.
 type GamePlayers struct{ pool *pgxpool.Pool }
 
 func NewGamePlayers(pool *pgxpool.Pool) *GamePlayers { return &GamePlayers{pool: pool} }
 
 // Save записывает состав партии. Дата бана ставится в момент, когда бан
 // увидели впервые, и держится, пока он есть; снятие бана обнуляет её —
-// дата без бана означала бы «сидит до сих пор».
+// дата без бана означала бы «сидит до сих пор». Заодно тем же запросом
+// пишется журнал: смену статуса иначе никто бы не запомнил.
 //
 // Тип у $4 приходится называть вслух: внутри CASE без ELSE выводить его
 // Postgres не из чего, он берёт text — и упирается в timestamptz колонки.
@@ -54,24 +58,70 @@ func (r *GamePlayers) Save(ctx context.Context, list []domain.GamePlayer) error 
 	}
 
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO supremacy_players
-		     (site_user_id, nickname, banned, banned_at, seen_at, seen_game_id)
-		 SELECT u.site_user_id, u.nickname, u.banned,
-		        CASE WHEN u.banned THEN $4::timestamptz END, $4, $5
-		   FROM unnest($1::text[], $2::text[], $3::boolean[])
-		        AS u(site_user_id, nickname, banned)
-		 ON CONFLICT (site_user_id) DO UPDATE SET
-		     nickname = EXCLUDED.nickname,
-		     banned = EXCLUDED.banned,
-		     banned_at = CASE
-		         WHEN NOT EXCLUDED.banned THEN NULL
-		         WHEN supremacy_players.banned THEN supremacy_players.banned_at
-		         ELSE EXCLUDED.seen_at
-		     END,
-		     seen_at = EXCLUDED.seen_at,
-		     seen_game_id = EXCLUDED.seen_game_id`,
+		`WITH incoming AS (
+		     SELECT * FROM unnest($1::text[], $2::text[], $3::boolean[])
+		            AS u(site_user_id, nickname, banned)
+		 ),
+		 -- Прошлый статус читаем до записи, и порядок веток тут ни при чём:
+		 -- все они видят базу такой, какой она была на начало запроса.
+		 prev AS (
+		     SELECT p.site_user_id, p.banned
+		       FROM supremacy_players p JOIN incoming i USING (site_user_id)
+		 ),
+		 saved AS (
+		     INSERT INTO supremacy_players
+		         (site_user_id, nickname, banned, banned_at, seen_at, seen_game_id)
+		     SELECT i.site_user_id, i.nickname, i.banned,
+		            CASE WHEN i.banned THEN $4::timestamptz END, $4, $5
+		       FROM incoming i
+		     ON CONFLICT (site_user_id) DO UPDATE SET
+		         nickname = EXCLUDED.nickname,
+		         banned = EXCLUDED.banned,
+		         banned_at = CASE
+		             WHEN NOT EXCLUDED.banned THEN NULL
+		             WHEN supremacy_players.banned THEN supremacy_players.banned_at
+		             ELSE EXCLUDED.seen_at
+		         END,
+		         seen_at = EXCLUDED.seen_at,
+		         seen_game_id = EXCLUDED.seen_game_id
+		 )
+		 -- В журнал попадает только смена статуса, а не каждый заход:
+		 -- иначе он вырос бы на сорок строк с каждой открытой картой.
+		 -- Незнакомец без бана события не рождает, с баном — рождает:
+		 -- для нас он им и начался.
+		 INSERT INTO supremacy_ban_events (site_user_id, banned, noticed_at, game_id)
+		 SELECT i.site_user_id, i.banned, $4, $5
+		   FROM incoming i LEFT JOIN prev USING (site_user_id)
+		  WHERE i.banned IS DISTINCT FROM COALESCE(prev.banned, false)`,
 		users, nicks, banned, at, gameID)
 	return err
+}
+
+// BanHistory отдаёт журнал банов игрока, свежие события первыми. Пусто —
+// обычное дело: у большинства статус не менялся ни разу.
+func (r *GamePlayers) BanHistory(ctx context.Context, siteUserID string) ([]domain.BanEvent, error) {
+	if siteUserID == "" {
+		return nil, nil
+	}
+
+	rows, err := r.pool.Query(ctx,
+		`SELECT site_user_id, banned, noticed_at, game_id
+		   FROM supremacy_ban_events WHERE site_user_id = $1
+		  ORDER BY noticed_at DESC, id DESC`, siteUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []domain.BanEvent
+	for rows.Next() {
+		var e domain.BanEvent
+		if err := rows.Scan(&e.SiteUserID, &e.Banned, &e.NoticedAt, &e.GameID); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
 }
 
 // ByGameIDs отдаёт известное про игроков по их номерам на сайте игры —

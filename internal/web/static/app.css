@@ -298,6 +298,12 @@ label.block { display: block; margin-top: 14px; }
 .note-head form { margin-left: auto; }
 .note-body { margin: 6px 0 0; white-space: pre-wrap; }
 
+/* История банов: список коротких строк «когда — что стало — где заметили».
+   Значки в нём те же, что и у статусов кланов, поэтому строке остаётся
+   только выровнять их по тексту. */
+.bans { list-style: none; padding: 0; margin: 0 0 10px; }
+.bans li { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; color: var(--muted); font-size: 13px; }
+
 .empty { color: var(--muted); text-align: center; }
 .center { text-align: center; }
 .narrow { max-width: 110px; }
@@ -416,10 +422,15 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 /* Режим «Коалиции»: цвет тоже приезжает переменной, но берётся не из нашей
    палитры, а из самой игры — коалиция раскрашивает себя сама. */
 #map-teams:checked ~ .game-map polygon.team { fill: var(--team); }
-/* Режим «Премиум»: признак двоичный, поэтому и цвет один. Сиреневый взят
-   намеренно: он не спорит ни с жёлтой обводкой своих провинций, ни с красным
-   и зелёным из личных списков. */
-#map-premium:checked ~ .game-map polygon.premium { fill: #7d63a8; }
+/* Режим «Игроки»: цвет говорит, кто владеет землёй, — живой человек, бот,
+   игрок с подпиской или забаненный. Правила спорят за одну провинцию,
+   и побеждает стоящее ниже, поэтому они и идут по возрастанию важности:
+   подписка важнее «просто живого», бан важнее всего. Ничейной земле своего
+   правила не досталось — она остаётся тёмно-серой, как и в других режимах. */
+#map-players:checked ~ .game-map polygon.human { fill: #3c6e9c; }
+#map-players:checked ~ .game-map polygon.ai { fill: #6f7b52; }
+#map-players:checked ~ .game-map polygon.premium { fill: #7d63a8; }
+#map-players:checked ~ .game-map polygon.banned { fill: #a2453c; }
 /* Режим «Топ кланов»: цвет тоже переменной, но раздаётся он не по владениям,
    а по месту в рейтинге — первый номер должен быть одного цвета во всех
    партиях. */
@@ -468,7 +479,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-clans:checked ~ .map-tabs label[for="map-clans"],
 #map-sides:checked ~ .map-tabs label[for="map-sides"],
 #map-teams:checked ~ .map-tabs label[for="map-teams"],
-#map-premium:checked ~ .map-tabs label[for="map-premium"],
+#map-players:checked ~ .map-tabs label[for="map-players"],
 #map-top:checked ~ .map-tabs label[for="map-top"] {
     border-color: var(--accent);
     color: var(--text);
@@ -478,7 +489,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-clans:focus-visible ~ .map-tabs label[for="map-clans"],
 #map-sides:focus-visible ~ .map-tabs label[for="map-sides"],
 #map-teams:focus-visible ~ .map-tabs label[for="map-teams"],
-#map-premium:focus-visible ~ .map-tabs label[for="map-premium"],
+#map-players:focus-visible ~ .map-tabs label[for="map-players"],
 #map-top:focus-visible ~ .map-tabs label[for="map-top"] { outline: 2px solid var(--accent); }
 
 /* Легенда и пояснение — свои у каждого режима, показывается только пара
@@ -487,7 +498,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-clans:checked ~ .pane-clans,
 #map-sides:checked ~ .pane-sides,
 #map-teams:checked ~ .pane-teams,
-#map-premium:checked ~ .pane-premium,
+#map-players:checked ~ .pane-players,
 #map-top:checked ~ .pane-top { display: block; }
 
 /* Легенда карты: цвет раздаётся кланам на партию, поэтому она идёт сразу
@@ -508,10 +519,13 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
     border-radius: 3px;
     border: 1px solid rgba(0, 0, 0, .45);
 }
-/* Образцы режима списков — те же цвета, что и заливка на карте. */
+/* Образцы режимов списков и игроков — те же цвета, что и заливка на карте. */
 .map-legend .swatch.side-enemy { background: #a2453c; }
 .map-legend .swatch.side-friend { background: #3f7d5a; }
+.map-legend .swatch.human { background: #3c6e9c; }
+.map-legend .swatch.ai { background: #6f7b52; }
 .map-legend .swatch.premium { background: #7d63a8; }
+.map-legend .swatch.banned { background: #a2453c; }
 
 /* Ссылка, которой ещё рано: пока идёт счёт до следующего похода за картой,
    скрипт вешает этот класс, а по нулю снимает. Нажатие гасим и вида ради,

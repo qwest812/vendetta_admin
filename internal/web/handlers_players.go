@@ -130,6 +130,9 @@ func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
 	// заходили в партию с ним. Ничего не рассказала — карточка просто
 	// обходится без этого: связь идёт по игровому ID, а он есть не у всех.
 	var seen *domain.GamePlayer
+	// История банов: сегодняшний статус живёт в seen и снятие бана его
+	// затирает, поэтому «сидел когда-то» видно только по журналу.
+	var bans []domain.BanEvent
 	if player.GameID != "" {
 		known, err := s.gamePlayers.ByGameIDs(r.Context(), []string{player.GameID})
 		if err != nil {
@@ -139,10 +142,16 @@ func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
 		if p, ok := known[player.GameID]; ok {
 			seen = &p
 		}
+		bans, err = s.gamePlayers.BanHistory(r.Context(), player.GameID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
 	}
 
 	s.render(w, r, http.StatusOK, "player", map[string]any{
 		"Player": player, "Notes": notes, "Error": "", "Seen": seen,
+		"Bans": bans,
 	})
 }
 
