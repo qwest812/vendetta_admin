@@ -38,11 +38,18 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 		// и разница между 1.2 и 1.25 в них существенна.
 		"ratio": formatRatio,
 		// Интервал воркера в интерфейсе читается словами: «45 мин» вместо «45m0s».
-		"every": func(d time.Duration) string {
-			if h := int(d.Hours()); h > 0 && d%time.Hour == 0 {
-				return l.T("unit.hours", h)
+		"every": func(d time.Duration) string { return everyText(l, d) },
+		// Разброс интервала пишется одной подписью — «45–50 мин», а не
+		// «45 мин – 50 мин»: единица у обеих границ одна и та же.
+		// Равные границы означают ровный интервал, и тире там ни к чему.
+		"everySpan": func(from, to time.Duration) string {
+			if to <= from {
+				return everyText(l, from)
 			}
-			return l.T("unit.minutes", int(d.Minutes()))
+			if fh, th := int(from.Hours()), int(to.Hours()); fh > 0 && from%time.Hour == 0 && to%time.Hour == 0 {
+				return l.T("unit.hours.span", fh, th)
+			}
+			return l.T("unit.minutes.span", int(from.Minutes()), int(to.Minutes()))
 		},
 		// Роль, статус клана и уровень шкалы приходят из domain кодами:
 		// подпись к коду — дело языка, а не предметной области.
@@ -109,6 +116,15 @@ func parseTemplates(l i18n.Lang) (pages, error) {
 		out[base] = tmpl
 	}
 	return out, nil
+}
+
+// everyText — интервал словами: «45 мин», «2 ч». Час пишется часом только
+// когда он целый, иначе счёт идёт в минутах.
+func everyText(l i18n.Lang, d time.Duration) string {
+	if h := int(d.Hours()); h > 0 && d%time.Hour == 0 {
+		return l.T("unit.hours", h)
+	}
+	return l.T("unit.minutes", int(d.Minutes()))
 }
 
 // render буферизует вывод, чтобы ошибка шаблона не отдавалась

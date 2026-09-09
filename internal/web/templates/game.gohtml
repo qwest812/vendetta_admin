@@ -54,9 +54,9 @@
         </form>
         <p class="muted">
             {{if and $t $t.HeroDeploy}}
-                {{t "game.hero.on.note" (every .Interval)}}
+                {{t "game.hero.on.note" (everySpan .Interval .IntervalMax)}}
             {{else}}
-                {{t "game.hero.off.note" (every .Interval)}}
+                {{t "game.hero.off.note" (everySpan .Interval .IntervalMax)}}
             {{end}}
         </p>
     </div>

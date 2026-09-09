@@ -83,7 +83,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Log: log, Auth: authSvc, Users: users, Sessions: sessions,
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Feedback: feedback, Alliances: alliances, GamePlayers: gamePlayers,
-		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
+		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery, HeroEveryMax: cfg.S1914HeroEveryMax,
 		Coalitions: coalitions, Settings: settings, Checked: checked, Checks: mapChecks,
 		TopAlliances: topAlliances, UserStats: userStats,
 		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
@@ -131,7 +131,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 
 		// Автопилот ходит только в те партии, где кнопку включили руками,
 		// поэтому запускается всегда: без включённых партий он молчит.
-		go supremacy.NewAutopilot(s1914, tasks, cfg.S1914HeroEvery, log).Run(ctx)
+		go supremacy.NewAutopilot(s1914, tasks, cfg.S1914HeroEvery, cfg.S1914HeroEveryMax, log).Run(ctx)
 
 		// Кланы игроков спрашивает воркер, а не страница карты: сайт игры
 		// отвечает про одного игрока за раз. Очередь ему наполняют сами

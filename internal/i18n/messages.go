@@ -42,6 +42,9 @@ var messages = map[string]entry{
 	// Единицы времени в подписях: «45 мин», «2 ч».
 	"unit.hours":   {ru: "%d ч", en: "%d h"},
 	"unit.minutes": {ru: "%d мин", en: "%d min"},
+	// Разброс: границы через тире, единица одна на обе.
+	"unit.hours.span":   {ru: "%d–%d ч", en: "%d–%d h"},
+	"unit.minutes.span": {ru: "%d–%d мин", en: "%d–%d min"},
 	// Формат даты и времени: у языков он разный, и это часть перевода.
 	"format.datetime": {ru: "02.01.2006 15:04", en: "Jan 2, 2006 15:04"},
 

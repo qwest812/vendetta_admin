@@ -1432,7 +1432,8 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 
 	data := map[string]any{
 		"GameID": gameID, "Task": task, "Error": errMsg,
-		"Interval": s.heroEvery, "Game": nil, "State": nil, "Mine": nil,
+		"Interval": s.heroEvery, "IntervalMax": s.heroEveryMax,
+		"Game": nil, "State": nil, "Mine": nil,
 		"Map": nil, "MapError": "", "Enemies": nil, "Friends": nil,
 		"Premium": nil, "Banned": nil, "Roster": nil,
 		// AlliancesPending — сколько игроков партии воркер ещё не спросил.

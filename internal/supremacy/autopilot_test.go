@@ -51,7 +51,7 @@ func TestAutopilotVisitsEnabledGames(t *testing.T) {
 		{GameID: "1", Title: "первая"}, {GameID: "2", Title: "вторая"},
 	}}
 	deployer := &fakeDeployer{result: "Мейв призвала пехоту"}
-	a := NewAutopilot(deployer, store, time.Hour, quietLog())
+	a := NewAutopilot(deployer, store, time.Hour, time.Hour, quietLog())
 
 	if err := a.tick(context.Background()); err != nil {
 		t.Fatalf("обход: %v", err)
@@ -70,7 +70,7 @@ func TestAutopilotVisitsEnabledGames(t *testing.T) {
 func TestAutopilotRecordsGameError(t *testing.T) {
 	store := &fakeTasks{enabled: []domain.GameTask{{GameID: "7"}}}
 	deployer := &fakeDeployer{err: errors.New("resultCode=-17 session expired")}
-	a := NewAutopilot(deployer, store, time.Hour, quietLog())
+	a := NewAutopilot(deployer, store, time.Hour, time.Hour, quietLog())
 
 	if err := a.tick(context.Background()); err != nil {
 		t.Fatalf("обход: %v", err)
@@ -84,7 +84,7 @@ func TestAutopilotRecordsGameError(t *testing.T) {
 // засчитывает как вход в партию.
 func TestAutopilotDoesNothingWhenDisabled(t *testing.T) {
 	deployer := &fakeDeployer{}
-	a := NewAutopilot(deployer, &fakeTasks{}, time.Hour, quietLog())
+	a := NewAutopilot(deployer, &fakeTasks{}, time.Hour, time.Hour, quietLog())
 
 	if err := a.tick(context.Background()); err != nil {
 		t.Fatalf("обход: %v", err)
@@ -98,8 +98,43 @@ func TestAutopilotDoesNothingWhenDisabled(t *testing.T) {
 // состоялся, и об этом надо сказать вызывающему.
 func TestAutopilotReportsStoreError(t *testing.T) {
 	a := NewAutopilot(&fakeDeployer{}, &fakeTasks{listErr: errors.New("база недоступна")},
-		time.Hour, quietLog())
+		time.Hour, time.Hour, quietLog())
 	if err := a.tick(context.Background()); err == nil {
 		t.Error("ожидалась ошибка обхода")
+	}
+}
+
+// Пауза между обходами каждый раз своя: ровный ритм захода в партию — это
+// подпись робота, и разброс её стирает. Границы при этом соблюдаются строго:
+// нижняя — чтобы не частить с тем, что игра считает входом в партию.
+func TestAutopilotWaitStaysInRange(t *testing.T) {
+	const from, to = 45 * time.Minute, 50 * time.Minute
+	a := NewAutopilot(&fakeDeployer{}, &fakeTasks{}, from, to, quietLog())
+
+	seen := map[time.Duration]bool{}
+	for range 200 {
+		d := a.wait()
+		if d < from || d >= to {
+			t.Fatalf("пауза %s вне границ %s..%s", d, from, to)
+		}
+		seen[d] = true
+	}
+	// Одно и то же значение двести раз означало бы, что разброса нет.
+	if len(seen) < 2 {
+		t.Errorf("пауза не меняется: получено %d разных значений", len(seen))
+	}
+}
+
+// Равные границы — это ровный интервал, как было до разброса. Перевёрнутые
+// границы считаем опечаткой и не даём воркеру встать совсем.
+func TestAutopilotWaitWithoutSpread(t *testing.T) {
+	a := NewAutopilot(&fakeDeployer{}, &fakeTasks{}, time.Hour, time.Hour, quietLog())
+	if d := a.wait(); d != time.Hour {
+		t.Errorf("пауза = %s, ожидался ровный час", d)
+	}
+
+	back := NewAutopilot(&fakeDeployer{}, &fakeTasks{}, time.Hour, time.Minute, quietLog())
+	if d := back.wait(); d != time.Hour {
+		t.Errorf("при перевёрнутых границах пауза = %s, ожидался час", d)
 	}
 }

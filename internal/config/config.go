@@ -30,10 +30,12 @@ type Config struct {
 	S1914Lang      string
 	S1914Titles    []string
 	S1914PollEvery time.Duration
-	// S1914HeroEvery — как часто воркер жмёт кнопку Мейв в партиях, где это
-	// включено. Заход в партию игра засчитывает как вход, поэтому реже,
-	// чем опрос лобби.
-	S1914HeroEvery time.Duration
+	// S1914HeroEvery и S1914HeroEveryMax — границы паузы между заходами
+	// воркера с кнопкой Мейв. Пауза каждый раз своя: заход в партию игра
+	// засчитывает как вход, поэтому ходим реже, чем опрашиваем лобби,
+	// и без ровного ритма, по которому робота видно издалека.
+	S1914HeroEvery    time.Duration
+	S1914HeroEveryMax time.Duration
 	// S1914AllianceEvery — как часто воркер разбирает очередь кланов.
 	// Спрашивает он сайт игры, а не игровой сервер, поэтому заходом
 	// в партию это не считается и частить можно смелее.
@@ -103,6 +105,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("S1914_HERO_INTERVAL: не чаще раза в 5 минут")
 	}
 	cfg.S1914HeroEvery = hero
+
+	// Верхняя граница паузы. По умолчанию на пять минут больше нижней:
+	// ровно ходить в партию каждые 45 минут — подпись робота.
+	heroMax, err := time.ParseDuration(env("S1914_HERO_INTERVAL_MAX", "50m"))
+	if err != nil {
+		return nil, fmt.Errorf("S1914_HERO_INTERVAL_MAX: %w", err)
+	}
+	if heroMax < hero {
+		return nil, fmt.Errorf("S1914_HERO_INTERVAL_MAX: не меньше S1914_HERO_INTERVAL")
+	}
+	cfg.S1914HeroEveryMax = heroMax
 
 	alliances, err := time.ParseDuration(env("S1914_ALLIANCE_INTERVAL", "15m"))
 	if err != nil {

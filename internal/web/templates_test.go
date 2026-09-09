@@ -369,14 +369,14 @@ func TestPagesRender(t *testing.T) {
 					GameID: "10886819", HeroDeploy: true,
 					LastRunAt: time.Now(), LastResult: "пехота призвана",
 				},
-				"Interval": 45 * time.Minute, "Error": "", "Ours": true,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Error": "", "Ours": true,
 				"State": nil, "Mine": nil,
 			},
 			// Переключатель показывает обратное действие, обещанный интервал
 			// пишется словами, а итог прошлого захода виден на странице.
 			want: []string{
 				`action="/games/10886819/hero"`, `name="on" value="0"`,
-				"Выключить призыв пехоты", "каждые 45 мин", "пехота призвана",
+				"Выключить призыв пехоты", "каждые 45–50 мин", "пехота призвана",
 				// Ручной призыв — отдельная форма рядом с переключателем.
 				`action="/games/10886819/hero/run"`, "Призвать сейчас",
 			},
@@ -394,7 +394,7 @@ func TestPagesRender(t *testing.T) {
 					Day: "13", Players: "31", PlayerID: "12",
 				},
 				"Task":     &domain.GameTask{GameID: "10886819", HeroDeploy: true},
-				"Interval": 45 * time.Minute, "Error": "", "Ours": true,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Error": "", "Ours": true,
 				"State": &supremacy.GameState{Day: 13, Me: 12,
 					Provinces: []supremacy.Province{{ID: 1}, {ID: 2}}},
 				"Me":   &supremacy.Player{ID: 29, Nation: "Франция", Name: "Dau7er"},
@@ -412,7 +412,7 @@ func TestPagesRender(t *testing.T) {
 			data: map[string]any{
 				"GameID":   "10886819",
 				"Game":     &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
-				"Interval": 45 * time.Minute, "Ours": true,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": true,
 				"State": &supremacy.GameState{Day: 13},
 				"Map": &gameMapView{
 					Width: 100, Height: 50,
@@ -496,7 +496,7 @@ func TestPagesRender(t *testing.T) {
 			data: map[string]any{
 				"GameID":   "10886819",
 				"Game":     &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
-				"Interval": 45 * time.Minute, "Ours": true,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": true,
 				"State": &supremacy.GameState{Day: 13},
 				"Map": &gameMapView{
 					Width: 100, Height: 50,
@@ -534,7 +534,7 @@ func TestPagesRender(t *testing.T) {
 			data: map[string]any{
 				"GameID":   "10886819",
 				"Game":     &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
-				"Interval": 45 * time.Minute, "Ours": true,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": true,
 				"State":           &supremacy.GameState{Day: 13},
 				"NoProfileGameID": true,
 			},
@@ -551,7 +551,7 @@ func TestPagesRender(t *testing.T) {
 					ID: "10895766", Title: "[Event] - Colonial Uprising",
 					State: "набор", Day: "1", Players: "97", Language: "ru",
 				},
-				"Interval": 45 * time.Minute, "Ours": false,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": false,
 				"Roster": []rosterView{
 					{Login: "Vakyla", Clan: "F L O W", Team: "5", Level: 17,
 						Card: &domain.Player{ID: 3, Nickname: "Враг"}, Enemy: true},
@@ -580,7 +580,7 @@ func TestPagesRender(t *testing.T) {
 			data: map[string]any{
 				"GameID":   "10895766",
 				"Game":     &gameView{ID: "10895766", Title: "Партия", State: "идёт"},
-				"Interval": 45 * time.Minute, "Ours": false,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": false,
 				"ChecksOut": true, "ChecksCounted": true,
 				"ChecksTotal": 5, "ChecksLeft": 0,
 				"Roster": []rosterView{{Login: "MigoV", Level: 13}},
@@ -600,7 +600,7 @@ func TestPagesRender(t *testing.T) {
 			data: map[string]any{
 				"GameID":   "10895766",
 				"Game":     &gameView{ID: "10895766", Title: "Партия", State: "идёт"},
-				"Interval": 45 * time.Minute, "Ours": false,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": false,
 				"State":         &supremacy.GameState{Day: 3},
 				"ChecksCounted": true, "ChecksTotal": 5, "ChecksLeft": 4,
 				"MapAt":   time.Unix(1788984426, 0),
@@ -628,7 +628,7 @@ func TestPagesRender(t *testing.T) {
 					ID: "10896278", Title: "[Speed] - The Great War",
 					State: "идёт", Day: "1", Players: "45",
 				},
-				"Interval": 45 * time.Minute, "Ours": false,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": false,
 				"State":      &supremacy.GameState{Day: 1},
 				"NotPlaying": true,
 				"Map": &gameMapView{
@@ -659,7 +659,7 @@ func TestPagesRender(t *testing.T) {
 			data: map[string]any{
 				"GameID":   "10886819",
 				"Game":     &gameView{ID: "10886819", Title: "Партия", State: "идёт"},
-				"Interval": 45 * time.Minute, "Ours": true,
+				"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": true,
 				"State":      &supremacy.GameState{Day: 13},
 				"NotPlaying": true,
 			},
@@ -1157,7 +1157,7 @@ func TestGamePageAsksBeforeEnteringGame(t *testing.T) {
 		"GameID":   "10886819",
 		"Game":     &gameView{ID: "10886819", Title: "The Great War", State: "идёт"},
 		"Task":     &domain.GameTask{GameID: "10886819"},
-		"Interval": 45 * time.Minute, "Error": "", "Ours": true, "State": nil, "Mine": nil,
+		"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Error": "", "Ours": true, "State": nil, "Mine": nil,
 	})
 	if err != nil {
 		t.Fatalf("отрисовка: %v", err)

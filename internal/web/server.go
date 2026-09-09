@@ -45,7 +45,10 @@ type Server struct {
 	coalitions *repo.Coalitions
 	settings   *repo.Settings
 	tasks      *repo.GameTasks
-	// heroEvery — как часто воркер жмёт кнопку Мейв; показывается на
+	// heroEveryMax — верхняя граница той же паузы: она случайна, и на
+	// странице партии написан диапазон, а не одно число.
+	heroEveryMax time.Duration
+	// heroEvery — нижняя граница паузы воркера с кнопкой Мейв; показывается на
 	// странице партии, чтобы обещание в интерфейсе не расходилось с делом.
 	heroEvery time.Duration
 	// checks — дневной счёт проверок карты: сколько их у кого осталось.
@@ -84,9 +87,11 @@ type Deps struct {
 	GamePlayers *repo.GamePlayers
 	// UserStats — боевой счёт игроков: уровень и кд для сравнения на карте.
 	UserStats *repo.UserStats
-	// Tasks — что админка делает в партиях сама, и HeroEvery — как часто.
-	Tasks     *repo.GameTasks
-	HeroEvery time.Duration
+	// Tasks — что админка делает в партиях сама, HeroEvery и HeroEveryMax —
+	// границы случайной паузы между заходами.
+	Tasks        *repo.GameTasks
+	HeroEvery    time.Duration
+	HeroEveryMax time.Duration
 	// Coalitions — архив коалиций, Settings — общие переключатели админки.
 	Coalitions *repo.Coalitions
 	Settings   *repo.Settings
@@ -112,7 +117,7 @@ func NewServer(d Deps) (*Server, error) {
 		games:    d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
 		gamePlayers: d.GamePlayers, userStats: d.UserStats,
 		coalitions: d.Coalitions, settings: d.Settings, checked: d.Checked, checks: d.Checks,
-		tasks: d.Tasks, heroEvery: d.HeroEvery,
+		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
