@@ -34,6 +34,9 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 		// Формат даты — часть перевода: русский и английский пишут её
 		// по-разному, и подставлять один в оба было бы небрежностью.
 		"datetime": func(t time.Time) string { return t.Local().Format(l.T("format.datetime")) },
+		// Кд и опасность печатаются с двумя знаками: числа маленькие,
+		// и разница между 1.2 и 1.25 в них существенна.
+		"ratio": formatRatio,
 		// Интервал воркера в интерфейсе читается словами: «45 мин» вместо «45m0s».
 		"every": func(d time.Duration) string {
 			if h := int(d.Hours()); h > 0 && d%time.Hour == 0 {

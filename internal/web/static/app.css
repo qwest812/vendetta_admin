@@ -431,6 +431,16 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-players:checked ~ .game-map polygon.ai { fill: #6f7b52; }
 #map-players:checked ~ .game-map polygon.premium { fill: #7d63a8; }
 #map-players:checked ~ .game-map polygon.banned { fill: #a2453c; }
+/* Режим «Сила»: цвет говорит, насколько владелец опаснее смотрящего.
+   Шкала идёт от красного к зелёному через жёлтый — так же, как читается
+   светофор, и отдельного объяснения ей не нужно. Провинции без счёта
+   правила не получают и остаются серыми: «не спрашивали» — это не
+   «слабый», и путать их нельзя. */
+#map-power:checked ~ .game-map polygon.power-much-up { fill: #8f2f26; }
+#map-power:checked ~ .game-map polygon.power-up { fill: #c0564a; }
+#map-power:checked ~ .game-map polygon.power-even { fill: #b08a2e; }
+#map-power:checked ~ .game-map polygon.power-down { fill: #4f8f5f; }
+#map-power:checked ~ .game-map polygon.power-much-down { fill: #2f6b45; }
 /* Режим «Топ кланов»: цвет тоже переменной, но раздаётся он не по владениям,
    а по месту в рейтинге — первый номер должен быть одного цвета во всех
    партиях. */
@@ -480,6 +490,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-sides:checked ~ .map-tabs label[for="map-sides"],
 #map-teams:checked ~ .map-tabs label[for="map-teams"],
 #map-players:checked ~ .map-tabs label[for="map-players"],
+#map-power:checked ~ .map-tabs label[for="map-power"],
 #map-top:checked ~ .map-tabs label[for="map-top"] {
     border-color: var(--accent);
     color: var(--text);
@@ -490,6 +501,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-sides:focus-visible ~ .map-tabs label[for="map-sides"],
 #map-teams:focus-visible ~ .map-tabs label[for="map-teams"],
 #map-players:focus-visible ~ .map-tabs label[for="map-players"],
+#map-power:focus-visible ~ .map-tabs label[for="map-power"],
 #map-top:focus-visible ~ .map-tabs label[for="map-top"] { outline: 2px solid var(--accent); }
 
 /* Легенда и пояснение — свои у каждого режима, показывается только пара
@@ -499,6 +511,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-sides:checked ~ .pane-sides,
 #map-teams:checked ~ .pane-teams,
 #map-players:checked ~ .pane-players,
+#map-power:checked ~ .pane-power,
 #map-top:checked ~ .pane-top { display: block; }
 
 /* Легенда карты: цвет раздаётся кланам на партию, поэтому она идёт сразу
@@ -526,6 +539,12 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 .map-legend .swatch.ai { background: #6f7b52; }
 .map-legend .swatch.premium { background: #7d63a8; }
 .map-legend .swatch.banned { background: #a2453c; }
+/* Образцы режима силы — та же шкала от красного к зелёному. */
+.map-legend .swatch.power-much-up { background: #8f2f26; }
+.map-legend .swatch.power-up { background: #c0564a; }
+.map-legend .swatch.power-even { background: #b08a2e; }
+.map-legend .swatch.power-down { background: #4f8f5f; }
+.map-legend .swatch.power-much-down { background: #2f6b45; }
 
 /* Ссылка, которой ещё рано: пока идёт счёт до следующего похода за картой,
    скрипт вешает этот класс, а по нулю снимает. Нажатие гасим и вида ради,

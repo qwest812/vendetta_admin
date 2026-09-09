@@ -119,12 +119,14 @@
             <input class="map-mode" type="radio" name="map-mode" id="map-sides">
             <input class="map-mode" type="radio" name="map-mode" id="map-teams">
             <input class="map-mode" type="radio" name="map-mode" id="map-players">
+            <input class="map-mode" type="radio" name="map-mode" id="map-power">
             <input class="map-mode" type="radio" name="map-mode" id="map-top">
             <div class="map-tabs">
                 <label for="map-clans">{{t "nav.clans"}}</label>
                 <label for="map-sides">{{t "game.map.mine"}}</label>
                 <label for="map-teams">{{t "game.map.teams"}}</label>
                 <label for="map-players">{{t "game.map.players"}}</label>
+                <label for="map-power">{{t "game.map.power"}}</label>
                 <label for="map-top">{{t "game.map.top"}}</label>
             </div>
             {{/* Карта в собственных координатах игры: viewBox их и берёт,
@@ -241,6 +243,34 @@
                         {{range $i, $b := .Banned}}{{if $i}}, {{end}}{{$b.Nation}}{{if $b.Name}} ({{$b.Name}}){{end}}{{end}}.
                     </p>
                 {{end}}
+            </div>
+
+            <div class="map-pane pane-power">
+                {{/* Полосы идут от опасных к слабым, как читается взгляд
+                     по карте: сначала то, чего стоит бояться. */}}
+                {{with .Map.Power}}
+                    <ul class="map-legend">
+                        <li><span class="swatch power-much-up"></span> {{t "game.map.power.muchup"}} <span class="muted">— {{.MuchUp}}</span></li>
+                        <li><span class="swatch power-up"></span> {{t "game.map.power.up"}} <span class="muted">— {{.Up}}</span></li>
+                        <li><span class="swatch power-even"></span> {{t "game.map.power.even"}} <span class="muted">— {{.Even}}</span></li>
+                        <li><span class="swatch power-down"></span> {{t "game.map.power.down"}} <span class="muted">— {{.Down}}</span></li>
+                        <li><span class="swatch power-much-down"></span> {{t "game.map.power.muchdown"}} <span class="muted">— {{.MuchDown}}</span></li>
+                        <li><span class="swatch"></span> {{t "game.map.power.unknown"}} <span class="muted">— {{.Unknown}}</span></li>
+                    </ul>
+                    {{/* Своё число — не украшение: без него «опаснее» и
+                         «слабее» не значат ничего. Нет своего счёта — вся
+                         карта серая, и сказать об этом надо прямо. */}}
+                    {{if .Me.Rated}}
+                        <p class="muted">{{t "game.map.power.you" .Me.Level (ratio .Me.KD) (ratio .Me.Danger)}}</p>
+                    {{else if $.NoProfileGameID}}
+                        <p class="muted">{{t "game.map.power.noid"}}</p>
+                    {{else}}
+                        <p class="muted">{{t "game.map.power.nostats"}}</p>
+                    {{end}}
+                {{end}}
+                <p class="muted">
+                    {{t "game.map.power.note"}}
+                </p>
             </div>
 
             <div class="map-pane pane-top">

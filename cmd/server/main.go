@@ -63,6 +63,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	checked := repo.NewCheckedGames(pool)
 	mapChecks := repo.NewMapChecks(pool)
 	topAlliances := repo.NewTopAlliances(pool)
+	userStats := repo.NewUserStats(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -83,8 +84,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Enemies: enemies, Friends: friends, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
 		Coalitions: coalitions, Settings: settings, Checked: checked, Checks: mapChecks,
-		TopAlliances: topAlliances,
-		Health:       pool.Ping, CookieSecure: cfg.CookieSecure,
+		TopAlliances: topAlliances, UserStats: userStats,
+		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
 	// на проверку `== nil` не отвечает, и раздел счёл бы аккаунт настроенным.

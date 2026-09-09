@@ -318,6 +318,8 @@ func TestPagesRender(t *testing.T) {
 						{Name: "КСГ", Color: "rgb(120,90,120)", Members: 4, Mine: true},
 					},
 					Kinds: playerKinds{Regular: 9, AI: 4, Premium: 2, Banned: 1},
+					Power: powerLegend{MuchUp: 2, Up: 1, Even: 3, Down: 4, MuchDown: 1, Unknown: 5,
+						Me: domain.UserStats{Level: 17, Defeated: 23440, Casualties: 15020}},
 				},
 				"Enemies": []gameRelationView{{
 					Nation: "Франция", Name: "Враг", Premium: true,
@@ -347,6 +349,10 @@ func TestPagesRender(t *testing.T) {
 				// Легенда режима «Игроки»: четыре рода владельцев со счётом
 				// каждого. Числа берутся из карты, а не из списков рядом.
 				"Обычные игроки", "— 9", "Компьютерные", "— 4", "Забаненные", "— 1",
+				// Легенда режима «Сила»: полосы со счётом и своё число,
+				// без которого «опаснее» не значит ничего.
+				`id="map-power"`, "Намного опаснее", "— 2", "Счёта ещё нет", "— 5",
+				"У вас 17 уровень и кд 1.56 — опасность 26.53",
 				// Цвета едут переменными: нужную из них берёт css того
 				// режима, который выбран.
 				"--clan: " + mapPalette[0], "--team: rgb(120,90,120)",

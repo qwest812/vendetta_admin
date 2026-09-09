@@ -511,6 +511,108 @@ func TestGameMapPlayerKinds(t *testing.T) {
 	}
 }
 
+// Режим «Сила» сравнивает владельца провинции со смотрящим, а не игроков
+// между собой. Полосы решает отношение опасностей, и разобрать их надо
+// вместе со счётом легенды: расходиться им нельзя.
+func TestGameMapPower(t *testing.T) {
+	geo := &supremacy.MapGeometry{
+		Width: 100, Height: 50,
+		Land: map[int][]supremacy.Point{
+			1: {{X: 0, Y: 0}, {X: 10, Y: 0}, {X: 10, Y: 10}},
+			2: {{X: 20, Y: 0}, {X: 30, Y: 0}, {X: 30, Y: 10}},
+			3: {{X: 40, Y: 0}, {X: 50, Y: 0}, {X: 50, Y: 10}},
+			4: {{X: 60, Y: 0}, {X: 70, Y: 0}, {X: 70, Y: 10}},
+			5: {{X: 80, Y: 0}, {X: 90, Y: 0}, {X: 90, Y: 10}},
+			6: {{X: 0, Y: 20}, {X: 10, Y: 20}, {X: 10, Y: 30}},
+			7: {{X: 20, Y: 20}, {X: 30, Y: 20}, {X: 30, Y: 30}},
+		},
+	}
+	state := &supremacy.GameState{
+		Players: map[int]supremacy.Player{
+			12: {ID: 12, Nation: "Греция", Name: "Мы"},
+			29: {ID: 29, Nation: "Франция", Name: "Зверь"},
+			31: {ID: 31, Nation: "Швеция", Name: "Крепкий"},
+			33: {ID: 33, Nation: "Бельгия", Name: "Ровня"},
+			35: {ID: 35, Nation: "Италия", Name: "Слабее"},
+			37: {ID: 37, Nation: "Испания", Name: "Неспрошенный"},
+			39: {ID: 39, Nation: "Турция", IsAI: true},
+		},
+		Provinces: []supremacy.Province{
+			{ID: 1, Name: "Афины", Owner: 12},
+			{ID: 2, Name: "Париж", Owner: 29},
+			{ID: 3, Name: "Стокгольм", Owner: 31},
+			{ID: 4, Name: "Брюссель", Owner: 33},
+			{ID: 5, Name: "Рим", Owner: 35},
+			{ID: 6, Name: "Мадрид", Owner: 37},
+			{ID: 7, Name: "Анкара", Owner: 39},
+		},
+	}
+
+	// Опасность смотрящего — 20 уровень при кд 1.0. Остальные расставлены
+	// по полосам вокруг неё: 40, 25, 20, 12 и 8.
+	me := domain.UserStats{Level: 20, Defeated: 100, Casualties: 100}
+	stats := map[int]domain.UserStats{
+		12: me,
+		29: {Level: 20, Defeated: 200, Casualties: 100},
+		31: {Level: 25, Defeated: 100, Casualties: 100},
+		33: {Level: 20, Defeated: 100, Casualties: 100},
+		35: {Level: 12, Defeated: 100, Casualties: 100},
+		37: {},
+	}
+	sides := &gameSides{Stats: stats, Me: me}
+
+	view := gameMap(i18n.RU, geo, state, sides, 12)
+
+	want := []string{"human power-even own", "human power-much-up", "human power-up",
+		"human power-even", "human power-down", "human", "ai"}
+	for i, w := range want {
+		if got := view.Shapes[i].Class; got != w {
+			t.Errorf("классы провинции %d = %q, ожидались %q", i, got, w)
+		}
+	}
+	// Уровень и кд стоят в подсказке всегда: по ним и видно, почему
+	// провинция такого цвета.
+	if !strings.Contains(view.Shapes[1].Title, "20 уровень, кд 2.00") {
+		t.Errorf("подсказка сильного = %q", view.Shapes[1].Title)
+	}
+	// Про неспрошенного в подсказке молчим: нулями его оболгать легко.
+	if strings.Contains(view.Shapes[5].Title, "кд") {
+		t.Errorf("подсказка неспрошенного = %q", view.Shapes[5].Title)
+	}
+
+	// Компьютерный владелец в легенду не идёт: счёта у бота не бывает,
+	// и в строке «счёта ещё нет» он читался бы как незаконченная работа.
+	got := powerLegend{MuchUp: 1, Up: 1, Even: 2, Down: 1, Unknown: 1, Me: me}
+	if view.Power != got {
+		t.Errorf("легенда силы = %+v, ожидалась %+v", view.Power, got)
+	}
+}
+
+// Без своего счёта сравнивать не с чем, и красить нельзя никого: серая
+// карта честнее выдуманных полос.
+func TestGameMapPowerWithoutViewerStats(t *testing.T) {
+	geo := &supremacy.MapGeometry{Width: 100, Height: 50,
+		Land: map[int][]supremacy.Point{1: {{X: 0, Y: 0}, {X: 10, Y: 0}, {X: 10, Y: 10}}}}
+	state := &supremacy.GameState{
+		Players:   map[int]supremacy.Player{29: {ID: 29, Nation: "Франция"}},
+		Provinces: []supremacy.Province{{ID: 1, Name: "Париж", Owner: 29}},
+	}
+	sides := &gameSides{Stats: map[int]domain.UserStats{29: {Level: 20, Defeated: 100, Casualties: 50}}}
+
+	view := gameMap(i18n.RU, geo, state, sides, 0)
+
+	if got := view.Shapes[0].Class; got != "human" {
+		t.Errorf("классы провинции = %q, полос быть не должно", got)
+	}
+	if view.Power.Unknown != 1 {
+		t.Errorf("легенда силы = %+v, ожидался один неизвестный", view.Power)
+	}
+	// Счёт самого игрока при этом известен, и в подсказке ему самое место.
+	if !strings.Contains(view.Shapes[0].Title, "кд 2.00") {
+		t.Errorf("подсказка = %q", view.Shapes[0].Title)
+	}
+}
+
 // Премиум игра сообщает про всех участников партии, и это единственное
 // место, где чужую подписку видно. Компьютерных игроков в список не берём:
 // подписки у них не бывает.
@@ -723,5 +825,39 @@ func TestGameMapTopWithoutSnapshot(t *testing.T) {
 	view := gameMap(i18n.RU, geo, state, sides, 0)
 	if len(view.Top) != 0 || strings.Contains(view.Shapes[0].Class, "top") {
 		t.Errorf("топ без снимка: легенда %d, class=%q", len(view.Top), view.Shapes[0].Class)
+	}
+}
+
+// Кого спрашивать у сайта, а кого показать из базы: правило простое —
+// незнакомых и тех, чей счёт старше недели. Ошибка здесь стоит дорого
+// в обе стороны: лишний номер — это лишний запрос на открытии карты,
+// пропущенный — вечно устаревший цвет.
+func TestStaleStats(t *testing.T) {
+	now := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
+	fresh := now.Add(-6 * 24 * time.Hour)
+	old := now.Add(-8 * 24 * time.Hour)
+	// Ровно срок — это уже «пора»: иначе запись зависла бы на границе
+	// до следующего открытия карты.
+	edge := now.Add(-statsFresh)
+
+	known := map[string]domain.UserStats{
+		"свежий":     {SiteUserID: "свежий", Level: 12, CheckedAt: &fresh},
+		"давний":     {SiteUserID: "давний", Level: 12, CheckedAt: &old},
+		"ровно срок": {SiteUserID: "ровно срок", Level: 12, CheckedAt: &edge},
+		// Спрошенный, о котором сайт промолчал: уровня нет, но и
+		// переспрашивать его до срока незачем.
+		"молчун": {SiteUserID: "молчун", CheckedAt: &fresh},
+	}
+	ids := []string{"свежий", "давний", "ровно срок", "молчун", "новичок", "новичок", ""}
+
+	got := staleStats(known, ids, now)
+	want := []string{"давний", "ровно срок", "новичок"}
+	if len(got) != len(want) {
+		t.Fatalf("спросить собрались %v, ожидалось %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("на месте %d — %q, ожидалось %q", i, got[i], want[i])
+		}
 	}
 }

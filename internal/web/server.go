@@ -31,6 +31,9 @@ type Server struct {
 	// topAlliances — снимок верхушки рейтинга кланов игры. Отдельно
 	// от alliances: там клан игрока, здесь место клана в рейтинге.
 	topAlliances *repo.TopAlliances
+	// userStats — боевой счёт игроков с сайта игры: уровень и кд. По ним
+	// карта сравнивает участников партии со смотрящим.
+	userStats *repo.UserStats
 	// gamePlayers — что игра рассказала про игроков при заходе в партию:
 	// ник и бан. Пишется на каждом заходе, читается в карточке игрока.
 	gamePlayers *repo.GamePlayers
@@ -75,6 +78,8 @@ type Deps struct {
 	TopAlliances *repo.TopAlliances
 	// GamePlayers — ники и баны игроков, увиденные при заходах в партии.
 	GamePlayers *repo.GamePlayers
+	// UserStats — боевой счёт игроков: уровень и кд для сравнения на карте.
+	UserStats *repo.UserStats
 	// Tasks — что админка делает в партиях сама, и HeroEvery — как часто.
 	Tasks     *repo.GameTasks
 	HeroEvery time.Duration
@@ -100,8 +105,8 @@ func NewServer(d Deps) (*Server, error) {
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
 		games: d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
-		gamePlayers: d.GamePlayers,
-		coalitions:  d.Coalitions, settings: d.Settings, checked: d.Checked, checks: d.Checks,
+		gamePlayers: d.GamePlayers, userStats: d.UserStats,
+		coalitions: d.Coalitions, settings: d.Settings, checked: d.Checked, checks: d.Checks,
 		tasks: d.Tasks, heroEvery: d.HeroEvery,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}

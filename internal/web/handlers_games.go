@@ -20,6 +20,28 @@ import (
 // и ждать он готов недолго, а API Supremacy иногда отвечает минутами.
 const gamesTimeout = 20 * time.Second
 
+// statsFresh — сколько посчитанный боевой счёт считается годным. Неделя:
+// счёт набирается партиями, а партия идёт неделями, и на цвет провинции
+// разница за несколько дней не влияет. Этот же срок решает, пойдёт ли
+// страница спрашивать сайт заново, — чем он длиннее, тем реже открытие
+// карты стоит похода в сеть.
+const statsFresh = 7 * 24 * time.Hour
+
+// Границы режима «Сила»: во сколько раз владелец провинции опаснее
+// смотрящего. Опасность — уровень, умноженный на кд: уровень один говорит
+// лишь о наигранном времени, кд одно — об умении, опасен тот, у кого сошлось
+// и то и другое.
+//
+// Полосы намеренно широкие в середине: разница в десяток процентов — это
+// не «сильнее», а «примерно поровну», и красить её в тревожный цвет значит
+// врать.
+const (
+	powerMuchUp = 1.5
+	powerUp     = 1.15
+	powerEven   = 0.85
+	powerDown   = 0.5
+)
+
 // gameSource — откуда берём игры аккаунта. Интерфейс, а не *supremacy.Client,
 // чтобы страницу можно было проверить без похода в сеть. Пустое значение
 // означает, что аккаунт игры не настроен (S1914_USER не задан).
@@ -34,6 +56,10 @@ type gameSource interface {
 	StateFresh(gameID string, root bool) time.Duration
 	DeployInfantry(ctx context.Context, gameID string) (string, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
+	// UserStatsBatch — боевой счёт игроков с сайта. Сайт отвечает про
+	// одного за раз, поэтому пачка спрашивается в несколько потоков;
+	// заходом в партию это не считается.
+	UserStatsBatch(ctx context.Context, siteUserIDs []string) (map[string]*supremacy.UserStats, error)
 	UserID() string
 }
 
@@ -217,8 +243,9 @@ func gameState(l i18n.Lang, state string) string {
 // «top» у страны игрока из клана-топа, «side-enemy» и «side-friend» у стран
 // из личных списков смотрящего, «team» у состоящей в коалиции, «human»
 // и «ai» у страны живого игрока и бота, «premium» и «banned» у страны
-// игрока с подпиской и забаненного, «own» у своей: эта последняя пометка
-// одна на все режимы, потому что обводка везде означает одно и то же.
+// игрока с подпиской и забаненного, «power-…» у той, чей владелец сильнее
+// или слабее смотрящего, «own» у своей: эта последняя пометка одна на все
+// режимы, потому что обводка везде означает одно и то же.
 // ClanColor, TeamColor и TopColor — цвета клана, коалиции и клана из топа,
 // они же css-переменные --clan, --team и --top; пусто, если красить нечем.
 type mapShape struct {
@@ -270,6 +297,25 @@ type gameMapView struct {
 	Top []topLegendView
 	// Kinds — счёт владельцев для легенды режима «Игроки».
 	Kinds playerKinds
+	// Power — счёт владельцев по полосам режима «Сила» и счёт самого
+	// смотрящего: без него полосы не значат ничего.
+	Power powerLegend
+}
+
+// powerLegend — сколько владельцев в каждой полосе режима «Сила» и с чем
+// их сравнивали. Me — счёт смотрящего: легенда показывает его числом,
+// иначе «опаснее» и «слабее» повисают в воздухе.
+//
+// Unknown — те, про кого счёта ещё нет: серый цвет здесь означает не
+// «слабый», а «не спрашивали», и это стоит сказать отдельно.
+type powerLegend struct {
+	MuchUp   int
+	Up       int
+	Even     int
+	Down     int
+	MuchDown int
+	Unknown  int
+	Me       domain.UserStats
 }
 
 // playerKinds — сколько на карте владельцев каждого рода. Легенда режима
@@ -465,6 +511,15 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 				classes = append(classes, "banned")
 				shape.Title += ", " + l.T("game.bannedone")
 			}
+			// Боевой счёт: класс — только для своего режима, а уровень
+			// и кд в подсказке нужны всегда. По ним и понятно, почему
+			// провинция такого цвета.
+			if st, ok := sides.Stats[p.Owner]; ok && st.Rated() {
+				if cls := powerClass(st, sides.Me); cls != "" {
+					classes = append(classes, cls)
+				}
+				shape.Title += ", " + l.T("tip.power", st.Level, formatRatio(st.KD()))
+			}
 
 			c := centers[p.Owner]
 			if c == nil {
@@ -499,7 +554,31 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 		default:
 			view.Kinds.Regular++
 		}
+
+		// Легенда режима «Сила» считает тех же владельцев по своим полосам,
+		// но без компьютерных: счёта у бота нет и не будет, и в строке
+		// «счёта ещё нет» он читался бы как незаконченная работа.
+		// Неизвестные считаются отдельно намеренно: серая провинция живого
+		// игрока значит «сайт о нём промолчал», и молчать об этом нельзя.
+		if owner.IsAI {
+			continue
+		}
+		switch powerClass(sides.Stats[playerID], sides.Me) {
+		case "power-much-up":
+			view.Power.MuchUp++
+		case "power-up":
+			view.Power.Up++
+		case "power-even":
+			view.Power.Even++
+		case "power-down":
+			view.Power.Down++
+		case "power-much-down":
+			view.Power.MuchDown++
+		default:
+			view.Power.Unknown++
+		}
 	}
+	view.Power.Me = sides.Me
 
 	for playerID, c := range centers {
 		owner := state.Players[playerID]
@@ -907,6 +986,137 @@ func (s *Server) rememberAlliances(ctx context.Context, roster []supremacy.GameL
 	return s.alliances.EnqueueAlliances(ctx, clans)
 }
 
+// powerClass — какой полосой владелец отличается от смотрящего. Пусто,
+// когда сравнивать не с чем: счёта нет у него, у нас или наша опасность
+// нулевая — так бывает у того, кто ещё не воевал ни разу.
+func powerClass(owner, me domain.UserStats) string {
+	if !owner.Rated() || !me.Rated() || me.Danger() <= 0 {
+		return ""
+	}
+	switch r := owner.Danger() / me.Danger(); {
+	case r >= powerMuchUp:
+		return "power-much-up"
+	case r >= powerUp:
+		return "power-up"
+	case r >= powerEven:
+		return "power-even"
+	case r >= powerDown:
+		return "power-down"
+	default:
+		return "power-much-down"
+	}
+}
+
+// formatRatio печатает кд и опасность одинаково — с двумя знаками. Числа
+// эти маленькие и разница между 1.2 и 1.25 в них существенна.
+func formatRatio(v float64) string { return strconv.FormatFloat(v, 'f', 2, 64) }
+
+// staleStats — чей счёт пора считать заново: тех, кого не знаем вовсе,
+// и тех, кого не считали дольше statsFresh. Порядок сохраняется входной,
+// а пустые номера и повторы отсеиваются: у сайта каждый номер стоит
+// отдельного запроса, и спрашивать одного дважды незачем.
+func staleStats(known map[string]domain.UserStats, ids []string, now time.Time) []string {
+	var out []string
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		st, ok := known[id]
+		if !ok || !st.Known() || now.Sub(*st.CheckedAt) >= statsFresh {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// gameStats — боевой счёт участников партии и самого смотрящего. Читается
+// из базы, а устаревшее пересчитывается прямо здесь: сайт отвечает про
+// игрока за раз, но спрашивать надо только тех, чью запись не обновляли
+// больше недели. На уже виденной партии таких единицы, а на новой —
+// все, и это единственный случай, когда открытие карты заметно дольше.
+//
+// Счёт смотрящего идёт в той же пачке: он нужен как точка отсчёта, и
+// правило свежести у него то же самое.
+//
+// Отказ сайта страницу не роняет: покажем то, что уже посчитано, а
+// непосчитанные останутся серыми.
+func (s *Server) gameStats(ctx context.Context, state *supremacy.GameState,
+	viewerID string) (map[int]domain.UserStats, domain.UserStats, error) {
+
+	byUser := make(map[string][]int, len(state.Players))
+	for _, p := range state.Players {
+		if p.SiteUserID != "" {
+			byUser[p.SiteUserID] = append(byUser[p.SiteUserID], p.ID)
+		}
+	}
+
+	ids := make([]string, 0, len(byUser)+1)
+	for id := range byUser {
+		ids = append(ids, id)
+	}
+	if viewerID != "" {
+		ids = append(ids, viewerID)
+	}
+	if len(ids) == 0 {
+		return nil, domain.UserStats{}, nil
+	}
+
+	known, err := s.userStats.Known(ctx, ids)
+	if err != nil {
+		return nil, domain.UserStats{}, err
+	}
+
+	if stale := staleStats(known, ids, time.Now()); len(stale) > 0 {
+		for id, st := range s.refreshStats(ctx, stale) {
+			known[id] = st
+		}
+	}
+
+	out := make(map[int]domain.UserStats, len(known))
+	for userID, st := range known {
+		for _, playerID := range byUser[userID] {
+			out[playerID] = st
+		}
+	}
+	return out, known[viewerID], nil
+}
+
+// refreshStats спрашивает сайт про устаревших и записывает ответ. Молчание
+// сайта записывается пустой строкой со временем проверки: так отвечает про
+// удалённые аккаунты, и переспрашивать их каждый раз незачем.
+func (s *Server) refreshStats(ctx context.Context, ids []string) map[string]domain.UserStats {
+	fetched, err := s.games.UserStatsBatch(ctx, ids)
+	if err != nil {
+		// Часть номеров могла и ответить: что узнали — то и запишем.
+		s.log.Warn("счёт игроков у сайта", "спрошено", len(ids), "получено", len(fetched), "err", err)
+	}
+	if len(fetched) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	out := make(map[string]domain.UserStats, len(fetched))
+	list := make([]domain.UserStats, 0, len(fetched))
+	for id, f := range fetched {
+		row := domain.UserStats{SiteUserID: id, CheckedAt: &now}
+		if f != nil {
+			row.Level, row.OverallScore = f.Level, f.OverallScore
+			row.Defeated, row.Casualties = f.Defeated, f.Casualties
+			row.Games, row.SoloWins, row.CoalitionWins = f.Games, f.SoloWins, f.CoalitionWins
+		}
+		out[id] = row
+		list = append(list, row)
+	}
+	if err := s.userStats.Save(ctx, list, now); err != nil {
+		// Записать не вышло — показать всё равно есть что, а на следующем
+		// открытии спросим заново.
+		s.log.Error("запись счёта игроков", "err", err)
+	}
+	return out
+}
+
 // gameSides — что мы знаем об игроках партии помимо состояния самой партии.
 // Ключ везде один: номер игрока в этой партии. Cards — карточки из базы,
 // Enemies и Friends — те же карточки, отобранные личными списками
@@ -920,6 +1130,11 @@ type gameSides struct {
 	// Top — верхушка рейтинга кланов по номеру клана. Общая на всю
 	// админку, а не на партию: место в рейтинге принадлежит клану.
 	Top map[string]domain.TopAlliance
+	// Stats — боевой счёт игроков партии, Me — счёт самого смотрящего.
+	// Второй нужен как точка отсчёта: режим «Сила» сравнивает участников
+	// не между собой, а с тем, кто смотрит.
+	Stats map[int]domain.UserStats
+	Me    domain.UserStats
 }
 
 // gameLists сводит игроков партии с базой по игровому ID и раскладывает их
@@ -1448,6 +1663,16 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		}
 		sides.Alliances = alliances
 		data["AlliancesPending"] = pending
+
+		// Боевой счёт участников и смотрящего: из базы, а устаревшее
+		// пересчитывается прямо сейчас. Своё число нужно вместе с чужими,
+		// иначе сравнивать не с чем.
+		stats, myStats, err := s.gameStats(ctx, state, who.GameID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		sides.Stats, sides.Me = stats, myStats
 
 		// Верхушка рейтинга — десяток строк на всю админку, поэтому
 		// читается целиком и на каждую страницу. Её отсутствие карту

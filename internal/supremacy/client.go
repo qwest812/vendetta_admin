@@ -794,6 +794,139 @@ func (c *Client) UserAlliances(ctx context.Context, siteUserIDs []string) (map[s
 	return out, firstEr
 }
 
+// UserStats — боевой счёт игрока с сайта игры. Приходит тем же вызовом,
+// что и клан, только другими полями, и так же не требует захода в партию.
+//
+// Defeated и Casualties считаются по боям с живыми игроками: сайт держит
+// бои с компьютерными отдельным набором, и складывать их не стоит.
+type UserStats struct {
+	SiteUserID    string
+	Level         int
+	Defeated      int64
+	Casualties    int64
+	Games         int
+	SoloWins      int
+	CoalitionWins int
+	OverallScore  int64
+}
+
+// UserStats спрашивает у сайта боевой счёт игрока. Работает по тому же
+// номеру, что партия отдаёт как siteUserID, и по любому игроку, не только
+// по нашему: сам клиент игры так же смотрит чужие профили.
+//
+// nil без ошибки означает, что сайт про такого ничего не рассказал:
+// так отвечает про удалённые аккаунты.
+func (c *Client) UserStats(ctx context.Context, siteUserID string) (*UserStats, error) {
+	raw, err := c.call(ctx, "getUserDetailsFirefly", []param{
+		{"userID", siteUserID},
+		{"rankProgress", "1"},
+		{"gameStats", "1"},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := parseUserStats(raw)
+	if err != nil {
+		return nil, fmt.Errorf("счёт игрока %s: %w", siteUserID, err)
+	}
+	if stats != nil {
+		stats.SiteUserID = siteUserID
+	}
+	return stats, nil
+}
+
+// parseUserStats разбирает ответ про игрока. Бои лежат по типам юнитов —
+// столько строк, сколько в игре видов войск, — и нам нужна только их сумма:
+// «кд» считается по всей армии сразу, как и в самом клиенте игры.
+func parseUserStats(raw json.RawMessage) (*UserStats, error) {
+	var res struct {
+		RankProgress *struct {
+			Level        int   `json:"currentRankLevel"`
+			OverallScore int64 `json:"overallScore"`
+		} `json:"rankProgress"`
+		GameStats *struct {
+			// combatScores — бои с живыми; combatScoresAI лежит рядом
+			// и намеренно не читается.
+			CombatScores map[string]struct {
+				Defeated int64 `json:"defeated"`
+				Casualty int64 `json:"casualty"`
+			} `json:"combatScores"`
+			Totals struct {
+				Games         int `json:"gameJoin"`
+				SoloWins      int `json:"soloVictory"`
+				CoalitionWins int `json:"coalitionVictory"`
+			} `json:"gameStatsScore"`
+		} `json:"gameStats"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil, fmt.Errorf("разбор: %w", err)
+	}
+	// Ни уровня, ни боёв — про такого сайт не рассказал ничего, и нули
+	// записывать нечестно.
+	if res.RankProgress == nil && res.GameStats == nil {
+		return nil, nil
+	}
+
+	var out UserStats
+	if r := res.RankProgress; r != nil {
+		out.Level, out.OverallScore = r.Level, r.OverallScore
+	}
+	if g := res.GameStats; g != nil {
+		for _, u := range g.CombatScores {
+			out.Defeated += u.Defeated
+			out.Casualties += u.Casualty
+		}
+		out.Games, out.SoloWins, out.CoalitionWins = g.Totals.Games, g.Totals.SoloWins, g.Totals.CoalitionWins
+	}
+	return &out, nil
+}
+
+// UserStatsBatch спрашивает счёт сразу у пачки игроков — тем же способом,
+// что и кланы: по игроку за раз, но в несколько потоков. Ключ есть у
+// каждого, кого удалось спросить; nil в значении означает «спросили,
+// а сайт про него молчит».
+func (c *Client) UserStatsBatch(ctx context.Context, siteUserIDs []string) (map[string]*UserStats, error) {
+	out := make(map[string]*UserStats, len(siteUserIDs))
+	if len(siteUserIDs) == 0 {
+		return out, nil
+	}
+
+	var (
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		firstEr error
+	)
+	ids := make(chan string)
+
+	workers := min(allianceWorkers, len(siteUserIDs))
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for id := range ids {
+				stats, err := c.UserStats(ctx, id)
+				mu.Lock()
+				if err != nil {
+					if firstEr == nil {
+						firstEr = err
+					}
+				} else {
+					out[id] = stats
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+	for _, id := range siteUserIDs {
+		ids <- id
+	}
+	close(ids)
+	wg.Wait()
+
+	return out, firstEr
+}
+
 type param struct{ key, value string }
 
 // call вызывает действие API, при отказе игры один раз перелогинивается
