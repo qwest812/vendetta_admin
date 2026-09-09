@@ -34,8 +34,21 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 		return
 	}
 
+	// Рубильник сбора коалиций — общий переключатель админки, и место ему
+	// здесь. Счётчики архива остались в «Играх»: смотрят на них там.
+	var coalitions any
+	if s.coalitions != nil && s.settings != nil {
+		view, err := s.coalitionCard(r.Context())
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		coalitions = view
+	}
+
 	s.render(w, r, status, "settings", map[string]any{
-		"Traits": traits, "Usage": usage, "Kinds": domain.TraitKinds, "Error": errMsg,
+		"Traits": traits, "Usage": usage, "Kinds": domain.TraitKinds,
+		"Coalitions": coalitions, "Error": errMsg,
 	})
 }
 

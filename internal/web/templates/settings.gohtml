@@ -6,6 +6,12 @@
     <p class="muted">{{t "settings.note"}}</p>
 </div>
 
+{{/* Рубильник отдельным блоком: он возвращает эту же карточку заново,
+     вместе со строкой состояния. */}}
+{{with .Coalitions}}
+    {{template "coalitions-switch" (dict "C" . "CSRFToken" $.CSRFToken)}}
+{{end}}
+
 <div class="card">
     <h1>{{t "settings.trait.new"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
@@ -89,5 +95,29 @@
         </form>
     {{end}}
     <p class="muted">{{t "settings.trait.active.note"}}</p>
+</div>
+{{end}}
+
+{{define "coalitions-switch"}}
+{{$c := .C}}
+<div class="card" id="coalitions">
+    <div class="card-head">
+        <h1>{{t "coalitions.title"}}</h1>
+        <div class="head-actions">
+            <form method="post" action="/settings/coalitions"
+                  hx-post="/settings/coalitions" hx-target="#coalitions" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="on" value="{{if $c.On}}0{{else}}1{{end}}">
+                <button type="submit" {{if $c.On}}class="danger"{{end}}>
+                    {{if $c.On}}{{t "coalitions.stop"}}{{else}}{{t "coalitions.start"}}{{end}}
+                </button>
+            </form>
+        </div>
+    </div>
+    <p class="muted">{{t "coalitions.note"}}</p>
+    <p class="muted">
+        {{if $c.On}}{{t "coalitions.on"}}{{else}}{{t "coalitions.off"}}{{end}}
+        {{t "coalitions.stats.at"}}
+    </p>
 </div>
 {{end}}

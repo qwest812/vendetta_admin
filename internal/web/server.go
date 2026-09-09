@@ -215,6 +215,7 @@ func (s *Server) Handler() http.Handler {
 	// правка меняет то, что видят остальные. Удаление признака снимает
 	// отметки у всех игроков разом, и это тем более не админское дело.
 	mux.Handle("GET /settings", root(http.HandlerFunc(s.settingsPage)))
+	mux.Handle("POST /settings/coalitions", root(auth.VerifyCSRF(http.HandlerFunc(s.coalitionScanToggle))))
 	mux.Handle("POST /settings/traits", root(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
 	mux.Handle("POST /settings/traits/{id}", root(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
 	mux.Handle("POST /settings/traits/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
@@ -234,7 +235,6 @@ func (s *Server) Handler() http.Handler {
 	// аккаунта, выдаёт доступ к разделу и удаляет пользователей и карточки.
 	// Сбор коалиций ходит в игру от общего аккаунта, поэтому и рубильник
 	// у него рутовый. Роут стоит раньше /games/{id}: он точнее.
-	mux.Handle("POST /games/coalitions", root(auth.VerifyCSRF(http.HandlerFunc(s.coalitionScanToggle))))
 	mux.Handle("POST /games/{id}/hero", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroToggle))))
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
 	mux.Handle("POST /users/{id}/games", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetGamesAccess))))

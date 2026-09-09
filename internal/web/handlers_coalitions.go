@@ -12,9 +12,11 @@ import (
 	"Vendetta_admin/internal/supremacy"
 )
 
-// coalitionScanToggle — рубильник сбора коалиций. Рутовый: обход ходит
-// в игру от общего аккаунта проекта, и остановить его может понадобиться
-// быстрее, чем пересобрать образ.
+// coalitionScanToggle — рубильник сбора коалиций. Живёт в «Настройках»:
+// это общий переключатель админки, а не свойство раздела «Игры», где
+// остались счётчики архива. Рутовый: обход ходит в игру от общего аккаунта
+// проекта, и остановить его может понадобиться быстрее, чем пересобрать
+// образ.
 func (s *Server) coalitionScanToggle(w http.ResponseWriter, r *http.Request) {
 	on := r.PostFormValue("on") == "1"
 	me := currentUser(r)
@@ -31,7 +33,7 @@ func (s *Server) coalitionScanToggle(w http.ResponseWriter, r *http.Request) {
 
 	// Без htmx подменять карточку в странице некому — возвращаемся в раздел.
 	if !hx(r) {
-		http.Redirect(w, r, "/games", http.StatusSeeOther)
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
 		return
 	}
 	// Состояние перечитывается из базы, а не берётся из того, что просили:
@@ -41,12 +43,13 @@ func (s *Server) coalitionScanToggle(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.renderPartial(w, r, "games", "coalitions-card",
+	s.renderPartial(w, r, "settings", "coalitions-switch",
 		map[string]any{"C": view, "CSRFToken": csrfToken(r)})
 }
 
-// coalitionCard собирает карточку архива: рубильник и счётчики. Одно место
-// на страницу и на ответ рубильника — иначе они разошлись бы.
+// coalitionCard собирает состояние архива: включён ли обход и что он уже
+// собрал. Одно место на обе страницы — рубильник в «Настройках» и счётчики
+// в «Играх» — и на ответ самого рубильника, иначе они разошлись бы.
 func (s *Server) coalitionCard(ctx context.Context) (coalitionStatsView, error) {
 	on, err := s.settings.CoalitionScanEnabled(ctx)
 	if err != nil {

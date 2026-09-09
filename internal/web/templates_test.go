@@ -126,8 +126,12 @@ func TestPagesRender(t *testing.T) {
 						IsActive: false, SortOrder: 90},
 				},
 				"Usage": map[int64]int{1: 4}, "Kinds": domain.TraitKinds, "Error": "",
+				// Рубильник сбора коалиций живёт здесь же: это общий
+				// переключатель админки, а не свойство раздела «Игры».
+				"Coalitions": coalitionStatsView{On: true},
 			},
 			want: []string{
+				`action="/settings/coalitions"`, "Остановить сбор", "Идёт.",
 				`action="/settings/traits"`, `action="/settings/traits/1"`,
 				`action="/settings/traits/1/delete"`, "снять его у 4 игроков",
 				`value="bad" selected`, "Мультивод",

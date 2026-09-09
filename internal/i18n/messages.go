@@ -585,10 +585,14 @@ var messages = map[string]entry{
 	"coalitions.note":  {ru: "Обход раз за разом заглядывает в партии из лобби и запоминает, кто с кем состоял в коалиции. Заходит наблюдателем, так что входом в партию это не считается, и не в конце партии, а посреди неё: к финалу коалиции распускают, и состав пропадает вместе с ними. Скоростную партию хватает посмотреть один раз, обычную — раз в месяц.", en: "The scan looks into lobby games one by one and remembers who was in a coalition with whom. It looks as an observer, so it never counts as entering a game, and it looks mid-game rather than at the end: coalitions get dissolved by the finish, and the membership disappears with them. A fast game needs one look, a normal one a look a month."},
 	"coalitions.on":    {ru: "Идёт.", en: "Running."},
 	"coalitions.off":   {ru: "Остановлен.", en: "Stopped."},
-	"coalitions.start": {ru: "Включить сбор", en: "Start the scan"},
-	"coalitions.stop":  {ru: "Остановить сбор", en: "Stop the scan"},
-	"coalitions.stats": {ru: "Партий под наблюдением %d, из них ждут проверки %d. Коалиции нашлись в %d партиях, записей об участии %d.", en: "%d games watched, %d of them awaiting a check. Coalitions were found in %d games, %d membership records."},
-	"coalitions.last":  {ru: "Последний заход:", en: "Last check:"},
+	// Рубильник и счётчики теперь на разных страницах, и каждая говорит,
+	// где искать вторую половину.
+	"coalitions.switch.at": {ru: "Включается и останавливается в «Настройках».", en: "It is started and stopped in Settings."},
+	"coalitions.stats.at":  {ru: "Сколько партий и пар уже собрано, видно в разделе «Игры».", en: "How many games and pairs have been collected is shown in the Games section."},
+	"coalitions.start":     {ru: "Включить сбор", en: "Start the scan"},
+	"coalitions.stop":      {ru: "Остановить сбор", en: "Stop the scan"},
+	"coalitions.stats":     {ru: "Партий под наблюдением %d, из них ждут проверки %d. Коалиции нашлись в %d партиях, записей об участии %d.", en: "%d games watched, %d of them awaiting a check. Coalitions were found in %d games, %d membership records."},
+	"coalitions.last":      {ru: "Последний заход:", en: "Last check:"},
 
 	// --- «кто с кем уже союзничал» на странице партии ---
 	"pairs.title":    {ru: "Кто с кем уже союзничал", en: "Who has allied with whom"},
