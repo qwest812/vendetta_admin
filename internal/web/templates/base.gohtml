@@ -23,6 +23,9 @@
                 <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>{{t "nav.users"}}</a>
                 <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>{{t "nav.audit"}}</a>
             {{end}}
+            {{if .CurrentUser.IsRoot}}
+                <a href="/settings" {{if eq .Path "/settings"}}class="active"{{end}}>{{t "nav.settings"}}</a>
+            {{end}}
             {{/* Раздел «Игры» — по персональному доступу от рута, а не по роли. */}}
             {{if .CurrentUser.CanViewGames}}
                 <a href="/games" {{if eq .Path "/games"}}class="active"{{end}}>{{t "nav.games"}}</a>

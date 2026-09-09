@@ -57,3 +57,60 @@ func (r *Traits) List(ctx context.Context, onlyActive bool) ([]domain.Trait, err
 func (r *Traits) ByID(ctx context.Context, id int64) (domain.Trait, error) {
 	return scanTrait(r.pool.QueryRow(ctx, `SELECT `+traitColumns+` FROM traits WHERE id = $1`, id))
 }
+
+func (r *Traits) Create(ctx context.Context, code, name string, kind domain.TraitKind, sortOrder int) (domain.Trait, error) {
+	t, err := scanTrait(r.pool.QueryRow(ctx,
+		`INSERT INTO traits (code, name, kind, sort_order) VALUES ($1, $2, $3, $4)
+		 RETURNING `+traitColumns, code, name, string(kind), sortOrder))
+	if isUniqueViolation(err, "traits_code_key") {
+		return t, domain.ErrCodeTaken
+	}
+	return t, err
+}
+
+func (r *Traits) Update(ctx context.Context, id int64, name string, kind domain.TraitKind, sortOrder int, isActive bool) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE traits SET name = $2, kind = $3, sort_order = $4, is_active = $5 WHERE id = $1`,
+		id, name, string(kind), sortOrder, isActive)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// Delete убирает признак вместе со всеми отметками у игроков — необратимо,
+// поэтому доступно только руту.
+func (r *Traits) Delete(ctx context.Context, id int64) error {
+	tag, err := r.pool.Exec(ctx, `DELETE FROM traits WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// UsageCount — у скольких игроков отмечен признак. Нужен, чтобы предупредить
+// перед удалением: снятые отметки не вернуть.
+func (r *Traits) UsageCount(ctx context.Context) (map[int64]int, error) {
+	rows, err := r.pool.Query(ctx, `SELECT trait_id, count(*) FROM player_traits GROUP BY trait_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := map[int64]int{}
+	for rows.Next() {
+		var id int64
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		out[id] = n
+	}
+	return out, rows.Err()
+}

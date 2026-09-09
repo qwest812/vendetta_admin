@@ -32,7 +32,7 @@ var (
 // computed — ключи, которые собираются на ходу из кода предметной области:
 // «role.» + roleCode и так далее. Литерала такого ключа в исходниках нет,
 // поэтому искать их поиском бесполезно — за полноту отвечает отдельный тест.
-var computed = []string{"role.", "clanstatus."}
+var computed = []string{"role.", "clanstatus.", "traitkind."}
 
 func isComputed(key string) bool {
 	for _, p := range computed {
@@ -163,6 +163,10 @@ func TestComputedKeysCoverDomain(t *testing.T) {
 	}
 	for _, c := range domain.ClanStatuses {
 		want = append(want, "clanstatus."+string(c))
+	}
+	// Знаки признаков domain отдаёт готовыми ключами — теми же, что здесь.
+	for _, k := range domain.TraitKinds {
+		want = append(want, k.TitleKey())
 	}
 	for _, key := range want {
 		if !i18n.Has(key) {

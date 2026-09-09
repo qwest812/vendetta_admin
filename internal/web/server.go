@@ -211,6 +211,14 @@ func (s *Server) Handler() http.Handler {
 
 	root := auth.RequireRole(domain.RoleRoot)
 
+	// Общие настройки — рутовые: справочник признаков один на всех, и его
+	// правка меняет то, что видят остальные. Удаление признака снимает
+	// отметки у всех игроков разом, и это тем более не админское дело.
+	mux.Handle("GET /settings", root(http.HandlerFunc(s.settingsPage)))
+	mux.Handle("POST /settings/traits", root(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
+	mux.Handle("POST /settings/traits/{id}", root(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
+	mux.Handle("POST /settings/traits/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
+
 	// Смотреть партии может тот, кому рут выдал доступ: право персональное,
 	// в лестницу ролей не встроено. Заход в состояние партии игра засчитывает
 	// как вход в неё, поэтому раздаётся он поштучно, а не всем подряд.

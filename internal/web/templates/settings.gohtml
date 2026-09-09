@@ -1,0 +1,93 @@
+{{define "title"}}{{t "settings.title"}}{{end}}
+
+{{define "content"}}
+<div class="card">
+    <h1>{{t "settings.heading"}}</h1>
+    <p class="muted">{{t "settings.note"}}</p>
+</div>
+
+<div class="card">
+    <h1>{{t "settings.trait.new"}}</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    <form class="row-form" method="post" action="/settings/traits">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <label>
+            {{t "settings.trait.code"}}
+            <input name="code" placeholder="uses_boosters" pattern="[a-z][a-z0-9_]{1,39}" required autocomplete="off">
+        </label>
+        <label>
+            {{t "common.name"}}
+            <input name="name" placeholder="{{t "settings.trait.name.placeholder"}}" maxlength="80" required autocomplete="off">
+        </label>
+        <label class="narrow">
+            {{t "settings.trait.kind"}}
+            <select name="kind">
+                {{range .Kinds}}<option value="{{.}}">{{t .TitleKey}}</option>{{end}}
+            </select>
+        </label>
+        <label class="narrow">
+            {{t "settings.trait.order"}}
+            <input type="number" name="sort_order" value="100" min="0" max="9999">
+        </label>
+        <button type="submit">{{t "common.add"}}</button>
+    </form>
+    <p class="muted">{{t "settings.trait.code.note"}}</p>
+</div>
+
+<div class="card">
+    <h1>{{t "settings.traits"}}</h1>
+    {{$csrf := .CSRFToken}}
+    {{$usage := .Usage}}
+    {{$kinds := .Kinds}}
+    <table>
+        <thead>
+        <tr>
+            <th>{{t "settings.trait.code"}}</th>
+            <th>{{t "common.name"}}</th>
+            <th class="narrow">{{t "settings.trait.kind"}}</th>
+            <th class="narrow">{{t "settings.trait.order"}}</th>
+            <th class="narrow">{{t "settings.trait.active"}}</th>
+            <th class="narrow">{{t "settings.trait.used"}}</th>
+            <th class="actions">{{t "common.actions"}}</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Traits}}
+            {{/* Формы вынесены за таблицу: <form> нельзя размещать внутри <tr>,
+                 поэтому поля связаны с ней атрибутом form. */}}
+            {{$t := .}}
+            <tr class="{{if not .IsActive}}inactive{{end}}">
+                <td><code>{{.Code}}</code></td>
+                <td><input form="trait-{{.ID}}" name="name" value="{{.Name}}" maxlength="80" required></td>
+                <td class="narrow">
+                    <select form="trait-{{.ID}}" name="kind">
+                        {{range $kinds}}<option value="{{.}}" {{if eq . $t.Kind}}selected{{end}}>{{t .TitleKey}}</option>{{end}}
+                    </select>
+                </td>
+                <td class="narrow"><input form="trait-{{.ID}}" type="number" name="sort_order" value="{{.SortOrder}}" min="0" max="9999"></td>
+                <td class="narrow">
+                    <input form="trait-{{.ID}}" type="hidden" name="is_active" value="false">
+                    <input form="trait-{{.ID}}" type="checkbox" name="is_active" value="true" {{if .IsActive}}checked{{end}}>
+                </td>
+                <td class="narrow muted">{{index $usage .ID}}</td>
+                <td class="actions">
+                    <button form="trait-{{.ID}}" type="submit">{{t "common.save"}}</button>
+                    <button form="trait-del-{{.ID}}" class="danger" type="submit">{{t "common.delete"}}</button>
+                </td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+
+    {{range .Traits}}
+        <form id="trait-{{.ID}}" method="post" action="/settings/traits/{{.ID}}" hidden>
+            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        </form>
+        <form id="trait-del-{{.ID}}" method="post" action="/settings/traits/{{.ID}}/delete" hidden
+              onsubmit="return confirm('{{t "settings.trait.delete.confirm" .Name (index $usage .ID)}}')">
+            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+        </form>
+    {{end}}
+    <p class="muted">{{t "settings.trait.active.note"}}</p>
+</div>
+{{end}}

@@ -14,6 +14,14 @@ const (
 	TraitGood    TraitKind = "good"
 )
 
+// TraitKinds — все знаки в том порядке, в каком их показывает форма:
+// от плохого к хорошему.
+var TraitKinds = []TraitKind{TraitBad, TraitNeutral, TraitGood}
+
+// TitleKey — ключ подписи к знаку: словами это скажет интерфейс, и на том
+// языке, который выбрал смотрящий.
+func (k TraitKind) TitleKey() string { return "traitkind." + string(k) }
+
 // ParseTraitKind разбирает знак из формы. Второе значение — знаком ли он
 // вообще: незнакомое слово это не «нейтральный», а ошибка ввода.
 func ParseTraitKind(s string) (TraitKind, bool) {

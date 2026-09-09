@@ -112,6 +112,30 @@ func TestPagesRender(t *testing.T) {
 			deny: []string{"Введите ник или игровой ID"},
 		},
 		{
+			// Справочник признаков живёт в рутовых настройках: строка
+			// правится на месте, знак выбирается списком, а удаление
+			// предупреждает, скольких игроков оно затронет.
+			name: "settings/справочник признаков",
+			page: "settings",
+			user: root,
+			data: map[string]any{
+				"Traits": []domain.Trait{
+					{ID: 1, Code: "multiaccount", Name: "Мультиаккаунт", Kind: domain.TraitBad,
+						IsActive: true, SortOrder: 10},
+					{ID: 7, Code: "old_thing", Name: "Устаревшее", Kind: domain.TraitNeutral,
+						IsActive: false, SortOrder: 90},
+				},
+				"Usage": map[int64]int{1: 4}, "Kinds": domain.TraitKinds, "Error": "",
+			},
+			want: []string{
+				`action="/settings/traits"`, `action="/settings/traits/1"`,
+				`action="/settings/traits/1/delete"`, "снять его у 4 игроков",
+				`value="bad" selected`, "Мультиаккаунт",
+				// Погашенный признак виден и отличается: его тут и включают.
+				`class="inactive"`, "Устаревшее",
+			},
+		},
+		{
 			// Доступы: рут меняет их прямо в строке, поэтому у каждой формы
 			// есть и обычный action, и hx-post — и строка целится в себя.
 			name: "users/строка доступов",

@@ -121,6 +121,7 @@ var (
 	ErrEmailTaken    = &MsgError{"err.email.taken"}
 	ErrNickTaken     = &MsgError{"err.nick.taken"}
 	ErrGameIDTaken   = &MsgError{"err.gameid.taken"}
+	ErrCodeTaken     = &MsgError{"err.code.taken"}
 	ErrClanTaken     = &MsgError{"err.clan.taken"}
 	ErrAlreadyListed = &MsgError{"err.already.listed"}
 	ErrForbidden     = &MsgError{"err.forbidden"}

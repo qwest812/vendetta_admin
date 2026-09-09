@@ -18,6 +18,7 @@ var messages = map[string]entry{
 	"nav.enemies":  {ru: "Враги", en: "Enemies"},
 	"nav.feedback": {ru: "Обратная связь", en: "Feedback"},
 	"nav.users":    {ru: "Доступы", en: "Access"},
+	"nav.settings": {ru: "Настройки", en: "Settings"},
 	"nav.audit":    {ru: "Журнал", en: "Audit log"},
 	"nav.games":    {ru: "Игры", en: "Games"},
 	"nav.faq":      {ru: "Справка", en: "Help"},
@@ -29,6 +30,10 @@ var messages = map[string]entry{
 	"role.root":  {ru: "Рут", en: "Root"},
 	"role.admin": {ru: "Администратор", en: "Administrator"},
 	"role.user":  {ru: "Пользователь", en: "User"},
+
+	"traitkind.bad":     {ru: "Плохое", en: "Bad"},
+	"traitkind.neutral": {ru: "Нейтральное", en: "Neutral"},
+	"traitkind.good":    {ru: "Хорошее", en: "Good"},
 
 	"clanstatus.ally":    {ru: "Союзный", en: "Allied"},
 	"clanstatus.neutral": {ru: "Нейтральный", en: "Neutral"},
@@ -402,6 +407,22 @@ var messages = map[string]entry{
 	"game.col.level":   {ru: "Уровень", en: "Level"},
 	"game.team.no":     {ru: "№%s", en: "#%s"},
 
+	// --- настройки: справочник признаков ---
+	"settings.title":                  {ru: "Настройки — Vendetta", en: "Settings — Vendetta"},
+	"settings.heading":                {ru: "Настройки", en: "Settings"},
+	"settings.note":                   {ru: "Общее для всей админки. Правит только рут: справочник признаков один на всех, и его изменения видят все.", en: "Everything shared by the whole admin panel. Root only: the trait directory is common to everyone, and changes to it are seen by all."},
+	"settings.traits":                 {ru: "Справочник признаков", en: "Trait directory"},
+	"settings.trait.new":              {ru: "Новый признак", en: "New trait"},
+	"settings.trait.code":             {ru: "Код", en: "Code"},
+	"settings.trait.name.placeholder": {ru: "Использует ускорялки", en: "Uses boosters"},
+	"settings.trait.kind":             {ru: "Знак", en: "Sign"},
+	"settings.trait.order":            {ru: "Порядок", en: "Order"},
+	"settings.trait.active":           {ru: "Активен", en: "Active"},
+	"settings.trait.used":             {ru: "Отмечен", en: "Marked"},
+	"settings.trait.code.note":        {ru: "Код менять нельзя — он идентифицирует признак в фильтре поиска и в журнале. Знак решает только цвет метки: плохое красным, нейтральное серым, хорошее зелёным.", en: "The code cannot be changed — it identifies the trait in the search filter and in the audit log. The sign only decides the colour of the label: bad is red, neutral grey, good green."},
+	"settings.trait.delete.confirm":   {ru: "Удалить признак «%s» и снять его у %d игроков?", en: "Delete the trait “%s” and unmark it on %d players?"},
+	"settings.trait.active.note":      {ru: "Снятый флаг «активен» убирает признак из фильтра поиска и с карточек, но сохраняет уже проставленные отметки. Так гасят устаревшее, не теряя истории. Удаление снимает отметки у всех навсегда.", en: "Clearing the “active” flag removes the trait from the search filter and from cards but keeps the marks already made. That is how something outdated is retired without losing history. Deleting unmarks it on everyone for good."},
+
 	// --- справка ---
 	"faq.title": {ru: "Справка — Vendetta", en: "Help — Vendetta"},
 	"faq.intro": {ru: "Частые вопросы. Первый пункт — короткая инструкция по админке, с него и стоит начать.", en: "Frequently asked questions. The first item is a short guide to the admin panel — start there."},
@@ -446,6 +467,10 @@ var messages = map[string]entry{
 	"faq.lists.a3": {ru: "Добавляют двумя путями. Быстрый — кнопки «в друзья» и «во враги» справа в строке поиска: один клик, поиск не сбрасывается, комментарий дописывается потом. С комментарием сразу — в самом разделе: наберите в поиске игровой ID или ник, выберите нужного в выпадающем списке и нажмите «Добавить». Записать можно только того, у кого есть карточка в базе; нет карточки — попросите админа завести. Комментарий необязателен, до 4000 символов, и правится прямо в списке.", en: "There are two ways to add someone. The quick one is the “to friends” and “to enemies” buttons on the right of a search row: one click, the search is not reset, and the comment is added later. To add with a comment right away, use the section itself: type a game ID or nickname in the search, pick the person from the dropdown and press “Add”. Only someone who already has a card in the database can be listed; if there is no card, ask an admin to create one. The comment is optional, up to 4000 characters, and is edited right in the list."},
 	"faq.lists.a4": {ru: "В карточке партии оба списка видны на карте: враги обведены красным и подписаны мечом, друзья — зелёным и рукопожатием.", en: "On a game’s page both lists show up on the map: enemies are outlined in red and marked with a sword, friends in green with a handshake."},
 
+	"faq.newtrait.q":  {ru: "Как завести новый признак?", en: "How do I add a new trait?"},
+	"faq.newtrait.a1": {ru: "Раздел «Настройки», он виден только руту. Код латиницей менять нельзя — он опознаёт признак в фильтре поиска и в журнале; название, знак и порядок правятся в любой момент.", en: "The Settings section, visible to root only. The Latin code cannot be changed — it identifies the trait in the search filter and in the audit log; the name, sign and order can be edited at any time."},
+	"faq.newtrait.a2": {ru: "Снятый флаг «Активен» убирает признак из фильтра и с карточек, но сохраняет проставленные отметки. Удаление снимает их у всех навсегда — в колонке «Отмечен» видно, скольких это затронет.", en: "Clearing the “Active” flag removes the trait from the filter and from cards but keeps the marks already made. Deleting removes them from everyone for good — the “Marked” column shows how many that affects."},
+
 	"faq.rights.q":          {ru: "Кому что доступно?", en: "Who can do what?"},
 	"faq.rights.admin":      {ru: "Админ", en: "Admin"},
 	"faq.rights.yes":        {ru: "да", en: "yes"},
@@ -460,6 +485,7 @@ var messages = map[string]entry{
 	"faq.rights.audit":      {ru: "Смотреть журнал", en: "View the audit log"},
 	"faq.rights.delcards":   {ru: "Удалять карточки игроков", en: "Delete player cards"},
 	"faq.rights.delusers":   {ru: "Удалять пользователей", en: "Delete users"},
+	"faq.rights.traits":     {ru: "Заводить и править признаки", en: "Create and edit traits"},
 	"faq.rights.games":      {ru: "Раздел «Игры»", en: "The Games section"},
 	"faq.rights.checks":     {ru: "Менять число проверок карты", en: "Change the number of map checks"},
 	"faq.rights.hero":       {ru: "Призывать пехоту в партии", en: "Deploy infantry in a game"},
@@ -480,6 +506,11 @@ var messages = map[string]entry{
 	"err.notfound":       {ru: "не найдено", en: "not found"},
 	"err.email.taken":    {ru: "почта уже используется", en: "that email is already in use"},
 	"err.nick.taken":     {ru: "такой ник уже есть в базе", en: "that nickname is already in the database"},
+	"err.code.taken":     {ru: "такой код признака уже есть", en: "a trait with that code already exists"},
+	"err.trait.code":     {ru: "Код: латиница в нижнем регистре, цифры и подчёркивание, от 2 до 40 знаков", en: "Code: lowercase Latin letters, digits and underscores, 2 to 40 characters"},
+	"err.trait.name":     {ru: "Укажите название не длиннее 80 символов", en: "Enter a name of at most 80 characters"},
+	"err.trait.kind":     {ru: "Знак: плохое, нейтральное или хорошее", en: "Sign: bad, neutral or good"},
+	"err.trait.notfound": {ru: "Признак не найден", en: "Trait not found"},
 	"err.gameid.taken":   {ru: "такой игровой ID уже есть в базе", en: "that game ID is already in the database"},
 	"err.clan.taken":     {ru: "клан с таким названием уже есть", en: "a clan with that name already exists"},
 	"err.already.listed": {ru: "игрок уже в списке", en: "the player is already listed"},
