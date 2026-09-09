@@ -23,7 +23,7 @@ func TestPagesRender(t *testing.T) {
 		ClanID: &clanID, ClanName: "КСГ", ClanStatus: domain.ClanEnemy,
 		// Знак признака красит метку — больше он ни на что не влияет.
 		Traits: []domain.Trait{
-			{ID: 1, Code: "multiaccount", Name: "Мультиаккаунт", Kind: domain.TraitBad, IsActive: true},
+			{ID: 1, Code: "multiaccount", Name: "Мультивод", Kind: domain.TraitBad, IsActive: true},
 			{ID: 6, Code: "night_player", Name: "Играет ночью", Kind: domain.TraitNeutral, IsActive: true},
 			{ID: 4, Code: "plays_well", Name: "Хорошо играет", Kind: domain.TraitGood, IsActive: true},
 		},
@@ -120,7 +120,7 @@ func TestPagesRender(t *testing.T) {
 			user: root,
 			data: map[string]any{
 				"Traits": []domain.Trait{
-					{ID: 1, Code: "multiaccount", Name: "Мультиаккаунт", Kind: domain.TraitBad,
+					{ID: 1, Code: "multiaccount", Name: "Мультивод", Kind: domain.TraitBad,
 						IsActive: true, SortOrder: 10},
 					{ID: 7, Code: "old_thing", Name: "Устаревшее", Kind: domain.TraitNeutral,
 						IsActive: false, SortOrder: 90},
@@ -130,7 +130,7 @@ func TestPagesRender(t *testing.T) {
 			want: []string{
 				`action="/settings/traits"`, `action="/settings/traits/1"`,
 				`action="/settings/traits/1/delete"`, "снять его у 4 игроков",
-				`value="bad" selected`, "Мультиаккаунт",
+				`value="bad" selected`, "Мультивод",
 				// Погашенный признак виден и отличается: его тут и включают.
 				`class="inactive"`, "Устаревшее",
 			},
@@ -205,7 +205,7 @@ func TestPagesRender(t *testing.T) {
 			// Клан на карточке — ссылка на клан, а не текст. Признаки —
 			// три метки трёх цветов, без числа рядом.
 			want: []string{`href="/clans/7"`, "Враждебный клан",
-				"tag neg", "tag zero", "tag pos", "Мультиаккаунт"},
+				"tag neg", "tag zero", "tag pos", "Мультивод"},
 			// Про игру мы ничего не знаем — и молчим об этом. Шкал больше
 			// нет вовсе: искать стали по признакам, а не по проценту.
 			deny: []string{"В игре", "забанен", "История банов", "Риск", "Лояльность"},
