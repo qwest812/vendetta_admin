@@ -91,7 +91,13 @@ func searchParams(r *http.Request) (string, domain.ClanStatus) {
 	return query, status
 }
 
+// findPlayers ищет только когда есть о чём спрашивать: пустая строка и
+// невыбранный фильтр — это ещё не запрос, и вываливать в ответ на них всю
+// базу незачем.
 func (s *Server) findPlayers(r *http.Request, query string, status domain.ClanStatus) ([]*domain.Player, error) {
+	if query == "" && status == "" {
+		return nil, nil
+	}
 	players, err := s.players.Search(r.Context(), query, status, searchLimit)
 	if err != nil {
 		return nil, err

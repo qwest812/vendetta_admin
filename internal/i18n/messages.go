@@ -94,7 +94,7 @@ var messages = map[string]entry{
 	"results.truncated":    {ru: "Показаны первые %d — уточните запрос.", en: "Showing the first %d — narrow your query."},
 	"results.empty.query":  {ru: "По запросу «%s» никого не нашли.", en: "Nothing found for “%s”."},
 	"results.empty.status": {ru: "С таким статусом клана никого нет.", en: "No one with that clan status."},
-	"results.empty.all":    {ru: "В базе пока нет игроков.", en: "No players in the database yet."},
+	"results.empty.all":    {ru: "Введите ник или игровой ID — список появится по запросу.", en: "Type a nickname or game ID — the list appears once you search."},
 
 	// --- карточка игрока ---
 	"player.risk":                {ru: "Риск", en: "Risk"},

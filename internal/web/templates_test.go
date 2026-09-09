@@ -642,7 +642,7 @@ func TestEmptyResultsWording(t *testing.T) {
 		data map[string]any
 		want string
 	}{
-		{"пустой поиск", map[string]any{"Limit": 50}, "В базе пока нет игроков"},
+		{"поиск без запроса", map[string]any{"Limit": 50}, "Введите ник или игровой ID"},
 		{"нет совпадений", map[string]any{"Query": "abc", "Limit": 50}, "abc"},
 		{"фильтр по статусу", map[string]any{"Status": "ally", "Limit": 50}, "С таким статусом клана никого нет"},
 		{"пустой клан", map[string]any{"Empty": "В этом клане пока нет карточек.", "Limit": 200}, "В этом клане пока нет карточек."},
