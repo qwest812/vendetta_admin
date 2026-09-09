@@ -107,6 +107,12 @@ var messages = map[string]entry{
 	"player.traits.edit":         {ru: "Отметить признаки", en: "Mark traits"},
 	"player.traits.mark":         {ru: "отметить", en: "mark"},
 	"player.traits.unmark":       {ru: "снять отметку", en: "unmark"},
+	"player.stats":               {ru: "По данным сайта игры:", en: "According to the game’s website:"},
+	"player.stats.level":         {ru: "%d уровень", en: "level %d"},
+	"player.stats.kd":            {ru: "кд %s", en: "K/D %s"},
+	"player.stats.games":         {ru: "партий сыграно %d", en: "%d games played"},
+	"player.stats.solo":          {ru: "побед в одиночку %d", en: "%d solo wins"},
+	"player.stats.coalition":     {ru: "побед в коалиции %d", en: "%d coalition wins"},
 	"player.seen.ingame":         {ru: "В игре", en: "In game"},
 	"player.seen.as":             {ru: "под ником %s", en: "as %s"},
 	"player.seen.banned":         {ru: "аккаунт забанен", en: "the account is banned"},
@@ -559,7 +565,6 @@ var messages = map[string]entry{
 	"game.map.error":        {ru: "Карту нарисовать не вышло: %v", en: "Drawing the map did not work out: %v"},
 
 	// --- ошибки форм: игроки, списки, доступы ---
-	"err.player.nick.taken":    {ru: "Игрок с таким ником уже есть в базе", en: "A player with that nickname is already in the database"},
 	"err.player.id.taken":      {ru: "Игрок с таким игровым ID уже есть в базе", en: "A player with that game ID is already in the database"},
 	"err.player.nick.required": {ru: "Укажите ник игрока", en: "Enter the player’s nickname"},
 	"err.player.nick.toolong":  {ru: "Ник длиннее 64 символов", en: "The nickname is longer than 64 characters"},

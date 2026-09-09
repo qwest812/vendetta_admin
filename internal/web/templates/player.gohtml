@@ -52,6 +52,18 @@
         </p>
     {{end}}
 
+    {{/* Боевой счёт с сайта игры. Считает его страница партии, здесь он
+         только показан; у неспрошенного строки нет вовсе — нули соврали бы
+         про человека, которого мы просто не спрашивали. */}}
+    {{with .Stats}}
+        {{if .Rated}}
+            <p class="muted">
+                {{t "player.stats"}} {{t "player.stats.level" .Level}}, {{t "player.stats.kd" (ratio .KD)}};
+                {{t "player.stats.games" .Games}}{{if .SoloWins}}, {{t "player.stats.solo" .SoloWins}}{{end}}{{if .CoalitionWins}}, {{t "player.stats.coalition" .CoalitionWins}}{{end}}.
+            </p>
+        {{end}}
+    {{end}}
+
     {{/* История банов. Строка выше говорит только про сегодня, и снятый
          бан из неё исчезает бесследно, — а здесь остаётся. */}}
     {{with .Bans}}

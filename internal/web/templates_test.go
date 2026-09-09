@@ -205,14 +205,28 @@ func TestPagesRender(t *testing.T) {
 		{
 			page: "player",
 			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
-				"Traits": directory},
+				"Traits": directory,
+				// Счёт с сайта игры: страница партии его посчитала, карточка
+				// только показывает.
+				"Stats": domain.UserStats{Level: 17, Defeated: 23440, Casualties: 15020,
+					Games: 41, SoloWins: 3, CoalitionWins: 7}},
 			// Клан на карточке — ссылка на клан, а не текст. Признаки —
 			// три метки трёх цветов, без числа рядом.
 			want: []string{`href="/clans/7"`, "Враждебный клан",
-				"tag neg", "tag zero", "tag pos", "Мультивод"},
+				"tag neg", "tag zero", "tag pos", "Мультивод",
+				"17 уровень", "кд 1.56", "партий сыграно 41", "побед в коалиции 7"},
 			// Про игру мы ничего не знаем — и молчим об этом. Шкал больше
 			// нет вовсе: искать стали по признакам, а не по проценту.
 			deny: []string{"В игре", "забанен", "История банов", "Риск", "Лояльность"},
+		},
+		{
+			// Про неспрошенного молчим совсем: нули соврали бы про
+			// человека, которого мы просто не спрашивали.
+			name: "player/без счёта с сайта",
+			page: "player",
+			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Stats": domain.UserStats{}},
+			deny: []string{"По данным сайта игры", "кд"},
 		},
 		{
 			// Отметить признак может любой, у кого есть доступ, поэтому

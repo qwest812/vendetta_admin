@@ -1240,6 +1240,11 @@ func premiumViews(l i18n.Lang, state *supremacy.GameState, meID int) []gamePlaye
 // — сюда не идут: они про эту игру, а не про человека, и в другой партии
 // будут другими.
 //
+// Здесь же на каждого заводится карточка, если её ещё нет: встреченный
+// в партии человек и есть тот, кого потом ищут, а заводить карточку руками
+// ради ника с ID незачем. Уже заведённые не трогаются — там могут быть
+// чужие правки.
+//
 // Ошибка записи страницу не отменяет: мы уже в партии, состав перед глазами,
 // и терять его показ из-за базы было бы обидно.
 func (s *Server) rememberPlayers(ctx context.Context, state *supremacy.GameState) error {
@@ -1254,7 +1259,20 @@ func (s *Server) rememberPlayers(ctx context.Context, state *supremacy.GameState
 			SeenAt: now, SeenGameID: state.GameID,
 		})
 	}
-	return s.gamePlayers.Save(ctx, list)
+	if err := s.gamePlayers.Save(ctx, list); err != nil {
+		return err
+	}
+
+	// Новых стоит посчитать вслух: по логу видно, растёт база сама или
+	// партия давно знакомая.
+	added, err := s.players.ImportSeen(ctx, list)
+	if err != nil {
+		return err
+	}
+	if added > 0 {
+		s.log.Info("заведены карточки из партии", "gameID", state.GameID, "новых", added)
+	}
+	return nil
 }
 
 // bannedViews — кто из игроков партии забанен. Игра сообщает бан про всех

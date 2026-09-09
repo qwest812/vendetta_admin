@@ -118,6 +118,44 @@ func (r *Players) UnmarkTrait(ctx context.Context, playerID, traitID int64) (boo
 	return tag.RowsAffected() > 0, nil
 }
 
+// ImportSeen заводит карточки всем, кого встретили в партии: ник и игровой
+// ID — всё, что игра рассказывает сама. Возвращает, сколько человек оказалось
+// новыми.
+//
+// Опознаём по игровому ID, поэтому уже заведённых ON CONFLICT просто
+// пропускает — ни ник, ни клан, ни признаки существующей карточки заход
+// в партию не трогает: там могут быть чужие правки, а мы знаем только
+// то, что сказала игра. Переименовавшийся так и остаётся под старым ником
+// в карточке, и поправить его — по-прежнему дело админа.
+//
+// Автор у таких карточек пуст: их завела не рука, а заход в партию.
+// Безымянных пропускаем — карточка без ника нечитаема, а ник сайт отдаёт
+// не всегда.
+func (r *Players) ImportSeen(ctx context.Context, list []domain.GamePlayer) (int, error) {
+	ids, nicks := make([]string, 0, len(list)), make([]string, 0, len(list))
+	seen := make(map[string]bool, len(list))
+	for _, p := range list {
+		if p.SiteUserID == "" || p.Nickname == "" || seen[p.SiteUserID] {
+			continue
+		}
+		seen[p.SiteUserID] = true
+		ids = append(ids, p.SiteUserID)
+		nicks = append(nicks, p.Nickname)
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	tag, err := r.pool.Exec(ctx,
+		`INSERT INTO players (game_id, nickname)
+		 SELECT * FROM unnest($1::text[], $2::text[])
+		 ON CONFLICT (lower(game_id)) DO NOTHING`, ids, nicks)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
+
 // distinct убирает повторы, сохраняя порядок: коды признаков приходят
 // из адреса, а там одна и та же галочка может оказаться дважды — и тогда
 // счёт совпадений не сошёлся бы ни у кого.
@@ -266,9 +304,6 @@ func (r *Players) Create(ctx context.Context, gameID, nickname, clanName string,
 		`INSERT INTO players (game_id, nickname, clan_id, created_by)
 		 VALUES (NULLIF($1, ''), $2, $3, $4) RETURNING id`,
 		gameID, nickname, clanID, createdBy).Scan(&id)
-	if isUniqueViolation(err, "players_nickname_key") {
-		return nil, domain.ErrNickTaken
-	}
 	if isUniqueViolation(err, "players_game_id_key") {
 		return nil, domain.ErrGameIDTaken
 	}
@@ -298,9 +333,6 @@ func (r *Players) Update(ctx context.Context, id int64, gameID, nickname, clanNa
 		`UPDATE players SET game_id = NULLIF($2, ''), nickname = $3, clan_id = $4, updated_at = now()
 		 WHERE id = $1`,
 		id, gameID, nickname, clanID)
-	if isUniqueViolation(err, "players_nickname_key") {
-		return domain.ErrNickTaken
-	}
 	if isUniqueViolation(err, "players_game_id_key") {
 		return domain.ErrGameIDTaken
 	}

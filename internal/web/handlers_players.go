@@ -171,9 +171,22 @@ func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Боевой счёт с сайта игры: уровень и кд. Считает его страница партии,
+	// когда видит игрока на карте, — здесь только показываем уже
+	// посчитанное, в сеть за ним не ходим.
+	var stats domain.UserStats
+	if player.GameID != "" && s.userStats != nil {
+		known, err := s.userStats.Known(r.Context(), []string{player.GameID})
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		stats = known[player.GameID]
+	}
+
 	s.render(w, r, http.StatusOK, "player", map[string]any{
 		"Player": player, "Notes": notes, "Error": "", "Seen": seen,
-		"Bans": bans, "Traits": traits,
+		"Bans": bans, "Traits": traits, "Stats": stats,
 	})
 }
 
@@ -298,10 +311,6 @@ func (s *Server) playerCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	player, err := s.players.Create(r.Context(), gameID, nickname, clan, actor.ID)
-	if errors.Is(err, domain.ErrNickTaken) {
-		fail(langOf(r).T("err.player.nick.taken"))
-		return
-	}
 	if errors.Is(err, domain.ErrGameIDTaken) {
 		fail(langOf(r).T("err.player.id.taken"))
 		return
@@ -349,10 +358,6 @@ func (s *Server) playerUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := s.players.Update(r.Context(), player.ID, gameID, nickname, clan)
-	if errors.Is(err, domain.ErrNickTaken) {
-		fail(langOf(r).T("err.player.nick.taken"))
-		return
-	}
 	if errors.Is(err, domain.ErrGameIDTaken) {
 		fail(langOf(r).T("err.player.id.taken"))
 		return
