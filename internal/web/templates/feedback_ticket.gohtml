@@ -1,0 +1,55 @@
+{{define "title"}}{{.Ticket.Subject}} — Vendetta{{end}}
+
+{{define "content"}}
+{{$tk := .Ticket}}
+{{$me := .CurrentUser}}
+<div class="card">
+    <div class="card-head">
+        <h1>{{$tk.Subject}}</h1>
+        <a class="button" href="/feedback">{{t "feedback.back"}}</a>
+    </div>
+    <p class="muted">
+        {{t "feedback.author"}} {{$tk.AuthorName}}, {{t "feedback.opened"}} {{datetime $tk.CreatedAt}}.
+        {{if $tk.IsOpen}}
+            <span class="badge open">{{t "feedback.status.open"}}</span>
+        {{else}}
+            <span class="badge done">{{t "feedback.status.closed"}}</span>{{with $tk.ClosedAt}} {{datetime .}}{{end}}
+        {{end}}
+    </p>
+    {{if $tk.CanClose $me}}
+        <form method="post" action="/feedback/{{$tk.ID}}/close"
+              onsubmit="return confirm('{{t "feedback.close.confirm" $tk.Subject}}')">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button type="submit">{{t "feedback.close"}}</button>
+        </form>
+    {{end}}
+</div>
+
+<div class="card">
+    <h1>{{t "feedback.thread"}}</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    <form method="post" action="/feedback/{{$tk.ID}}/reply" class="note-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <textarea name="body" rows="3" maxlength="4000" required
+                  placeholder="{{if $me.IsAdmin}}{{t "feedback.reply.placeholder.admin"}}{{else}}{{t "feedback.reply.placeholder"}}{{end}}"></textarea>
+        <button type="submit">{{t "feedback.reply"}}</button>
+    </form>
+    {{/* Закрытое обращение не запирается: автор поднимает его новым словом,
+         а ответ админа остаётся припиской к закрытому. */}}
+    {{if not $tk.IsOpen}}<p class="muted">{{t "feedback.reopen.note"}}</p>{{end}}
+
+    <ul class="notes">
+        {{range .Messages}}
+            <li>
+                <div class="note-head">
+                    <span class="author">{{.AuthorName}}</span>
+                    {{if .FromStaff}}<span class="badge">{{t "feedback.fromstaff"}}</span>{{end}}
+                    <span class="muted">{{datetime .CreatedAt}}</span>
+                </div>
+                <p class="note-body">{{.Body}}</p>
+            </li>
+        {{end}}
+    </ul>
+</div>
+{{end}}

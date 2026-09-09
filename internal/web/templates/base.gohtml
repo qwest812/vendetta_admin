@@ -16,6 +16,9 @@
             <a href="/clans" {{if eq .Path "/clans"}}class="active"{{end}}>{{t "nav.clans"}}</a>
             <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>{{t "nav.friends"}}</a>
             <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>{{t "nav.enemies"}}</a>
+            {{/* Число рядом с разделом: админу — сколько обращений ждут ответа,
+                 автору — на сколько его обращений ответили. */}}
+            <a href="/feedback" {{if eq .Path "/feedback"}}class="active"{{end}}>{{t "nav.feedback"}}{{if .FeedbackBadge}} <span class="badge count">{{.FeedbackBadge}}</span>{{end}}</a>
             {{if .CurrentUser.IsAdmin}}
                 <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>{{t "nav.users"}}</a>
                 <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>{{t "nav.audit"}}</a>

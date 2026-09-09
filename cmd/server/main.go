@@ -64,6 +64,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	mapChecks := repo.NewMapChecks(pool)
 	topAlliances := repo.NewTopAlliances(pool)
 	userStats := repo.NewUserStats(pool)
+	feedback := repo.NewFeedback(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -81,7 +82,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	deps := web.Deps{
 		Log: log, Auth: authSvc, Users: users, Sessions: sessions,
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
-		Enemies: enemies, Friends: friends, Alliances: alliances, GamePlayers: gamePlayers,
+		Enemies: enemies, Friends: friends, Feedback: feedback, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery,
 		Coalitions: coalitions, Settings: settings, Checked: checked, Checks: mapChecks,
 		TopAlliances: topAlliances, UserStats: userStats,

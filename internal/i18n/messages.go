@@ -12,16 +12,17 @@ type entry struct {
 // страницы стоят в меню; внутри раздела — в порядке появления на странице.
 var messages = map[string]entry{
 	// --- каркас: шапка, меню, общие кнопки ---
-	"nav.search":  {ru: "Поиск", en: "Search"},
-	"nav.clans":   {ru: "Кланы", en: "Clans"},
-	"nav.friends": {ru: "Друзья", en: "Friends"},
-	"nav.enemies": {ru: "Враги", en: "Enemies"},
-	"nav.users":   {ru: "Доступы", en: "Access"},
-	"nav.audit":   {ru: "Журнал", en: "Audit log"},
-	"nav.games":   {ru: "Игры", en: "Games"},
-	"nav.faq":     {ru: "Справка", en: "Help"},
-	"top.logout":  {ru: "Выйти", en: "Log out"},
-	"top.lang.to": {ru: "Переключить на %s", en: "Switch to %s"},
+	"nav.search":   {ru: "Поиск", en: "Search"},
+	"nav.clans":    {ru: "Кланы", en: "Clans"},
+	"nav.friends":  {ru: "Друзья", en: "Friends"},
+	"nav.enemies":  {ru: "Враги", en: "Enemies"},
+	"nav.feedback": {ru: "Обратная связь", en: "Feedback"},
+	"nav.users":    {ru: "Доступы", en: "Access"},
+	"nav.audit":    {ru: "Журнал", en: "Audit log"},
+	"nav.games":    {ru: "Игры", en: "Games"},
+	"nav.faq":      {ru: "Справка", en: "Help"},
+	"top.logout":   {ru: "Выйти", en: "Log out"},
+	"top.lang.to":  {ru: "Переключить на %s", en: "Switch to %s"},
 
 	// Роли, статусы кланов и уровни шкал приходят из domain кодами:
 	// подписи к ним — дело интерфейса, и живут они здесь.
@@ -140,6 +141,41 @@ var messages = map[string]entry{
 	"common.delete.lower": {ru: "удалить", en: "delete"},
 	"common.cancel":       {ru: "Отмена", en: "Cancel"},
 	"common.optional":     {ru: "(необязательно)", en: "(optional)"},
+
+	// --- обратная связь ---
+	"feedback.title":                   {ru: "Обратная связь — Vendetta", en: "Feedback — Vendetta"},
+	"feedback.intro":                   {ru: "Напишите, что не работает или чего не хватает. Обращение видите только вы и админы; ответ придёт сюда же, а рядом с разделом в шапке загорится число.", en: "Write about what is broken or missing. Only you and the admins see the ticket; the reply lands right here, and a number lights up next to the section in the header."},
+	"feedback.intro.admin":             {ru: "Обращения от тех, кому выдан доступ. Ответ пишется в самой переписке; закрытое обращение автор поднимает новым сообщением, а ваш ответ в закрытое остаётся припиской.", en: "Tickets from the people who have access. Replies go into the thread itself; the author reopens a closed ticket with a new message, while your reply to a closed one stays a postscript."},
+	"feedback.new":                     {ru: "Новое обращение", en: "New ticket"},
+	"feedback.subject":                 {ru: "Тема", en: "Subject"},
+	"feedback.subject.placeholder":     {ru: "Коротко, о чём речь", en: "Briefly, what it is about"},
+	"feedback.body.placeholder":        {ru: "Что случилось и чего вы ждёте", en: "What happened and what you expect"},
+	"feedback.send":                    {ru: "Отправить", en: "Send"},
+	"feedback.list":                    {ru: "Обращения", en: "Tickets"},
+	"feedback.col.subject":             {ru: "Тема", en: "Subject"},
+	"feedback.col.author":              {ru: "Автор", en: "Author"},
+	"feedback.col.status":              {ru: "Статус", en: "Status"},
+	"feedback.col.messages":            {ru: "Сообщений", en: "Messages"},
+	"feedback.col.updated":             {ru: "Обновлено", en: "Updated"},
+	"feedback.status.open":             {ru: "открыто", en: "open"},
+	"feedback.status.closed":           {ru: "закрыто", en: "closed"},
+	"feedback.filter.open":             {ru: "Открытые", en: "Open"},
+	"feedback.filter.closed":           {ru: "Закрытые", en: "Closed"},
+	"feedback.filter.all":              {ru: "Все", en: "All"},
+	"feedback.hasreply":                {ru: "есть ответ", en: "new reply"},
+	"feedback.empty":                   {ru: "Обращений пока нет.", en: "No tickets yet."},
+	"feedback.empty.mine":              {ru: "Вы ещё ничего не писали.", en: "You have not written anything yet."},
+	"feedback.back":                    {ru: "Ко всем обращениям", en: "All tickets"},
+	"feedback.author":                  {ru: "Написал", en: "Opened by"},
+	"feedback.opened":                  {ru: "открыто", en: "on"},
+	"feedback.thread":                  {ru: "Переписка", en: "Thread"},
+	"feedback.fromstaff":               {ru: "админ", en: "admin"},
+	"feedback.reply":                   {ru: "Ответить", en: "Reply"},
+	"feedback.reply.placeholder":       {ru: "Дописать к обращению", en: "Add to your ticket"},
+	"feedback.reply.placeholder.admin": {ru: "Ответ автору", en: "Reply to the author"},
+	"feedback.close":                   {ru: "Закрыть обращение", en: "Close the ticket"},
+	"feedback.close.confirm":           {ru: "Закрыть обращение «%s»?", en: "Close the ticket “%s”?"},
+	"feedback.reopen.note":             {ru: "Обращение закрыто. Новое сообщение от автора откроет его снова.", en: "The ticket is closed. A new message from the author opens it again."},
 
 	// --- кланы ---
 	"clans.title":          {ru: "Кланы — Vendetta", en: "Clans — Vendetta"},
@@ -438,13 +474,14 @@ var messages = map[string]entry{
 	"faq.rights.games":      {ru: "Раздел «Игры»", en: "The Games section"},
 	"faq.rights.checks":     {ru: "Менять число проверок карты", en: "Change the number of map checks"},
 	"faq.rights.hero":       {ru: "Призывать пехоту в партии", en: "Deploy infantry in a game"},
+	"faq.rights.feedback":   {ru: "Отвечать на обращения и закрывать их", en: "Answer tickets and close them"},
 
 	"faq.grant.q":  {ru: "Как выдать доступ новому человеку?", en: "How do I grant access to someone new?"},
 	"faq.grant.a1": {ru: "Раздел «Доступы». Обязателен ник, почта — по желанию: входить можно и по нику, и по почте. Пароль не короче 12 символов; в открытом виде он нигде не хранится и посмотреть его потом нельзя, поэтому передайте пароль человеку сразу и лично.", en: "The Access section. The nickname is required, the email optional: signing in works with either. The password must be at least 12 characters; it is stored nowhere in plain text and cannot be looked up later, so hand it over right away and in person."},
 	"faq.grant.a2": {ru: "Блокировка — мягкая мера: доступ закрывается, а заметки и история остаются. Блокировка, смена роли и смена пароля тут же обрывают все сессии человека. Свою запись менять нельзя, рута — тоже.", en: "Blocking is the gentle measure: access closes while the notes and history stay. Blocking, a role change and a password change all end the person’s sessions at once. You cannot edit your own record, nor the root’s."},
 
 	"faq.bug.q": {ru: "Нашёл ошибку или нужен доступ", en: "I found a bug or need access"},
-	"faq.bug.a": {ru: "Пишите тому, кто выдавал вам доступ. Все действия в базе видны в журнале, так что разобраться, кто и что менял, можно всегда.", en: "Write to whoever granted you access. Every action in the database is visible in the audit log, so it is always possible to work out who changed what."},
+	"faq.bug.a": {ru: "Раздел «Обратная связь»: заведите обращение, и разговор останется в админке — с ответом и датами. Обращение видите вы и админы; когда вопрос решён, его закрывают.", en: "The Feedback section: open a ticket and the conversation stays inside the admin panel, with the reply and the dates. You and the admins see it; once the question is settled, it gets closed."},
 
 	// --- сообщения обработчиков: ошибки форм и отказы ---
 	"err.badform":  {ru: "Некорректная форма", en: "Malformed form"},
@@ -466,6 +503,10 @@ var messages = map[string]entry{
 	"err.city.toolong":   {ru: "город длиннее 100 символов", en: "the city is longer than 100 characters"},
 	"err.gameid.toolong": {ru: "игровой ID длиннее 32 символов", en: "the game ID is longer than 32 characters"},
 	"err.gameid.spaces":  {ru: "игровой ID не должен содержать пробелов", en: "the game ID must not contain spaces"},
+
+	"err.feedback.subject":  {ru: "Тема: от 3 до 120 символов", en: "Subject: 3 to 120 characters"},
+	"err.feedback.body":     {ru: "Сообщение: от 3 до 4000 символов", en: "Message: 3 to 4000 characters"},
+	"err.feedback.notfound": {ru: "Обращение не найдено", en: "Ticket not found"},
 
 	"err.clan.name.required": {ru: "Укажите название клана", en: "Enter a clan name"},
 	"err.clan.name.toolong":  {ru: "Название длиннее 64 символов", en: "The name is longer than 64 characters"},

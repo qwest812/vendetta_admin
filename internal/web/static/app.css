@@ -587,3 +587,11 @@ a.button.waiting, a.waiting { opacity: .45; pointer-events: none; }
 .checks-left { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .checks-left b { color: var(--text); font-size: 16px; }
 .checks-left.out, .checks-left.out b { color: var(--danger); }
+
+/* Обратная связь. Открытое обращение подсвечено как «требует внимания»,
+   закрытое — спокойным зелёным: то же деление, что у статусов кланов.
+   Счётчик в шапке — то же кольцо, только с цифрой внутри. */
+.badge.open { border-color: rgba(217, 72, 59, .5); color: #e88b81; }
+.badge.done { border-color: rgba(63, 166, 106, .5); color: #7fd3a1; }
+.badge.count { border-color: var(--accent); color: var(--accent); padding: 1px 7px; }
+.card-head .filters { flex-wrap: wrap; }

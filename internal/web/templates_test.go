@@ -28,6 +28,8 @@ func TestPagesRender(t *testing.T) {
 	// есть свой смотрящий; пусто — обычный админ.
 	banSeen := time.Unix(1788984426, 0)
 	root := &domain.User{ID: 1, Nickname: "root", Role: domain.RoleRoot}
+	// Автор обращения и тот, кто отвечает: в шаблоне они сравниваются по id.
+	adminID, playerID := int64(1), int64(2)
 	player := &domain.User{ID: 2, Nickname: "Dau7er", Role: domain.RoleUser,
 		GamesAccess: true, GameID: "101408369"}
 
@@ -549,6 +551,80 @@ func TestPagesRender(t *testing.T) {
 			},
 			want: []string{"В этой партии вы не играете"},
 			deny: []string{"вы играете за", "Призвать сейчас"},
+		},
+		{
+			// Список обращений админу: чужой автор, фильтр по статусу
+			// и ссылка в переписку.
+			name: "feedback/список у админа",
+			page: "feedback",
+			data: map[string]any{
+				"Tickets": []domain.Ticket{
+					{ID: 5, AuthorID: &playerID, AuthorName: "Dau7er", Subject: "Не ищется по ID",
+						Status: domain.TicketOpen, CreatedAt: time.Now(), UpdatedAt: time.Now(), Messages: 2},
+					{ID: 6, AuthorID: &playerID, AuthorName: "Dau7er", Subject: "Спасибо за карту",
+						Status: domain.TicketClosed, CreatedAt: time.Now(), UpdatedAt: time.Now(), Messages: 3},
+				},
+				"Status": "", "Error": "", "Subject": "", "Body": "",
+			},
+			want: []string{
+				`href="/feedback/5"`, "Не ищется по ID", "Dau7er",
+				`href="/feedback?status=open"`, ">открыто<", ">закрыто<",
+			},
+		},
+		{
+			// Тому же списку у обычного пользователя фильтр не нужен: там
+			// только свои обращения. Зато нужна пометка «есть ответ».
+			name: "feedback/список у пользователя",
+			page: "feedback",
+			user: player,
+			data: map[string]any{
+				"Tickets": []domain.Ticket{
+					{ID: 5, AuthorID: &playerID, AuthorName: "Dau7er", Subject: "Не ищется по ID",
+						Status: domain.TicketOpen, CreatedAt: time.Now(), UpdatedAt: time.Now(),
+						Messages: 2, HasReply: true},
+				},
+				"Status": "", "Error": "", "Subject": "", "Body": "",
+			},
+			want: []string{"есть ответ", `action="/feedback"`},
+			deny: []string{"status=open", "Автор"},
+		},
+		{
+			// Переписка: отвечают обе стороны, закрывает админ. Ответ
+			// подписан «админ», чтобы автор видел, кто ему пишет.
+			name: "feedback/переписка",
+			page: "feedback_ticket",
+			data: map[string]any{
+				"Ticket": domain.Ticket{ID: 5, AuthorID: &playerID, AuthorName: "Dau7er",
+					Subject: "Не ищется по ID", Status: domain.TicketOpen,
+					CreatedAt: time.Now(), UpdatedAt: time.Now(), Messages: 2},
+				"Messages": []domain.TicketMessage{
+					{ID: 1, TicketID: 5, AuthorID: &playerID, AuthorName: "Dau7er",
+						Body: "поиск не находит по игровому ID", CreatedAt: time.Now()},
+					{ID: 2, TicketID: 5, AuthorID: &adminID, AuthorName: "admin@example.com",
+						FromStaff: true, Body: "починили", CreatedAt: time.Now()},
+				},
+				"Error": "",
+			},
+			want: []string{
+				"поиск не находит по игровому ID", "починили", ">админ<",
+				`action="/feedback/5/reply"`, `action="/feedback/5/close"`,
+			},
+		},
+		{
+			// Закрытое обращение автор может поднять — форма ответа остаётся,
+			// а кнопки «закрыть» уже нет.
+			name: "feedback/закрытое обращение",
+			page: "feedback_ticket",
+			user: player,
+			data: map[string]any{
+				"Ticket": domain.Ticket{ID: 5, AuthorID: &playerID, AuthorName: "Dau7er",
+					Subject: "Не ищется по ID", Status: domain.TicketClosed,
+					CreatedAt: time.Now(), UpdatedAt: time.Now(), Messages: 2},
+				"Messages": []domain.TicketMessage{},
+				"Error":    "",
+			},
+			want: []string{`action="/feedback/5/reply"`, "Новое сообщение от автора откроет его снова"},
+			deny: []string{"/feedback/5/close"},
 		},
 		{
 			page: "enemies",

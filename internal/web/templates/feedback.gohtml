@@ -1,0 +1,83 @@
+{{define "title"}}{{t "feedback.title"}}{{end}}
+
+{{define "content"}}
+<div class="card">
+    <h1>{{t "nav.feedback"}}</h1>
+    <p class="muted">
+        {{if .CurrentUser.IsAdmin}}{{t "feedback.intro.admin"}}{{else}}{{t "feedback.intro"}}{{end}}
+    </p>
+</div>
+
+{{/* Форма стоит выше списка: чаще сюда приходят написать, а не читать. */}}
+<div class="card">
+    <h1>{{t "feedback.new"}}</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    <form method="post" action="/feedback" class="note-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <label>
+            {{t "feedback.subject"}}
+            <input name="subject" maxlength="120" required autocomplete="off"
+                   placeholder="{{t "feedback.subject.placeholder"}}" value="{{.Subject}}">
+        </label>
+        <textarea name="body" rows="4" maxlength="4000" required
+                  placeholder="{{t "feedback.body.placeholder"}}">{{.Body}}</textarea>
+        <button type="submit">{{t "feedback.send"}}</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h1>{{t "feedback.list"}}</h1>
+        {{/* Фильтр по статусу — только там, где список общий: свои обращения
+             и так видно все сразу. */}}
+        {{if .CurrentUser.IsAdmin}}
+            <div class="filters">
+                <a class="button {{if ne .Status "open"}}ghost{{end}}" href="/feedback?status=open">{{t "feedback.filter.open"}}</a>
+                <a class="button {{if ne .Status "closed"}}ghost{{end}}" href="/feedback?status=closed">{{t "feedback.filter.closed"}}</a>
+                <a class="button {{if ne .Status ""}}ghost{{end}}" href="/feedback">{{t "feedback.filter.all"}}</a>
+            </div>
+        {{end}}
+    </div>
+
+    {{$admin := .CurrentUser.IsAdmin}}
+    <table>
+        <thead>
+        <tr>
+            <th>{{t "feedback.col.subject"}}</th>
+            {{if $admin}}<th>{{t "feedback.col.author"}}</th>{{end}}
+            <th class="narrow">{{t "feedback.col.status"}}</th>
+            <th class="narrow">{{t "feedback.col.messages"}}</th>
+            <th class="narrow">{{t "feedback.col.updated"}}</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Tickets}}
+            <tr>
+                <td>
+                    <a href="/feedback/{{.ID}}">{{.Subject}}</a>
+                    {{/* «Есть ответ» — пометка для автора: админ ведёт список
+                         по статусу, а не по прочитанному. */}}
+                    {{if and .HasReply (not $admin)}}<span class="badge open">{{t "feedback.hasreply"}}</span>{{end}}
+                </td>
+                {{if $admin}}<td>{{.AuthorName}}</td>{{end}}
+                <td>
+                    {{if .IsOpen}}
+                        <span class="badge open">{{t "feedback.status.open"}}</span>
+                    {{else}}
+                        <span class="badge done">{{t "feedback.status.closed"}}</span>
+                    {{end}}
+                </td>
+                <td>{{.Messages}}</td>
+                <td class="muted">{{datetime .UpdatedAt}}</td>
+            </tr>
+        {{else}}
+            <tr>
+                <td colspan="5" class="muted">
+                    {{if $admin}}{{t "feedback.empty"}}{{else}}{{t "feedback.empty.mine"}}{{end}}
+                </td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

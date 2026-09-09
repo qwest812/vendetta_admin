@@ -127,6 +127,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	data["CurrentUser"] = currentUser(r)
 	data["CSRFToken"] = csrfToken(r)
 	data["Path"] = r.URL.Path
+	data["FeedbackBadge"] = s.feedbackBadge(r)
 	data["Lang"] = lang
 	// Back — куда вернуться после переключения языка: на ту же страницу
 	// со всеми её параметрами, а не на главную.
@@ -173,6 +174,23 @@ func (s *Server) renderPartialStatus(w http.ResponseWriter, r *http.Request, sta
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = buf.WriteTo(w)
+}
+
+// feedbackBadge — число рядом с разделом обратной связи в шапке. Считается
+// на каждой странице: пометка «вам ответили» бесполезна, если её видно только
+// в самом разделе. Ошибку показывать некому и незачем — шапка не то место,
+// где сообщают о сбое базы, поэтому она просто уходит в лог.
+func (s *Server) feedbackBadge(r *http.Request) int {
+	me := currentUser(r)
+	if me == nil || s.feedback == nil {
+		return 0
+	}
+	n, err := s.feedback.Badge(r.Context(), me)
+	if err != nil {
+		s.log.Error("не посчитаны обращения", "err", err, "user_id", me.ID)
+		return 0
+	}
+	return n
 }
 
 func csrfToken(r *http.Request) string {

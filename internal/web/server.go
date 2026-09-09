@@ -25,6 +25,8 @@ type Server struct {
 	enemies *relationSection
 	friends *relationSection
 	games   gameSource
+	// feedback — обращения в админку и переписка по ним.
+	feedback *repo.Feedback
 	// alliances — кеш кланов Supremacy: сайт игры отвечает про одного
 	// игрока за раз, а карту красят все сразу.
 	alliances *repo.Alliances
@@ -68,6 +70,8 @@ type Deps struct {
 	Traits   *repo.Traits
 	Enemies  *repo.Relations
 	Friends  *repo.Relations
+	// Feedback — обратная связь: обращения пользователей и ответы на них.
+	Feedback *repo.Feedback
 	// Games — аккаунт Supremacy 1914 для рутового раздела «Игры».
 	// Пусто, если аккаунт не настроен: раздел тогда скажет об этом сам.
 	Games gameSource
@@ -104,7 +108,8 @@ func NewServer(d Deps) (*Server, error) {
 	s := &Server{
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
 		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
-		games: d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
+		feedback: d.Feedback,
+		games:    d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
 		gamePlayers: d.GamePlayers, userStats: d.UserStats,
 		coalitions: d.Coalitions, settings: d.Settings, checked: d.Checked, checks: d.Checks,
 		tasks: d.Tasks, heroEvery: d.HeroEvery,
@@ -162,6 +167,16 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("POST "+path+"/{playerID}/mark", user(auth.VerifyCSRF(http.HandlerFunc(sec.mark))))
 		mux.Handle("POST "+path+"/{playerID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(sec.remove))))
 	}
+
+	// Обратная связь: писать может каждый, кому выдан доступ. Своё обращение
+	// видит автор, все — админ; отвечают обе стороны, а закрывает админ или
+	// сам автор. Кто есть кто, решает обработчик: пользователь берётся
+	// из сессии, а не из адреса.
+	mux.Handle("GET /feedback", user(http.HandlerFunc(s.feedbackList)))
+	mux.Handle("POST /feedback", user(auth.VerifyCSRF(http.HandlerFunc(s.feedbackCreate))))
+	mux.Handle("GET /feedback/{id}", user(http.HandlerFunc(s.feedbackTicket)))
+	mux.Handle("POST /feedback/{id}/reply", user(auth.VerifyCSRF(http.HandlerFunc(s.feedbackReply))))
+	mux.Handle("POST /feedback/{id}/close", user(auth.VerifyCSRF(http.HandlerFunc(s.feedbackClose))))
 
 	// Заметки пишут все авторизованные: карточку наполняют те, кто работает
 	// с игроками, а не только админы. Удаление разрешает сам хендлер —
