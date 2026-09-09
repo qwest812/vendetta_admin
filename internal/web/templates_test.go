@@ -220,7 +220,7 @@ func TestPagesRender(t *testing.T) {
 		{
 			page: "player",
 			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
-				"Traits": directory,
+				"Traits": directory, "Marked": enemy.MarkedTraits(), "Body": "",
 				// Счёт с сайта игры: страница партии его посчитала, карточка
 				// только показывает.
 				"Stats": domain.UserStats{Level: 17, Defeated: 23440, Casualties: 15020,
@@ -240,23 +240,40 @@ func TestPagesRender(t *testing.T) {
 			name: "player/без счёта с сайта",
 			page: "player",
 			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
-				"Traits": directory, "Stats": domain.UserStats{}},
+				"Traits": directory, "Marked": enemy.MarkedTraits(), "Body": "",
+				"Stats": domain.UserStats{}},
 			deny: []string{"По данным сайта игры", "кд"},
 		},
 		{
-			// Отметить признак может любой, у кого есть доступ, поэтому
-			// переключатели есть и у обычного пользователя. Отмеченный
-			// признак снимается тем же нажатием, неотмеченный ставится —
-			// адреса у них разные.
-			name: "player/переключатели признаков",
+			// Признаки отмечаются вместе с комментарием и доступны любому,
+			// у кого есть вход: галочки стоят в форме заметки, отмеченные —
+			// отмеченными. Текст при этом необязателен.
+			name: "player/галочки в форме заметки",
 			page: "player",
 			user: player,
 			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
-				"Traits": directory},
+				"Traits": directory, "Marked": enemy.MarkedTraits(), "Body": ""},
 			want: []string{
-				`action="/players/3/traits/1/unmark"`,
-				`action="/players/3/traits/9/mark"`,
-				"Отметить признаки", "Врёт",
+				`action="/players/3/notes"`,
+				`name="traits" value="1"`, "checked",
+				`name="traits" value="9"`, "Врёт",
+				"можно отметить их и без текста",
+			},
+			// Мгновенных переключателей больше нет: место для отметок одно.
+			deny: []string{"/traits/1/unmark", "Отметить признаки"},
+		},
+		{
+			// Форма ошиблась — набранный текст и расставленные галочки
+			// возвращаются на место: терять их из-за одной ошибки нельзя.
+			name: "player/ошибка формы заметки",
+			page: "player",
+			user: player,
+			data: map[string]any{"Player": enemy, "Notes": nil, "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marked": map[int64]bool{9: true},
+				"Body": "врал про перемирие", "Error": "Напишите заметку или отметьте признаки"},
+			want: []string{
+				"врал про перемирие", "Напишите заметку или отметьте признаки",
+				`name="traits" value="9" checked`,
 			},
 		},
 		{

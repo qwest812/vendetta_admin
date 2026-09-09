@@ -40,7 +40,15 @@
         {{end}}
     </div>
 
-    {{template "playertraits" .}}
+    {{if $p.Traits}}
+        <div class="trait-list">
+            {{range $p.Traits}}
+                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
+            {{end}}
+        </div>
+    {{else}}
+        <p class="muted">{{t "player.notraits"}}</p>
+    {{end}}
 
     {{/* Что игра рассказала про игрока сама. Появляется только у тех,
          кого мы встретили в партии: связь идёт по игровому ID. */}}
@@ -91,10 +99,25 @@
     <h1>{{t "player.notes"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
+    {{/* Признаки отмечаются вместе с комментарием: замечают поведение
+         и пишут о нём в один заход, одной кнопкой. Текст при этом
+         необязателен — можно отправить одни галочки. */}}
     <form method="post" action="/players/{{$p.ID}}/notes" class="note-form">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <textarea name="body" rows="3" placeholder="{{t "player.note.placeholder"}}" required></textarea>
+        <textarea name="body" rows="3" placeholder="{{t "player.note.placeholder"}}">{{.Body}}</textarea>
+        {{if .Traits}}
+            {{$marked := .Marked}}
+            <div class="trait-checks">
+                {{range .Traits}}
+                    <label class="check {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">
+                        <input type="checkbox" name="traits" value="{{.ID}}" {{if index $marked .ID}}checked{{end}}>
+                        <span>{{.Name}}</span>
+                    </label>
+                {{end}}
+            </div>
+        {{end}}
         <button type="submit">{{t "player.note.add"}}</button>
+        <p class="muted">{{t "player.note.hint"}}</p>
     </form>
 
     {{$me := .CurrentUser}}
@@ -125,42 +148,3 @@
 {{/* Признаки игрока: отмеченные метками и весь справочник переключателями.
      Блок отдаётся целиком и на нажатие тоже — метки и переключатели должны
      сходиться, а одно нажатие меняет обе половины. */}}
-{{define "playertraits"}}
-<div id="player-traits">
-    {{$p := .Player}}
-    {{$csrf := .CSRFToken}}
-    {{if $p.Traits}}
-        <div class="trait-list">
-            {{range $p.Traits}}
-                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
-            {{end}}
-        </div>
-    {{else}}
-        <p class="muted">{{t "player.notraits"}}</p>
-    {{end}}
-
-    {{/* Отмечает любой, у кого есть доступ: замечает поведение тот, кто
-         играет рядом. Раскрыт список только по нажатию — на карточку
-         приходят читать, а не размечать. */}}
-    {{if .Traits}}
-        {{$marked := $p.MarkedTraits}}
-        <details class="trait-marks">
-            <summary>{{t "player.traits.edit"}}</summary>
-            <div class="trait-checks">
-                {{range .Traits}}
-                    {{$on := index $marked .ID}}
-                    <form method="post"
-                          action="/players/{{$p.ID}}/traits/{{.ID}}/{{if $on}}unmark{{else}}mark{{end}}"
-                          hx-post="/players/{{$p.ID}}/traits/{{.ID}}/{{if $on}}unmark{{else}}mark{{end}}"
-                          hx-target="#player-traits" hx-swap="outerHTML">
-                        <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                        <button class="tag toggle {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}} {{if $on}}on{{end}}"
-                                type="submit"
-                                title="{{if $on}}{{t "player.traits.unmark"}}{{else}}{{t "player.traits.mark"}}{{end}}">{{.Name}}</button>
-                    </form>
-                {{end}}
-            </div>
-        </details>
-    {{end}}
-</div>
-{{end}}

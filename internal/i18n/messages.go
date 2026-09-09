@@ -108,9 +108,6 @@ var messages = map[string]entry{
 	"player.banned":              {ru: "забанен в игре", en: "banned in game"},
 	"player.delete.confirm":      {ru: "Удалить карточку %s со всеми заметками?", en: "Delete %s and all their notes?"},
 	"player.notraits":            {ru: "Признаки не отмечены.", en: "No traits marked."},
-	"player.traits.edit":         {ru: "Отметить признаки", en: "Mark traits"},
-	"player.traits.mark":         {ru: "отметить", en: "mark"},
-	"player.traits.unmark":       {ru: "снять отметку", en: "unmark"},
 	"player.stats":               {ru: "По данным сайта игры:", en: "According to the game’s website:"},
 	"player.stats.level":         {ru: "%d уровень", en: "level %d"},
 	"player.stats.kd":            {ru: "кд %s", en: "K/D %s"},
@@ -133,7 +130,8 @@ var messages = map[string]entry{
 	"player.changed":             {ru: "изменён", en: "updated"},
 	"player.notes":               {ru: "Заметки", en: "Notes"},
 	"player.note.placeholder":    {ru: "Что известно об игроке", en: "What is known about the player"},
-	"player.note.add":            {ru: "Добавить заметку", en: "Add note"},
+	"player.note.add":            {ru: "Сохранить", en: "Save"},
+	"player.note.hint":           {ru: "Галочки признаков сохраняются вместе с заметкой; можно отметить их и без текста.", en: "Trait ticks are saved together with the note; you can tick them without any text, too."},
 	"player.note.delete.confirm": {ru: "Удалить заметку?", en: "Delete this note?"},
 	"player.notes.empty":         {ru: "Заметок пока нет.", en: "No notes yet."},
 
@@ -583,6 +581,7 @@ var messages = map[string]entry{
 	"err.player.id.required":   {ru: "Укажите игровой ID — по нему карточка ищется после смены ника", en: "Enter the game ID — it is how the card is found after a rename"},
 	"err.player.id.toolong":    {ru: "Игровой ID длиннее 32 символов", en: "The game ID is longer than 32 characters"},
 	"err.player.id.spaces":     {ru: "Игровой ID не должен содержать пробелов", en: "The game ID must not contain spaces"},
+	"err.note.empty":           {ru: "Напишите заметку или отметьте признаки", en: "Write a note or tick some traits"},
 	"err.note.length":          {ru: "Заметка не может быть пустой и длиннее 4000 символов", en: "A note cannot be empty or longer than 4000 characters"},
 
 	"err.rel.pick":    {ru: "Выберите игрока из найденных — в выпадающем списке под поиском", en: "Pick a player from the results — in the dropdown under the search"},

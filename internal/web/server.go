@@ -183,15 +183,11 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /feedback/{id}/reply", user(auth.VerifyCSRF(http.HandlerFunc(s.feedbackReply))))
 	mux.Handle("POST /feedback/{id}/close", user(auth.VerifyCSRF(http.HandlerFunc(s.feedbackClose))))
 
-	// Признаки отмечают все авторизованные — по той же причине, что и
-	// заметки: замечает поведение тот, кто играет рядом, а не тот, у кого
-	// есть право править карточку. Каждое нажатие пишется в журнал.
-	mux.Handle("POST /players/{id}/traits/{traitID}/mark", user(auth.VerifyCSRF(http.HandlerFunc(s.playerTraitMark))))
-	mux.Handle("POST /players/{id}/traits/{traitID}/unmark", user(auth.VerifyCSRF(http.HandlerFunc(s.playerTraitUnmark))))
-
-	// Заметки пишут все авторизованные: карточку наполняют те, кто работает
-	// с игроками, а не только админы. Удаление разрешает сам хендлер —
-	// свою заметку убирает автор, чужую админ и выше.
+	// Заметки — и признаки вместе с ними — пишут все авторизованные:
+	// замечает поведение тот, кто играет рядом, а не тот, у кого есть право
+	// править карточку. Отметки идут в журнал так же, как правки карточки.
+	// Удаление заметки разрешает сам хендлер — свою убирает автор, чужую
+	// админ и выше.
 	mux.Handle("POST /players/{id}/notes", user(auth.VerifyCSRF(http.HandlerFunc(s.noteCreate))))
 	mux.Handle("POST /notes/{noteID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(s.noteDelete))))
 

@@ -136,6 +136,16 @@ func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	s.renderPlayerCard(w, r, http.StatusOK, player, "", "", player.MarkedTraits())
+}
+
+// renderPlayerCard собирает карточку. Отдельно от обработчика, потому что
+// её же показывает форма заметки, когда с ней что-то не так: набранный текст
+// и расставленные галочки при этом возвращаются на место — терять их из-за
+// одной ошибки нельзя.
+func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status int,
+	player *domain.Player, errMsg, body string, marked map[int64]bool) {
+
 	notes, err := s.players.Notes(r.Context(), player.ID)
 	if err != nil {
 		s.serverError(w, r, err)
@@ -184,80 +194,10 @@ func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
 		stats = known[player.GameID]
 	}
 
-	s.render(w, r, http.StatusOK, "player", map[string]any{
-		"Player": player, "Notes": notes, "Error": "", "Seen": seen,
+	s.render(w, r, status, "player", map[string]any{
+		"Player": player, "Notes": notes, "Error": errMsg, "Seen": seen,
 		"Bans": bans, "Traits": traits, "Stats": stats,
-	})
-}
-
-// playerTraitMark ставит отметку признака, playerTraitUnmark снимает.
-// Отмечает любой, у кого есть доступ, — как и заметки: карточку наполняют
-// те, кто играет и видит, а не только админы. Поэтому же каждое нажатие
-// уходит в журнал: раз отметить может каждый, должно быть видно, кто это
-// сделал.
-func (s *Server) playerTraitMark(w http.ResponseWriter, r *http.Request) {
-	s.playerTraitSet(w, r, true)
-}
-
-func (s *Server) playerTraitUnmark(w http.ResponseWriter, r *http.Request) {
-	s.playerTraitSet(w, r, false)
-}
-
-func (s *Server) playerTraitSet(w http.ResponseWriter, r *http.Request, on bool) {
-	player, ok := s.loadPlayer(w, r)
-	if !ok {
-		return
-	}
-	traitID, err := strconv.ParseInt(r.PathValue("traitID"), 10, 64)
-	if err != nil {
-		http.Error(w, "Признак не найден", http.StatusNotFound)
-		return
-	}
-	trait, err := s.traits.ByID(r.Context(), traitID)
-	if errors.Is(err, domain.ErrNotFound) {
-		http.Error(w, "Признак не найден", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-
-	changed := false
-	if on {
-		changed, err = s.players.MarkTrait(r.Context(), player.ID, trait.ID)
-	} else {
-		changed, err = s.players.UnmarkTrait(r.Context(), player.ID, trait.ID)
-	}
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	// Повторное нажатие ничего не изменило — и в журнал ему незачем:
-	// две вкладки на одной карточке иначе писали бы историю вдвоём.
-	if changed {
-		action := "player.trait.remove"
-		if on {
-			action = "player.trait.add"
-		}
-		s.logAuditOn(r, action, "player", player.ID,
-			map[string]any{"nickname": player.Nickname, "trait": trait.Name})
-	}
-
-	// Отдаём весь блок целиком: отмеченные метки и переключатели должны
-	// сойтись, а нажатие меняет обе половины сразу.
-	player, err = s.players.ByID(r.Context(), player.ID)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	traits, err := s.traits.List(r.Context(), true)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	s.renderPartial(w, r, "player", "playertraits", map[string]any{
-		"Player": player, "Traits": traits,
+		"Marked": marked, "Body": body,
 	})
 }
 
@@ -387,31 +327,92 @@ func (s *Server) playerDelete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// noteCreate сохраняет заметку и отметки признаков разом: замечают поведение
+// и пишут о нём в один заход, поэтому и кнопка одна. Текст необязателен —
+// можно отправить одни галочки, — но что-то из двух быть должно.
+//
+// Признаки правит любой, у кого есть доступ, как и заметки: замечает
+// поведение тот, кто играет рядом. Поэтому каждая снятая и поставленная
+// отметка идёт в журнал.
 func (s *Server) noteCreate(w http.ResponseWriter, r *http.Request) {
 	player, ok := s.loadPlayer(w, r)
 	if !ok {
 		return
 	}
 	body := strings.TrimSpace(r.PostFormValue("body"))
-	if body == "" || len([]rune(body)) > 4000 {
-		notes, err := s.players.Notes(r.Context(), player.ID)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
+
+	// Галочки приходят полным состоянием формы: отмеченные есть в запросе,
+	// снятые — нет. Сверяем их с тем, что стоит сейчас, и правим разницу.
+	want := map[int64]bool{}
+	for _, v := range r.PostForm["traits"] {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			want[id] = true
 		}
-		s.render(w, r, http.StatusUnprocessableEntity, "player", map[string]any{
-			"Player": player, "Notes": notes,
-			"Error": langOf(r).T("err.note.length"),
-		})
+	}
+	has := player.MarkedTraits()
+
+	fail := func(msg string) {
+		s.renderPlayerCard(w, r, http.StatusUnprocessableEntity, player, msg, body, want)
+	}
+	if len([]rune(body)) > 4000 {
+		fail(langOf(r).T("err.note.length"))
 		return
 	}
 
-	id, err := s.players.AddNote(r.Context(), player.ID, currentUser(r), body)
+	all, err := s.traits.List(r.Context(), true)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.logAuditOn(r, "note.create", "note", id, map[string]any{"player": player.Nickname})
+
+	// Ни текста, ни правок — сохранять нечего, и молча делать вид, что
+	// сохранили, нечестно.
+	changes := 0
+	for _, tr := range all {
+		if want[tr.ID] != has[tr.ID] {
+			changes++
+		}
+	}
+	if body == "" && changes == 0 {
+		fail(langOf(r).T("err.note.empty"))
+		return
+	}
+
+	for _, tr := range all {
+		on := want[tr.ID]
+		if on == has[tr.ID] {
+			continue
+		}
+		var changed bool
+		if on {
+			changed, err = s.players.MarkTrait(r.Context(), player.ID, tr.ID)
+		} else {
+			changed, err = s.players.UnmarkTrait(r.Context(), player.ID, tr.ID)
+		}
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		if !changed {
+			continue
+		}
+		action := "player.trait.remove"
+		if on {
+			action = "player.trait.add"
+		}
+		s.logAuditOn(r, action, "player", player.ID,
+			map[string]any{"nickname": player.Nickname, "trait": tr.Name})
+	}
+
+	if body != "" {
+		id, err := s.players.AddNote(r.Context(), player.ID, currentUser(r), body)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		s.logAuditOn(r, "note.create", "note", id, map[string]any{"player": player.Nickname})
+	}
+
 	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
 }
 
