@@ -9,6 +9,7 @@ import (
 
 	"Vendetta_admin/internal/domain"
 	"Vendetta_admin/internal/i18n"
+	"Vendetta_admin/internal/repo"
 	"Vendetta_admin/internal/supremacy"
 )
 
@@ -129,8 +130,22 @@ func TestPagesRender(t *testing.T) {
 				// Рубильник сбора коалиций живёт здесь же: это общий
 				// переключатель админки, а не свойство раздела «Игры».
 				"Coalitions": coalitionStatsView{On: true},
+				// Открытия карты по дням: в строке дня стоит сумма, а рядом
+				// — кто именно и сколько.
+				"Maps": []repo.MapDay{
+					{Day: time.Date(2026, 9, 9, 0, 0, 0, 0, time.Local), Total: 7,
+						By: []repo.MapUser{{UserID: 1, Nickname: "root", Count: 5},
+							{UserID: 2, Nickname: "Dau7er", Count: 2}}},
+					{Day: time.Date(2026, 9, 8, 0, 0, 0, 0, time.Local), Total: 3,
+						By: []repo.MapUser{{UserID: 9, Count: 3}}},
+				},
+				"MapsTotal": 10, "MapDays": 14,
 			},
 			want: []string{
+				"Открытия карты", "10 за 14 дней", "09.09.2026", "root: 5", "Dau7er: 2",
+				// Удалённого пользователя подписываем словом, а не пустотой:
+				// строки истории остаются, а имени у них уже нет.
+				"удалённый: 3",
 				`action="/settings/coalitions"`, "Остановить сбор", "Идёт.",
 				`action="/settings/traits"`, `action="/settings/traits/1"`,
 				`action="/settings/traits/1/delete"`, "снять его у 4 игроков",

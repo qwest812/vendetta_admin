@@ -12,6 +12,41 @@
     {{template "coalitions-switch" (dict "C" . "CSRFToken" $.CSRFToken)}}
 {{end}}
 
+{{/* Открытия карты по дням. Считается тот же счётчик, что держит суточный
+     лимит, поэтому несостоявшийся заход сюда не попадает: это ровно те
+     карты, которые люди увидели. */}}
+<div class="card">
+    <div class="card-head">
+        <h1>{{t "settings.maps"}}</h1>
+        <span class="muted">{{t "settings.maps.total" .MapsTotal .MapDays}}</span>
+    </div>
+    {{if .Maps}}
+        <table>
+            <thead>
+            <tr>
+                <th>{{t "settings.maps.day"}}</th>
+                <th class="narrow">{{t "settings.maps.count"}}</th>
+                <th>{{t "settings.maps.who"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .Maps}}
+                <tr>
+                    <td class="nowrap">{{date .Day}}</td>
+                    <td class="narrow"><b>{{.Total}}</b></td>
+                    <td class="muted">
+                        {{range .By}}<span class="kv">{{if .Nickname}}{{.Nickname}}{{else}}{{t "settings.maps.gone"}}{{end}}: {{.Count}}</span> {{end}}
+                    </td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    {{else}}
+        <p class="muted">{{t "settings.maps.empty"}}</p>
+    {{end}}
+    <p class="muted">{{t "settings.maps.note"}}</p>
+</div>
+
 <div class="card">
     <h1>{{t "settings.trait.new"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}

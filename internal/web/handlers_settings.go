@@ -6,9 +6,26 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/repo"
 )
+
+// mapStatsSpan — за сколько дней показывать открытия карты. Две недели:
+// столько живёт обычная партия, и по ним видно и будни, и выходные.
+// Хранится счёт дольше (domain.MapChecksTTL), так что окно можно расширить,
+// не теряя данных.
+const mapStatsSpan = 14 * 24 * time.Hour
+
+// mapsTotal — сколько карт открыли за всё показанное окно.
+func mapsTotal(days []repo.MapDay) int {
+	n := 0
+	for _, d := range days {
+		n += d.Total
+	}
+	return n
+}
 
 // Код признака — латиница, цифры и подчёркивание, с буквы. Он идентифицирует
 // признак в адресе фильтра и в журнале, поэтому и остаётся неизменяемым:
@@ -46,9 +63,22 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 		coalitions = view
 	}
 
+	// Открытия карты по дням: сколько их и кем. Читается тот же счётчик,
+	// что держит суточный лимит, — отдельного журнала для этого заводить
+	// незачем.
+	var maps []repo.MapDay
+	if s.checks != nil {
+		maps, err = s.checks.Daily(r.Context(), repo.Day(time.Now().Add(-mapStatsSpan)))
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+
 	s.render(w, r, status, "settings", map[string]any{
 		"Traits": traits, "Usage": usage, "Kinds": domain.TraitKinds,
-		"Coalitions": coalitions, "Error": errMsg,
+		"Coalitions": coalitions, "Maps": maps, "MapDays": int(mapStatsSpan.Hours() / 24),
+		"MapsTotal": mapsTotal(maps), "Error": errMsg,
 	})
 }
 

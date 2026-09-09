@@ -47,6 +47,7 @@ var messages = map[string]entry{
 	"unit.minutes.span": {ru: "%d–%d мин", en: "%d–%d min"},
 	// Формат даты и времени: у языков он разный, и это часть перевода.
 	"format.datetime": {ru: "02.01.2006 15:04", en: "Jan 2, 2006 15:04"},
+	"format.date":     {ru: "02.01.2006", en: "Jan 2, 2006"},
 
 	// --- вход ---
 	"login.title":    {ru: "Вход — Vendetta", en: "Sign in — Vendetta"},
@@ -420,6 +421,14 @@ var messages = map[string]entry{
 	"settings.title":                  {ru: "Настройки — Vendetta", en: "Settings — Vendetta"},
 	"settings.heading":                {ru: "Настройки", en: "Settings"},
 	"settings.note":                   {ru: "Общее для всей админки. Правит только рут: справочник признаков один на всех, и его изменения видят все.", en: "Everything shared by the whole admin panel. Root only: the trait directory is common to everyone, and changes to it are seen by all."},
+	"settings.maps":                   {ru: "Открытия карты", en: "Map openings"},
+	"settings.maps.total":             {ru: "%d за %d дней", en: "%d in %d days"},
+	"settings.maps.day":               {ru: "День", en: "Day"},
+	"settings.maps.count":             {ru: "Карт", en: "Maps"},
+	"settings.maps.who":               {ru: "Кто", en: "Who"},
+	"settings.maps.gone":              {ru: "удалённый", en: "deleted"},
+	"settings.maps.empty":             {ru: "Карт пока не открывали.", en: "No maps opened yet."},
+	"settings.maps.note":              {ru: "Считается то же, что и суточный лимит проверок: заход в партию за состоянием. Несостоявшийся заход не в счёт — за него лимит возвращается. Рут в счёт входит, хотя лимита у него нет.", en: "Counted the same way as the daily check limit: a visit to the game for its state. A failed visit does not count — its check is refunded. Root is counted too, though root has no limit."},
 	"settings.traits":                 {ru: "Справочник признаков", en: "Trait directory"},
 	"settings.trait.new":              {ru: "Новый признак", en: "New trait"},
 	"settings.trait.code":             {ru: "Код", en: "Code"},

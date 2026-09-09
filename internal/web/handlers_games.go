@@ -1515,7 +1515,15 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	)
 	switch {
 	case withState || !ours:
-		if !root {
+		if root {
+			// Лимит рута не касается, но в счёт открытий он входит: иначе
+			// аналитика показывала бы всех, кроме самого активного.
+			if err := s.checks.Record(ctx, who.ID, day); err != nil {
+				s.serverError(w, r, err)
+				return
+			}
+			spent = true
+		} else {
 			ok, left, err := s.checks.Spend(ctx, who.ID, who.MapChecks, day)
 			if err != nil {
 				s.serverError(w, r, err)

@@ -34,6 +34,8 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 		// Формат даты — часть перевода: русский и английский пишут её
 		// по-разному, и подставлять один в оба было бы небрежностью.
 		"datetime": func(t time.Time) string { return t.Local().Format(l.T("format.datetime")) },
+		// Дата без времени: в счёте по дням час ни к чему.
+		"date": func(t time.Time) string { return t.Local().Format(l.T("format.date")) },
 		// Кд и опасность печатаются с двумя знаками: числа маленькие,
 		// и разница между 1.2 и 1.25 в них существенна.
 		"ratio": formatRatio,
