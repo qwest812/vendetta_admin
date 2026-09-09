@@ -208,7 +208,6 @@ h1.section { font-size: 18px; margin: 0 0 12px; }
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .player-traits { display: flex; gap: 6px; flex-wrap: wrap; }
-.player-score { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
 
 .tag {
     display: inline-block;
@@ -221,30 +220,6 @@ h1.section { font-size: 18px; margin: 0 0 12px; }
 
 .tag.neg { border-color: rgba(217, 72, 59, .5); color: #e88b81; }
 .tag.pos { border-color: rgba(63, 166, 106, .5); color: #7fd3a1; }
-.tag .w { opacity: .65; }
-
-.risk-pill, .loyalty-pill {
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    border: 1px solid var(--border);
-    color: var(--muted);
-}
-
-.risk-pill.risk-high { border-color: var(--danger); color: #ff9b90; background: rgba(192, 57, 43, .12); }
-.risk-pill.risk-mid { border-color: #c78a2c; color: #e8b45f; background: rgba(199, 138, 44, .12); }
-.risk-pill.risk-low { border-color: #4a7f5c; color: #8ecfa6; }
-.loyalty-pill { border-color: rgba(63, 166, 106, .35); color: #8ecfa6; }
-
-.scales { display: flex; flex-direction: column; gap: 14px; margin: 18px 0; }
-.scale-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
-.bar { height: 8px; background: var(--bg); border-radius: 999px; overflow: hidden; }
-.fill { height: 100%; border-radius: 999px; transition: width .2s; }
-.fill.risk-high { background: var(--danger); }
-.fill.risk-mid { background: #c78a2c; }
-.fill.risk-low { background: #4a7f5c; }
-.fill.risk-none { background: var(--border); }
-.fill.loyalty { background: var(--ok); }
 
 .trait-list { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
 

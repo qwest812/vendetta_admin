@@ -36,7 +36,6 @@
                 <label class="check {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">
                     <input type="checkbox" name="traits" value="{{.ID}}" {{if index $sel .ID}}checked{{end}}>
                     <span>{{.Name}}</span>
-                    <span class="w">{{if gt .Weight 0}}+{{end}}{{.Weight}}</span>
                 </label>
             {{else}}
                 <p class="muted">{{t "playerform.notraits"}}</p>

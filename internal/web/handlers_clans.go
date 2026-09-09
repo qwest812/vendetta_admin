@@ -39,10 +39,6 @@ func (s *Server) clanCard(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.scorePlayers(r, players); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
 	s.render(w, r, http.StatusOK, "clan", map[string]any{
 		"Clan": clan, "Statuses": domain.ClanStatuses,
 		"Players": players, "Limit": clanMembersLimit,

@@ -26,10 +26,6 @@
                             <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
                         {{end}}
                     </div>
-                    <div class="player-score">
-                        <span class="risk-pill risk-{{.Score.RiskClass}}">{{t "player.risk"}} {{.Score.Risk}}%</span>
-                        <span class="loyalty-pill">{{t "player.loyalty"}} {{.Score.Loyalty}}%</span>
-                    </div>
                 </a>
                 {{if $canMark}}
                     <div class="marks">

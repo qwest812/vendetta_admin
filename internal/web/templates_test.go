@@ -21,6 +21,12 @@ func TestPagesRender(t *testing.T) {
 	enemy := &domain.Player{
 		ID: 3, Nickname: "Dau7er", GameID: "42",
 		ClanID: &clanID, ClanName: "КСГ", ClanStatus: domain.ClanEnemy,
+		// Знак признака красит метку — больше он ни на что не влияет.
+		Traits: []domain.Trait{
+			{ID: 1, Code: "multiaccount", Name: "Мультиаккаунт", Kind: domain.TraitBad, IsActive: true},
+			{ID: 6, Code: "night_player", Name: "Играет ночью", Kind: domain.TraitNeutral, IsActive: true},
+			{ID: 4, Code: "plays_well", Name: "Хорошо играет", Kind: domain.TraitGood, IsActive: true},
+		},
 	}
 	clan := domain.Clan{ID: clanID, Name: "КСГ", Status: domain.ClanEnemy, Players: 1}
 
@@ -125,10 +131,13 @@ func TestPagesRender(t *testing.T) {
 		{
 			page: "player",
 			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil},
-			// Клан на карточке — ссылка на клан, а не текст.
-			want: []string{`href="/clans/7"`, "Враждебный клан"},
-			// Про игру мы ничего не знаем — и молчим об этом.
-			deny: []string{"В игре", "забанен", "История банов"},
+			// Клан на карточке — ссылка на клан, а не текст. Признаки —
+			// три метки трёх цветов, без числа рядом.
+			want: []string{`href="/clans/7"`, "Враждебный клан",
+				"tag neg", "tag zero", "tag pos", "Мультиаккаунт"},
+			// Про игру мы ничего не знаем — и молчим об этом. Шкал больше
+			// нет вовсе: искать стали по признакам, а не по проценту.
+			deny: []string{"В игре", "забанен", "История банов", "Риск", "Лояльность"},
 		},
 		{
 			// Бан игра рассказывает про аккаунт, поэтому он и живёт

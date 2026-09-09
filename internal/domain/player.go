@@ -1,26 +1,44 @@
 package domain
 
-import (
-	"math"
-	"time"
+import "time"
+
+// TraitKind — каким признак считается: плохим, нейтральным или хорошим.
+// Раньше это говорил знак веса, но вес ушёл вместе со шкалами, а различать
+// «мультивод» и «хорошо играет» взглядом по-прежнему нужно. Ни на какие
+// расчёты знак не влияет — только на цвет метки и порядок в справочнике.
+type TraitKind string
+
+const (
+	TraitBad     TraitKind = "bad"
+	TraitNeutral TraitKind = "neutral"
+	TraitGood    TraitKind = "good"
 )
 
-// Trait — признак из справочника. Вес со знаком: отрицательный работает на
-// шкалу риска, положительный — на шкалу лояльности, нулевой ни на что не
-// влияет и остаётся просто пометкой.
+// ParseTraitKind разбирает знак из формы. Второе значение — знаком ли он
+// вообще: незнакомое слово это не «нейтральный», а ошибка ввода.
+func ParseTraitKind(s string) (TraitKind, bool) {
+	switch k := TraitKind(s); k {
+	case TraitBad, TraitNeutral, TraitGood:
+		return k, true
+	}
+	return "", false
+}
+
+// Trait — признак из справочника: отметка о поведении игрока, по которой
+// его потом и ищут.
 type Trait struct {
 	ID        int64
 	Code      string
 	Name      string
-	Weight    int
+	Kind      TraitKind
 	IsActive  bool
 	SortOrder int
 	CreatedAt time.Time
 }
 
-func (t Trait) IsNegative() bool { return t.Weight < 0 }
-func (t Trait) IsPositive() bool { return t.Weight > 0 }
-func (t Trait) IsNeutral() bool  { return t.Weight == 0 }
+func (t Trait) IsNegative() bool { return t.Kind == TraitBad }
+func (t Trait) IsPositive() bool { return t.Kind == TraitGood }
+func (t Trait) IsNeutral() bool  { return t.Kind == TraitNeutral }
 
 type Player struct {
 	ID       int64
@@ -35,7 +53,6 @@ type Player struct {
 	UpdatedAt  time.Time
 
 	Traits []Trait // отмеченные признаки, отсортированы как в справочнике
-	Score  Score
 }
 
 type Note struct {
@@ -57,86 +74,4 @@ func (n Note) CanDelete(actor *User) bool {
 		return true
 	}
 	return actor.IsAdmin()
-}
-
-// Score — две независимые шкалы. Риск считается по отрицательным признакам,
-// лояльность по положительным; каждая нормируется на сумму весов всех
-// активных признаков своего знака. Поэтому добавление нового признака в
-// справочник сдвигает оценки всех игроков — это осознанно: шкала всегда
-// означает «сколько из возможного набрано».
-type Score struct {
-	Risk    int // 0..100
-	Loyalty int // 0..100
-
-	RiskPoints    int // набрано по модулю
-	RiskMax       int
-	LoyaltyPoints int
-	LoyaltyMax    int
-}
-
-// RiskLevel даёт словесную оценку риска для карточки и списка — ключом
-// сообщения, а не готовым текстом: словами это скажет интерфейс, и на том
-// языке, который выбрал смотрящий.
-func (s Score) RiskLevel() string {
-	switch {
-	case s.RiskMax == 0:
-		return "level.none"
-	case s.Risk >= 70:
-		return "level.high"
-	case s.Risk >= 40:
-		return "level.medium"
-	case s.Risk > 0:
-		return "level.low"
-	}
-	return "level.clean"
-}
-
-// RiskClass — CSS-класс для окраски шкалы.
-func (s Score) RiskClass() string {
-	switch {
-	case s.Risk >= 70:
-		return "high"
-	case s.Risk >= 40:
-		return "mid"
-	case s.Risk > 0:
-		return "low"
-	}
-	return "none"
-}
-
-// ComputeScore считает шкалы. all — весь активный справочник,
-// selected — признаки, отмеченные у игрока.
-func ComputeScore(all []Trait, selected []Trait) Score {
-	var s Score
-	for _, t := range all {
-		if !t.IsActive {
-			continue
-		}
-		if t.IsNegative() {
-			s.RiskMax += -t.Weight
-		} else {
-			s.LoyaltyMax += t.Weight
-		}
-	}
-	for _, t := range selected {
-		if !t.IsActive {
-			continue
-		}
-		if t.IsNegative() {
-			s.RiskPoints += -t.Weight
-		} else {
-			s.LoyaltyPoints += t.Weight
-		}
-	}
-	s.Risk = percent(s.RiskPoints, s.RiskMax)
-	s.Loyalty = percent(s.LoyaltyPoints, s.LoyaltyMax)
-	return s
-}
-
-func percent(part, total int) int {
-	if total <= 0 {
-		return 0
-	}
-	p := int(math.Round(float64(part) / float64(total) * 100))
-	return min(max(p, 0), 100)
 }

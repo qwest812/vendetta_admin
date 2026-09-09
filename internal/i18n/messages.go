@@ -24,8 +24,8 @@ var messages = map[string]entry{
 	"top.logout":   {ru: "Выйти", en: "Log out"},
 	"top.lang.to":  {ru: "Переключить на %s", en: "Switch to %s"},
 
-	// Роли, статусы кланов и уровни шкал приходят из domain кодами:
-	// подписи к ним — дело интерфейса, и живут они здесь.
+	// Роли и статусы кланов приходят из domain кодами: подписи к ним —
+	// дело интерфейса, и живут они здесь.
 	"role.root":  {ru: "Рут", en: "Root"},
 	"role.admin": {ru: "Администратор", en: "Administrator"},
 	"role.user":  {ru: "Пользователь", en: "User"},
@@ -33,12 +33,6 @@ var messages = map[string]entry{
 	"clanstatus.ally":    {ru: "Союзный", en: "Allied"},
 	"clanstatus.neutral": {ru: "Нейтральный", en: "Neutral"},
 	"clanstatus.enemy":   {ru: "Враждебный", en: "Hostile"},
-
-	"level.none":   {ru: "не задан", en: "not set"},
-	"level.high":   {ru: "высокий", en: "high"},
-	"level.medium": {ru: "средний", en: "medium"},
-	"level.low":    {ru: "низкий", en: "low"},
-	"level.clean":  {ru: "чисто", en: "clean"},
 
 	// Единицы времени в подписях: «45 мин», «2 ч».
 	"unit.hours":   {ru: "%d ч", en: "%d h"},
@@ -97,9 +91,6 @@ var messages = map[string]entry{
 	"results.empty.all":    {ru: "Введите ник или игровой ID — список появится по запросу.", en: "Type a nickname or game ID — the list appears once you search."},
 
 	// --- карточка игрока ---
-	"player.risk":                {ru: "Риск", en: "Risk"},
-	"player.loyalty":             {ru: "Лояльность", en: "Loyalty"},
-	"player.of":                  {ru: "%d из %d", en: "%d of %d"},
 	"player.clan.status":         {ru: "%s клан", en: "%s clan"},
 	"player.noid":                {ru: "ID не указан", en: "no ID set"},
 	"player.banned":              {ru: "забанен в игре", en: "banned in game"},
@@ -441,13 +432,6 @@ var messages = map[string]entry{
 	"faq.clancolor.a2":       {ru: "На главной есть фильтр рядом со строкой поиска: «только союзные», «только нейтральные», «только враждебные». Фильтр смотрит на клан, поэтому игроки без клана в него не попадают.", en: "The main page has a filter next to the search box: allied only, neutral only, hostile only. The filter looks at the clan, so players without one never match."},
 	"faq.clancolor.a3":       {ru: "Раздел «Кланы» показывает все кланы, сколько в каждом карточек и что за состав. Статус на шкалы не влияет: риск и лояльность — про репутацию человека, статус — про политику его альянса.", en: "The Clans section lists every clan, how many cards each holds and who is in it. The status does not affect the scales: risk and loyalty are about a person’s reputation, the status is about their alliance’s politics."},
 	"faq.clancolor.a3.admin": {ru: "Менять статус и название клана может админ — в списке кланов или на странице клана.", en: "An admin can change a clan’s status and name — in the clan list or on the clan’s page."},
-
-	"faq.scales.q":  {ru: "Что означают «риск» и «лояльность»?", en: "What do “risk” and “loyalty” mean?"},
-	"faq.scales.a1": {ru: "Это проценты, а не очки. У каждого признака есть вес со знаком: отрицательный работает на риск («Мультиаккаунт» −10), положительный — на лояльность («Хорошо играет» +6), нулевой остаётся просто пометкой.", en: "They are percentages, not points. Every trait has a signed weight: a negative one feeds risk (“Multi-accounting”, −10), a positive one feeds loyalty (“Plays well”, +6), and a zero one stays a plain label."},
-	"faq.scales.a2": {ru: "Процент показывает, сколько набрано из возможного: 100% риска — это когда у игрока отмечены вообще все отрицательные признаки справочника. Шкалы независимы, поэтому высокий риск и высокая лояльность у одного человека вполне уживаются.", en: "The percentage shows how much of the possible has been scored: 100% risk means every negative trait in the directory is marked on that player. The scales are independent, so high risk and high loyalty coexist perfectly well in one person."},
-
-	"faq.percents.q": {ru: "Почему проценты у всех игроков вдруг изменились?", en: "Why did everyone’s percentages suddenly change?"},
-	"faq.percents.a": {ru: "Проценты нигде не хранятся и считаются заново при каждом открытии. Значит, кто-то поправил вес признака или завёл новый: сумма весов — это знаменатель, поэтому новый признак уменьшает проценты у всех уже заведённых карточек. Так и задумано: процент означает «сколько набрано из возможного».", en: "Percentages are stored nowhere and are recalculated on every page load. So someone changed a trait’s weight or added a new one: the sum of the weights is the denominator, so a new trait lowers the percentages on every existing card. That is by design: the percentage means “how much of the possible has been scored”."},
 
 	"faq.notes.q": {ru: "Кто видит мои заметки и можно ли их удалить?", en: "Who sees my notes, and can they be deleted?"},
 	"faq.notes.a": {ru: "Заметки видит каждый, у кого есть доступ к базе, и подписаны они вашим ником — анонимных заметок нет. Свою заметку вы удаляете сами, кнопкой рядом с ней. Чужие удаляют администраторы. Удаление записывается в журнал.", en: "Everyone with access to the database sees the notes, and they carry your nickname — there are no anonymous notes. You delete your own with the button next to it. Administrators delete other people’s. Every deletion goes into the audit log."},

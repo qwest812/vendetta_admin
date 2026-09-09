@@ -40,29 +40,10 @@
         {{end}}
     </div>
 
-    <div class="scales">
-        <div class="scale">
-            <div class="scale-head">
-                <span>{{t "player.risk"}}: <b>{{$p.Score.Risk}}%</b> <span class="muted">({{level $p.Score.RiskLevel}})</span></span>
-                <span class="muted">{{t "player.of" $p.Score.RiskPoints $p.Score.RiskMax}}</span>
-            </div>
-            <div class="bar"><div class="fill risk-{{$p.Score.RiskClass}}" style="width: {{$p.Score.Risk}}%"></div></div>
-        </div>
-        <div class="scale">
-            <div class="scale-head">
-                <span>{{t "player.loyalty"}}: <b>{{$p.Score.Loyalty}}%</b></span>
-                <span class="muted">{{t "player.of" $p.Score.LoyaltyPoints $p.Score.LoyaltyMax}}</span>
-            </div>
-            <div class="bar"><div class="fill loyalty" style="width: {{$p.Score.Loyalty}}%"></div></div>
-        </div>
-    </div>
-
     {{if $p.Traits}}
         <div class="trait-list">
             {{range $p.Traits}}
-                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">
-                    {{.Name}} <span class="w">{{if gt .Weight 0}}+{{end}}{{.Weight}}</span>
-                </span>
+                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
             {{end}}
         </div>
     {{else}}

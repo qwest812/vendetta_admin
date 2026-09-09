@@ -2,112 +2,36 @@ package domain
 
 import "testing"
 
-func traits() []Trait {
-	return []Trait{
-		{ID: 1, Code: "multiaccount", Weight: -10, IsActive: true},
-		{ID: 2, Code: "breaks_agreements", Weight: -8, IsActive: true},
-		{ID: 3, Code: "foul_language", Weight: -4, IsActive: true},
-		{ID: 4, Code: "plays_well", Weight: 6, IsActive: true},
-		{ID: 5, Code: "donator", Weight: 3, IsActive: true},
-		{ID: 6, Code: "night_player", Weight: 0, IsActive: true},
-	}
-}
-
-func pick(all []Trait, ids ...int64) []Trait {
-	want := map[int64]bool{}
-	for _, id := range ids {
-		want[id] = true
-	}
-	var out []Trait
-	for _, t := range all {
-		if want[t.ID] {
-			out = append(out, t)
+// Знак признака — слово из формы, и незнакомое слово не должно молча
+// становиться нейтральным: так опечатка в справочнике осталась бы незаметной.
+func TestParseTraitKind(t *testing.T) {
+	for _, s := range []string{"bad", "neutral", "good"} {
+		if k, ok := ParseTraitKind(s); !ok || string(k) != s {
+			t.Errorf("знак %q не разобран", s)
 		}
 	}
-	return out
+	for _, s := range []string{"", "BAD", "плохой", "-10"} {
+		if _, ok := ParseTraitKind(s); ok {
+			t.Errorf("знак %q разобран, а не должен", s)
+		}
+	}
 }
 
-func TestComputeScore(t *testing.T) {
-	all := traits() // риск: 10+8+4 = 22, лояльность: 6+3 = 9
-
-	cases := []struct {
-		name        string
-		ids         []int64
-		risk        int
-		loyalty     int
-		wantLevel   string // ключ подписи: словами её скажет интерфейс
-		wantRiskCls string
+// Цвет метки берётся из знака: три состояния, и ровно одно верно для каждого.
+func TestTraitKindPredicates(t *testing.T) {
+	for _, c := range []struct {
+		kind          TraitKind
+		neg, neu, pos bool
 	}{
-		{"без отметок", nil, 0, 0, "level.clean", "none"},
-		{"только нейтральный", []int64{6}, 0, 0, "level.clean", "none"},
-		{"мультиаккаунт", []int64{1}, 45, 0, "level.medium", "mid"},
-		{"все минусы", []int64{1, 2, 3}, 100, 0, "level.high", "high"},
-		{"все плюсы", []int64{4, 5}, 0, 100, "level.clean", "none"},
-		{"сквернословит и хорошо играет", []int64{3, 4}, 18, 67, "level.low", "low"},
-		{"всё сразу", []int64{1, 2, 3, 4, 5, 6}, 100, 100, "level.high", "high"},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			s := ComputeScore(all, pick(all, c.ids...))
-			if s.Risk != c.risk {
-				t.Errorf("Risk = %d, ожидалось %d", s.Risk, c.risk)
-			}
-			if s.Loyalty != c.loyalty {
-				t.Errorf("Loyalty = %d, ожидалось %d", s.Loyalty, c.loyalty)
-			}
-			if got := s.RiskLevel(); got != c.wantLevel {
-				t.Errorf("RiskLevel = %q, ожидалось %q", got, c.wantLevel)
-			}
-			if got := s.RiskClass(); got != c.wantRiskCls {
-				t.Errorf("RiskClass = %q, ожидалось %q", got, c.wantRiskCls)
-			}
-		})
-	}
-}
-
-// Неактивный признак выпадает и из знаменателя, и из набранных очков:
-// иначе отключение признака задним числом раздувало бы риск у всех.
-func TestComputeScoreIgnoresInactive(t *testing.T) {
-	all := traits()
-	all[2].IsActive = false // foul_language, вес -4 => риск теперь из 18
-
-	s := ComputeScore(all, pick(all, 1))
-	if s.RiskMax != 18 {
-		t.Errorf("RiskMax = %d, ожидалось 18", s.RiskMax)
-	}
-	if s.Risk != 56 {
-		t.Errorf("Risk = %d, ожидалось 56", s.Risk)
-	}
-
-	// Отметка на выключенном признаке не даёт очков.
-	withDisabled := ComputeScore(all, pick(all, 1, 3))
-	if withDisabled.RiskPoints != 10 {
-		t.Errorf("RiskPoints = %d, ожидалось 10", withDisabled.RiskPoints)
-	}
-}
-
-// Пустой справочник не должен приводить к делению на ноль.
-func TestComputeScoreEmptyRegistry(t *testing.T) {
-	s := ComputeScore(nil, nil)
-	if s.Risk != 0 || s.Loyalty != 0 {
-		t.Errorf("ожидались нули, получено risk=%d loyalty=%d", s.Risk, s.Loyalty)
-	}
-	if got := s.RiskLevel(); got != "level.none" {
-		t.Errorf("RiskLevel = %q, ожидалось \"level.none\"", got)
-	}
-}
-
-// Веса меняются на ходу — оценка обязана следовать за справочником.
-func TestScoreFollowsWeightChange(t *testing.T) {
-	all := traits()
-	before := ComputeScore(all, pick(all, 3)) // -4 из 22 => 18%
-
-	all[0].Weight = -2                       // мультиаккаунт подешевел: знаменатель 2+8+4 = 14
-	after := ComputeScore(all, pick(all, 3)) // -4 из 14 => 29%
-
-	if before.Risk != 18 || after.Risk != 29 {
-		t.Errorf("ожидалось 18%% до и 29%% после, получено %d%% и %d%%", before.Risk, after.Risk)
+		{TraitBad, true, false, false},
+		{TraitNeutral, false, true, false},
+		{TraitGood, false, false, true},
+	} {
+		tr := Trait{Kind: c.kind}
+		if tr.IsNegative() != c.neg || tr.IsNeutral() != c.neu || tr.IsPositive() != c.pos {
+			t.Errorf("знак %q: минус=%v ноль=%v плюс=%v", c.kind,
+				tr.IsNegative(), tr.IsNeutral(), tr.IsPositive())
+		}
 	}
 }
 

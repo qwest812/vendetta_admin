@@ -14,15 +14,16 @@ type Traits struct{ pool *pgxpool.Pool }
 
 func NewTraits(pool *pgxpool.Pool) *Traits { return &Traits{pool: pool} }
 
-const traitColumns = `id, code, name, weight, is_active, sort_order, created_at`
+const traitColumns = `id, code, name, kind, is_active, sort_order, created_at`
 
-// traitOrder: сначала минусы (по возрастанию веса — самые тяжёлые сверху),
-// потом плюсы, внутри — по sort_order.
-const traitOrder = `ORDER BY (weight >= 0), sort_order, id`
+// traitOrder: сначала плохое, потом нейтральное, потом хорошее, внутри —
+// по sort_order. Плохое сверху не из вредности: за ним и приходят чаще
+// всего, а список признаков читают глазами сверху вниз.
+const traitOrder = `ORDER BY CASE kind WHEN 'bad' THEN 0 WHEN 'neutral' THEN 1 ELSE 2 END, sort_order, id`
 
 func scanTrait(row pgx.Row) (domain.Trait, error) {
 	var t domain.Trait
-	err := row.Scan(&t.ID, &t.Code, &t.Name, &t.Weight, &t.IsActive, &t.SortOrder, &t.CreatedAt)
+	err := row.Scan(&t.ID, &t.Code, &t.Name, &t.Kind, &t.IsActive, &t.SortOrder, &t.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, domain.ErrNotFound
 	}

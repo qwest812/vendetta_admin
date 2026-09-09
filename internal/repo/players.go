@@ -182,7 +182,7 @@ func (r *Players) attachTraits(ctx context.Context, players []*domain.Player) er
 	for rows.Next() {
 		var playerID int64
 		var t domain.Trait
-		if err := rows.Scan(&playerID, &t.ID, &t.Code, &t.Name, &t.Weight, &t.IsActive, &t.SortOrder, &t.CreatedAt); err != nil {
+		if err := rows.Scan(&playerID, &t.ID, &t.Code, &t.Name, &t.Kind, &t.IsActive, &t.SortOrder, &t.CreatedAt); err != nil {
 			return err
 		}
 		if p := byID[playerID]; p != nil {

@@ -98,27 +98,7 @@ func (s *Server) findPlayers(r *http.Request, query string, status domain.ClanSt
 	if query == "" && status == "" {
 		return nil, nil
 	}
-	players, err := s.players.Search(r.Context(), query, status, searchLimit)
-	if err != nil {
-		return nil, err
-	}
-	return players, s.scorePlayers(r, players)
-}
-
-// scorePlayers проставляет шкалы: справочник читается один раз на запрос,
-// так что изменение весов отражается сразу и без пересчёта хранимых полей.
-func (s *Server) scorePlayers(r *http.Request, players []*domain.Player) error {
-	if len(players) == 0 {
-		return nil
-	}
-	all, err := s.traits.List(r.Context(), true)
-	if err != nil {
-		return err
-	}
-	for _, p := range players {
-		p.Score = domain.ComputeScore(all, p.Traits)
-	}
-	return nil
+	return s.players.Search(r.Context(), query, status, searchLimit)
 }
 
 func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
@@ -383,10 +363,6 @@ func (s *Server) loadPlayer(w http.ResponseWriter, r *http.Request) (*domain.Pla
 		return nil, false
 	}
 	if err != nil {
-		s.serverError(w, r, err)
-		return nil, false
-	}
-	if err := s.scorePlayers(r, []*domain.Player{player}); err != nil {
 		s.serverError(w, r, err)
 		return nil, false
 	}
