@@ -40,15 +40,7 @@
         {{end}}
     </div>
 
-    {{if $p.Traits}}
-        <div class="trait-list">
-            {{range $p.Traits}}
-                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
-            {{end}}
-        </div>
-    {{else}}
-        <p class="muted">{{t "player.notraits"}}</p>
-    {{end}}
+    {{template "playertraits" .}}
 
     {{/* Что игра рассказала про игрока сама. Появляется только у тех,
          кого мы встретили в партии: связь идёт по игровому ID. */}}
@@ -115,5 +107,48 @@
             <li class="muted">{{t "player.notes.empty"}}</li>
         {{end}}
     </ul>
+</div>
+{{end}}
+
+{{/* Признаки игрока: отмеченные метками и весь справочник переключателями.
+     Блок отдаётся целиком и на нажатие тоже — метки и переключатели должны
+     сходиться, а одно нажатие меняет обе половины. */}}
+{{define "playertraits"}}
+<div id="player-traits">
+    {{$p := .Player}}
+    {{$csrf := .CSRFToken}}
+    {{if $p.Traits}}
+        <div class="trait-list">
+            {{range $p.Traits}}
+                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
+            {{end}}
+        </div>
+    {{else}}
+        <p class="muted">{{t "player.notraits"}}</p>
+    {{end}}
+
+    {{/* Отмечает любой, у кого есть доступ: замечает поведение тот, кто
+         играет рядом. Раскрыт список только по нажатию — на карточку
+         приходят читать, а не размечать. */}}
+    {{if .Traits}}
+        {{$marked := $p.MarkedTraits}}
+        <details class="trait-marks">
+            <summary>{{t "player.traits.edit"}}</summary>
+            <div class="trait-checks">
+                {{range .Traits}}
+                    {{$on := index $marked .ID}}
+                    <form method="post"
+                          action="/players/{{$p.ID}}/traits/{{.ID}}/{{if $on}}unmark{{else}}mark{{end}}"
+                          hx-post="/players/{{$p.ID}}/traits/{{.ID}}/{{if $on}}unmark{{else}}mark{{end}}"
+                          hx-target="#player-traits" hx-swap="outerHTML">
+                        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                        <button class="tag toggle {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}} {{if $on}}on{{end}}"
+                                type="submit"
+                                title="{{if $on}}{{t "player.traits.unmark"}}{{else}}{{t "player.traits.mark"}}{{end}}">{{.Name}}</button>
+                    </form>
+                {{end}}
+            </div>
+        </details>
+    {{end}}
 </div>
 {{end}}

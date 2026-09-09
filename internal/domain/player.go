@@ -55,6 +55,17 @@ type Player struct {
 	Traits []Trait // отмеченные признаки, отсортированы как в справочнике
 }
 
+// MarkedTraits — отмеченные признаки набором по номеру. Нужен карточке:
+// переключатели рисуются по всему справочнику, и у каждого надо знать,
+// нажат он или нет.
+func (p Player) MarkedTraits() map[int64]bool {
+	out := make(map[int64]bool, len(p.Traits))
+	for _, t := range p.Traits {
+		out[t.ID] = true
+	}
+	return out
+}
+
 type Note struct {
 	ID          int64
 	PlayerID    int64

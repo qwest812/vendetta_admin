@@ -51,3 +51,9 @@ func (r *Traits) List(ctx context.Context, onlyActive bool) ([]domain.Trait, err
 	}
 	return out, rows.Err()
 }
+
+// ByID — один признак. Нужен обработчику отметок: в журнал пишется название,
+// а не номер строки, иначе запись нечитаема.
+func (r *Traits) ByID(ctx context.Context, id int64) (domain.Trait, error) {
+	return scanTrait(r.pool.QueryRow(ctx, `SELECT `+traitColumns+` FROM traits WHERE id = $1`, id))
+}

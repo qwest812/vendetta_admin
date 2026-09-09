@@ -95,6 +95,29 @@ func (r *Players) Search(ctx context.Context, query string, status domain.ClanSt
 	return r.collect(ctx, rows)
 }
 
+// MarkTrait ставит отметку признака. Второе значение — изменилось ли что-то:
+// повторное нажатие (две вкладки, двойной клик) не должно попадать в журнал
+// второй раз.
+func (r *Players) MarkTrait(ctx context.Context, playerID, traitID int64) (bool, error) {
+	tag, err := r.pool.Exec(ctx,
+		`INSERT INTO player_traits (player_id, trait_id) VALUES ($1, $2)
+		 ON CONFLICT DO NOTHING`, playerID, traitID)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+// UnmarkTrait снимает отметку. Как и MarkTrait, говорит, была ли она вообще.
+func (r *Players) UnmarkTrait(ctx context.Context, playerID, traitID int64) (bool, error) {
+	tag, err := r.pool.Exec(ctx,
+		`DELETE FROM player_traits WHERE player_id = $1 AND trait_id = $2`, playerID, traitID)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
 // distinct убирает повторы, сохраняя порядок: коды признаков приходят
 // из адреса, а там одна и та же галочка может оказаться дважды — и тогда
 // счёт совпадений не сошёлся бы ни у кого.
@@ -226,7 +249,7 @@ func (r *Players) attachTraits(ctx context.Context, players []*domain.Player) er
 
 // Create заводит карточку. Пустой игровой ID уходит в NULL: у старых карточек
 // его может не быть, и такие записи не должны конфликтовать между собой.
-func (r *Players) Create(ctx context.Context, gameID, nickname, clanName string, traitIDs []int64, createdBy int64) (*domain.Player, error) {
+func (r *Players) Create(ctx context.Context, gameID, nickname, clanName string, createdBy int64) (*domain.Player, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -253,16 +276,13 @@ func (r *Players) Create(ctx context.Context, gameID, nickname, clanName string,
 		return nil, err
 	}
 
-	if err := replaceTraits(ctx, tx, id, traitIDs); err != nil {
-		return nil, err
-	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	return r.ByID(ctx, id)
 }
 
-func (r *Players) Update(ctx context.Context, id int64, gameID, nickname, clanName string, traitIDs []int64) error {
+func (r *Players) Update(ctx context.Context, id int64, gameID, nickname, clanName string) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -291,9 +311,6 @@ func (r *Players) Update(ctx context.Context, id int64, gameID, nickname, clanNa
 		return domain.ErrNotFound
 	}
 
-	if err := replaceTraits(ctx, tx, id, traitIDs); err != nil {
-		return err
-	}
 	return tx.Commit(ctx)
 }
 
@@ -382,22 +399,6 @@ func resolveClan(ctx context.Context, tx pgx.Tx, name string) (*int64, error) {
 		return nil, err
 	}
 	return &id, nil
-}
-
-// replaceTraits переписывает набор отметок целиком: форма всегда присылает
-// полное состояние чекбоксов.
-func replaceTraits(ctx context.Context, tx pgx.Tx, playerID int64, traitIDs []int64) error {
-	if _, err := tx.Exec(ctx, `DELETE FROM player_traits WHERE player_id = $1`, playerID); err != nil {
-		return err
-	}
-	if len(traitIDs) == 0 {
-		return nil
-	}
-	_, err := tx.Exec(ctx,
-		`INSERT INTO player_traits (player_id, trait_id)
-		 SELECT $1, unnest($2::bigint[])
-		 ON CONFLICT DO NOTHING`, playerID, traitIDs)
-	return err
 }
 
 // prefixed добавляет алиас таблицы к списку колонок.

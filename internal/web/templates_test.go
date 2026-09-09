@@ -30,6 +30,11 @@ func TestPagesRender(t *testing.T) {
 	}
 	clan := domain.Clan{ID: clanID, Name: "КСГ", Status: domain.ClanEnemy, Players: 1}
 
+	// Справочник целиком: на карточке он рисуется переключателями, и в нём
+	// есть и отмеченные у игрока признаки, и неотмеченный.
+	directory := append(append([]domain.Trait{}, enemy.Traits...),
+		domain.Trait{ID: 9, Code: "lies", Name: "Врёт", Kind: domain.TraitBad, IsActive: true})
+
 	// Часть страниц выглядит по-разному для разных ролей, поэтому у случая
 	// есть свой смотрящий; пусто — обычный админ.
 	banSeen := time.Unix(1788984426, 0)
@@ -171,7 +176,8 @@ func TestPagesRender(t *testing.T) {
 		},
 		{
 			page: "player",
-			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil},
+			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory},
 			// Клан на карточке — ссылка на клан, а не текст. Признаки —
 			// три метки трёх цветов, без числа рядом.
 			want: []string{`href="/clans/7"`, "Враждебный клан",
@@ -179,6 +185,22 @@ func TestPagesRender(t *testing.T) {
 			// Про игру мы ничего не знаем — и молчим об этом. Шкал больше
 			// нет вовсе: искать стали по признакам, а не по проценту.
 			deny: []string{"В игре", "забанен", "История банов", "Риск", "Лояльность"},
+		},
+		{
+			// Отметить признак может любой, у кого есть доступ, поэтому
+			// переключатели есть и у обычного пользователя. Отмеченный
+			// признак снимается тем же нажатием, неотмеченный ставится —
+			// адреса у них разные.
+			name: "player/переключатели признаков",
+			page: "player",
+			user: player,
+			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory},
+			want: []string{
+				`action="/players/3/traits/1/unmark"`,
+				`action="/players/3/traits/9/mark"`,
+				"Отметить признаки", "Врёт",
+			},
 		},
 		{
 			// Бан игра рассказывает про аккаунт, поэтому он и живёт

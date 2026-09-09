@@ -1,7 +1,6 @@
 {{define "title"}}{{if .Player}}{{t "playerform.edit"}}{{else}}{{t "playerform.new"}}{{end}} — Vendetta{{end}}
 
 {{define "content"}}
-{{$sel := .Selected}}
 <div class="card">
     <h1>{{if .Player}}{{t "playerform.edit"}}{{else}}{{t "playerform.new"}}{{end}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
@@ -28,18 +27,6 @@
                     {{range .Clans}}<option value="{{.Name}}">{{end}}
                 </datalist>
             </label>
-        </div>
-
-        <h2>{{t "playerform.traits"}}</h2>
-        <div class="checks">
-            {{range .Traits}}
-                <label class="check {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">
-                    <input type="checkbox" name="traits" value="{{.ID}}" {{if index $sel .ID}}checked{{end}}>
-                    <span>{{.Name}}</span>
-                </label>
-            {{else}}
-                <p class="muted">{{t "playerform.notraits"}}</p>
-            {{end}}
         </div>
 
         {{if not .Player}}

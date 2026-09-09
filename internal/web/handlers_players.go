@@ -165,14 +165,91 @@ func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	traits, err := s.traits.List(r.Context(), true)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
 	s.render(w, r, http.StatusOK, "player", map[string]any{
 		"Player": player, "Notes": notes, "Error": "", "Seen": seen,
-		"Bans": bans,
+		"Bans": bans, "Traits": traits,
+	})
+}
+
+// playerTraitMark ставит отметку признака, playerTraitUnmark снимает.
+// Отмечает любой, у кого есть доступ, — как и заметки: карточку наполняют
+// те, кто играет и видит, а не только админы. Поэтому же каждое нажатие
+// уходит в журнал: раз отметить может каждый, должно быть видно, кто это
+// сделал.
+func (s *Server) playerTraitMark(w http.ResponseWriter, r *http.Request) {
+	s.playerTraitSet(w, r, true)
+}
+
+func (s *Server) playerTraitUnmark(w http.ResponseWriter, r *http.Request) {
+	s.playerTraitSet(w, r, false)
+}
+
+func (s *Server) playerTraitSet(w http.ResponseWriter, r *http.Request, on bool) {
+	player, ok := s.loadPlayer(w, r)
+	if !ok {
+		return
+	}
+	traitID, err := strconv.ParseInt(r.PathValue("traitID"), 10, 64)
+	if err != nil {
+		http.Error(w, "Признак не найден", http.StatusNotFound)
+		return
+	}
+	trait, err := s.traits.ByID(r.Context(), traitID)
+	if errors.Is(err, domain.ErrNotFound) {
+		http.Error(w, "Признак не найден", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
+	changed := false
+	if on {
+		changed, err = s.players.MarkTrait(r.Context(), player.ID, trait.ID)
+	} else {
+		changed, err = s.players.UnmarkTrait(r.Context(), player.ID, trait.ID)
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	// Повторное нажатие ничего не изменило — и в журнал ему незачем:
+	// две вкладки на одной карточке иначе писали бы историю вдвоём.
+	if changed {
+		action := "player.trait.remove"
+		if on {
+			action = "player.trait.add"
+		}
+		s.logAuditOn(r, action, "player", player.ID,
+			map[string]any{"nickname": player.Nickname, "trait": trait.Name})
+	}
+
+	// Отдаём весь блок целиком: отмеченные метки и переключатели должны
+	// сойтись, а нажатие меняет обе половины сразу.
+	player, err = s.players.ByID(r.Context(), player.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	traits, err := s.traits.List(r.Context(), true)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.renderPartial(w, r, "player", "playertraits", map[string]any{
+		"Player": player, "Traits": traits,
 	})
 }
 
 func (s *Server) playerNew(w http.ResponseWriter, r *http.Request) {
-	s.renderPlayerForm(w, r, http.StatusOK, nil, nil)
+	s.renderPlayerForm(w, r, http.StatusOK, nil)
 }
 
 func (s *Server) playerEdit(w http.ResponseWriter, r *http.Request) {
@@ -180,36 +257,23 @@ func (s *Server) playerEdit(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	selected := map[int64]bool{}
-	for _, t := range player.Traits {
-		selected[t.ID] = true
-	}
-	s.renderPlayerForm(w, r, http.StatusOK, player, selected)
+	s.renderPlayerForm(w, r, http.StatusOK, player)
 }
 
 // renderPlayerForm обслуживает и создание, и правку: отличаются только
 // заголовком и адресом отправки.
-func (s *Server) renderPlayerForm(w http.ResponseWriter, r *http.Request, status int, player *domain.Player, selected map[int64]bool, errs ...string) {
-	traits, err := s.traits.List(r.Context(), true)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
+func (s *Server) renderPlayerForm(w http.ResponseWriter, r *http.Request, status int, player *domain.Player, errs ...string) {
 	clans, err := s.clans.List(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
 		return
-	}
-	if selected == nil {
-		selected = map[int64]bool{}
 	}
 	msg := ""
 	if len(errs) > 0 {
 		msg = errs[0]
 	}
 	s.render(w, r, status, "player_form", map[string]any{
-		"Player": player, "Traits": traits, "Clans": clans,
-		"Selected": selected, "Error": msg,
+		"Player": player, "Clans": clans, "Error": msg,
 	})
 }
 
@@ -218,11 +282,9 @@ func (s *Server) playerCreate(w http.ResponseWriter, r *http.Request) {
 	gameID := strings.TrimSpace(r.PostFormValue("game_id"))
 	nickname := strings.TrimSpace(r.PostFormValue("nickname"))
 	clan := strings.TrimSpace(r.PostFormValue("clan"))
-	traitIDs := parseIDs(r.PostForm["traits"])
-
 	fail := func(msg string) {
 		s.renderPlayerForm(w, r, http.StatusUnprocessableEntity,
-			&domain.Player{GameID: gameID, Nickname: nickname, ClanName: clan}, idSet(traitIDs), msg)
+			&domain.Player{GameID: gameID, Nickname: nickname, ClanName: clan}, msg)
 	}
 	// У новой карточки игровой ID обязателен: ник игрок может сменить,
 	// и без ID карточку потом не опознать.
@@ -235,7 +297,7 @@ func (s *Server) playerCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	player, err := s.players.Create(r.Context(), gameID, nickname, clan, traitIDs, actor.ID)
+	player, err := s.players.Create(r.Context(), gameID, nickname, clan, actor.ID)
 	if errors.Is(err, domain.ErrNickTaken) {
 		fail(langOf(r).T("err.player.nick.taken"))
 		return
@@ -258,7 +320,7 @@ func (s *Server) playerCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.logAuditOn(r, "player.create", "player", player.ID,
-		map[string]any{"game_id": gameID, "nickname": nickname, "clan": clan, "traits": len(traitIDs)})
+		map[string]any{"game_id": gameID, "nickname": nickname, "clan": clan})
 	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
 }
 
@@ -270,12 +332,9 @@ func (s *Server) playerUpdate(w http.ResponseWriter, r *http.Request) {
 	gameID := strings.TrimSpace(r.PostFormValue("game_id"))
 	nickname := strings.TrimSpace(r.PostFormValue("nickname"))
 	clan := strings.TrimSpace(r.PostFormValue("clan"))
-	traitIDs := parseIDs(r.PostForm["traits"])
-
 	fail := func(msg string) {
 		s.renderPlayerForm(w, r, http.StatusUnprocessableEntity,
-			&domain.Player{ID: player.ID, GameID: gameID, Nickname: nickname, ClanName: clan},
-			idSet(traitIDs), msg)
+			&domain.Player{ID: player.ID, GameID: gameID, Nickname: nickname, ClanName: clan}, msg)
 	}
 	// ID обязателен и при правке: иначе карточки, заведённые до его
 	// появления, так и остались бы без него. Правка — тот самый момент,
@@ -289,7 +348,7 @@ func (s *Server) playerUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.players.Update(r.Context(), player.ID, gameID, nickname, clan, traitIDs)
+	err := s.players.Update(r.Context(), player.ID, gameID, nickname, clan)
 	if errors.Is(err, domain.ErrNickTaken) {
 		fail(langOf(r).T("err.player.nick.taken"))
 		return
@@ -305,7 +364,7 @@ func (s *Server) playerUpdate(w http.ResponseWriter, r *http.Request) {
 
 	s.logAuditOn(r, "player.update", "player", player.ID, map[string]any{
 		"game_id": gameID, "nickname": nickname, "was": player.Nickname,
-		"clan": clan, "traits": len(traitIDs),
+		"clan": clan,
 	})
 	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
 }
@@ -425,22 +484,4 @@ func validateGameID(gameID string, required bool) error {
 		return domain.ErrPlayerIDSpaces
 	}
 	return nil
-}
-
-func parseIDs(values []string) []int64 {
-	out := make([]int64, 0, len(values))
-	for _, v := range values {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			out = append(out, id)
-		}
-	}
-	return out
-}
-
-func idSet(ids []int64) map[int64]bool {
-	m := make(map[int64]bool, len(ids))
-	for _, id := range ids {
-		m[id] = true
-	}
-	return m
 }
