@@ -109,7 +109,6 @@
                 <tr><td>{{t "faq.rights.lists"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
                 <tr><td>{{t "faq.rights.othernotes"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
                 <tr><td>{{t "faq.rights.cards"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.traits"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
                 <tr><td>{{t "faq.rights.access"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
                 <tr><td>{{t "faq.rights.audit"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
                 <tr><td>{{t "faq.rights.delcards"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
@@ -125,14 +124,6 @@
     </details>
 
     {{if .CurrentUser.IsAdmin}}
-        <details>
-            <summary>{{t "faq.newtrait.q"}}</summary>
-            <div class="faq-body">
-                <p>{{t "faq.newtrait.a1"}}</p>
-                <p>{{t "faq.newtrait.a2"}}</p>
-            </div>
-        </details>
-
         <details>
             <summary>{{t "faq.grant.q"}}</summary>
             <div class="faq-body">

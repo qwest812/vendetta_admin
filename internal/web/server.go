@@ -178,7 +178,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /users/{id}/password", admin(auth.VerifyCSRF(http.HandlerFunc(s.usersResetPassword))))
 	mux.Handle("GET /audit", admin(http.HandlerFunc(s.auditList)))
 
-	// Карточки игроков и справочник признаков — админ и выше.
+	// Карточки игроков — админ и выше.
 	mux.Handle("GET /players/new", admin(http.HandlerFunc(s.playerNew)))
 	mux.Handle("POST /players", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerCreate))))
 	mux.Handle("GET /players/{id}/edit", admin(http.HandlerFunc(s.playerEdit)))
@@ -187,11 +187,6 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /clans", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanCreate))))
 	mux.Handle("POST /clans/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanUpdate))))
 	mux.Handle("POST /clans/{id}/delete", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanDelete))))
-
-	mux.Handle("GET /traits", admin(http.HandlerFunc(s.traitsList)))
-	mux.Handle("POST /traits", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
-	mux.Handle("POST /traits/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
-	mux.Handle("POST /traits/{id}/delete", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
 
 	root := auth.RequireRole(domain.RoleRoot)
 

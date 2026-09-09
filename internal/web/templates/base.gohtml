@@ -17,7 +17,6 @@
             <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>{{t "nav.friends"}}</a>
             <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>{{t "nav.enemies"}}</a>
             {{if .CurrentUser.IsAdmin}}
-                <a href="/traits" {{if eq .Path "/traits"}}class="active"{{end}}>{{t "nav.traits"}}</a>
                 <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>{{t "nav.users"}}</a>
                 <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>{{t "nav.audit"}}</a>
             {{end}}

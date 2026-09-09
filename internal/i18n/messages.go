@@ -16,7 +16,6 @@ var messages = map[string]entry{
 	"nav.clans":   {ru: "Кланы", en: "Clans"},
 	"nav.friends": {ru: "Друзья", en: "Friends"},
 	"nav.enemies": {ru: "Враги", en: "Enemies"},
-	"nav.traits":  {ru: "Признаки", en: "Traits"},
 	"nav.users":   {ru: "Доступы", en: "Access"},
 	"nav.audit":   {ru: "Журнал", en: "Audit log"},
 	"nav.games":   {ru: "Игры", en: "Games"},
@@ -130,7 +129,8 @@ var messages = map[string]entry{
 	"playerform.new":                   {ru: "Новый игрок", en: "New player"},
 	"playerform.clan":                  {ru: "Клан", en: "Clan"},
 	"playerform.clan.placeholder":      {ru: "можно оставить пустым", en: "may be left empty"},
-	"playerform.notraits":              {ru: "Справочник пуст — сначала заведите признаки в разделе «Признаки».", en: "The list is empty — add traits in the Traits section first."},
+	"playerform.traits":                {ru: "Признаки", en: "Traits"},
+	"playerform.notraits":              {ru: "Справочник признаков пуст — отмечать нечего.", en: "The trait list is empty — there is nothing to mark."},
 	"playerform.firstnote":             {ru: "Первая заметка", en: "First note"},
 	"playerform.firstnote.placeholder": {ru: "Почему заводим карточку", en: "Why we are adding this player"},
 
@@ -157,25 +157,6 @@ var messages = map[string]entry{
 	"clan.all":     {ru: "Все кланы", en: "All clans"},
 	"clan.roster":  {ru: "Состав", en: "Members"},
 	"clan.empty":   {ru: "В этом клане пока нет карточек.", en: "No player cards in this clan yet."},
-
-	// --- признаки ---
-	"traits.title":            {ru: "Признаки — Vendetta", en: "Traits — Vendetta"},
-	"traits.how":              {ru: "Как считаются шкалы", en: "How the scales are calculated"},
-	"traits.how.1":            {ru: "Отрицательные веса формируют шкалу риска, положительные — шкалу лояльности. Признак с весом 0 остаётся пометкой и ни на что не влияет.", en: "Negative weights build the risk scale, positive ones the loyalty scale. A trait with weight 0 stays a plain label and affects nothing."},
-	"traits.how.2":            {ru: "Проценты считаются от суммы весов всех активных признаков своего знака: сейчас это", en: "Percentages are taken from the sum of all active traits of the same sign: right now that is"},
-	"traits.how.forrisk":      {ru: "для риска и", en: "for risk and"},
-	"traits.how.forloyalty":   {ru: "для лояльности.", en: "for loyalty."},
-	"traits.how.3":            {ru: "Изменение веса сразу пересчитывает оценки всех игроков — ничего перезаписывать не нужно.", en: "Changing a weight recalculates every player’s score at once — nothing needs to be rewritten."},
-	"traits.new":              {ru: "Новый признак", en: "New trait"},
-	"traits.name.placeholder": {ru: "Использует читы", en: "Uses cheats"},
-	"traits.col.code":         {ru: "Код", en: "Code"},
-	"traits.col.weight":       {ru: "Вес", en: "Weight"},
-	"traits.col.order":        {ru: "Порядок", en: "Order"},
-	"traits.col.active":       {ru: "Активен", en: "Active"},
-	"traits.col.used":         {ru: "Отмечен", en: "Marked"},
-	"traits.code.note":        {ru: "Код менять нельзя — он идентифицирует признак. Название и вес правятся в любой момент.", en: "The code cannot be changed — it identifies the trait. The name and weight can be edited at any time."},
-	"traits.delete.confirm":   {ru: "Удалить признак «%s» и снять его у %d игроков?", en: "Delete the trait “%s” and remove it from %d players?"},
-	"traits.active.note":      {ru: "Снятый флаг «активен» убирает признак из форм и из знаменателя шкал, но сохраняет уже проставленные отметки. Удаление снимает отметки навсегда.", en: "Clearing “active” hides the trait from the forms and drops it from the scale denominator, but keeps the marks already made. Deleting removes those marks for good."},
 
 	// --- общие подписи таблиц и форм ---
 	"common.name":      {ru: "Название", en: "Name"},
@@ -450,7 +431,6 @@ var messages = map[string]entry{
 	"faq.rights.lists":      {ru: "Вести свои списки друзей и врагов", en: "Keep their own friend and enemy lists"},
 	"faq.rights.othernotes": {ru: "Удалять чужие заметки", en: "Delete other people’s notes"},
 	"faq.rights.cards":      {ru: "Заводить и править карточки", en: "Create and edit cards"},
-	"faq.rights.traits":     {ru: "Заводить, править и удалять признаки", en: "Create, edit and delete traits"},
 	"faq.rights.access":     {ru: "Выдавать доступы и менять пароли", en: "Grant access and change passwords"},
 	"faq.rights.audit":      {ru: "Смотреть журнал", en: "View the audit log"},
 	"faq.rights.delcards":   {ru: "Удалять карточки игроков", en: "Delete player cards"},
@@ -458,10 +438,6 @@ var messages = map[string]entry{
 	"faq.rights.games":      {ru: "Раздел «Игры»", en: "The Games section"},
 	"faq.rights.checks":     {ru: "Менять число проверок карты", en: "Change the number of map checks"},
 	"faq.rights.hero":       {ru: "Призывать пехоту в партии", en: "Deploy infantry in a game"},
-
-	"faq.newtrait.q":  {ru: "Как завести новый признак и что будет со шкалами?", en: "How do I add a trait, and what happens to the scales?"},
-	"faq.newtrait.a1": {ru: "Раздел «Признаки». Код латиницей менять нельзя — он идентифицирует признак; название, вес и порядок правятся в любой момент.", en: "The Traits section. The Latin code cannot be changed — it identifies the trait; the name, weight and order can be edited at any time."},
-	"faq.newtrait.a2": {ru: "Снятый флаг «Активен» убирает признак из форм и из расчёта шкал, но сохраняет уже проставленные отметки — так гасят устаревшие признаки. Удаление снимает отметки у всех навсегда; в колонке «Отмечен» видно, скольких это затронет.", en: "Clearing the “Active” flag hides the trait from the forms and from the scale calculation but keeps the marks already made — that is how outdated traits are retired. Deleting removes those marks from everyone for good; the “Marked” column shows how many people that touches."},
 
 	"faq.grant.q":  {ru: "Как выдать доступ новому человеку?", en: "How do I grant access to someone new?"},
 	"faq.grant.a1": {ru: "Раздел «Доступы». Обязателен ник, почта — по желанию: входить можно и по нику, и по почте. Пароль не короче 12 символов; в открытом виде он нигде не хранится и посмотреть его потом нельзя, поэтому передайте пароль человеку сразу и лично.", en: "The Access section. The nickname is required, the email optional: signing in works with either. The password must be at least 12 characters; it is stored nowhere in plain text and cannot be looked up later, so hand it over right away and in person."},
@@ -479,7 +455,6 @@ var messages = map[string]entry{
 	"err.email.taken":    {ru: "почта уже используется", en: "that email is already in use"},
 	"err.nick.taken":     {ru: "такой ник уже есть в базе", en: "that nickname is already in the database"},
 	"err.gameid.taken":   {ru: "такой игровой ID уже есть в базе", en: "that game ID is already in the database"},
-	"err.code.taken":     {ru: "такой код признака уже есть", en: "a trait with that code already exists"},
 	"err.clan.taken":     {ru: "клан с таким названием уже есть", en: "a clan with that name already exists"},
 	"err.already.listed": {ru: "игрок уже в списке", en: "the player is already listed"},
 	"err.forbidden":      {ru: "недостаточно прав", en: "not enough rights"},
@@ -495,11 +470,6 @@ var messages = map[string]entry{
 	"err.clan.name.required": {ru: "Укажите название клана", en: "Enter a clan name"},
 	"err.clan.name.toolong":  {ru: "Название длиннее 64 символов", en: "The name is longer than 64 characters"},
 	"err.clan.notfound":      {ru: "Клан не найден", en: "Clan not found"},
-
-	"err.trait.code":     {ru: "Код: латиница в нижнем регистре, цифры и подчёркивание, от 2 до 40 символов", en: "Code: lowercase Latin letters, digits and underscore, 2 to 40 characters"},
-	"err.trait.name":     {ru: "Укажите название не длиннее 80 символов", en: "Enter a name no longer than 80 characters"},
-	"err.trait.weight":   {ru: "Вес — целое число от -100 до 100", en: "The weight is a whole number from -100 to 100"},
-	"err.trait.notfound": {ru: "Признак не найден", en: "Trait not found"},
 
 	"profile.saved": {ru: "Сохранено", en: "Saved"},
 
