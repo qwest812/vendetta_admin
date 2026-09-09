@@ -56,6 +56,8 @@ var messages = map[string]entry{
 	"home.filter.ally":        {ru: "Только союзные", en: "Allied only"},
 	"home.filter.neutral":     {ru: "Только нейтральные", en: "Neutral only"},
 	"home.filter.enemy":       {ru: "Только враждебные", en: "Hostile only"},
+	"home.filter.traits":      {ru: "Признаки", en: "Traits"},
+	"home.filter.traits.note": {ru: "Отмеченные признаки складываются: найдутся те, у кого стоят все выбранные.", en: "Ticked traits add up: you get the players who have all of them."},
 	"home.total":              {ru: "Всего в базе:", en: "In the database:"},
 	"home.searching":          {ru: "ищем…", en: "searching…"},
 
@@ -88,6 +90,7 @@ var messages = map[string]entry{
 	"results.truncated":    {ru: "Показаны первые %d — уточните запрос.", en: "Showing the first %d — narrow your query."},
 	"results.empty.query":  {ru: "По запросу «%s» никого не нашли.", en: "Nothing found for “%s”."},
 	"results.empty.status": {ru: "С таким статусом клана никого нет.", en: "No one with that clan status."},
+	"results.empty.traits": {ru: "С такими признаками никого нет.", en: "No one with those traits."},
 	"results.empty.all":    {ru: "Введите ник или игровой ID — список появится по запросу.", en: "Type a nickname or game ID — the list appears once you search."},
 
 	// --- карточка игрока ---

@@ -66,6 +66,47 @@ func TestPagesRender(t *testing.T) {
 			},
 		},
 		{
+			// Фильтр по признакам: галочки справочника, отмеченные стоят
+			// отмеченными и после перезагрузки, а счётчик говорит, сколько
+			// их выбрано. Раскрыт он потому, что выбор уже сделан: сузить
+			// выборку молча нельзя.
+			name: "home/фильтр по признакам",
+			page: "home",
+			data: map[string]any{
+				"Query": "", "Status": "", "Total": 3, "Limit": 50,
+				"Players":        []*domain.Player{enemy},
+				"Traits":         enemy.Traits,
+				"Selected":       map[string]bool{"multiaccount": true, "night_player": true},
+				"SelectedTraits": []string{"multiaccount", "night_player"},
+				"CanMark":        true, "MarkedEnemies": map[int64]bool{},
+				"MarkedFriends": map[int64]bool{},
+				"EnemyWords":    enemyWords, "FriendWords": friendWords,
+			},
+			want: []string{
+				"<details class=\"trait-filter\" open>",
+				`name="traits" value="multiaccount"`, "checked",
+				`name="traits" value="plays_well"`,
+				">2</span>", "складываются",
+			},
+		},
+		{
+			// Ничего не нашлось по признакам — сказать надо именно про них,
+			// а не «введите ник»: запрос был, просто пустой ответ.
+			name: "home/по признакам никого",
+			page: "home",
+			data: map[string]any{
+				"Query": "", "Status": "", "Total": 3, "Limit": 50,
+				"Players": nil, "Traits": enemy.Traits,
+				"Selected":       map[string]bool{"lies": true},
+				"SelectedTraits": []string{"lies"},
+				"CanMark":        true, "MarkedEnemies": map[int64]bool{},
+				"MarkedFriends": map[int64]bool{},
+				"EnemyWords":    enemyWords, "FriendWords": friendWords,
+			},
+			want: []string{"С такими признаками никого нет"},
+			deny: []string{"Введите ник или игровой ID"},
+		},
+		{
 			// Доступы: рут меняет их прямо в строке, поэтому у каждой формы
 			// есть и обычный action, и hx-post — и строка целится в себя.
 			name: "users/строка доступов",

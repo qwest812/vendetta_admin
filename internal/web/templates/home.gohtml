@@ -7,18 +7,20 @@
         {{if .CurrentUser.IsAdmin}}<a class="button" href="/players/new">{{t "home.add"}}</a>{{end}}
     </div>
 
-    {{/* Фильтр и строка поиска шлют один и тот же запрос, поэтому каждый
-         подмешивает значение соседа через hx-include. */}}
+    {{/* Строка, статус и галочки признаков шлют один и тот же запрос,
+         поэтому каждый подмешивает значения соседей через hx-include.
+         Снятая галочка не отправляется вовсе — так устроены формы, — и
+         поэтому набор в запросе всегда ровно тот, что виден на экране. */}}
     <div class="filters">
         <input type="search" name="q" value="{{.Query}}" placeholder="{{t "home.search.placeholder"}}"
                autofocus autocomplete="off"
                hx-get="/search" hx-trigger="input changed delay:250ms, search"
-               hx-include="[name='status']"
+               hx-include="[name='status'], [name='traits']"
                hx-target="#results" hx-swap="innerHTML"
                hx-indicator="#searching">
         <select name="status" class="narrow"
                 hx-get="/search" hx-trigger="change"
-                hx-include="[name='q']"
+                hx-include="[name='q'], [name='traits']"
                 hx-target="#results" hx-swap="innerHTML"
                 hx-indicator="#searching">
             <option value="">{{t "home.filter.all"}}</option>
@@ -27,6 +29,30 @@
             <option value="enemy" {{if eq .Status "enemy"}}selected{{end}}>{{t "home.filter.enemy"}}</option>
         </select>
     </div>
+
+    {{/* Признаки складываются: отмечено две галочки — покажем тех, у кого
+         стоят обе. Поэтому подпись говорит «со всеми отмеченными», а не
+         «с любым из». */}}
+    {{if .Traits}}
+        {{$sel := .Selected}}
+        <details class="trait-filter" {{if .SelectedTraits}}open{{end}}>
+            <summary>{{t "home.filter.traits"}}{{if .SelectedTraits}} <span class="badge count">{{len .SelectedTraits}}</span>{{end}}</summary>
+            <div class="trait-checks">
+                {{range .Traits}}
+                    <label class="check {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">
+                        <input type="checkbox" name="traits" value="{{.Code}}"
+                               {{if index $sel .Code}}checked{{end}}
+                               hx-get="/search" hx-trigger="change"
+                               hx-include="[name='q'], [name='status'], [name='traits']"
+                               hx-target="#results" hx-swap="innerHTML"
+                               hx-indicator="#searching">
+                        <span>{{.Name}}</span>
+                    </label>
+                {{end}}
+            </div>
+            <p class="muted">{{t "home.filter.traits.note"}}</p>
+        </details>
+    {{end}}
     <p class="muted">
         {{t "home.total"}} {{.Total}}. <span id="searching" class="htmx-indicator">{{t "home.searching"}}</span>
     </p>

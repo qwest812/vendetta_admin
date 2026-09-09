@@ -39,8 +39,15 @@ func scanPlayer(row pgx.Row) (*domain.Player, error) {
 //
 // Пустой status — «любой клан». Фильтр смотрит на клан игрока, поэтому
 // карточки без клана не попадают ни в один из статусов.
-func (r *Players) Search(ctx context.Context, query string, status domain.ClanStatus, limit int) ([]*domain.Player, error) {
+//
+// traits — коды признаков, и выбранные складываются, а не заменяют друг
+// друга: отметили «врёт» и «мультивод» — получите тех, у кого стоят обе
+// отметки. Каждая галочка сужает выборку, как и положено фильтру.
+func (r *Players) Search(ctx context.Context, query string, status domain.ClanStatus,
+	traits []string, limit int) ([]*domain.Player, error) {
+
 	query = strings.TrimSpace(query)
+	traits = distinct(traits)
 
 	var conds []string
 	var args []any
@@ -51,6 +58,13 @@ func (r *Players) Search(ctx context.Context, query string, status domain.ClanSt
 	if status != "" {
 		args = append(args, string(status))
 		conds = append(conds, fmt.Sprintf(`c.status = $%d`, len(args)))
+	}
+	if len(traits) > 0 {
+		args = append(args, traits)
+		conds = append(conds, fmt.Sprintf(`(SELECT count(*)
+		          FROM player_traits pt JOIN traits t ON t.id = pt.trait_id
+		          WHERE pt.player_id = p.id AND t.code = ANY($%d)) = %d`,
+			len(args), len(traits)))
 	}
 
 	where := ""
@@ -79,6 +93,24 @@ func (r *Players) Search(ctx context.Context, query string, status domain.ClanSt
 	defer rows.Close()
 
 	return r.collect(ctx, rows)
+}
+
+// distinct убирает повторы, сохраняя порядок: коды признаков приходят
+// из адреса, а там одна и та же галочка может оказаться дважды — и тогда
+// счёт совпадений не сошёлся бы ни у кого.
+func distinct(in []string) []string {
+	if len(in) < 2 {
+		return in
+	}
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // ByGameIDs находит карточки по игровым ID — так партия сводится с базой.

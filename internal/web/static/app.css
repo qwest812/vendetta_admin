@@ -223,6 +223,17 @@ h1.section { font-size: 18px; margin: 0 0 12px; }
 
 .trait-list { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
 
+/* Фильтр по признакам на странице поиска. Свёрнут по умолчанию: галочек
+   со временем станет много, а строка поиска должна оставаться первым, что
+   видно. Открыт, если что-то уже отмечено — иначе выборка сузилась бы
+   молча. */
+.trait-filter { margin: 4px 0 0; }
+.trait-filter summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.trait-filter summary:hover { color: var(--text); }
+.trait-filter .badge.count { margin-left: 4px; }
+.trait-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 12px 0 8px; }
+.trait-checks .check { padding: 7px 10px; font-size: 13px; }
+
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin: 12px 0 20px; }
 
 .check {

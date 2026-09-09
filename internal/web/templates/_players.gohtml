@@ -47,6 +47,8 @@
             {{t "results.empty.query" .Query}}
         {{else if .Status}}
             {{t "results.empty.status"}}
+        {{else if .SelectedTraits}}
+            {{t "results.empty.traits"}}
         {{else}}
             {{t "results.empty.all"}}
         {{end}}
