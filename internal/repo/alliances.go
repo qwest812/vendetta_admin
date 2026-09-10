@@ -60,10 +60,28 @@ func (r *Alliances) Enqueue(ctx context.Context, siteUserIDs []string) error {
 // не спрашивали, потом самые давние. Лимит обязателен — за один тик воркер
 // делает столько запросов к сайту игры, сколько получил номеров.
 func (r *Alliances) Stale(ctx context.Context, olderThan time.Time, limit int) ([]string, error) {
+	// Лично спрашиваем только тех, про кого иначе никак. Сайт отвечает про
+	// одного игрока за раз, а состав клана отдаёт целиком — до сорока человек
+	// за тот же один запрос, — поэтому член известного нам клана обновится
+	// сам, когда дойдёт очередь до состава. Из двух тысяч игроков полторы
+	// лежат в полутора сотнях кланов: спрашивать их поимённо значит платить
+	// в десять раз дороже за тот же ответ.
+	//
+	// Остаются трое:
+	//   - одиночка: что он вступил в клан, расскажет только он сам;
+	//   - игрок клана, которого мы вообще не знаем: состав брать неоткуда;
+	//   - тот, чей состав мы взяли, а его в нём не было, — вышел из клана.
+	//     Видно это по времени: состав свежее самого игрока.
 	rows, err := r.pool.Query(ctx,
-		`SELECT site_user_id FROM supremacy_user_alliances
-		  WHERE checked_at IS NULL OR checked_at < $1
-		  ORDER BY checked_at NULLS FIRST
+		`SELECT u.site_user_id
+		   FROM supremacy_user_alliances u
+		   LEFT JOIN supremacy_alliances a
+		          ON u.alliance_id <> '' AND a.alliance_id = u.alliance_id
+		  WHERE (u.checked_at IS NULL OR u.checked_at < $1)
+		    AND (u.alliance_id = ''
+		         OR a.alliance_id IS NULL
+		         OR a.checked_at > u.checked_at)
+		  ORDER BY u.checked_at NULLS FIRST
 		  LIMIT $2`, olderThan, limit)
 	if err != nil {
 		return nil, err

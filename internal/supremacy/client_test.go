@@ -1126,3 +1126,37 @@ func TestWaiterLeavingIsNotAFailure(t *testing.T) {
 		t.Errorf("неудач %d, пауза до %v — а неудачи не было", fails, next)
 	}
 }
+
+// Список своих партий спрашивает не только раздел «Игры»: страница любой
+// партии смотрит в него, чтобы понять, играем мы в ней или смотрим со
+// стороны. Это запрос на каждый просмотр, поэтому список держим минуту —
+// иначе сотня открытий стоит сотни запросов к сайту.
+func TestMyGamesCached(t *testing.T) {
+	c := newOfflineClient()
+	c.mine.games = []Game{{GameID: "10900334", Title: "[Speed] - The Great War"}}
+	c.mine.at = time.Now()
+
+	games, err := c.MyGames(context.Background())
+	if err != nil {
+		t.Fatalf("свежий список должен браться из кэша: %v", err)
+	}
+	if len(games) != 1 || games[0].GameID != "10900334" {
+		t.Fatalf("из кэша пришло %+v", games)
+	}
+
+	// Список отдаётся копией: страница держит в руках ссылки на его строки.
+	games[0].Title = "чужая правка"
+	again, err := c.MyGames(context.Background())
+	if err != nil {
+		t.Fatalf("повторный вопрос: %v", err)
+	}
+	if again[0].Title != "[Speed] - The Great War" {
+		t.Errorf("кэш испорчен снаружи: %+v", again)
+	}
+
+	// Через минуту спрашиваем заново — а сети нет, значит и ошибка.
+	c.mine.at = time.Now().Add(-myGamesTTL - time.Second)
+	if _, err := c.MyGames(context.Background()); err == nil {
+		t.Error("протухший список должен спрашиваться у сайта заново")
+	}
+}

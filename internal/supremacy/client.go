@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,6 +90,9 @@ type Client struct {
 	loginFails  int
 	loginNextAt time.Time
 	loginErr    error
+	// mine — список партий аккаунта. Свой на всё приложение, потому что
+	// и аккаунт один; см. myGamesTTL.
+	mine *minesEntry
 	// sizes — сколько игроков в партиях, о которых мы уже спрашивали.
 	// Живёт дольше кэша ответов: сам ответ протухает, а размер партии —
 	// нет, и по нему решают, сколько ждать сайт в следующий раз.
@@ -117,6 +121,13 @@ type SessionStore interface {
 	LoadSession(ctx context.Context) (SavedSession, bool, error)
 	SaveSession(ctx context.Context, s SavedSession) error
 }
+
+// httpTimeout — предел на один запрос к сайту игры, и это именно предел,
+// а не срок: сроки у зовущих свои и приходят контекстом. Держать его надо
+// выше самого длинного из них (страница большой партии ждёт минуту),
+// иначе он рубит раньше и вместо честного ожидания выходит обман: страница
+// говорит «не ответил за минуту», а ждала на самом деле тридцать секунд.
+const httpTimeout = 90 * time.Second
 
 // loginTimeout — сколько отводится самой попытке входа. Свой срок ей нужен
 // потому, что чужие сроки разные: страница ждёт секунды, воркер — сколько
@@ -203,7 +214,8 @@ func NewClient(user, pass, lang string, log *slog.Logger) *Client {
 		lang = "ru"
 	}
 	return &Client{
-		http: &http.Client{Timeout: 30 * time.Second},
+		mine: &minesEntry{busy: make(chan struct{}, 1)},
+		http: &http.Client{Timeout: httpTimeout},
 		log:  log,
 		user: user,
 		pass: pass,
@@ -629,6 +641,20 @@ func (c *Client) fetchGame(ctx context.Context, gameID string) (*Game, []GameLog
 // показывает вкладка «Обзор» на /game.php. Завершённые сюда не попадают:
 // они лежат в архиве, а это отдельный вызов с mygamesMode=archived.
 func (c *Client) MyGames(ctx context.Context) ([]Game, error) {
+	// Спрашиваем по одному, как и про отдельную партию: страницу могли
+	// открыть разом несколько человек, и незачем спрашивать сайт за каждого.
+	// Ждём под ctx: тому, кто уже не нужен, стоять в очереди незачем.
+	select {
+	case c.mine.busy <- struct{}{}:
+		defer func() { <-c.mine.busy }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	if games, ok := c.mine.fresh(); ok {
+		return games, nil
+	}
+
 	// userID нужен уже в параметрах, поэтому сессию получаем заранее.
 	// Если её перебьёт перезаход внутри call, ничего не сломается: аккаунт
 	// тот же, а значит и userID тот же.
@@ -646,7 +672,38 @@ func (c *Client) MyGames(ctx context.Context) ([]Game, error) {
 		return nil, err
 	}
 	c.noteSpeeds(games...)
+
+	c.mine.games, c.mine.at = games, time.Now()
+	// Отдаём через тот же fresh, что и попадание в кэш: первый спрашивающий
+	// должен получить ровно то же, что и все следующие.
+	games, _ = c.mine.fresh()
 	return games, nil
+}
+
+// myGamesTTL — сколько список своих партий считается свежим. Список нужен
+// не только разделу «Игры»: страница любой партии спрашивает его, чтобы
+// понять, играем мы в ней или смотрим со стороны, — и вот это уже запрос
+// на каждый просмотр, растущий с числом смотрящих, а не партий. Минута
+// выбрана так, чтобы сотня открытий подряд стоила одного запроса, а только
+// что начатая партия признавалась своей почти сразу.
+const myGamesTTL = time.Minute
+
+// minesEntry — кэш списка своих партий: сам список, время ответа и очередь
+// к сайту. Устроен как gameEntry, разница только в том, что партия здесь
+// не одна и ключа у ячейки нет.
+type minesEntry struct {
+	busy  chan struct{}
+	games []Game
+	at    time.Time
+}
+
+// fresh отдаёт список копией: страницы держат в руках ссылки на его строки,
+// и делить одну память между ними не стоит.
+func (e *minesEntry) fresh() ([]Game, bool) {
+	if e.games == nil || time.Since(e.at) > myGamesTTL {
+		return nil, false
+	}
+	return slices.Clone(e.games), true
 }
 
 // myGamesParams вынесены отдельно, чтобы порядок параметров можно было
