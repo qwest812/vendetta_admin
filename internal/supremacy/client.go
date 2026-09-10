@@ -54,10 +54,14 @@ type Client struct {
 
 	mu   sync.Mutex
 	sess *session
-	// loginMu пропускает к логину по одному. Без него два одновременных
-	// вызова с протухшей сессией входят в игру дважды подряд — лишний вход
-	// там, где хватает одного.
-	loginMu sync.Mutex
+	// loginDone — идущая сейчас попытка входа: канал закрывается, когда
+	// она чем-нибудь кончилась. Пусто — никто не входит. Так вход остаётся
+	// один на всех (два одновременных вызова с протухшей подписью входили бы
+	// дважды подряд), но ждущий при этом волен уйти по своему сроку.
+	loginDone chan struct{}
+	// attemptErr — чем кончилась последняя попытка. Ждавшие её читают
+	// отсюда: канал говорит «кончилась», а чем именно — вот это.
+	attemptErr error
 	// gsVer — версия клиента, которую сейчас требует игровой сервер.
 	// Пустая означает «ещё не уточняли», см. gsVersionDefault.
 	gsVer string
@@ -73,6 +77,22 @@ type Client struct {
 	// speeds — скорость увиденных партий: по ней считается, сколько копия
 	// состояния считается свежей.
 	speeds map[string]float64
+	// sessions — где подпись лежит между перезапусками. Может быть пустым:
+	// тогда каждый запуск начинается с входа, как раньше.
+	sessions SessionStore
+	// restored — подпись с прошлого запуска уже пробовали доставать. Ровно
+	// один раз за процесс: если она не подошла, второй раз не подойдёт тоже.
+	restored bool
+	// Неудачный вход помним: сайт после отказа какое-то время отказывает
+	// всем подряд, и ломиться в него каждым вызовом — верный способ
+	// продлить отказ. См. loginBackoff.
+	loginFails  int
+	loginNextAt time.Time
+	loginErr    error
+	// sizes — сколько игроков в партиях, о которых мы уже спрашивали.
+	// Живёт дольше кэша ответов: сам ответ протухает, а размер партии —
+	// нет, и по нему решают, сколько ждать сайт в следующий раз.
+	sizes map[string]int
 }
 
 // session — то, что даёт странице право подписывать вызовы API.
@@ -80,6 +100,50 @@ type session struct {
 	userID     string
 	authHash   string
 	authTstamp string
+}
+
+// SavedSession — та же подпись, но наружу: её кладут в базу, чтобы
+// перезапуск приложения не означал нового входа в игру.
+type SavedSession struct {
+	UserID     string
+	AuthHash   string
+	AuthTstamp string
+	SavedAt    time.Time
+}
+
+// SessionStore — где подпись лежит между запусками. Интерфейс, а не тип
+// из repo: клиенту незачем знать про базу, а тестам — поднимать её.
+type SessionStore interface {
+	LoadSession(ctx context.Context) (SavedSession, bool, error)
+	SaveSession(ctx context.Context, s SavedSession) error
+}
+
+// loginTimeout — сколько отводится самой попытке входа. Свой срок ей нужен
+// потому, что чужие сроки разные: страница ждёт секунды, воркер — сколько
+// понадобится, а вход у них общий.
+const loginTimeout = 45 * time.Second
+
+// sessionReuse — насколько старую подпись ещё имеет смысл пробовать.
+// Сколько она живёт на самом деле, знает только сервер игры и говорит
+// об этом лишь отказом; сутки — граница, за которой попытка почти наверняка
+// впустую, а стоит она лишнего вызова и всё равно кончается входом.
+const sessionReuse = 24 * time.Hour
+
+// ErrLoginPaused — вход отложен после неудач подряд. Зовущему это говорит
+// больше, чем текст ошибки: раз войти нельзя, то и остальные вызовы этого
+// круга не пройдут, и повторять их незачем.
+var ErrLoginPaused = errors.New("вход в игру отложен")
+
+// loginBackoff — сколько ждать после неудачного входа, по числу неудач
+// подряд. Сайт игры на частые входы отвечает отказом всем подряд, и тогда
+// каждый вызов воркера превращался в новую попытку: за минуту их набегали
+// десятки, и отказ от этого только затягивался. Последнее значение
+// повторяется, пока вход не удастся.
+var loginBackoff = []time.Duration{
+	30 * time.Second,
+	2 * time.Minute,
+	5 * time.Minute,
+	15 * time.Minute,
 }
 
 // Коды ответа игры; взяты из таблицы ResultCode в клиентском app.js.
@@ -437,6 +501,7 @@ func (c *Client) Game(ctx context.Context, gameID string) (*Game, []GameLogin, e
 		return nil, nil, err
 	}
 	entry.game, entry.logins, entry.at = game, logins, time.Now()
+	c.noteSize(gameID, len(logins))
 
 	// Отдаём через тот же fresh, что и попадание в кэш: первый
 	// спрашивающий должен получить ровно то же, что и все следующие.
@@ -444,11 +509,47 @@ func (c *Client) Game(ctx context.Context, gameID string) (*Game, []GameLogin, e
 	return game, logins, nil
 }
 
+// noteSize запоминает состав партии числом. Ответ целиком протухает, а это
+// число — нет: партия не усохнет вдвое, и следующий раз можно сразу ждать
+// столько, сколько она заслуживает.
+func (c *Client) noteSize(gameID string, players int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.sizes == nil {
+		c.sizes = make(map[string]int)
+	}
+	c.sizes[gameID] = players
+}
+
+// GameSize — сколько игроков в партии, если мы о ней уже спрашивали.
+// false вторым значением значит «не спрашивали ни разу»; такую партию
+// зовущий должен считать большой, пока не выяснится обратное: узнать
+// размер заранее неоткуда, а ошибиться в сторону терпения дешевле.
+func (c *Client) GameSize(gameID string) (int, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	n, ok := c.sizes[gameID]
+	return n, ok
+}
+
 // rosterTTL — сколько ответ сайта о партии считается свежим. Полчаса тут
 // не осторожность, а осознанный размен: за это время в партии успевает
-// смениться разве что чей-то клан, а стоит каждый такой вопрос двадцати
+// смениться разве что чей-то альянс, а стоит каждый такой вопрос двадцати
 // секунд ожидания на самой большой партии.
-const rosterTTL = 30 * time.Minute
+//
+// bigRosterTTL — то же для больших партий, и размен там другой: ждать
+// приходится до минуты, а меняется за полдня всё равно немногое. Шесть
+// часов выбраны так, чтобы за рабочий день партию спросили раз, много два.
+const (
+	rosterTTL    = 30 * time.Minute
+	bigRosterTTL = 6 * time.Hour
+)
+
+// BigRoster — с какого состава партия считается большой. Сотня — это граница,
+// за которой сайт заметно задумывается: тридцать игроков он отдаёт за секунду,
+// четыреста — за двадцать. Число одно на всю админку: по нему выбирается
+// и срок кэша, и сколько ждать ответа, и говорить ли об этом человеку.
+const BigRoster = 100
 
 // gameEntry — ячейка кэша под одну партию. Заодно выбрасываем протухшие:
 // ячейка живёт до следующего вопроса о любой партии, а вопросов этих
@@ -463,7 +564,7 @@ func (c *Client) gameEntry(gameID string) *gameEntry {
 	for id, e := range c.games {
 		// Пустое время — ячейка, которую прямо сейчас заполняют: её
 		// выбрасывать нельзя, иначе спрашивающий останется ни с чем.
-		if id != gameID && !e.at.IsZero() && time.Since(e.at) > rosterTTL {
+		if id != gameID && !e.at.IsZero() && time.Since(e.at) > e.ttl() {
 			delete(c.games, id)
 		}
 	}
@@ -484,11 +585,20 @@ type gameEntry struct {
 	at     time.Time
 }
 
+// ttl — сколько держать эту ячейку. Большую партию держим дольше: ответ
+// по ней и стоит дороже, и устаревает не быстрее.
+func (e *gameEntry) ttl() time.Duration {
+	if len(e.logins) >= BigRoster {
+		return bigRosterTTL
+	}
+	return rosterTTL
+}
+
 // fresh отдаёт ответ, если он ещё не протух. Партию отдаём копией — она
 // маленькая, а вот делить один указатель между страницами не стоит. Состав
 // общий: он только читается, как и очертания карты.
 func (e *gameEntry) fresh() (*Game, []GameLogin, bool) {
-	if e.game == nil || time.Since(e.at) > rosterTTL {
+	if e.game == nil || time.Since(e.at) > e.ttl() {
 		return nil, nil, false
 	}
 	game := *e.game
@@ -1030,25 +1140,176 @@ func (c *Client) ensureSession(ctx context.Context) (*session, error) {
 		return sess, nil
 	}
 
-	// Логин под своим замком: страница партии ходит в игру в несколько
-	// рук, и без него первый же поход после протухания сессии обернулся бы
-	// парой входов подряд.
-	c.loginMu.Lock()
-	defer c.loginMu.Unlock()
-	// Пока ждали очереди, сосед мог уже войти.
-	if sess := c.current(); sess != nil {
-		return sess, nil
-	}
+	// Входит один, получают все: остальные ждут ту же попытку, а не заводят
+	// свою. Ждут по-честному — со своим сроком: у страницы партии он свой,
+	// и стоять за чужим входом дольше него ей незачем. Сам вход при этом
+	// не обрывается: он нужен не одному ей.
+	wait := c.startLogin()
 
-	sess, err := c.login(ctx)
-	if err != nil {
-		return nil, err
+	select {
+	case <-wait:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 
 	c.mu.Lock()
-	c.sess = sess
+	sess, err := c.sess, c.attemptErr
 	c.mu.Unlock()
-	return sess, nil
+	if sess != nil {
+		return sess, nil
+	}
+	if err == nil {
+		// Попытка кончилась ничем и без ошибки — так бывает, если подпись
+		// успели сбросить прямо после удачного входа. Своей попытки заводить
+		// не будем: следующий вызов начнёт всё заново.
+		err = errors.New("подписи нет")
+	}
+	return nil, err
+}
+
+// startLogin отдаёт канал попытки: чужой, если кто-то уже входит, или свой,
+// заведя новую. Канал закрывается, когда попытка кончилась — удачей или нет.
+func (c *Client) startLogin() <-chan struct{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.loginDone != nil {
+		return c.loginDone
+	}
+	done := make(chan struct{})
+	c.loginDone = done
+	go c.loginOnce(done)
+	return done
+}
+
+// loginOnce — одна попытка добыть подпись: сперва прошлого запуска, потом
+// входом. Идёт на своём сроке, а не на сроке того, кто её начал: страницу
+// могли закрыть, а подпись нужна и воркерам, и следующему открывшему.
+func (c *Client) loginOnce(done chan struct{}) {
+	ctx, cancel := context.WithTimeout(context.Background(), loginTimeout)
+	defer cancel()
+
+	var (
+		sess *session
+		err  error
+	)
+	defer func() {
+		c.mu.Lock()
+		c.attemptErr = err
+		if sess != nil {
+			c.sess = sess
+		}
+		c.loginDone = nil
+		c.mu.Unlock()
+		close(done)
+	}()
+
+	// Подпись с прошлого запуска обычно ещё жива: вход ради неё — лишний,
+	// а лишний вход и есть то, за что сайт отказывает.
+	if sess = c.restoreSession(ctx); sess != nil {
+		return
+	}
+
+	// После отказа держим паузу: пока она идёт, зовущий получает ту же
+	// ошибку, но без похода на сайт. Иначе полсотни вызовов воркера
+	// превращаются в полсотни попыток войти.
+	if err = c.loginPaused(); err != nil {
+		return
+	}
+
+	if sess, err = c.login(ctx); err != nil {
+		sess = nil
+		c.noteLoginFail(err)
+		return
+	}
+	c.noteLoginOK()
+	c.saveSession(ctx, sess)
+}
+
+// restoreSession достаёт подпись прошлого запуска — один раз за процесс.
+// Не подошла — узнаем об этом обычным путём: игра ответит «сессия
+// протухла», и тогда мы войдём заново.
+func (c *Client) restoreSession(ctx context.Context) *session {
+	c.mu.Lock()
+	store, done := c.sessions, c.restored
+	c.restored = true
+	c.mu.Unlock()
+	if store == nil || done {
+		return nil
+	}
+
+	saved, ok, err := store.LoadSession(ctx)
+	if err != nil {
+		c.log.Warn("подпись прошлого запуска не прочиталась", "err", err)
+		return nil
+	}
+	if !ok || saved.AuthHash == "" || saved.UserID == "" {
+		return nil
+	}
+	if age := time.Since(saved.SavedAt); age > sessionReuse {
+		c.log.Info("подпись прошлого запуска слишком стара, входим заново",
+			"возраст", age.Round(time.Minute))
+		return nil
+	}
+
+	c.log.Info("подпись прошлого запуска подошла, вход не нужен", "userID", saved.UserID)
+	return &session{userID: saved.UserID, authHash: saved.AuthHash, authTstamp: saved.AuthTstamp}
+}
+
+// saveSession кладёт свежую подпись на будущее. Не вышло — не беда:
+// потеряем её только при перезапуске, и он же всё починит входом.
+func (c *Client) saveSession(ctx context.Context, sess *session) {
+	c.mu.Lock()
+	store := c.sessions
+	c.mu.Unlock()
+	if store == nil {
+		return
+	}
+	err := store.SaveSession(ctx, SavedSession{
+		UserID: sess.userID, AuthHash: sess.authHash,
+		AuthTstamp: sess.authTstamp, SavedAt: time.Now(),
+	})
+	if err != nil {
+		c.log.Warn("подпись не сохранилась", "err", err)
+	}
+}
+
+// loginPaused — идёт ли сейчас пауза после неудачи. Ошибку отдаём ту же,
+// что и в прошлый раз: причина не изменилась, а «попробуем через 5 минут»
+// объясняет, почему мы даже не пытались.
+func (c *Client) loginPaused() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if left := time.Until(c.loginNextAt); left > 0 {
+		return fmt.Errorf("%w ещё на %s после %d неудач подряд: %w",
+			ErrLoginPaused, left.Round(time.Second), c.loginFails, c.loginErr)
+	}
+	return nil
+}
+
+func (c *Client) noteLoginFail(err error) {
+	c.mu.Lock()
+	c.loginFails++
+	c.loginErr = err
+	wait := loginBackoff[min(c.loginFails, len(loginBackoff))-1]
+	c.loginNextAt = time.Now().Add(wait)
+	fails := c.loginFails
+	c.mu.Unlock()
+
+	c.log.Warn("вход не удался, ждём перед следующей попыткой",
+		"пауза", wait, "неудач подряд", fails, "err", err)
+}
+
+func (c *Client) noteLoginOK() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.loginFails, c.loginErr, c.loginNextAt = 0, nil, time.Time{}
+}
+
+// UseSessionStore включает хранение подписи между запусками.
+func (c *Client) UseSessionStore(store SessionStore) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.sessions = store
 }
 
 func (c *Client) current() *session {

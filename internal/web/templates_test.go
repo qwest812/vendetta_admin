@@ -72,47 +72,6 @@ func TestPagesRender(t *testing.T) {
 			},
 		},
 		{
-			// Фильтр по признакам: галочки справочника, отмеченные стоят
-			// отмеченными и после перезагрузки, а счётчик говорит, сколько
-			// их выбрано. Раскрыт он потому, что выбор уже сделан: сузить
-			// выборку молча нельзя.
-			name: "home/фильтр по признакам",
-			page: "home",
-			data: map[string]any{
-				"Query": "", "Status": "", "Total": 3, "Limit": 50,
-				"Players":        []*domain.Player{enemy},
-				"Traits":         enemy.Traits,
-				"Selected":       map[string]bool{"multiaccount": true, "night_player": true},
-				"SelectedTraits": []string{"multiaccount", "night_player"},
-				"CanMark":        true, "MarkedEnemies": map[int64]bool{},
-				"MarkedFriends": map[int64]bool{},
-				"EnemyWords":    enemyWords, "FriendWords": friendWords,
-			},
-			want: []string{
-				"<details class=\"trait-filter\" open>",
-				`name="traits" value="multiaccount"`, "checked",
-				`name="traits" value="plays_well"`,
-				">2</span>", "складываются",
-			},
-		},
-		{
-			// Ничего не нашлось по признакам — сказать надо именно про них,
-			// а не «введите ник»: запрос был, просто пустой ответ.
-			name: "home/по признакам никого",
-			page: "home",
-			data: map[string]any{
-				"Query": "", "Status": "", "Total": 3, "Limit": 50,
-				"Players": nil, "Traits": enemy.Traits,
-				"Selected":       map[string]bool{"lies": true},
-				"SelectedTraits": []string{"lies"},
-				"CanMark":        true, "MarkedEnemies": map[int64]bool{},
-				"MarkedFriends": map[int64]bool{},
-				"EnemyWords":    enemyWords, "FriendWords": friendWords,
-			},
-			want: []string{"С такими признаками никого нет"},
-			deny: []string{"Введите ник или игровой ID"},
-		},
-		{
 			// Справочник признаков живёт в рутовых настройках: строка
 			// правится на месте, знак выбирается списком, а удаление
 			// предупреждает, скольких игроков оно затронет.
@@ -485,7 +444,9 @@ func TestPagesRender(t *testing.T) {
 				// их css, поэтому в разметке они есть всегда.
 				`id="map-clans"`, `id="map-sides"`, `id="map-teams"`, `id="map-players"`,
 				`id="map-top"`,
-				"Кланы", "Мои списки", "Коалиции", "Игроки", "Топ кланов",
+				// Вкладка карты называется по-игровому — «Альянсы»;
+				// раздел «Кланы» в шапке к ней отношения не имеет.
+				"Альянсы", "Мои списки", "Коалиции", "Игроки", "Топ альянсов",
 				"Во врагах", "В друзьях",
 				// Коалиция — из игры: своё название, свой цвет, и своя
 				// помечается отдельно.
@@ -515,14 +476,40 @@ func TestPagesRender(t *testing.T) {
 				// Снимка рейтинга в этих данных нет, и режим топа объясняет
 				// пустоту сам: серая карта без пояснения читается как
 				// «в партии никого из топа».
-				"Топ кланов ещё не снимали",
+				"Топ альянсов ещё не снимали",
 			},
+		},
+		{
+			// Большую партию сайт отдаёт медленно, и страница говорит об
+			// этом сама: минута ожидания без объяснений выглядит поломкой.
+			// Обычная партия такой подписи не несёт — ей нечего объяснять.
+			name: "game/большая партия",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID":  "10875491",
+				"Game":    &gameView{ID: "10875491", Title: "The Great War - 500 players", State: "идёт"},
+				"BigGame": 390,
+				"Ours":    true, "Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute,
+			},
+			want: []string{"Партия большая", "шесть часов"},
+		},
+		{
+			name: "game/обычная партия без подписи о размере",
+			page: "game",
+			user: player,
+			data: map[string]any{
+				"GameID": "10900334",
+				"Game":   &gameView{ID: "10900334", Title: "[Speed] - The Great War", State: "идёт"},
+				"Ours":   true, "Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute,
+			},
+			deny: []string{"Партия большая"},
 		},
 		{
 			// Легенда топа: место в рейтинге, цвет по этому месту и счёт
 			// игроков с провинциями. Без места строка не значит ничего —
 			// весь режим про то, кто в партии из первой десятки.
-			name: "game/легенда топа кланов",
+			name: "game/легенда топа альянсов",
 			page: "game",
 			user: player,
 			data: map[string]any{
@@ -555,7 +542,7 @@ func TestPagesRender(t *testing.T) {
 				"--top: " + mapPalette[0], "--clan: " + mapPalette[2],
 				"Рейтинг снят",
 			},
-			deny: []string{"Топ кланов ещё не снимали", "игроков из первой десятки"},
+			deny: []string{"Топ альянсов ещё не снимали", "игроков из первой десятки"},
 		},
 		{
 			// Без игрового ID в профиле своей страны не найти — и об этом

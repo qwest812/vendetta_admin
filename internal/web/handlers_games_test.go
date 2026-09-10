@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -89,7 +90,7 @@ func TestGameMapColors(t *testing.T) {
 		t.Errorf("точки = %q", mine.Points)
 	}
 	if !strings.Contains(mine.Title, "Афины") || !strings.Contains(mine.Title, "Dau7er") ||
-		!strings.Contains(mine.Title, "клан VEN.DETTA") {
+		!strings.Contains(mine.Title, "альянс VEN.DETTA") {
 		t.Errorf("подпись = %q", mine.Title)
 	}
 
@@ -450,7 +451,7 @@ func TestGameMapFillsTeams(t *testing.T) {
 	if string(shape.TeamColor) != "rgb(120,90,120)" || string(shape.ClanColor) != mapPalette[0] {
 		t.Errorf("цвета провинции: team=%q clan=%q", shape.TeamColor, shape.ClanColor)
 	}
-	if !strings.Contains(shape.Title, "клан VEN.DETTA") ||
+	if !strings.Contains(shape.Title, "альянс VEN.DETTA") ||
 		!strings.Contains(shape.Title, "коалиция КСГ") ||
 		!strings.Contains(shape.Title, "премиум") {
 		t.Errorf("подсказка = %q", shape.Title)
@@ -787,12 +788,12 @@ func TestGameMapTopAlliances(t *testing.T) {
 		t.Errorf("второе место: class=%q top=%q", second.Class, second.TopColor)
 	}
 	// Клан не из топа в этом режиме ничем не отличается от игрока без клана:
-	// пометка означает «из первой десятки», а не «в каком-то клане».
+	// пометка означает «из первой десятки», а не «в каком-то альянсе».
 	if strings.Contains(none.Class, "top") || none.TopColor != "" {
-		t.Errorf("клан не из топа: class=%q top=%q", none.Class, none.TopColor)
+		t.Errorf("альянс не из топа: class=%q top=%q", none.Class, none.TopColor)
 	}
 	// Место в рейтинге ещё и словами: по цвету номер не восстановить.
-	if !strings.Contains(first.Title, "1 место в рейтинге кланов") {
+	if !strings.Contains(first.Title, "1 место в рейтинге альянсов") {
 		t.Errorf("подсказка = %q", first.Title)
 	}
 
@@ -858,6 +859,52 @@ func TestStaleStats(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("на месте %d — %q, ожидалось %q", i, got[i], want[i])
+		}
+	}
+}
+
+// sizeSource — источник партий, который знает только их размер: всё
+// остальное для выбора срока ожидания не нужно.
+type sizeSource map[string]int
+
+func (f sizeSource) GameSize(gameID string) (int, bool) { n, ok := f[gameID]; return n, ok }
+
+func (sizeSource) MyGames(context.Context) ([]supremacy.Game, error) { return nil, nil }
+func (sizeSource) Game(context.Context, string) (*supremacy.Game, []supremacy.GameLogin, error) {
+	return nil, nil, nil
+}
+func (sizeSource) StateFor(context.Context, string, bool, bool) (*supremacy.GameState, time.Time, error) {
+	return nil, time.Time{}, nil
+}
+func (sizeSource) StateFresh(string, bool) time.Duration                  { return 0 }
+func (sizeSource) DeployInfantry(context.Context, string) (string, error) { return "", nil }
+func (sizeSource) MapGeometry(context.Context, string) (*supremacy.MapGeometry, error) {
+	return nil, nil
+}
+func (sizeSource) UserStatsBatch(context.Context, []string) (map[string]*supremacy.UserStats, error) {
+	return nil, nil
+}
+func (sizeSource) UserID() string { return "101408369" }
+
+// Сколько ждать сайт, решает размер партии — но узнать его заранее неоткуда:
+// его называет тот самый ответ, которого мы ждём. Поэтому незнакомая партия
+// считается большой: лучше подождать лишнее, чем отвалиться на пороге, как
+// это и случалось с картой на 500 игроков.
+func TestGameBudgetBySize(t *testing.T) {
+	s := &Server{games: sizeSource{"10875491": 390, "10900334": 31}}
+
+	cases := []struct {
+		name   string
+		gameID string
+		want   time.Duration
+	}{
+		{"большая — ждём минуту", "10875491", bigGameTimeout},
+		{"маленькая — как раньше", "10900334", gamesTimeout},
+		{"незнакомая — как большая", "10901247", bigGameTimeout},
+	}
+	for _, c := range cases {
+		if got := s.gameBudget(c.gameID); got != c.want {
+			t.Errorf("%s: срок = %v, ждали %v", c.name, got, c.want)
 		}
 	}
 }

@@ -9,6 +9,7 @@ package supremacy
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -124,6 +125,13 @@ func (w *AllianceWatcher) rosterTick(ctx context.Context) error {
 		}
 		alliance, members, err := w.client.AllianceRoster(ctx, id)
 		if err != nil {
+			// Войти сейчас нельзя — значит, и остальные не пройдут:
+			// круг обрываем, чтобы не писать одну и ту же ошибку полсотни
+			// раз. Очередь никуда не денется, вернёмся на следующем тике.
+			if errors.Is(err, ErrLoginPaused) {
+				w.log.Warn("обход кланов отложен", "осталось", len(ids), "err", err)
+				return err
+			}
 			// Один недоступный клан не отменяет остальных: он останется
 			// в очереди и попробуется на следующем тике.
 			w.log.Warn("состав клана", "allianceID", id, "err", err)

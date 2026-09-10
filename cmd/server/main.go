@@ -76,6 +76,10 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	var s1914 *supremacy.Client
 	if cfg.S1914User != "" {
 		s1914 = supremacy.NewClient(cfg.S1914User, cfg.S1914Password, cfg.S1914Lang, log)
+		// Подпись переживает перезапуск: сайт игры считает частые входы
+		// подозрительными и отвечает отказом всем сразу, а живая подпись
+		// делает вход при старте ненужным.
+		s1914.UseSessionStore(s1914Sessions{settings})
 	}
 
 	authSvc := auth.NewService(users, sessions, cfg.SessionTTL, cfg.CookieSecure)
@@ -126,21 +130,33 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		scanner := supremacy.NewCoalitionScanner(s1914, coalitions, settings, cfg.S1914CoalitionEvery, log)
 		watcher.Feed(scanner)
 
-		go watcher.Run(ctx)
-		go scanner.Run(ctx)
+		// Воркеры расходятся по очереди, а не стартуют все разом: ходят они
+		// в игру под одной подписью, и пятью запросами в одну секунду
+		// начинать разговор с сайтом ни к чему. Смещение остаётся с ними
+		// навсегда — тикер каждого отсчитывает от своего старта, поэтому
+		// и дальше они не сходятся в одну секунду.
+		//
+		// Порядок по нужности: лобби ищет новые партии, и ждать ему обиднее
+		// всех; топ кланов обновляется раз в шесть часов и подождёт минуту
+		// без всякого ущерба.
+		startAfter(ctx, 0, watcher.Run)
+		startAfter(ctx, workerStagger, scanner.Run)
 
 		// Автопилот ходит только в те партии, где кнопку включили руками,
 		// поэтому запускается всегда: без включённых партий он молчит.
-		go supremacy.NewAutopilot(s1914, tasks, cfg.S1914HeroEvery, cfg.S1914HeroEveryMax, log).Run(ctx)
+		autopilot := supremacy.NewAutopilot(s1914, tasks, cfg.S1914HeroEvery, cfg.S1914HeroEveryMax, log)
+		startAfter(ctx, 2*workerStagger, autopilot.Run)
 
 		// Кланы игроков спрашивает воркер, а не страница карты: сайт игры
 		// отвечает про одного игрока за раз. Очередь ему наполняют сами
 		// открытые партии, поэтому без них он молчит.
-		go supremacy.NewAllianceWatcher(s1914, alliances, cfg.S1914AllianceEvery, log).Run(ctx)
+		alliancesWatcher := supremacy.NewAllianceWatcher(s1914, alliances, cfg.S1914AllianceEvery, log)
+		startAfter(ctx, 3*workerStagger, alliancesWatcher.Run)
 
 		// Топ кланов, в отличие от них, ни от каких партий не зависит:
 		// он спрашивает рейтинг игры и сам решает, не пора ли обновиться.
-		go supremacy.NewTopWatcher(s1914, topAlliances, cfg.S1914TopEvery, log).Run(ctx)
+		top := supremacy.NewTopWatcher(s1914, topAlliances, cfg.S1914TopEvery, log)
+		startAfter(ctx, 4*workerStagger, top.Run)
 	}
 
 	httpSrv := &http.Server{
@@ -148,8 +164,12 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       2 * time.Minute,
+		// Полторы минуты — не запас «на всякий случай», а следствие: страница
+		// большой партии ждёт сайт игры до минуты (bigGameTimeout), и рвать
+		// её раньше значит показать человеку пустоту вместо карты. Свой срок
+		// у каждой страницы свой, этот — только верхняя граница.
+		WriteTimeout: 90 * time.Second,
+		IdleTimeout:  2 * time.Minute,
 	}
 
 	errCh := make(chan error, 1)
@@ -252,4 +272,49 @@ func cleanupSessions(ctx context.Context, log *slog.Logger, sessions *repo.Sessi
 			}
 		}
 	}
+}
+
+// s1914Sessions — переходник между настройками в базе и клиентом игры.
+// У каждого своя структура подписи: repo не должен знать про Supremacy,
+// а клиент игры — про базу.
+type s1914Sessions struct{ settings *repo.Settings }
+
+func (s s1914Sessions) LoadSession(ctx context.Context) (supremacy.SavedSession, bool, error) {
+	saved, ok, err := s.settings.LoadSession(ctx)
+	if err != nil || !ok {
+		return supremacy.SavedSession{}, false, err
+	}
+	return supremacy.SavedSession{
+		UserID: saved.UserID, AuthHash: saved.AuthHash,
+		AuthTstamp: saved.AuthTstamp, SavedAt: saved.SavedAt,
+	}, true, nil
+}
+
+func (s s1914Sessions) SaveSession(ctx context.Context, sess supremacy.SavedSession) error {
+	return s.settings.SaveSession(ctx, repo.SavedSession{
+		UserID: sess.UserID, AuthHash: sess.AuthHash,
+		AuthTstamp: sess.AuthTstamp, SavedAt: sess.SavedAt,
+	})
+}
+
+// workerStagger — шаг, с которым воркеры расходятся на старте. Пятнадцать
+// секунд: меньше — и они всё ещё толкаются, больше — и запуск заметно
+// растягивается, а лобби с топом кланов должны разъехаться в пределах минуты.
+const workerStagger = 15 * time.Second
+
+// startAfter запускает воркер, выждав своё. Остановка приложения отменяет
+// и ожидание: воркеру, который ещё не начал, начинать уже незачем.
+func startAfter(ctx context.Context, wait time.Duration, run func(context.Context)) {
+	go func() {
+		if wait > 0 {
+			timer := time.NewTimer(wait)
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+			}
+		}
+		run(ctx)
+	}()
 }

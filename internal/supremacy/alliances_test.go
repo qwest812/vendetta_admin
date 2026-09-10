@@ -67,6 +67,9 @@ type fakeAllianceSource struct {
 	asked   []string
 	roster  map[string][]AllianceMember
 	rosters []string
+	// rosterErr — чем отвечать на любой запрос состава. Пустая — отвечаем
+	// как обычно, по roster.
+	rosterErr error
 }
 
 func (f *fakeAllianceSource) UserAlliances(_ context.Context, ids []string) (map[string]*Alliance, error) {
@@ -76,6 +79,9 @@ func (f *fakeAllianceSource) UserAlliances(_ context.Context, ids []string) (map
 
 func (f *fakeAllianceSource) AllianceRoster(_ context.Context, id string) (*Alliance, []AllianceMember, error) {
 	f.rosters = append(f.rosters, id)
+	if f.rosterErr != nil {
+		return nil, nil, f.rosterErr
+	}
 	members, ok := f.roster[id]
 	if !ok {
 		return nil, nil, errors.New("такого клана нет")
@@ -224,5 +230,21 @@ func TestAllianceWatcherRosterFailure(t *testing.T) {
 	}
 	if len(src.asked) != 1 {
 		t.Errorf("игроков спросили %v, ожидался один", src.asked)
+	}
+}
+
+// Если вход в игру отложен, круг обрывается на первом же клане: остальные
+// упрутся в то же самое, а полсотни одинаковых строк в логе только прячут
+// настоящую причину. Очередь при этом цела — вернёмся на следующем тике.
+func TestAllianceWatcherStopsWhenLoginPaused(t *testing.T) {
+	store := &fakeAllianceStore{clanQueue: []string{"1", "2", "3"}}
+	src := &fakeAllianceSource{rosterErr: fmt.Errorf("%w: ещё 5m0s", ErrLoginPaused)}
+
+	err := testWatcher(src, store).rosterTick(context.Background())
+	if !errors.Is(err, ErrLoginPaused) {
+		t.Errorf("тик вернул %v, ждали отложенный вход", err)
+	}
+	if len(src.rosters) != 1 {
+		t.Errorf("спросили составов: %d, ждали один", len(src.rosters))
 	}
 }

@@ -65,8 +65,6 @@ var messages = map[string]entry{
 	"home.filter.ally":        {ru: "Только союзные", en: "Allied only"},
 	"home.filter.neutral":     {ru: "Только нейтральные", en: "Neutral only"},
 	"home.filter.enemy":       {ru: "Только враждебные", en: "Hostile only"},
-	"home.filter.traits":      {ru: "Признаки", en: "Traits"},
-	"home.filter.traits.note": {ru: "Отмеченные признаки складываются: найдутся те, у кого стоят все выбранные.", en: "Ticked traits add up: you get the players who have all of them."},
 	"home.total":              {ru: "Всего в базе:", en: "In the database:"},
 	"home.searching":          {ru: "ищем…", en: "searching…"},
 
@@ -99,7 +97,6 @@ var messages = map[string]entry{
 	"results.truncated":    {ru: "Показаны первые %d — уточните запрос.", en: "Showing the first %d — narrow your query."},
 	"results.empty.query":  {ru: "По запросу «%s» никого не нашли.", en: "Nothing found for “%s”."},
 	"results.empty.status": {ru: "С таким статусом клана никого нет.", en: "No one with that clan status."},
-	"results.empty.traits": {ru: "С такими признаками никого нет.", en: "No one with those traits."},
 	"results.empty.all":    {ru: "Введите ник или игровой ID — список появится по запросу.", en: "Type a nickname or game ID — the list appears once you search."},
 
 	// --- карточка игрока ---
@@ -316,7 +313,8 @@ var messages = map[string]entry{
 	"game.language":     {ru: "язык %s", en: "language %s"},
 	"game.startedat":    {ru: "начата", en: "started"},
 	"game.ourplayer":    {ru: "аккаунт проекта — игрок №%s", en: "the project account is player #%s"},
-	"game.foreign.note": {ru: "В этой партии общий аккаунт проекта не играет, поэтому смотрим на неё со стороны: карта, состав, кланы и коалиции видны, а вот делать в партии что-либо — призывать пехоту, например — некому. Партия про такой взгляд не узнаёт: входом в неё он не считается.", en: "The shared project account does not play in this game, so we look at it from the outside: the map, the roster, clans and coalitions are all visible, but there is no one to act in the game — to deploy infantry, for one. The game never learns about such a look: it does not count as entering."},
+	"game.big.note":     {ru: "Партия большая, и сайт игры отдаёт такую карту медленно: ждать приходится до минуты, поэтому открывается она заметно дольше маленьких. Ответ мы держим шесть часов — следующие открытия будут быстрыми.", en: "This is a big game, and the game’s website hands such a map over slowly: the wait can reach a minute, so it opens noticeably longer than small ones. We keep the answer for six hours — the next openings will be quick."},
+	"game.foreign.note": {ru: "В этой партии общий аккаунт проекта не играет, поэтому смотрим на неё со стороны: карта, состав, альянсы и коалиции видны, а вот делать в партии что-либо — призывать пехоту, например — некому. Партия про такой взгляд не узнаёт: входом в неё он не считается.", en: "The shared project account does not play in this game, so we look at it from the outside: the map, the roster, alliances and coalitions are all visible, but there is no one to act in the game — to deploy infantry, for one. The game never learns about such a look: it does not count as entering."},
 
 	"game.we":            {ru: "Что делаем сами", en: "What we do ourselves"},
 	"game.hero.on":       {ru: "Включить призыв пехоты", en: "Turn infantry deployment on"},
@@ -345,15 +343,18 @@ var messages = map[string]entry{
 	"game.limit.loading": {ru: "Собираем данные о партии…", en: "Collecting the game data…"},
 
 	// Карта и её режимы.
+	// Вкладка карты называется по-игровому: в самой Supremacy это альянс.
+	// Наш справочник со статусами — отдельная вещь, он так и остался «Кланы».
+	"game.map.clans":           {ru: "Альянсы", en: "Alliances"},
 	"game.map.mine":            {ru: "Мои списки", en: "My lists"},
 	"game.map.teams":           {ru: "Коалиции", en: "Coalitions"},
 	"game.map.players":         {ru: "Игроки", en: "Players"},
 	"game.map.power":           {ru: "Сила", en: "Strength"},
-	"game.map.top":             {ru: "Топ кланов", en: "Top clans"},
-	"game.map.aria":            {ru: "Карта партии: провинции раскрашены по кланам владельцев, по вашим личным спискам, по коалициям, по роду игрока (обычный, компьютерный, с премиумом, забаненный), по силе игрока рядом с вашей или по месту клана в рейтинге", en: "Game map: provinces are coloured by their owners’ clans, by your personal lists, by coalitions, by the kind of player (regular, computer, with premium, banned), by the player’s strength next to yours or by the clan’s place in the ranking"},
-	"game.map.clans.note":      {ru: "Цвет провинции — клан её владельца, число в легенде — сколько у клана провинций. Кланы берутся из самой Supremacy, а не из нашего справочника: важно, кто с кем в игре, а не кого мы как записали. Цвета раздаются на партию по убыванию владений, поэтому в соседней партии тот же клан будет другого цвета. Серым закрашены ничейные земли и все, кто ни в каком клане не состоит.", en: "A province’s colour is its owner’s clan; the number in the legend is how many provinces that clan holds. Clans come from Supremacy itself, not from our directory: what matters is who is with whom in the game, not how we recorded them. Colours are handed out per game by holdings, so the same clan will be a different colour in the next game. Grey covers neutral land and everyone with no clan."},
-	"game.map.clans.empty":     {ru: "Карта серая: ни один игрок этой партии в клане не состоит — по крайней мере, так отвечает сайт игры.", en: "The map is grey: no player in this game is in a clan — at least that is what the game’s website says."},
-	"game.map.clans.pending":   {ru: "Про %d игроков этой партии клан ещё не знаем — они пока серые. Обычно кланы приезжают вместе с составом партии, так что это те, кто вошёл в неё совсем недавно; их спросит фоновый воркер, загляните позже.", en: "We do not know the clan of %d players in this game yet — they stay grey for now. Clans usually arrive with the roster, so these are the ones who joined very recently; the background worker will ask about them, come back later."},
+	"game.map.top":             {ru: "Топ альянсов", en: "Top alliances"},
+	"game.map.aria":            {ru: "Карта партии: провинции раскрашены по альянсам владельцев, по вашим личным спискам, по коалициям, по роду игрока (обычный, компьютерный, с премиумом, забаненный), по силе игрока рядом с вашей или по месту альянса в рейтинге", en: "Game map: provinces are coloured by their owners’ alliances, by your personal lists, by coalitions, by the kind of player (regular, computer, with premium, banned), by the player’s strength next to yours or by the alliance’s place in the ranking"},
+	"game.map.clans.note":      {ru: "Цвет провинции — альянс её владельца, число в легенде — сколько у альянса провинций. Альянсы берутся из самой Supremacy, а не из нашего справочника кланов: важно, кто с кем в игре, а не кого мы как записали. Цвета раздаются на партию по убыванию владений, поэтому в соседней партии тот же альянс будет другого цвета. Серым закрашены ничейные земли и все, кто ни в каком альянсе не состоит.", en: "A province’s colour is its owner’s alliance; the number in the legend is how many provinces that alliance holds. Alliances come from Supremacy itself, not from our clan directory: what matters is who is with whom in the game, not how we recorded them. Colours are handed out per game by holdings, so the same alliance will be a different colour in the next game. Grey covers neutral land and everyone in no alliance."},
+	"game.map.clans.empty":     {ru: "Карта серая: ни один игрок этой партии в альянсе не состоит — по крайней мере, так отвечает сайт игры.", en: "The map is grey: no player in this game is in an alliance — at least that is what the game’s website says."},
+	"game.map.clans.pending":   {ru: "Про %d игроков этой партии альянс ещё не знаем — они пока серые. Обычно альянсы приезжают вместе с составом партии, так что это те, кто вошёл в неё совсем недавно; их спросит фоновый воркер, загляните позже.", en: "We do not know the alliance of %d players in this game yet — they stay grey for now. Alliances usually arrive with the roster, so these are the ones who joined very recently; the background worker will ask about them, come back later."},
 	"game.map.sides.enemies":   {ru: "Во врагах", en: "In enemies"},
 	"game.map.sides.friends":   {ru: "В друзьях", en: "In friends"},
 	"game.map.sides.note":      {ru: "Красным закрашены владения ваших врагов, зелёным — друзей, серым — все остальные; названия их стран подписаны мечом и рукопожатием. Списки личные: сосед видит эту же партию размеченной по-своему.", en: "Red covers your enemies’ holdings, green your friends’, grey everyone else; their country names carry a sword and a handshake. The lists are personal: your neighbour sees the same game marked their own way."},
@@ -376,15 +377,15 @@ var messages = map[string]entry{
 	"game.map.power.note":      {ru: "Опасность игрока — его уровень, умноженный на кд: сколько чужих войск он снёс на каждое своё потерянное. Кд считается только по боям с живыми игроками — бои с компьютерными сайт держит отдельно, и фарм ботов за опасность не считается. Красным закрашены те, у кого опасность выше вашей, зелёным — ниже, жёлтым — примерно ваша. Счёт мы держим у себя и пересчитываем, когда он старше недели: сайт отвечает про игрока за раз, поэтому новая партия открывается на несколько секунд дольше, а уже виденная — как обычно. Серыми остаются компьютерные игроки — счёта у них не бывает вовсе — и те, о ком сайт промолчал: так бывает с удалёнными аккаунтами. В легенде компьютерные не считаются.", en: "A player’s danger is their level times their K/D: how many enemy units they destroyed for each one of their own lost. The K/D counts battles against live players only — the site keeps battles against computer players separately, and farming AI does not count as danger. Red covers those more dangerous than you, green those less, yellow those about equal. We keep the stats and recompute them once they are older than a week: the site answers about one player at a time, so a new game takes a few seconds longer to open, while an already seen one opens as usual. Grey is left for computer players — they have no stats at all — and for those the site said nothing about, as happens with deleted accounts. The legend does not count computer players."},
 	"game.map.power.noid":      {ru: "Сравнивать не с чем: в вашем профиле не указан игровой ID, а без него мы не знаем вашего счёта.", en: "Nothing to compare with: your profile has no game ID, and without it we do not know your stats."},
 	"game.map.power.nostats":   {ru: "Сравнивать не с чем: сайт игры не рассказал о вашем счёте.", en: "Nothing to compare with: the game’s website told us nothing about your stats."},
-	"game.map.top.note":        {ru: "Цвет провинции — клан её владельца из первой десятки рейтинга Supremacy; число перед названием — место в рейтинге, оно же решает, кому какой цвет, поэтому первый номер выглядит одинаково во всех партиях. В легенде сначала сколько игроков этого клана в партии, потом сколько у них провинций. Серым — все прочие: и без клана, и с кланом не из топа.", en: "A province’s colour is its owner’s clan from the top ten of the Supremacy ranking; the number before the name is its place in the ranking, and that place also decides the colour, so the first is the same colour in every game. The legend gives how many players of that clan are in this game, then how many provinces they hold. Grey is everyone else: no clan, or a clan outside the top."},
-	"game.map.top.empty":       {ru: "Карта серая: игроков из первой десятки рейтинга кланов в этой партии нет.", en: "The map is grey: this game has no players from the top ten of the clan ranking."},
-	"game.map.top.none":        {ru: "Топ кланов ещё не снимали, красить нечем. Рейтинг забирает фоновый воркер — загляните позже.", en: "The top clans have not been captured yet, so there is nothing to colour. A background worker fetches the ranking — come back later."},
+	"game.map.top.note":        {ru: "Цвет провинции — альянс её владельца из первой десятки рейтинга Supremacy; число перед названием — место в рейтинге, оно же решает, кому какой цвет, поэтому первый номер выглядит одинаково во всех партиях. В легенде сначала сколько игроков этого альянса в партии, потом сколько у них провинций. Серым — все прочие: и без альянса, и с альянсом не из топа.", en: "A province’s colour is its owner’s alliance from the top ten of the Supremacy ranking; the number before the name is its place in the ranking, and that place also decides the colour, so the first is the same colour in every game. The legend gives how many players of that alliance are in this game, then how many provinces they hold. Grey is everyone else: no alliance, or an alliance outside the top."},
+	"game.map.top.empty":       {ru: "Карта серая: игроков из первой десятки рейтинга альянсов в этой партии нет.", en: "The map is grey: this game has no players from the top ten of the alliance ranking."},
+	"game.map.top.none":        {ru: "Топ альянсов ещё не снимали, красить нечем. Рейтинг забирает фоновый воркер — загляните позже.", en: "The top alliances have not been captured yet, so there is nothing to colour. A background worker fetches the ranking — come back later."},
 	"game.map.top.at":          {ru: "Рейтинг снят %s; обновляется раз в месяц.", en: "The ranking was captured %s; it is refreshed once a month."},
 	"game.map.top.players":     {ru: "игроков", en: "players"},
 	"game.map.top.provinces":   {ru: "провинций", en: "provinces"},
 	"game.map.yours":           {ru: "Ваши провинции обведены жёлтым во всех режимах.", en: "Your provinces are outlined in yellow in every mode."},
 	"tip.power":                {ru: "%d уровень, кд %s", en: "level %d, K/D %s"},
-	"game.map.hover":           {ru: "Наведите на провинцию, чтобы увидеть, чья она: подсказка говорит всё сразу — страну, игрока, клан, премиум, бан и оба ваших списка.", en: "Hover a province to see whose it is: the tooltip says it all at once — country, player, clan, premium, ban and both of your lists."},
+	"game.map.hover":           {ru: "Наведите на провинцию, чтобы увидеть, чья она: подсказка говорит всё сразу — страну, игрока, альянс, премиум, бан и оба ваших списка.", en: "Hover a province to see whose it is: the tooltip says it all at once — country, player, alliance, premium, ban and both of your lists."},
 
 	"game.friends.here":  {ru: "Из ваших друзей здесь играют:", en: "Friends of yours playing here:"},
 	"game.friends.none":  {ru: "Из ваших друзей в этой партии никого.", en: "None of your friends are in this game."},
@@ -557,9 +558,9 @@ var messages = map[string]entry{
 
 	// Подсказка над провинцией собирается из кусков, поэтому и переводится
 	// кусками: клан и коалиция называются, остальное — готовые слова.
-	"tip.clan":       {ru: "клан %s", en: "clan %s"},
+	"tip.clan":       {ru: "альянс %s", en: "alliance %s"},
 	"tip.team":       {ru: "коалиция %s", en: "coalition %s"},
-	"tip.top":        {ru: "%d место в рейтинге кланов, %s", en: "rank %d in the clan ranking, %s"},
+	"tip.top":        {ru: "%d место в рейтинге альянсов, %s", en: "rank %d in the alliance ranking, %s"},
 	"game.unknown":   {ru: "неизвестно", en: "unknown"},
 	"game.noname":    {ru: "без названия", en: "unnamed"},
 	"game.bannedone": {ru: "забанен", en: "banned"},
@@ -569,6 +570,7 @@ var messages = map[string]entry{
 	"games.badnumber":       {ru: "Не похоже на номер партии. Номер — это число, его видно в адресе партии.", en: "That does not look like a game number. The number is a numeral, visible in the game’s address."},
 	"games.list.error":      {ru: "Не удалось получить список игр: %v", en: "Could not fetch the list of games: %v"},
 	"game.notfound":         {ru: "Партии %s не нашлось: %v", en: "Game %s was not found: %v"},
+	"game.slow":             {ru: "Партия большая, и сайт игры не ответил за %d с. Так бывает с картами на сотни игроков: попробуйте открыть ещё раз — со второго захода обычно приходит.", en: "The game is big, and its website did not answer within %d s. That happens with maps of hundreds of players: try opening it again — the second attempt usually gets through."},
 	"game.roster.error":     {ru: "Состав партии не получен: %v", en: "Could not fetch the roster: %v"},
 	"game.enter.error":      {ru: "Не удалось зайти в партию: %v", en: "Could not enter the game: %v"},
 	"game.observe.error":    {ru: "Не удалось посмотреть партию со стороны: %v", en: "Could not look at the game from the outside: %v"},

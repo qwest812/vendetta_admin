@@ -13,21 +13,13 @@ const searchLimit = 50
 
 // home — стартовый экран поиска.
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
-	query, status, traits := searchParams(r)
-	players, err := s.findPlayers(r, query, status, traits)
+	query, status := searchParams(r)
+	players, err := s.findPlayers(r, query, status)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	total, err := s.players.Count(r.Context())
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	// Справочник нужен на самой странице: галочки фильтра — это он и есть.
-	// Неактивные не показываем, но уже проставленные отметки живы, поэтому
-	// в карточках они остаются.
-	all, err := s.traits.List(r.Context(), true)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -39,15 +31,14 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	}
 	s.render(w, r, http.StatusOK, "home", merge(marks, map[string]any{
 		"Query": query, "Status": string(status), "Players": players,
-		"Traits": all, "Selected": chosen(traits), "SelectedTraits": traits,
 		"Total": total, "Limit": searchLimit, "CanMark": true,
 	}))
 }
 
 // search отвечает на живой ввод: HTMX подменяет только список результатов.
 func (s *Server) search(w http.ResponseWriter, r *http.Request) {
-	query, status, traits := searchParams(r)
-	players, err := s.findPlayers(r, query, status, traits)
+	query, status := searchParams(r)
+	players, err := s.findPlayers(r, query, status)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -58,7 +49,7 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.renderPartial(w, r, "home", "results", merge(marks, map[string]any{
-		"Query": query, "Status": string(status), "SelectedTraits": traits,
+		"Query": query, "Status": string(status),
 		"Players": players, "Limit": searchLimit, "CanMark": true,
 	}))
 }
@@ -90,45 +81,27 @@ func merge(base, extra map[string]any) map[string]any {
 }
 
 // searchParams разбирает строку запроса. Незнакомый статус — это не ошибка,
-// а «фильтр не выбран»: поиск не то место, где показывают 400. С признаками
-// так же: незнакомый код просто никому не подойдёт, и ответом будет пусто.
-func searchParams(r *http.Request) (string, domain.ClanStatus, []string) {
+// а «фильтр не выбран»: поиск не то место, где показывают 400.
+func searchParams(r *http.Request) (string, domain.ClanStatus) {
 	q := r.URL.Query()
 	query := strings.TrimSpace(q.Get("q"))
 	status, ok := domain.ParseClanStatus(q.Get("status"))
 	if !ok {
 		status = ""
 	}
-
-	var traits []string
-	for _, code := range q["traits"] {
-		if code = strings.TrimSpace(code); code != "" {
-			traits = append(traits, code)
-		}
-	}
-	return query, status, traits
+	return query, status
 }
 
-// chosen — отмеченные признаки набором, чтобы шаблон не искал код в списке
-// на каждой галочке.
-func chosen(codes []string) map[string]bool {
-	out := make(map[string]bool, len(codes))
-	for _, c := range codes {
-		out[c] = true
-	}
-	return out
-}
+// findPlayers ищет только когда есть о чём спрашивать: пустая строка и
+// невыбранный статус — это ещё не запрос, и вываливать в ответ на них всю
+// базу незачем.
+func (s *Server) findPlayers(r *http.Request, query string,
+	status domain.ClanStatus) ([]*domain.Player, error) {
 
-// findPlayers ищет только когда есть о чём спрашивать: пустая строка,
-// невыбранный статус и ни одной галочки — это ещё не запрос, и вываливать
-// в ответ на них всю базу незачем.
-func (s *Server) findPlayers(r *http.Request, query string, status domain.ClanStatus,
-	traits []string) ([]*domain.Player, error) {
-
-	if query == "" && status == "" && len(traits) == 0 {
+	if query == "" && status == "" {
 		return nil, nil
 	}
-	return s.players.Search(r.Context(), query, status, traits, searchLimit)
+	return s.players.Search(r.Context(), query, status, searchLimit)
 }
 
 func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {

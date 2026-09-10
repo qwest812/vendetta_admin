@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"html/template"
 	"net/http"
 	"regexp"
@@ -18,7 +19,16 @@ import (
 
 // gamesTimeout ограничивает поход в игру: страницу открывает живой человек
 // и ждать он готов недолго, а API Supremacy иногда отвечает минутами.
-const gamesTimeout = 20 * time.Second
+//
+// bigGameTimeout — то же для больших партий. Двадцати секунд им не хватает:
+// состав на четыреста человек сайт собирает секунд двадцать, и страница
+// отваливалась ровно на пороге, ничего не показав. Минута — плата за то,
+// чтобы такая партия открылась вообще; человеку об этом говорят на самой
+// странице, а следующие шесть часов ответ берётся из кэша.
+const (
+	gamesTimeout   = 20 * time.Second
+	bigGameTimeout = time.Minute
+)
 
 // statsFresh — сколько посчитанный боевой счёт считается годным. Неделя:
 // счёт набирается партиями, а партия идёт неделями, и на цвет провинции
@@ -61,6 +71,20 @@ type gameSource interface {
 	// заходом в партию это не считается.
 	UserStatsBatch(ctx context.Context, siteUserIDs []string) (map[string]*supremacy.UserStats, error)
 	UserID() string
+	// GameSize — состав партии числом, если о ней уже спрашивали. По нему
+	// выбирается срок ожидания, см. gameBudget.
+	GameSize(gameID string) (int, bool)
+}
+
+// gameBudget — сколько ждать игру на этой странице. Размер партии заранее
+// неизвестен: его называет тот самый ответ, которого мы ждём. Поэтому
+// незнакомую партию считаем большой и даём ей полную минуту, а короткий
+// срок оставляем тем, про кого уже точно знаем, что они маленькие.
+func (s *Server) gameBudget(gameID string) time.Duration {
+	if n, ok := s.games.GameSize(gameID); ok && n < supremacy.BigRoster {
+		return gamesTimeout
+	}
+	return bigGameTimeout
 }
 
 // gameView — строка таблицы. Игра отдаёт всё строками, включая время,
@@ -1456,9 +1480,11 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		"ChecksTotal": 0, "ChecksLeft": 0, "ChecksCounted": false, "ChecksOut": false,
 		// LoaderMs — сколько держать «собираем данные». Ноль — не держать.
 		"LoaderMs": 0,
+		// BigGame — состав большой партии числом; ноль значит «обычная».
+		"BigGame": 0,
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), s.gameBudget(gameID))
 	defer cancel()
 
 	// Три похода наружу независимы, а суммарно занимают почти три секунды,
@@ -1561,15 +1587,32 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	game, roster, err := got.game, got.roster, got.err
 	if err != nil {
 		s.log.Warn("сведения о партии", "gameID", gameID, "err", err)
+		// Не дождались — случай отдельный от всех прочих: партия жива,
+		// просто велика, и говорить про неё «не нашлось» неправда. Номер
+		// в такой ответ не идёт: человек его только что ввёл сам.
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			data["Error"] = joinErrors(errMsg,
+				lang.T("game.slow", waitSeconds(s.gameBudget(gameID))))
 		// Своя партия переживёт молчание сайта: название и день уже есть
-		// из списка, а кланы возьмутся из базы. Чужая — нет, про неё мы
+		// из списка, а альянсы возьмутся из базы. Чужая — нет, про неё мы
 		// больше ничего и не знаем.
-		if data["Game"] == nil {
+		case data["Game"] == nil:
 			data["Error"] = joinErrors(errMsg, lang.T("game.notfound", gameID, err))
+		default:
+			data["Error"] = joinErrors(errMsg, lang.T("game.roster.error", err))
+		}
+		if data["Game"] == nil {
 			s.render(w, r, http.StatusOK, "game", data)
 			return
 		}
-		data["Error"] = joinErrors(errMsg, lang.T("game.roster.error", err))
+	}
+
+	// Большая партия открывается ощутимо дольше маленькой, и человеку об
+	// этом стоит сказать самому: иначе долгое ожидание выглядит поломкой.
+	// Заодно объясняем, почему второй заход мгновенный.
+	if n := len(roster); n >= supremacy.BigRoster {
+		data["BigGame"] = n
 	}
 
 	// Кланы из состава кладём в базу независимо от того, дошло ли дело

@@ -30,6 +30,13 @@
                 {{t "game.foreign.note"}}
             </p>
         {{end}}
+        {{/* Про долгое открытие говорим на самой странице: ждать минуту
+             молча — это выглядеть сломанным. */}}
+        {{if .BigGame}}
+            <p class="muted">
+                {{t "game.big.note"}}
+            </p>
+        {{end}}
     {{end}}
 </div>
 
@@ -109,7 +116,7 @@
 
     {{if .Map}}
         {{/* Карта одна, режимов два: в каждом заливка говорит об одном
-             и только одном, поэтому кланы и личные списки не спорят
+             и только одном, поэтому альянсы и личные списки не спорят
              за цвет. Переключение — на радиокнопках и css: очертания
              провинций тяжёлые, второй раз выводить их незачем, а скрипт
              ради смены цветов сюда не просится. Порядок важен — правила
@@ -122,7 +129,7 @@
             <input class="map-mode" type="radio" name="map-mode" id="map-power">
             <input class="map-mode" type="radio" name="map-mode" id="map-top">
             <div class="map-tabs">
-                <label for="map-clans">{{t "nav.clans"}}</label>
+                <label for="map-clans">{{t "game.map.clans"}}</label>
                 <label for="map-sides">{{t "game.map.mine"}}</label>
                 <label for="map-teams">{{t "game.map.teams"}}</label>
                 <label for="map-players">{{t "game.map.players"}}</label>
@@ -143,7 +150,7 @@
                      своих владений. */}}
                 {{range .Map.Labels}}
                     {{/* Значок отдельным tspan: он красится не как название
-                         и в режиме кланов прячется целиком. Ник — второй
+                         и в режиме альянсов прячется целиком. Ник — второй
                          строкой: перенос в svg не делается сам, поэтому
                          у строки заново задаются x и сдвиг по y. */}}
                     <text x="{{.X}}" y="{{.Y}}" text-anchor="middle"

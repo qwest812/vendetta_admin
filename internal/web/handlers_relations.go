@@ -129,7 +129,7 @@ func (rs *relationSection) pick(r *http.Request, query string) (map[string]any, 
 		return data, nil
 	}
 
-	players, err := rs.srv.players.Search(r.Context(), query, "", nil, relationCandidates)
+	players, err := rs.srv.players.Search(r.Context(), query, "", relationCandidates)
 	if err != nil {
 		return nil, err
 	}

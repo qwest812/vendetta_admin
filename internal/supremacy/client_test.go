@@ -10,8 +10,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -225,6 +227,51 @@ func TestGameCacheExpires(t *testing.T) {
 	}
 }
 
+// Большую партию держим в кэше дольше маленькой: ответ по ней стоит минуты
+// ожидания, а устаревает не быстрее — за полдня в партии успевает поменяться
+// разве что чей-то альянс.
+func TestBigGameCacheLivesLonger(t *testing.T) {
+	c := newOfflineClient()
+	old := time.Now().Add(-rosterTTL - time.Minute)
+	c.games = map[string]*gameEntry{
+		"10875491": bigCachedGame(old),
+		"10900334": cachedGame(old),
+	}
+
+	if _, _, err := c.Game(context.Background(), "10875491"); err != nil {
+		t.Errorf("состав большой партии должен жить дольше получаса: %v", err)
+	}
+	if _, _, err := c.Game(context.Background(), "10900334"); err == nil {
+		t.Error("состав обычной партии через полчаса должен спрашиваться заново")
+	}
+
+	// Шесть часов — предел и для большой.
+	c.games = map[string]*gameEntry{"10875491": bigCachedGame(time.Now().Add(-bigRosterTTL - time.Minute))}
+	if _, _, err := c.Game(context.Background(), "10875491"); err == nil {
+		t.Error("через шесть часов состав должен спрашиваться заново")
+	}
+}
+
+// Размер партии переживает свой же ответ: сам состав протухает, а число
+// игроков остаётся — по нему решают, сколько ждать сайт в следующий раз.
+func TestGameSizeOutlivesCache(t *testing.T) {
+	c := newOfflineClient()
+	if _, ok := c.GameSize("10875491"); ok {
+		t.Fatal("про партию ещё не спрашивали, размера быть не должно")
+	}
+
+	c.noteSize("10875491", 390)
+	c.games = map[string]*gameEntry{}
+
+	n, ok := c.GameSize("10875491")
+	if !ok || n != 390 {
+		t.Errorf("размер = %d (известен=%v), ждали 390", n, ok)
+	}
+	if n < BigRoster {
+		t.Errorf("партия на %d игроков должна считаться большой", n)
+	}
+}
+
 // Пока одну партию спрашивают, второй спрашивающий ждёт — но не дольше,
 // чем нужен его собственной странице.
 func TestGameCacheWaitsUnderContext(t *testing.T) {
@@ -269,6 +316,14 @@ func cachedGame(at time.Time) *gameEntry {
 		logins: []GameLogin{{Login: "Vakyla", SiteUserID: "2953349"}},
 		at:     at,
 	}
+}
+
+// bigCachedGame — та же ячейка, но с составом большой партии: важен здесь
+// только его размер, поэтому логины одинаковые.
+func bigCachedGame(at time.Time) *gameEntry {
+	e := cachedGame(at)
+	e.logins = make([]GameLogin, BigRoster)
+	return e
 }
 
 // newOfflineClient — клиент, которому запрещено ходить в сеть: всё, что
@@ -818,5 +873,256 @@ func TestGameSpeed(t *testing.T) {
 		if got := g.Speed(); got != tt.want {
 			t.Errorf("Speed(%s) = %v, ожидалось x%v", tt.raw, got, tt.want)
 		}
+	}
+}
+
+// countingTransport — сеть, которая всегда отказывает и считает попытки.
+type countingTransport struct{ tries int }
+
+func (t *countingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	t.tries++
+	return nil, errors.New("сети нет")
+}
+
+// Сайт игры на частые входы отвечает отказом всем подряд, а каждый вызов
+// воркера превращался в новую попытку войти — и отказ только затягивался.
+// После неудачи держим паузу: зовущий получает ту же ошибку, но сайт при
+// этом не трогаем вовсе.
+func TestLoginBackoffStopsRetrying(t *testing.T) {
+	tr := &countingTransport{}
+	c := NewClient("user", "pass", "ru", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	c.http = &http.Client{Transport: tr}
+
+	if _, err := c.ensureSession(context.Background()); err == nil {
+		t.Fatal("без сети вход должен не удаться")
+	}
+	first := tr.tries
+	if first == 0 {
+		t.Fatal("первая попытка должна дойти до сети")
+	}
+
+	for i := 0; i < 20; i++ {
+		if _, err := c.ensureSession(context.Background()); err == nil {
+			t.Fatal("во время паузы вход не должен удаваться")
+		}
+	}
+	if tr.tries != first {
+		t.Errorf("за паузу сходили в сеть ещё %d раз", tr.tries-first)
+	}
+
+	// Пауза кончилась — пробуем снова, и она становится длиннее.
+	c.mu.Lock()
+	c.loginNextAt = time.Now().Add(-time.Second)
+	c.mu.Unlock()
+	if _, err := c.ensureSession(context.Background()); err == nil {
+		t.Fatal("без сети вход должен не удаться")
+	}
+	if tr.tries == first {
+		t.Error("после паузы попытка должна дойти до сети")
+	}
+	if c.loginFails != 2 {
+		t.Errorf("неудач подряд = %d, ждали 2", c.loginFails)
+	}
+	if want := loginBackoff[1]; time.Until(c.loginNextAt) <= loginBackoff[0] {
+		t.Errorf("вторая пауза должна быть длиннее первой (ждали около %v)", want)
+	}
+}
+
+// memorySessions — хранилище подписи в памяти, для тестов.
+type memorySessions struct {
+	saved  SavedSession
+	has    bool
+	loads  int
+	writes int
+}
+
+func (m *memorySessions) LoadSession(context.Context) (SavedSession, bool, error) {
+	m.loads++
+	return m.saved, m.has, nil
+}
+
+func (m *memorySessions) SaveSession(_ context.Context, s SavedSession) error {
+	m.saved, m.has = s, true
+	m.writes++
+	return nil
+}
+
+// Подпись прошлого запуска избавляет от входа: перезапуск приложения не
+// повод входить в игру заново, а каждый лишний вход приближает отказ.
+func TestSessionRestoredFromStore(t *testing.T) {
+	tr := &countingTransport{}
+	c := NewClient("user", "pass", "ru", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	c.http = &http.Client{Transport: tr}
+	store := &memorySessions{has: true, saved: SavedSession{
+		UserID: "101408369", AuthHash: "d51a4c06", AuthTstamp: "1788", SavedAt: time.Now(),
+	}}
+	c.UseSessionStore(store)
+
+	sess, err := c.ensureSession(context.Background())
+	if err != nil {
+		t.Fatalf("подпись из хранилища: %v", err)
+	}
+	if sess.userID != "101408369" || sess.authHash != "d51a4c06" {
+		t.Errorf("взяли не ту подпись: %+v", sess)
+	}
+	if tr.tries != 0 {
+		t.Errorf("при живой подписи в сеть ходить незачем, сходили %d раз", tr.tries)
+	}
+
+	// Не подошла — узнаём об этом от игры, и второй раз её не достаём:
+	// мёртвая подпись мертва до конца процесса.
+	c.invalidate(sess)
+	if _, err := c.ensureSession(context.Background()); err == nil {
+		t.Fatal("без сети вход должен не удаться")
+	}
+	if store.loads != 1 {
+		t.Errorf("хранилище прочитано %d раз, должно ровно один", store.loads)
+	}
+}
+
+// Слишком старую подпись не пробуем: сколько она живёт, знает только сервер
+// игры, и попытка кончилась бы тем же входом, но с лишним вызовом.
+func TestStaleSessionIgnored(t *testing.T) {
+	tr := &countingTransport{}
+	c := NewClient("user", "pass", "ru", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	c.http = &http.Client{Transport: tr}
+	c.UseSessionStore(&memorySessions{has: true, saved: SavedSession{
+		UserID: "101408369", AuthHash: "d51a4c06",
+		SavedAt: time.Now().Add(-sessionReuse - time.Hour),
+	}})
+
+	if _, err := c.ensureSession(context.Background()); err == nil {
+		t.Fatal("протухшую подпись брать нельзя, а сети нет — должна быть ошибка")
+	}
+	if tr.tries == 0 {
+		t.Error("вместо старой подписи должен быть вход")
+	}
+}
+
+// loginTransport — сеть, в которой вход всегда удаётся. Считает, сколько раз
+// на самом деле логинились, и держит каждый вход медленным: без задержки
+// гонку за подписью не поймать.
+type loginTransport struct {
+	mu    sync.Mutex
+	tries int
+	delay time.Duration
+}
+
+func (t *loginTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	// Страница входа: на ней клиент только греет куки.
+	if r.Method == http.MethodGet {
+		return t.page(r, "<html>вход</html>"), nil
+	}
+
+	t.mu.Lock()
+	t.tries++
+	t.mu.Unlock()
+	time.Sleep(t.delay)
+
+	// Удачный вход уводит на game.php, и подпись лежит прямо в нём.
+	done := r.Clone(r.Context())
+	done.URL = &url.URL{Scheme: "https", Host: "www.supremacy1914.com", Path: "/game.php"}
+	return t.page(done, `<script>var s = "uberAuthHash=`+strings.Repeat("a", 40)+
+		`&uberAuthTstamp=1788984426&userID=101408369";</script>`), nil
+}
+
+func (t *loginTransport) page(r *http.Request, body string) *http.Response {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     make(http.Header),
+		Request:    r,
+	}
+}
+
+// Подпись общая: входит первый, а получают её все сразу. Иначе пятеро
+// воркеров, столкнувшихся на протухшей подписи, устроили бы пять входов
+// подряд — то самое, за что сайт игры и отказывает.
+func TestOneLoginServesEveryone(t *testing.T) {
+	tr := &loginTransport{delay: 50 * time.Millisecond}
+	c := NewClient("user", "pass", "ru", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	c.http = &http.Client{Transport: tr}
+
+	const callers = 5
+	var wg sync.WaitGroup
+	got := make([]*session, callers)
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			sess, err := c.ensureSession(context.Background())
+			if err != nil {
+				t.Errorf("зовущий %d: %v", i, err)
+				return
+			}
+			got[i] = sess
+		}(i)
+	}
+	wg.Wait()
+
+	if tr.tries != 1 {
+		t.Errorf("входов было %d, должен быть один на всех", tr.tries)
+	}
+	for i, sess := range got {
+		if sess == nil || sess != got[0] {
+			t.Errorf("зовущий %d получил не ту подпись: %v", i, sess)
+		}
+	}
+}
+
+// Ждущий волен уйти по своему сроку: у страницы партии он свой, и стоять
+// за чужим входом дольше него незачем. Сам вход при этом идёт дальше —
+// он нужен не одной ей, — и подпись достаётся всем следующим.
+func TestWaiterLeavesButLoginGoesOn(t *testing.T) {
+	tr := &loginTransport{delay: 300 * time.Millisecond}
+	c := NewClient("user", "pass", "ru", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	c.http = &http.Client{Transport: tr}
+
+	// Нетерпеливый: его срок кончится посреди входа.
+	quick, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if _, err := c.ensureSession(quick); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("ждущий должен уйти по своему сроку, а получил %v", err)
+	}
+	if waited := time.Since(start); waited > 200*time.Millisecond {
+		t.Errorf("ждал %v — значит, стоял за чужим входом", waited)
+	}
+
+	// Терпеливый приходит следом и получает ту же подпись: своей попытки
+	// он не заводит.
+	sess, err := c.ensureSession(context.Background())
+	if err != nil {
+		t.Fatalf("подпись: %v", err)
+	}
+	if sess == nil || sess.userID != "101408369" {
+		t.Errorf("подпись не та: %+v", sess)
+	}
+	if tr.tries != 1 {
+		t.Errorf("входов было %d, должен быть один: уход ждущего вход не отменяет", tr.tries)
+	}
+}
+
+// Уход ждущего не считается неудачей входа: иначе закрытая вкладка ставила
+// бы всем паузу на полминуты.
+func TestWaiterLeavingIsNotAFailure(t *testing.T) {
+	tr := &loginTransport{delay: 200 * time.Millisecond}
+	c := NewClient("user", "pass", "ru", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	c.http = &http.Client{Transport: tr}
+
+	quick, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if _, err := c.ensureSession(quick); err == nil {
+		t.Fatal("ждущий должен уйти по своему сроку")
+	}
+	if _, err := c.ensureSession(context.Background()); err != nil {
+		t.Fatalf("вход должен был дойти до конца: %v", err)
+	}
+
+	c.mu.Lock()
+	fails, next := c.loginFails, c.loginNextAt
+	c.mu.Unlock()
+	if fails != 0 || !next.IsZero() {
+		t.Errorf("неудач %d, пауза до %v — а неудачи не было", fails, next)
 	}
 }
