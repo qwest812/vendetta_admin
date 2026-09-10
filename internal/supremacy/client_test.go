@@ -1160,3 +1160,28 @@ func TestMyGamesCached(t *testing.T) {
 		t.Error("протухший список должен спрашиваться у сайта заново")
 	}
 }
+
+// Распавшийся клан игра отдаёт кодом -23. Воркер отличает его от временных
+// отказов, чтобы не держать в очереди то, чего нет, — и узнаёт через
+// errors.Is, а не сверяя число у себя. Проверяем сам этот стык: подмена
+// живёт в Unwrap, и сломать её можно, ничего не заметив.
+func TestNoSuchAllianceIsRecognized(t *testing.T) {
+	err := error(&APIError{
+		Action: "getAlliance", Code: codeNoSuchAlliance, Message: "Alliance does not exist",
+	})
+	if !errors.Is(err, ErrNoSuchAlliance) {
+		t.Errorf("код %d не опознан как распавшийся клан", codeNoSuchAlliance)
+	}
+	// Текст отказа при этом остаётся прежним: подменяется только то,
+	// с чем сравнивают.
+	if !strings.Contains(err.Error(), "Alliance does not exist") {
+		t.Errorf("текст отказа потерялся: %q", err.Error())
+	}
+
+	// Прочие коды под ту же ошибку не подпадают, иначе временный отказ
+	// считался бы распадом.
+	other := error(&APIError{Action: "getAlliance", Code: -1, Message: "сайт устал"})
+	if errors.Is(other, ErrNoSuchAlliance) {
+		t.Error("обычный отказ принят за распавшийся клан")
+	}
+}

@@ -136,6 +136,19 @@ func (r *Alliances) StaleAlliances(ctx context.Context, olderThan time.Time, lim
 	return out, rows.Err()
 }
 
+// MarkAllianceGone помечает клан проверенным, хотя состава мы не получили:
+// его не существует. Смысл записи тот же, что и у обычной проверки, —
+// «на этот момент было так», — и последствий у неё два. Клан уходит
+// в конец очереди вместо того, чтобы вечно быть в ней первым. А его люди,
+// наоборот, в очередь возвращаются: состав теперь свежее их самих, и Stale
+// снова отдаёт их на личный опрос — только он и расскажет, куда они делись.
+func (r *Alliances) MarkAllianceGone(ctx context.Context, allianceID string, at time.Time) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE supremacy_alliances SET checked_at = $2 WHERE alliance_id = $1`,
+		allianceID, at)
+	return err
+}
+
 // SaveRoster записывает состав клана: сам клан и всех его участников
 // разом. Один запрос к сайту закрывает столько игроков, сколько в клане
 // людей, — ради этого всё и затевалось.

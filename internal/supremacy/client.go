@@ -163,7 +163,14 @@ var loginBackoff = []time.Duration{
 const (
 	codeSessionExpired       = -17
 	codeAuthenticationFailed = -18
+	codeNoSuchAlliance       = -23
 )
+
+// ErrNoSuchAlliance — клана на сайте больше нет: распался или переименовался
+// в новый номер. Отличать этот отказ от временных важно потому, что повтор
+// не поможет никогда, а не «пока»: клан с таким ответом надо убирать
+// из очереди, иначе он будет занимать в ней место вечно.
+var ErrNoSuchAlliance = errors.New("клана нет на сайте")
 
 // APIError — игра ответила, но отказала.
 type APIError struct {
@@ -191,6 +198,16 @@ func (e *APIError) needsRelogin() bool {
 	default:
 		return false
 	}
+}
+
+// Unwrap подставляет опознанным кодам общую ошибку, чтобы зовущий разбирал
+// их через errors.Is, а не сверял числа у себя. Сам текст отказа при этом
+// остаётся: обёртки нет, подменяется только то, с чем сравнивают.
+func (e *APIError) Unwrap() error {
+	if e.Code == codeNoSuchAlliance {
+		return ErrNoSuchAlliance
+	}
+	return nil
 }
 
 func (e *APIError) Error() string {

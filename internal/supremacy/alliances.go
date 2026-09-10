@@ -41,6 +41,7 @@ type AllianceStore interface {
 	EnqueueAlliances(ctx context.Context, allianceIDs []string) error
 	StaleAlliances(ctx context.Context, olderThan time.Time, limit int) ([]string, error)
 	SaveRoster(ctx context.Context, alliance domain.Alliance, members []domain.Alliance, at time.Time) error
+	MarkAllianceGone(ctx context.Context, allianceID string, at time.Time) error
 }
 
 // allianceSource — тот, кто умеет спросить сайт. Интерфейс ради тестов:
@@ -131,6 +132,19 @@ func (w *AllianceWatcher) rosterTick(ctx context.Context) error {
 			if errors.Is(err, ErrLoginPaused) {
 				w.log.Warn("обход кланов отложен", "осталось", len(ids), "err", err)
 				return err
+			}
+			// Клана больше нет — это не отказ, а ответ, и повторять его
+			// незачем. Помечаем проверенным: иначе он навсегда остаётся
+			// самым давним в очереди и забирает место у живых кланов
+			// каждый тик. Заодно это освобождает его людей — состав
+			// становится свежее их самих, и они возвращаются в личный
+			// опрос, который и расскажет, где они теперь.
+			if errors.Is(err, ErrNoSuchAlliance) {
+				if err := w.store.MarkAllianceGone(ctx, id, w.now()); err != nil {
+					return err
+				}
+				w.log.Info("клан распался", "allianceID", id)
+				continue
 			}
 			// Один недоступный клан не отменяет остальных: он останется
 			// в очереди и попробуется на следующем тике.

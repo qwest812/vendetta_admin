@@ -20,6 +20,8 @@ type fakeAllianceStore struct {
 	enqueued   []string
 	rosters    map[string][]string
 	rosterName map[string]string
+	gone       []string
+	goneAt     time.Time
 }
 
 func (f *fakeAllianceStore) Stale(_ context.Context, _ time.Time, limit int) ([]string, error) {
@@ -58,6 +60,12 @@ func (f *fakeAllianceStore) SaveRoster(_ context.Context, alliance domain.Allian
 	for _, m := range members {
 		f.rosters[alliance.ID] = append(f.rosters[alliance.ID], m.SiteUserID)
 	}
+	return nil
+}
+
+func (f *fakeAllianceStore) MarkAllianceGone(_ context.Context, id string, at time.Time) error {
+	f.gone = append(f.gone, id)
+	f.goneAt = at
 	return nil
 }
 
@@ -246,5 +254,45 @@ func TestAllianceWatcherStopsWhenLoginPaused(t *testing.T) {
 	}
 	if len(src.rosters) != 1 {
 		t.Errorf("спросили составов: %d, ждали один", len(src.rosters))
+	}
+}
+
+// Клан может распасться, и тогда сайт отвечает на него не отказом, а фактом:
+// такого клана нет. Повторять этот вопрос бессмысленно — раньше он оставался
+// в очереди навсегда, и, поскольку очередь идёт от самых давних, забирал
+// место у живых кланов каждый тик. Теперь он помечается проверенным.
+func TestAllianceWatcherVanishedClan(t *testing.T) {
+	store := &fakeAllianceStore{clanQueue: []string{"829856"}}
+	src := &fakeAllianceSource{rosterErr: &APIError{
+		Action: "getAlliance", Code: codeNoSuchAlliance, Message: "Alliance does not exist",
+	}}
+
+	// Тик проходит без ошибки: клана нет — это ответ, а не поломка.
+	if err := testWatcher(src, store).tick(context.Background()); err != nil {
+		t.Fatalf("тик: %v", err)
+	}
+	if len(store.gone) != 1 || store.gone[0] != "829856" {
+		t.Fatalf("помечено распавшимися %v, ожидался 829856", store.gone)
+	}
+	if store.goneAt.IsZero() {
+		t.Error("время проверки не проставлено — клан останется первым в очереди")
+	}
+}
+
+// Отметка нужна ровно для того, чтобы люди распавшегося клана вернулись
+// в личный опрос: состав становится свежее их самих. Это уже дело запроса
+// Stale, а здесь важно, что временный отказ такой отметки не получает —
+// иначе клан, до которого сайт не достучался, считался бы распавшимся.
+func TestAllianceWatcherTemporaryFailureIsNotGone(t *testing.T) {
+	store := &fakeAllianceStore{clanQueue: []string{"843930"}}
+	src := &fakeAllianceSource{rosterErr: &APIError{
+		Action: "getAlliance", Code: -1, Message: "сайт устал",
+	}}
+
+	if err := testWatcher(src, store).rosterTick(context.Background()); err == nil {
+		t.Error("временный отказ потерялся")
+	}
+	if len(store.gone) != 0 {
+		t.Errorf("временный отказ принят за распад: %v", store.gone)
 	}
 }
