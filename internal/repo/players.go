@@ -391,6 +391,68 @@ func (r *Players) Count(ctx context.Context) (int, error) {
 	return n, err
 }
 
+// HeroMarks — герои игрока со сводным уровнем: какой назвали чаще других,
+// сколько человек отметили и что поставил я. Сводный считается модой,
+// а не средним: уровни — это ступени, и «13,5» не бывает.
+//
+// Порядок ничей: сортирует список карточка, по справочнику героев.
+func (r *Players) HeroMarks(ctx context.Context, playerID, userID int64) ([]domain.HeroMark, error) {
+	rows, err := r.pool.Query(ctx,
+		// mode() берёт самое частое значение, а порядок по убыванию решает
+		// ничью в пользу большего уровня: герой качается, а не разучивается.
+		`SELECT unit_type_id,
+		        mode() WITHIN GROUP (ORDER BY level DESC),
+		        count(*),
+		        COALESCE(max(level) FILTER (WHERE user_id = $2), 0)
+		   FROM player_heroes
+		  WHERE player_id = $1
+		  GROUP BY unit_type_id`, playerID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []domain.HeroMark
+	for rows.Next() {
+		var m domain.HeroMark
+		if err := rows.Scan(&m.UnitTypeID, &m.Level, &m.Count, &m.Mine); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// SetHeroLevel ставит мой уровень герою. Ноль означает «героя у игрока
+// нет» — строка тогда убирается вовсе, а не сохраняется нулём.
+//
+// Второе значение — изменилось ли что-то: повторная отправка формы
+// не должна попадать в журнал второй раз.
+func (r *Players) SetHeroLevel(ctx context.Context, playerID int64, unitTypeID int, userID int64, level int) (bool, error) {
+	if level <= 0 {
+		tag, err := r.pool.Exec(ctx,
+			`DELETE FROM player_heroes
+			  WHERE player_id = $1 AND unit_type_id = $2 AND user_id = $3`,
+			playerID, unitTypeID, userID)
+		if err != nil {
+			return false, err
+		}
+		return tag.RowsAffected() > 0, nil
+	}
+
+	tag, err := r.pool.Exec(ctx,
+		`INSERT INTO player_heroes (player_id, unit_type_id, user_id, level)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (player_id, unit_type_id, user_id)
+		 DO UPDATE SET level = EXCLUDED.level, updated_at = now()
+		 WHERE player_heroes.level <> EXCLUDED.level`,
+		playerID, unitTypeID, userID, level)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
 // Comments — лента комментариев об игроке: свежие сверху. Порядок по дате
 // правки, а не создания: переписанный комментарий — это свежее слово,
 // и ему место наверху.

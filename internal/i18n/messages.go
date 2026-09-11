@@ -134,6 +134,13 @@ var messages = map[string]entry{
 	"player.traits.dropall":         {ru: "снять у всех", en: "clear for everyone"},
 	"player.traits.dropall.confirm": {ru: "Снять признак «%s» у всех %d отметивших?", en: "Clear the trait “%s” for all %d who marked it?"},
 
+	// Герои: у каждого свой ряд ступеней, ноль означает «героя нет».
+	"player.heroes":        {ru: "Герои", en: "Heroes"},
+	"player.heroes.save":   {ru: "Сохранить героев", en: "Save heroes"},
+	"player.heroes.hint":   {ru: "Ноль значит, что героя у игрока нет. Отмечаете вы за себя: число рядом с уровнем — сколько человек его назвали, а показан тот уровень, который назвали чаще других.", en: "Zero means the player does not have that hero. You mark for yourself: the number next to a level is how many people named it, and the level shown is the one named most often."},
+	"player.hero.level":    {ru: "ур. %d", en: "lvl %d"},
+	"player.hero.nolevels": {ru: "про уровни этого героя справочник ещё не знает", en: "the directory does not know this hero’s levels yet"},
+
 	// Комментарии: лента свежими сверху, анонимная, по одному на человека.
 	"player.comments":                {ru: "Комментарии", en: "Comments"},
 	"player.comment.placeholder":     {ru: "Что известно об игроке", en: "What is known about the player"},

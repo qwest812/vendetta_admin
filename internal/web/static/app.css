@@ -729,3 +729,56 @@ a.button.waiting, a.waiting { opacity: .45; pointer-events: none; }
     table.stack td input { width: 100%; }
     table.stack td.narrow, table.stack th.narrow { width: auto; }
 }
+
+/* Герои игрока: строка на героя — портрет с именем слева, ряд ступеней
+   справа. Ступеней у героев от десяти до двадцати, поэтому ряд не влезает
+   в строку целиком и переносится. */
+.hero-rows { list-style: none; padding: 0; margin: 0 0 12px; }
+/* Две колонки, а не строка с переносом: у героев разное число ступеней,
+   и при переносе ряд одного оказывался бы справа от имени, а другого —
+   под ним. Ряд переносится внутри своей колонки, имя остаётся на месте. */
+.hero-rows li {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+}
+.hero-who { display: flex; gap: 10px; align-items: center; }
+/* Портрет игра рисует под тёмный фон карточки, поэтому рамка ему не нужна. */
+.hero-face { border-radius: 4px; }
+.hero-who .muted { font-size: 12px; }
+
+/* Слева направо: у героев разная длина ряда, и от общей левой вертикали
+   они читаются как одна шкала, а не как рваный край. */
+.hero-levels { display: flex; flex-wrap: wrap; gap: 4px; }
+/* Ступень — та же кнопка-переключатель, что и галочка признака, только
+   квадратная и с числом: их два десятка в ряд, и подписи длиннее числа
+   там не помещаются. */
+.hero-levels .lvl { cursor: pointer; }
+.hero-levels .lvl input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.hero-levels .lvl span {
+    display: block;
+    min-width: 30px;
+    padding: 5px 0;
+    text-align: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.hero-levels .lvl:hover span { color: var(--text); }
+.hero-levels .lvl input:checked + span { border-color: var(--accent); background: rgba(217, 72, 59, .16); color: var(--text); }
+/* Ноль — это «героя нет»: он выбран у всех, кого не отмечали, и красить
+   его в акцент незачем. */
+.hero-levels .lvl.zero input:checked + span { border-color: var(--muted); background: rgba(255, 255, 255, .06); }
+.hero-levels .lvl input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* На телефоне герой и его ступени встают друг под друга: в две колонки ряд
+   превращается в узкий столбик из трёх кнопок. Правило стоит после самих
+   стилей героев — иначе оно проиграло бы им по порядку. */
+@media (max-width: 640px) {
+    .hero-rows li { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}

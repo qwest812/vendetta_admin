@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/i18n"
 )
 
 const searchLimit = 50
@@ -190,6 +191,14 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		return
 	}
 
+	// Герои: справочник плюс то, что о них отметили. Показываются все —
+	// у неотмеченных выбран ноль, он же «героя у игрока нет».
+	heroRows, err := s.heroRows(r, player.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
 	// Боевой счёт с сайта игры: уровень и кд. Считает его страница партии,
 	// когда видит игрока на карте, — здесь только показываем уже
 	// посчитанное, в сеть за ним не ходим.
@@ -207,7 +216,7 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		"Player": player, "Comments": comments, "MyComment": myComment,
 		"Error": errMsg, "Seen": seen, "Bans": bans, "Traits": traits,
 		"Marks": marks, "Stats": stats, "Marked": marked, "Body": body,
-		"CommentMax": domain.CommentMaxLen,
+		"Heroes": heroRows, "CommentMax": domain.CommentMaxLen,
 	})
 }
 
@@ -338,6 +347,131 @@ func (s *Server) playerDelete(w http.ResponseWriter, r *http.Request) {
 	s.logAuditOn(r, "player.delete", "player", player.ID, map[string]any{"nickname": player.Nickname})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
+
+// playerHeroView — строка героя в карточке: кто он, до какого уровня
+// качается и что о нём отметили. Справочник героев живёт отдельно от базы
+// отметок, и сводит их карточка.
+type playerHeroView struct {
+	UnitTypeID int
+	Name       string
+	Subtitle   string
+	Image      string
+	// Max — сколько у героя ступеней: у Каллахана их десять, у Мейв
+	// пятнадцать, у большинства двадцать. Ноль означает, что справочник
+	// про уровни этого героя ещё ничего не знает.
+	Max int
+	// Levels — номера ступеней от нуля: по ним рисуется ряд переключателей.
+	Levels []int
+	// Level — сводный уровень (что назвали чаще), Count — сколько человек
+	// отметили героя, Mine — что поставил я.
+	Level int
+	Count int
+	Mine  int
+}
+
+// heroRows сводит справочник героев с отметками этого игрока. Порядок —
+// справочника: он идёт по номеру типа юнита, то есть по тому, в каком
+// порядке героев добавляли в игру.
+func (s *Server) heroRows(r *http.Request, playerID int64) ([]playerHeroView, error) {
+	snap, _, err := s.heroSnapshot(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	marks, err := s.players.HeroMarks(r.Context(), playerID, currentUser(r).ID)
+	if err != nil {
+		return nil, err
+	}
+	byType := make(map[int]domain.HeroMark, len(marks))
+	for _, m := range marks {
+		byType[m.UnitTypeID] = m
+	}
+
+	ru := langOf(r) == i18n.RU
+	out := make([]playerHeroView, 0, len(snap.Heroes))
+	for _, h := range snap.Heroes {
+		row := playerHeroView{
+			UnitTypeID: h.UnitTypeID, Image: h.Image, Max: len(h.Levels),
+			Name:     pick(ru, h.ShortRu, h.ShortEn),
+			Subtitle: pick(ru, h.SubtitleRu, h.SubtitleEn),
+		}
+		// Нулевая ступень — «героя нет»: в справочнике её не бывает,
+		// а в форме она первая и выбрана по умолчанию.
+		for i := 0; i <= row.Max; i++ {
+			row.Levels = append(row.Levels, i)
+		}
+		if m, ok := byType[h.UnitTypeID]; ok {
+			row.Level, row.Count, row.Mine = m.Level, m.Count, m.Mine
+		}
+		out = append(out, row)
+	}
+	return out, nil
+}
+
+// pick выбирает перевод: русский, если он есть, иначе английский. Игра
+// переводит своих героев сама, и часть имён у неё осталась непереведённой.
+func pick(ru bool, russian, english string) string {
+	if ru && russian != "" {
+		return russian
+	}
+	if english != "" {
+		return english
+	}
+	return russian
+}
+
+// heroesSave сохраняет мои уровни героев. Форма приходит полным состоянием:
+// у каждого героя выбрана ровно одна ступень, ноль означает «героя у него
+// нет». Правим только то, что действительно изменилось, — иначе журнал
+// распухал бы на два десятка строк с каждой отправки.
+func (s *Server) heroesSave(w http.ResponseWriter, r *http.Request) {
+	player, ok := s.loadPlayer(w, r)
+	if !ok {
+		return
+	}
+	me := currentUser(r)
+
+	rows, err := s.heroRows(r, player.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
+	for _, row := range rows {
+		want, err := strconv.Atoi(r.PostFormValue(heroField(row.UnitTypeID)))
+		if err != nil {
+			// Героя в форме не было или пришло не число — не трогаем:
+			// молчаливое обнуление стёрло бы чужую работу.
+			continue
+		}
+		if want < 0 || (row.Max > 0 && want > row.Max) {
+			continue
+		}
+		if want == row.Mine {
+			continue
+		}
+
+		changed, err := s.players.SetHeroLevel(r.Context(), player.ID, row.UnitTypeID, me.ID, want)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		if !changed {
+			continue
+		}
+		action := "player.hero.set"
+		if want == 0 {
+			action = "player.hero.clear"
+		}
+		s.logAuditOn(r, action, "player", player.ID,
+			map[string]any{"nickname": player.Nickname, "hero": row.Name, "level": want})
+	}
+
+	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
+}
+
+// heroField — имя поля переключателей одного героя. Одно место на шаблон
+// и обработчик: разъехавшись, они молча перестали бы видеть выбор.
+func heroField(unitTypeID int) string { return "hero-" + strconv.Itoa(unitTypeID) }
 
 // traitsSave сохраняет мои отметки признаков. Отметка личная: один и тот же
 // признак ставят разные люди, и в карточке напротив него стоит их число.

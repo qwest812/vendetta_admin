@@ -141,6 +141,49 @@
     {{end}}
 </div>
 
+{{/* Герои: показываются все, у неотмеченных выбран ноль — «героя нет».
+     Ряд переключателей у каждого своей длины: ступеней у героев
+     от десяти до двадцати. */}}
+{{with .Heroes}}
+<div class="card">
+    <h1>{{t "player.heroes"}}</h1>
+    <form method="post" action="/players/{{$p.ID}}/heroes" class="note-form">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <ul class="hero-rows">
+            {{range .}}
+                <li>
+                    <div class="hero-who">
+                        <img class="hero-face" src="/heroes/img/{{.Image}}" alt="" width="32" height="41" loading="lazy">
+                        <div>
+                            <b>{{.Name}}</b>
+                            {{if .Count}}
+                                <span class="kv muted">{{t "player.hero.level" .Level}} · {{.Count}}</span>
+                            {{end}}
+                            <div class="muted">{{.Subtitle}}</div>
+                        </div>
+                    </div>
+                    {{$mine := .Mine}}{{$field := printf "hero-%d" .UnitTypeID}}
+                    {{if .Max}}
+                        <div class="hero-levels">
+                            {{range .Levels}}
+                                <label class="lvl {{if eq . 0}}zero{{end}}">
+                                    <input type="radio" name="{{$field}}" value="{{.}}" {{if eq . $mine}}checked{{end}}>
+                                    <span>{{.}}</span>
+                                </label>
+                            {{end}}
+                        </div>
+                    {{else}}
+                        <span class="muted">{{t "player.hero.nolevels"}}</span>
+                    {{end}}
+                </li>
+            {{end}}
+        </ul>
+        <button type="submit">{{t "player.heroes.save"}}</button>
+        <p class="muted">{{t "player.heroes.hint"}}</p>
+    </form>
+</div>
+{{end}}
+
 <div class="card">
     <h1>{{t "player.comments"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}

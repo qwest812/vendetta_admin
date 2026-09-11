@@ -201,6 +201,7 @@ func (s *Server) Handler() http.Handler {
 	// админ и выше. Снятие признака у всех разом — админское, это средство
 	// против наговора.
 	mux.Handle("POST /players/{id}/traits", user(auth.VerifyCSRF(http.HandlerFunc(s.traitsSave))))
+	mux.Handle("POST /players/{id}/heroes", user(auth.VerifyCSRF(http.HandlerFunc(s.heroesSave))))
 	mux.Handle("POST /players/{id}/comments", user(auth.VerifyCSRF(http.HandlerFunc(s.commentSave))))
 	mux.Handle("POST /comments/{commentID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(s.commentDelete))))
 
