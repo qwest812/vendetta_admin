@@ -33,33 +33,38 @@
 <div class="card">
     <h1>{{t "users.heading"}}</h1>
     {{$root := .CurrentUser.IsRoot}}
-    <table>
-        <thead>
-        <tr>
-            <th>{{t "profile.nick"}}</th>
-            <th>{{t "profile.fullname"}}</th>
-            <th>{{t "profile.city"}}</th>
-            <th>{{t "profile.gameid"}}</th>
-            <th>{{t "users.email"}}</th>
-            <th>{{t "users.role"}}</th>
-            {{/* Доступ к играм раздаёт только рут, остальным колонку не показываем. */}}
-            {{if $root}}<th>{{t "nav.games"}}</th><th>{{t "users.checks"}}</th>{{end}}
-            <th>{{t "common.status"}}</th>
-            <th>{{t "users.created"}}</th>
-            <th class="actions">{{t "common.actions"}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {{$csrf := .CSRFToken}}
-        {{$me := .CurrentUser.ID}}
-        {{range .Users}}
-            {{/* Строка отдельным блоком: ту же разметку отдают и страница,
-                 и ответы на нажатия — иначе после правки настройки строка
-                 показывала бы одно, а база хранила другое. */}}
-            {{template "user-row" (dict "User" . "Root" $root "Me" $me "CSRFToken" $csrf "Field" "")}}
-        {{end}}
-        </tbody>
-    </table>
+    {{/* stack: на телефоне строка раскладывается в карточку с подписями
+         из data-label — в ней живут формы, и прокручивать её вбок,
+         одновременно нажимая, невозможно. */}}
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
+            <tr>
+                <th>{{t "profile.nick"}}</th>
+                <th>{{t "profile.fullname"}}</th>
+                <th>{{t "profile.city"}}</th>
+                <th>{{t "profile.gameid"}}</th>
+                <th>{{t "users.email"}}</th>
+                <th>{{t "users.role"}}</th>
+                {{/* Доступ к играм раздаёт только рут, остальным колонку не показываем. */}}
+                {{if $root}}<th>{{t "nav.games"}}</th><th>{{t "users.checks"}}</th>{{end}}
+                <th>{{t "common.status"}}</th>
+                <th>{{t "users.created"}}</th>
+                <th class="actions">{{t "common.actions"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{$csrf := .CSRFToken}}
+            {{$me := .CurrentUser.ID}}
+            {{range .Users}}
+                {{/* Строка отдельным блоком: ту же разметку отдают и страница,
+                     и ответы на нажатия — иначе после правки настройки строка
+                     показывала бы одно, а база хранила другое. */}}
+                {{template "user-row" (dict "User" . "Root" $root "Me" $me "CSRFToken" $csrf "Field" "")}}
+            {{end}}
+            </tbody>
+        </table>
+    </div>
     {{if $root}}<p class="muted">{{t "users.checks.note"}}</p>{{end}}
 </div>
 
@@ -90,18 +95,18 @@
 {{$u := .User}}{{$root := .Root}}{{$me := .Me}}{{$csrf := .CSRFToken}}
 {{$checks := printf "%d" $u.MapChecks}}{{if .ChecksInput}}{{$checks = .ChecksInput}}{{end}}
 <tr class="{{if not $u.IsActive}}inactive{{end}}">
-    <td>{{$u.Nickname}}{{if eq $u.ID $me}} <span class="muted">{{t "users.you"}}</span>{{end}}</td>
+    <td data-label="{{t "profile.nick"}}">{{$u.Nickname}}{{if eq $u.ID $me}} <span class="muted">{{t "users.you"}}</span>{{end}}</td>
     {{/* Профиль человек заполняет сам, поэтому пустые поля здесь
          обычное дело — прочерк, а не пустая ячейка. */}}
-    <td>{{if $u.FullName}}{{$u.FullName}}{{else}}<span class="muted">—</span>{{end}}</td>
-    <td>{{if $u.City}}{{$u.City}}{{else}}<span class="muted">—</span>{{end}}</td>
-    <td>{{if $u.GameID}}<span class="game-id">{{$u.GameID}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td>{{if $u.Email}}{{$u.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
-    <td><span class="badge role-{{$u.Role}}">{{role $u.Role}}</span></td>
+    <td data-label="{{t "profile.fullname"}}">{{if $u.FullName}}{{$u.FullName}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td data-label="{{t "profile.city"}}">{{if $u.City}}{{$u.City}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td data-label="{{t "profile.gameid"}}">{{if $u.GameID}}<span class="game-id">{{$u.GameID}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td data-label="{{t "users.email"}}">{{if $u.Email}}{{$u.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td data-label="{{t "users.role"}}"><span class="badge role-{{$u.Role}}">{{role $u.Role}}</span></td>
     {{if $root}}
         {{/* Колонка обычная, не «Действия»: та прижимает содержимое
              к правому краю, и столбец читался бы съехавшим. */}}
-        <td class="access">
+        <td class="access" data-label="{{t "nav.games"}}">
             {{if $u.IsRoot}}
                 {{/* Рут ходит в игры по роли: снимать у него нечего. */}}
                 <span class="muted">{{t "users.always"}}</span>
@@ -120,7 +125,7 @@
         </td>
         {{/* Число проверок карты в сутки. Поле, а не кнопка:
              значений тут не два, и у каждого своё. */}}
-        <td class="access">
+        <td class="access" data-label="{{t "users.checks"}}">
             {{if $u.IsRoot}}
                 {{/* Руту проверки не считают вовсе. */}}
                 <span class="muted">{{t "users.always"}}</span>
@@ -137,9 +142,9 @@
             {{end}}
         </td>
     {{end}}
-    <td>{{if $u.IsActive}}{{t "users.active"}}{{else}}{{t "users.blocked"}}{{end}}</td>
-    <td class="muted">{{datetime $u.CreatedAt}}</td>
-    <td class="actions">
+    <td data-label="{{t "common.status"}}">{{if $u.IsActive}}{{t "users.active"}}{{else}}{{t "users.blocked"}}{{end}}</td>
+    <td class="muted" data-label="{{t "users.created"}}">{{datetime $u.CreatedAt}}</td>
+    <td class="actions" data-label="">
         {{if or $u.IsRoot (eq $u.ID $me)}}
             <span class="muted">—</span>
         {{else}}

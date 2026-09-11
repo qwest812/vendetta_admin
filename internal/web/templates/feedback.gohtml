@@ -40,44 +40,47 @@
     </div>
 
     {{$admin := .CurrentUser.IsAdmin}}
-    <table>
-        <thead>
-        <tr>
-            <th>{{t "feedback.col.subject"}}</th>
-            {{if $admin}}<th>{{t "feedback.col.author"}}</th>{{end}}
-            <th class="narrow">{{t "feedback.col.status"}}</th>
-            <th class="narrow">{{t "feedback.col.messages"}}</th>
-            <th class="narrow">{{t "feedback.col.updated"}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {{range .Tickets}}
+    {{/* stack: на телефоне обращение читается карточкой. */}}
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
             <tr>
-                <td>
-                    <a href="/feedback/{{.ID}}">{{.Subject}}</a>
-                    {{/* «Есть ответ» — пометка для автора: админ ведёт список
-                         по статусу, а не по прочитанному. */}}
-                    {{if and .HasReply (not $admin)}}<span class="badge open">{{t "feedback.hasreply"}}</span>{{end}}
-                </td>
-                {{if $admin}}<td>{{.AuthorName}}</td>{{end}}
-                <td>
-                    {{if .IsOpen}}
-                        <span class="badge open">{{t "feedback.status.open"}}</span>
-                    {{else}}
-                        <span class="badge done">{{t "feedback.status.closed"}}</span>
-                    {{end}}
-                </td>
-                <td>{{.Messages}}</td>
-                <td class="muted">{{datetime .UpdatedAt}}</td>
+                <th>{{t "feedback.col.subject"}}</th>
+                {{if $admin}}<th>{{t "feedback.col.author"}}</th>{{end}}
+                <th class="narrow">{{t "feedback.col.status"}}</th>
+                <th class="narrow">{{t "feedback.col.messages"}}</th>
+                <th class="narrow">{{t "feedback.col.updated"}}</th>
             </tr>
-        {{else}}
-            <tr>
-                <td colspan="5" class="muted">
-                    {{if $admin}}{{t "feedback.empty"}}{{else}}{{t "feedback.empty.mine"}}{{end}}
-                </td>
-            </tr>
-        {{end}}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {{range .Tickets}}
+                <tr>
+                    <td data-label="">
+                        <a href="/feedback/{{.ID}}">{{.Subject}}</a>
+                        {{/* «Есть ответ» — пометка для автора: админ ведёт список
+                             по статусу, а не по прочитанному. */}}
+                        {{if and .HasReply (not $admin)}}<span class="badge open">{{t "feedback.hasreply"}}</span>{{end}}
+                    </td>
+                    {{if $admin}}<td data-label="{{t "feedback.col.author"}}">{{.AuthorName}}</td>{{end}}
+                    <td data-label="{{t "feedback.col.status"}}">
+                        {{if .IsOpen}}
+                            <span class="badge open">{{t "feedback.status.open"}}</span>
+                        {{else}}
+                            <span class="badge done">{{t "feedback.status.closed"}}</span>
+                        {{end}}
+                    </td>
+                    <td data-label="{{t "feedback.col.messages"}}">{{.Messages}}</td>
+                    <td class="muted" data-label="{{t "feedback.col.updated"}}">{{datetime .UpdatedAt}}</td>
+                </tr>
+            {{else}}
+                <tr>
+                    <td colspan="5" class="muted">
+                        {{if $admin}}{{t "feedback.empty"}}{{else}}{{t "feedback.empty.mine"}}{{end}}
+                    </td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
 </div>
 {{end}}

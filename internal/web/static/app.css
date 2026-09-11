@@ -103,6 +103,10 @@ button.link:hover { color: var(--accent); }
 .row-form { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
 .row-form label { flex: 1; min-width: 180px; }
 
+/* Широкая таблица не должна рвать карточку: она прокручивается внутри
+   своей обёртки. Колонок в «Доступах» и «Играх» столько, что на ноутбуке
+   они не помещаются и без всякого телефона. */
+.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; }
 th, td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -586,3 +590,142 @@ a.button.waiting, a.waiting { opacity: .45; pointer-events: none; }
 .badge.done { border-color: rgba(63, 166, 106, .5); color: #7fd3a1; }
 .badge.count { border-color: var(--accent); color: var(--accent); padding: 1px 7px; }
 .card-head .filters { flex-wrap: wrap; }
+
+/* --- узкие экраны ---
+
+   Админку открывают и с телефона — чаще всего рут, которому нужно нажать
+   одну кнопку: включить автопилот, закрыть доступ, ответить на обращение.
+   Поэтому правила ниже не «подгоняют дизайн», а чинят то, что на узком
+   экране ломается: шапку из десятка ссылок, таблицы в десять колонок
+   и формы, сложенные в строку. */
+
+/* Планшет и узкое окно: отступы съедают слишком много ширины, а строки,
+   рассчитанные на три колонки, перестают в неё влезать. */
+@media (max-width: 900px) {
+    main { padding: 16px; }
+    .card { padding: 16px; }
+
+    /* Шапка в две строки: меню прокручивается вбок отдельной лентой,
+       а имя, роль, язык и выход встают под ним. Прятать меню за кнопкой
+       не стали — разделов десяток, и лента нажимается тем же пальцем,
+       что и кнопка, только без лишнего нажатия. */
+    .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
+    .topbar nav {
+        order: 3;
+        width: 100%;
+        gap: 16px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        /* Полоса прокрутки под меню съедала бы строку целиком. */
+        scrollbar-width: none;
+    }
+    .topbar nav::-webkit-scrollbar { display: none; }
+    .topbar nav a { white-space: nowrap; }
+    .topbar .me { gap: 10px; }
+    .topbar .email { max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+    /* Строка поиска: ник, клан и пометки в три колонки требуют ширины,
+       которой уже нет. Ник с кланом остаются вместе, пометки уходят вниз. */
+    .player-link { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .filters { flex-wrap: wrap; }
+    /* Узкое поле формы («Знак», «Порядок», «Статус») на широком экране
+       экономит место, а здесь только режет подписи. */
+    .row-form .narrow, .filters .narrow { max-width: none; }
+}
+
+@media (max-width: 640px) {
+    main { padding: 12px; }
+    .card { padding: 14px; border-radius: 8px; margin-bottom: 14px; }
+
+    .langs.floating { top: 10px; right: 12px; }
+    .login { width: 100%; }
+
+    /* Поля на телефоне: шрифт мельче 16px заставляет Safari приближать
+       страницу при попадании в поле, и обратно она уже не отъезжает. */
+    input, select, textarea { font-size: 16px; }
+
+    /* Формы, сложенные в строку, на телефоне встают в колонку; кнопка
+       под ними — во всю ширину, чтобы по ней было легко попасть. */
+    /* Поиск и фильтр к нему встают друг под друга: рядом они помещаются
+       только за счёт того, что оба становятся нечитаемо узкими. Проверка
+       на поле поиска нужна затем, что тем же классом размечен ряд кнопок
+       в обратной связи, а кнопкам в столбик стоять незачем. */
+    .filters:has(input[type=search]) { flex-direction: column; }
+    .filters input[type=search], .filters select { width: 100%; }
+    .filters { flex-wrap: wrap; }
+
+    .row-form { flex-direction: column; align-items: stretch; gap: 10px; }
+    .row-form label { min-width: 0; }
+    .row-form button, .form-actions button, .note-form button { width: 100%; }
+    .form-actions { flex-direction: column; align-items: stretch; }
+    .card-head { flex-direction: column; align-items: stretch; gap: 10px; }
+    .head-actions { flex-wrap: wrap; }
+    .enemy-comment { flex-direction: column; align-items: stretch; }
+    .enemy-comment button { width: 100%; }
+
+    /* Кнопка в строке таблицы остаётся кнопкой в строке: растягивать её
+       во всю ширину незачем — их там по две-три в ряд. */
+    td.actions button, td.actions a.button, .trait-marks button { width: auto; }
+
+    /* Таблицы, не разложенные в карточки, прокручиваются вбок целиком:
+       переносить в них строки некуда, столбцы станут по букве шириной. */
+    .table-wrap { white-space: nowrap; }
+
+    /* Переключатель режимов карты — такая же лента, как меню в шапке. */
+    .map-tabs { overflow-x: auto; scrollbar-width: none; }
+    .map-tabs::-webkit-scrollbar { display: none; }
+    .map-tabs label { white-space: nowrap; }
+
+    /* Строка отметок признака: кнопка «снять у всех» уходит под имена,
+       иначе она отжимает их в две буквы. */
+    .trait-marks li { flex-wrap: wrap; }
+    .trait-marks form { margin-left: 0; width: 100%; }
+    .note-head { flex-wrap: wrap; gap: 8px; }
+}
+
+/* Таблица, разложенная в карточки: заголовок столбца печатается перед
+   значением из data-label. Так показываются те таблицы, где в строке живут
+   поля и кнопки, — прокручивать их вбок и одновременно нажимать на них
+   невозможно. Порог здесь выше телефонного: «Доступы» и «Игры» не влезают
+   и в планшет, а тянуть форму из-за края экрана одинаково неудобно
+   на любой ширине. */
+@media (max-width: 900px) {
+    /* Разложенной таблице прокрутка ни к чему: она и так по ширине экрана. */
+    .table-wrap:has(table.stack) { overflow-x: visible; white-space: normal; }
+    table.stack, table.stack tbody, table.stack tr, table.stack td { display: block; width: 100%; }
+    table.stack { white-space: normal; }
+    table.stack thead { display: none; }
+    table.stack tr {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+    }
+    table.stack td {
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 5px 0;
+        border: none;
+        max-width: none;
+        width: auto;
+        text-align: left;
+    }
+    table.stack td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+    }
+    /* Пустая подпись означает «значение говорит за себя»: так помечены
+       ячейки с кнопками. */
+    table.stack td[data-label=""]::before { content: none; }
+    table.stack td.actions { flex-wrap: wrap; justify-content: flex-start; }
+    table.stack td.actions form { margin-left: 0; }
+    table.stack td input { width: 100%; }
+    table.stack td.narrow, table.stack th.narrow { width: auto; }
+}

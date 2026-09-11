@@ -78,37 +78,39 @@
     <details>
         <summary>{{t "faq.rights.q"}}</summary>
         <div class="faq-body">
-            <table>
-                <thead>
-                <tr>
-                    <th>{{t "audit.action"}}</th>
-                    <th class="narrow">{{t "role.user"}}</th>
-                    <th class="narrow">{{t "faq.rights.admin"}}</th>
-                    <th class="narrow">{{t "role.root"}}</th>
-                </tr>
-                </thead>
-                <tbody>
-                {{$yes := t "faq.rights.yes"}}
-                <tr><td>{{t "faq.rights.search"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.notes"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.lists"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.marktraits"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.othernotes"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.cards"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.feedback"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.access"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.audit"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.delcards"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.delusers"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.traits"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.heroes"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
-                {{/* Доступ к «Играм» — персональный, его открывает рут. */}}
-                {{$granted := t "faq.rights.granted"}}
-                <tr><td>{{t "faq.rights.games"}}</td><td>{{$granted}}</td><td>{{$granted}}</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.hero"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
-                <tr><td>{{t "faq.rights.checks"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>{{t "audit.action"}}</th>
+                        <th class="narrow">{{t "role.user"}}</th>
+                        <th class="narrow">{{t "faq.rights.admin"}}</th>
+                        <th class="narrow">{{t "role.root"}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {{$yes := t "faq.rights.yes"}}
+                    <tr><td>{{t "faq.rights.search"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.notes"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.lists"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.marktraits"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.othernotes"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.cards"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.feedback"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.access"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.audit"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.delcards"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.delusers"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.traits"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.heroes"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
+                    {{/* Доступ к «Играм» — персональный, его открывает рут. */}}
+                    {{$granted := t "faq.rights.granted"}}
+                    <tr><td>{{t "faq.rights.games"}}</td><td>{{$granted}}</td><td>{{$granted}}</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.hero"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.checks"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </details>
 

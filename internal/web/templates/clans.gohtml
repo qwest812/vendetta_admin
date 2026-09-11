@@ -37,47 +37,51 @@
     {{$admin := .CurrentUser.IsAdmin}}
     {{$csrf := .CSRFToken}}
     {{$statuses := .Statuses}}
-    <table>
-        <thead>
-        <tr>
-            <th>{{t "clans.col.clan"}}</th>
-            <th class="narrow">{{t "common.status"}}</th>
-            <th class="narrow">{{t "clans.col.players"}}</th>
-            <th class="actions">{{t "common.actions"}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {{range .Clans}}
-            {{/* Формы вынесены за таблицу: <form> нельзя размещать внутри <tr>,
-                 поэтому поля связаны с ней атрибутом form. */}}
+    {{/* stack: в строке живут статус и кнопки — на телефоне она
+         раскладывается в карточку. */}}
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
             <tr>
-                <td>
-                    <a href="/clans/{{.ID}}">{{.Name}}</a>
-                    {{if $admin}}<input form="clan-{{.ID}}" name="name" value="{{.Name}}" maxlength="64" required>{{end}}
-                </td>
-                <td class="narrow">
-                    {{if $admin}}
-                        <select form="clan-{{.ID}}" name="status">
-                            {{$cur := .Status}}
-                            {{range $statuses}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{clanStatus .}}</option>{{end}}
-                        </select>
-                    {{else}}
-                        <span class="badge clan-{{.Status}}">{{clanStatus .Status}}</span>
-                    {{end}}
-                </td>
-                <td class="narrow muted">{{.Players}}</td>
-                <td class="actions">
-                    {{if $admin}}
-                        <button form="clan-{{.ID}}" type="submit">{{t "common.save"}}</button>
-                        <button form="clan-del-{{.ID}}" class="danger" type="submit">{{t "common.delete"}}</button>
-                    {{end}}
-                </td>
+                <th>{{t "clans.col.clan"}}</th>
+                <th class="narrow">{{t "common.status"}}</th>
+                <th class="narrow">{{t "clans.col.players"}}</th>
+                <th class="actions">{{t "common.actions"}}</th>
             </tr>
-        {{else}}
-            <tr><td colspan="4" class="muted">{{t "clans.empty"}}</td></tr>
-        {{end}}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {{range .Clans}}
+                {{/* Формы вынесены за таблицу: <form> нельзя размещать внутри <tr>,
+                     поэтому поля связаны с ней атрибутом form. */}}
+                <tr>
+                    <td data-label="">
+                        <a href="/clans/{{.ID}}">{{.Name}}</a>
+                        {{if $admin}}<input form="clan-{{.ID}}" name="name" value="{{.Name}}" maxlength="64" required>{{end}}
+                    </td>
+                    <td class="narrow" data-label="{{t "common.status"}}">
+                        {{if $admin}}
+                            <select form="clan-{{.ID}}" name="status">
+                                {{$cur := .Status}}
+                                {{range $statuses}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{clanStatus .}}</option>{{end}}
+                            </select>
+                        {{else}}
+                            <span class="badge clan-{{.Status}}">{{clanStatus .Status}}</span>
+                        {{end}}
+                    </td>
+                    <td class="narrow muted" data-label="{{t "clans.col.players"}}">{{.Players}}</td>
+                    <td class="actions" data-label="">
+                        {{if $admin}}
+                            <button form="clan-{{.ID}}" type="submit">{{t "common.save"}}</button>
+                            <button form="clan-del-{{.ID}}" class="danger" type="submit">{{t "common.delete"}}</button>
+                        {{end}}
+                    </td>
+                </tr>
+            {{else}}
+                <tr><td colspan="4" class="muted">{{t "clans.empty"}}</td></tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
 
     {{if $admin}}
         {{range .Clans}}

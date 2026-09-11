@@ -379,22 +379,24 @@
             {{t "game.me" .State.Day .Me.Nation .Me.Name .Me.ID}}
             {{t "game.me.provinces" (len .Mine) (len .State.Provinces)}}
         </p>
-        <table>
-            <thead>
-            <tr>
-                <th>{{t "game.col.province"}}</th>
-                <th>{{t "game.col.morale"}}</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{range .Mine}}
+        <div class="table-wrap">
+            <table>
+                <thead>
                 <tr>
-                    <td>{{.Name}}{{if .Capital}} <span class="badge">{{t "game.capital"}}</span>{{end}}</td>
-                    <td class="muted nowrap">{{printf "%.0f" .Morale}}%</td>
+                    <th>{{t "game.col.province"}}</th>
+                    <th>{{t "game.col.morale"}}</th>
                 </tr>
-            {{end}}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                {{range .Mine}}
+                    <tr>
+                        <td>{{.Name}}{{if .Capital}} <span class="badge">{{t "game.capital"}}</span>{{end}}</td>
+                        <td class="muted nowrap">{{printf "%.0f" .Morale}}%</td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
     {{end}}
 
     {{/* Кончившиеся проверки — не поломка: про них сказано выше своими
@@ -466,32 +468,34 @@
     <h1>{{t "pairs.title"}}</h1>
     {{if .Pairs}}
         <p class="muted">{{t "pairs.note"}}</p>
-        <table>
-            <thead>
-            <tr>
-                <th>{{t "pairs.who"}}</th>
-                <th class="narrow">{{t "pairs.together"}}</th>
-                <th>{{t "pairs.where"}}</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{range .Pairs}}
+        <div class="table-wrap">
+            <table>
+                <thead>
                 <tr>
-                    <td>
-                        {{template "pairside" .A}}
-                        <span class="muted">—</span>
-                        {{template "pairside" .B}}
-                    </td>
-                    <td class="narrow nowrap muted">
-                        {{range $i, $s := .BySpeed}}{{if $i}}, {{end}}{{$s.Label}} — {{$s.Games}}{{end}}
-                    </td>
-                    <td class="muted">
-                        {{range $i, $g := .Games}}{{if $i}}, {{end}}<a href="/games/{{$g}}">{{$g}}</a>{{end}}
-                    </td>
+                    <th>{{t "pairs.who"}}</th>
+                    <th class="narrow">{{t "pairs.together"}}</th>
+                    <th>{{t "pairs.where"}}</th>
                 </tr>
-            {{end}}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                {{range .Pairs}}
+                    <tr>
+                        <td>
+                            {{template "pairside" .A}}
+                            <span class="muted">—</span>
+                            {{template "pairside" .B}}
+                        </td>
+                        <td class="narrow nowrap muted">
+                            {{range $i, $s := .BySpeed}}{{if $i}}, {{end}}{{$s.Label}} — {{$s.Games}}{{end}}
+                        </td>
+                        <td class="muted">
+                            {{range $i, $g := .Games}}{{if $i}}, {{end}}<a href="/games/{{$g}}">{{$g}}</a>{{end}}
+                        </td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
     {{else}}
         <p class="muted">{{t "pairs.empty"}}</p>
     {{end}}
@@ -508,34 +512,36 @@
     <p class="muted">
         {{t "game.roster.note"}}
     </p>
-    <table>
-        <thead>
-        <tr>
-            <th>{{t "game.col.player"}}</th>
-            <th>{{t "playerform.clan"}}</th>
-            <th>{{t "game.col.team"}}</th>
-            <th>{{t "game.col.level"}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {{range .Roster}}
+    <div class="table-wrap">
+        <table>
+            <thead>
             <tr>
-                <td>
-                    {{if .Card}}
-                        <a class="nick" href="/players/{{.Card.ID}}">{{.Login}}</a>
-                        {{if .Enemy}}<span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}
-                        {{if .Friend}}<span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}
-                    {{else}}
-                        {{.Login}}
-                    {{end}}
-                </td>
-                <td>{{if .Clan}}{{.Clan}}{{else}}<span class="muted">—</span>{{end}}</td>
-                <td class="muted">{{if .Team}}{{t "game.team.no" .Team}}{{else}}—{{end}}</td>
-                <td class="muted">{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
+                <th>{{t "game.col.player"}}</th>
+                <th>{{t "playerform.clan"}}</th>
+                <th>{{t "game.col.team"}}</th>
+                <th>{{t "game.col.level"}}</th>
             </tr>
-        {{end}}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {{range .Roster}}
+                <tr>
+                    <td>
+                        {{if .Card}}
+                            <a class="nick" href="/players/{{.Card.ID}}">{{.Login}}</a>
+                            {{if .Enemy}}<span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}
+                            {{if .Friend}}<span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}
+                        {{else}}
+                            {{.Login}}
+                        {{end}}
+                    </td>
+                    <td>{{if .Clan}}{{.Clan}}{{else}}<span class="muted">—</span>{{end}}</td>
+                    <td class="muted">{{if .Team}}{{t "game.team.no" .Team}}{{else}}—{{end}}</td>
+                    <td class="muted">{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
 </div>
 {{end}}
 

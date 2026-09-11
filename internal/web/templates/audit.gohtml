@@ -4,31 +4,35 @@
 <div class="card">
     <h1>{{t "audit.heading"}}</h1>
     <p class="muted">{{t "audit.note"}}</p>
-    <table>
-        <thead>
-        <tr>
-            <th>{{t "audit.when"}}</th>
-            <th>{{t "audit.who"}}</th>
-            <th>{{t "audit.action"}}</th>
-            <th>{{t "audit.target"}}</th>
-            <th>{{t "audit.details"}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {{range .Entries}}
+    {{/* stack: на телефоне запись читается карточкой — детали в строке
+         длинные, и вбок за ними не наездишься. */}}
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
             <tr>
-                <td class="muted nowrap">{{datetime .CreatedAt}}</td>
-                <td>{{.ActorEmail}}</td>
-                <td><code>{{.Action}}</code></td>
-                <td class="muted">{{.TargetType}} #{{.TargetID}}</td>
-                <td class="muted">
-                    {{range $k, $v := .Payload}}<span class="kv">{{$k}}: {{$v}}</span> {{end}}
-                </td>
+                <th>{{t "audit.when"}}</th>
+                <th>{{t "audit.who"}}</th>
+                <th>{{t "audit.action"}}</th>
+                <th>{{t "audit.target"}}</th>
+                <th>{{t "audit.details"}}</th>
             </tr>
-        {{else}}
-            <tr><td colspan="5" class="muted">{{t "audit.empty"}}</td></tr>
-        {{end}}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {{range .Entries}}
+                <tr>
+                    <td class="muted nowrap" data-label="{{t "audit.when"}}">{{datetime .CreatedAt}}</td>
+                    <td data-label="{{t "audit.who"}}">{{.ActorEmail}}</td>
+                    <td data-label="{{t "audit.action"}}"><code>{{.Action}}</code></td>
+                    <td class="muted" data-label="{{t "audit.target"}}">{{.TargetType}} #{{.TargetID}}</td>
+                    <td class="muted" data-label="{{t "audit.details"}}">
+                        {{range $k, $v := .Payload}}<span class="kv">{{$k}}: {{$v}}</span> {{end}}
+                    </td>
+                </tr>
+            {{else}}
+                <tr><td colspan="5" class="muted">{{t "audit.empty"}}</td></tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
 </div>
 {{end}}

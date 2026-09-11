@@ -45,27 +45,30 @@
         <h1>{{t "games.checked"}}</h1>
     </div>
     <p class="muted">{{t "games.checked.note" $.CheckedDays}}</p>
-    <table>
-        <thead>
-        <tr>
-            <th>{{t "games.col.game"}}</th>
-            <th>{{t "games.checked.col.when"}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {{range .}}
+    {{/* stack: на телефоне строка партии читается карточкой. */}}
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
             <tr>
-                <td>
-                    {{/* Название могло не приехать: партия у нас всё равно
-                         остаётся, и звать её тогда по номеру. */}}
-                    <a class="nick" href="/games/{{.GameID}}">{{if .Title}}{{.Title}}{{else}}{{t "game.unnamed" .GameID}}{{end}}</a>
-                    <span class="game-id">ID {{.GameID}}</span>
-                </td>
-                <td class="muted nowrap">{{datetime .CheckedAt}}</td>
+                <th>{{t "games.col.game"}}</th>
+                <th>{{t "games.checked.col.when"}}</th>
             </tr>
-        {{end}}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {{range .}}
+                <tr>
+                    <td data-label="">
+                        {{/* Название могло не приехать: партия у нас всё равно
+                             остаётся, и звать её тогда по номеру. */}}
+                        <a class="nick" href="/games/{{.GameID}}">{{if .Title}}{{.Title}}{{else}}{{t "game.unnamed" .GameID}}{{end}}</a>
+                        <span class="game-id">ID {{.GameID}}</span>
+                    </td>
+                    <td class="muted nowrap" data-label="{{t "games.checked.col.when"}}">{{datetime .CheckedAt}}</td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
 </div>
 {{end}}
 
@@ -85,43 +88,46 @@
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
     {{$root := .CurrentUser.IsRoot}}
-    <table>
-        <thead>
-        <tr>
-            <th>{{t "games.col.game"}}</th>
-            <th>{{t "games.col.state"}}</th>
-            <th>{{t "games.col.day"}}</th>
-            <th>{{t "clans.col.players"}}</th>
-            <th>{{t "games.col.started"}}</th>
-            <th>{{t "games.col.joined"}}</th>
-            <th>{{t "games.col.lang"}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {{range .Games}}
+    {{/* stack: колонок семь, и вбок за ними не наездишься. */}}
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
             <tr>
-                <td>
-                    <a class="nick" href="/games/{{.ID}}">{{.Title}}</a>
-                    <span class="game-id">ID {{.ID}}</span>
-                    {{/* Номер в партии здесь про аккаунт проекта, а не про смотрящего. */}}
-                    {{if and $root .PlayerID}}<span class="muted">{{t "games.account.player" .PlayerID}}</span>{{end}}
-                </td>
-                <td class="nowrap">{{.State}}</td>
-                <td>{{.Day}}</td>
-                <td>{{.Players}}</td>
-                <td class="muted nowrap">{{if .Started.IsZero}}—{{else}}{{datetime .Started}}{{end}}</td>
-                <td class="muted nowrap">{{if .Joined.IsZero}}—{{else}}{{datetime .Joined}}{{end}}</td>
-                <td class="muted">{{.Language}}</td>
+                <th>{{t "games.col.game"}}</th>
+                <th>{{t "games.col.state"}}</th>
+                <th>{{t "games.col.day"}}</th>
+                <th>{{t "clans.col.players"}}</th>
+                <th>{{t "games.col.started"}}</th>
+                <th>{{t "games.col.joined"}}</th>
+                <th>{{t "games.col.lang"}}</th>
             </tr>
-        {{else}}
-            <tr>
-                <td colspan="7" class="muted">
-                    {{if .Error}}{{t "games.list.failed"}}{{else}}{{t "games.list.empty"}}{{end}}
-                </td>
-            </tr>
-        {{end}}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {{range .Games}}
+                <tr>
+                    <td data-label="">
+                        <a class="nick" href="/games/{{.ID}}">{{.Title}}</a>
+                        <span class="game-id">ID {{.ID}}</span>
+                        {{/* Номер в партии здесь про аккаунт проекта, а не про смотрящего. */}}
+                        {{if and $root .PlayerID}}<span class="muted">{{t "games.account.player" .PlayerID}}</span>{{end}}
+                    </td>
+                    <td class="nowrap" data-label="{{t "games.col.state"}}">{{.State}}</td>
+                    <td data-label="{{t "games.col.day"}}">{{.Day}}</td>
+                    <td data-label="{{t "clans.col.players"}}">{{.Players}}</td>
+                    <td class="muted nowrap" data-label="{{t "games.col.started"}}">{{if .Started.IsZero}}—{{else}}{{datetime .Started}}{{end}}</td>
+                    <td class="muted nowrap" data-label="{{t "games.col.joined"}}">{{if .Joined.IsZero}}—{{else}}{{datetime .Joined}}{{end}}</td>
+                    <td class="muted" data-label="{{t "games.col.lang"}}">{{.Language}}</td>
+                </tr>
+            {{else}}
+                <tr>
+                    <td colspan="7" class="muted">
+                        {{if .Error}}{{t "games.list.failed"}}{{else}}{{t "games.list.empty"}}{{end}}
+                    </td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 {{/* Что архив коалиций уже собрал. Сам рубильник живёт в «Настройках»:

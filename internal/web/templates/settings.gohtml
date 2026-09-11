@@ -27,26 +27,28 @@
         <span class="muted">{{t "settings.maps.total" .MapsTotal .MapDays}}</span>
     </div>
     {{if .Maps}}
-        <table>
-            <thead>
-            <tr>
-                <th>{{t "settings.maps.day"}}</th>
-                <th class="narrow">{{t "settings.maps.count"}}</th>
-                <th>{{t "settings.maps.who"}}</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{range .Maps}}
+        <div class="table-wrap">
+            <table>
+                <thead>
                 <tr>
-                    <td class="nowrap">{{date .Day}}</td>
-                    <td class="narrow"><b>{{.Total}}</b></td>
-                    <td class="muted">
-                        {{range .By}}<span class="kv">{{if .Nickname}}{{.Nickname}}{{else}}{{t "settings.maps.gone"}}{{end}}: {{.Count}}</span> {{end}}
-                    </td>
+                    <th>{{t "settings.maps.day"}}</th>
+                    <th class="narrow">{{t "settings.maps.count"}}</th>
+                    <th>{{t "settings.maps.who"}}</th>
                 </tr>
-            {{end}}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                {{range .Maps}}
+                    <tr>
+                        <td class="nowrap">{{date .Day}}</td>
+                        <td class="narrow"><b>{{.Total}}</b></td>
+                        <td class="muted">
+                            {{range .By}}<span class="kv">{{if .Nickname}}{{.Nickname}}{{else}}{{t "settings.maps.gone"}}{{end}}: {{.Count}}</span> {{end}}
+                        </td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
     {{else}}
         <p class="muted">{{t "settings.maps.empty"}}</p>
     {{end}}
@@ -86,45 +88,49 @@
     {{$csrf := .CSRFToken}}
     {{$usage := .Usage}}
     {{$kinds := .Kinds}}
-    <table>
-        <thead>
-        <tr>
-            <th>{{t "settings.trait.code"}}</th>
-            <th>{{t "common.name"}}</th>
-            <th class="narrow">{{t "settings.trait.kind"}}</th>
-            <th class="narrow">{{t "settings.trait.order"}}</th>
-            <th class="narrow">{{t "settings.trait.active"}}</th>
-            <th class="narrow">{{t "settings.trait.used"}}</th>
-            <th class="actions">{{t "common.actions"}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {{range .Traits}}
-            {{/* Формы вынесены за таблицу: <form> нельзя размещать внутри <tr>,
-                 поэтому поля связаны с ней атрибутом form. */}}
-            {{$t := .}}
-            <tr class="{{if not .IsActive}}inactive{{end}}">
-                <td><code>{{.Code}}</code></td>
-                <td><input form="trait-{{.ID}}" name="name" value="{{.Name}}" maxlength="80" required></td>
-                <td class="narrow">
-                    <select form="trait-{{.ID}}" name="kind">
-                        {{range $kinds}}<option value="{{.}}" {{if eq . $t.Kind}}selected{{end}}>{{t .TitleKey}}</option>{{end}}
-                    </select>
-                </td>
-                <td class="narrow"><input form="trait-{{.ID}}" type="number" name="sort_order" value="{{.SortOrder}}" min="0" max="9999"></td>
-                <td class="narrow">
-                    <input form="trait-{{.ID}}" type="hidden" name="is_active" value="false">
-                    <input form="trait-{{.ID}}" type="checkbox" name="is_active" value="true" {{if .IsActive}}checked{{end}}>
-                </td>
-                <td class="narrow muted">{{index $usage .ID}}</td>
-                <td class="actions">
-                    <button form="trait-{{.ID}}" type="submit">{{t "common.save"}}</button>
-                    <button form="trait-del-{{.ID}}" class="danger" type="submit">{{t "common.delete"}}</button>
-                </td>
+    {{/* stack: в строке живут поля и кнопки — на телефоне она раскладывается
+         в карточку с подписями, см. таблицу доступов. */}}
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
+            <tr>
+                <th>{{t "settings.trait.code"}}</th>
+                <th>{{t "common.name"}}</th>
+                <th class="narrow">{{t "settings.trait.kind"}}</th>
+                <th class="narrow">{{t "settings.trait.order"}}</th>
+                <th class="narrow">{{t "settings.trait.active"}}</th>
+                <th class="narrow">{{t "settings.trait.used"}}</th>
+                <th class="actions">{{t "common.actions"}}</th>
             </tr>
-        {{end}}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {{range .Traits}}
+                {{/* Формы вынесены за таблицу: <form> нельзя размещать внутри <tr>,
+                     поэтому поля связаны с ней атрибутом form. */}}
+                {{$t := .}}
+                <tr class="{{if not .IsActive}}inactive{{end}}">
+                    <td data-label="{{t "settings.trait.code"}}"><code>{{.Code}}</code></td>
+                    <td data-label="{{t "common.name"}}"><input form="trait-{{.ID}}" name="name" value="{{.Name}}" maxlength="80" required></td>
+                    <td class="narrow" data-label="{{t "settings.trait.kind"}}">
+                        <select form="trait-{{.ID}}" name="kind">
+                            {{range $kinds}}<option value="{{.}}" {{if eq . $t.Kind}}selected{{end}}>{{t .TitleKey}}</option>{{end}}
+                        </select>
+                    </td>
+                    <td class="narrow" data-label="{{t "settings.trait.order"}}"><input form="trait-{{.ID}}" type="number" name="sort_order" value="{{.SortOrder}}" min="0" max="9999"></td>
+                    <td class="narrow" data-label="{{t "settings.trait.active"}}">
+                        <input form="trait-{{.ID}}" type="hidden" name="is_active" value="false">
+                        <input form="trait-{{.ID}}" type="checkbox" name="is_active" value="true" {{if .IsActive}}checked{{end}}>
+                    </td>
+                    <td class="narrow muted" data-label="{{t "settings.trait.used"}}">{{index $usage .ID}}</td>
+                    <td class="actions" data-label="">
+                        <button form="trait-{{.ID}}" type="submit">{{t "common.save"}}</button>
+                        <button form="trait-del-{{.ID}}" class="danger" type="submit">{{t "common.delete"}}</button>
+                    </td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
 
     {{range .Traits}}
         <form id="trait-{{.ID}}" method="post" action="/settings/traits/{{.ID}}" hidden>
