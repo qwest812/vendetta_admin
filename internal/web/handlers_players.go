@@ -198,6 +198,14 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		s.serverError(w, r, err)
 		return
 	}
+	// Скольких героев вообще отмечали: блок свёрнут, и это число —
+	// единственное, что видно о нём в закрытом виде.
+	heroesMarked := 0
+	for _, h := range heroRows {
+		if h.Count > 0 {
+			heroesMarked++
+		}
+	}
 
 	// Боевой счёт с сайта игры: уровень и кд. Считает его страница партии,
 	// когда видит игрока на карте, — здесь только показываем уже
@@ -216,7 +224,8 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		"Player": player, "Comments": comments, "MyComment": myComment,
 		"Error": errMsg, "Seen": seen, "Bans": bans, "Traits": traits,
 		"Marks": marks, "Stats": stats, "Marked": marked, "Body": body,
-		"Heroes": heroRows, "CommentMax": domain.CommentMaxLen,
+		"Heroes": heroRows, "HeroesMarked": heroesMarked,
+		"CommentMax": domain.CommentMaxLen,
 	})
 }
 

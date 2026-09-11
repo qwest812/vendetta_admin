@@ -782,3 +782,27 @@ a.button.waiting, a.waiting { opacity: .45; pointer-events: none; }
 @media (max-width: 640px) {
     .hero-rows li { grid-template-columns: minmax(0, 1fr); gap: 8px; }
 }
+
+/* Свёрнутый блок карточки: признаки и герои. Отмечают их изредка, а карточку
+   читают каждый раз — развёрнутые списки отодвигали бы комментарии на второй
+   экран. Знак «+» тот же, что в справке: одно движение, одно значение. */
+details.fold > summary {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    cursor: pointer;
+    list-style: none;
+}
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::before {
+    content: "+";
+    color: var(--accent);
+    font-weight: 700;
+    width: 12px;
+}
+details.fold[open] > summary::before { content: "–"; }
+details.fold > summary:hover .fold-title { color: var(--accent); }
+details.fold > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.fold-title { font-size: 18px; font-weight: 700; }
+/* Первому блоку после заголовка нужен тот же отступ, что был у h1. */
+details.fold[open] > summary { margin-bottom: 14px; }

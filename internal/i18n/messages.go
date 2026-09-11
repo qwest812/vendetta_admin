@@ -134,6 +134,10 @@ var messages = map[string]entry{
 	"player.traits.dropall":         {ru: "снять у всех", en: "clear for everyone"},
 	"player.traits.dropall.confirm": {ru: "Снять признак «%s» у всех %d отметивших?", en: "Clear the trait “%s” for all %d who marked it?"},
 
+	// Свёрнутые блоки карточки: в заголовке видно, есть ли внутри отметки.
+	"player.fold.marked": {ru: "отмечено %d", en: "%d marked"},
+	"player.fold.none":   {ru: "ничего не отмечено", en: "nothing marked"},
+
 	// Герои: у каждого свой ряд ступеней, ноль означает «героя нет».
 	"player.heroes":        {ru: "Герои", en: "Heroes"},
 	"player.heroes.save":   {ru: "Сохранить героев", en: "Save heroes"},

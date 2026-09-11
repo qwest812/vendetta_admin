@@ -98,8 +98,15 @@
     <p class="muted">{{t "player.added"}} {{datetime $p.CreatedAt}}, {{t "player.changed"}} {{datetime $p.UpdatedAt}}</p>
 </div>
 
-<div class="card">
-    <h1>{{t "player.traits"}}</h1>
+{{/* Признаки и герои свёрнуты: отмечают их изредка, а читают карточку
+     каждый раз — списки на два экрана мешали бы добраться до комментариев.
+     Что отмечено, видно и в закрытом виде: метки стоят в шапке карточки,
+     а число — в самом заголовке. */}}
+<details class="card fold">
+    <summary>
+        <span class="fold-title">{{t "player.traits"}}</span>
+        <span class="muted">{{if .Marks}}{{t "player.fold.marked" (len .Marks)}}{{else}}{{t "player.fold.none"}}{{end}}</span>
+    </summary>
 
     {{/* Галочки личные: правят только мои отметки, чужие не трогают.
          Отмечать может любой, у кого есть доступ, — замечает поведение
@@ -139,14 +146,17 @@
             {{end}}
         </ul>
     {{end}}
-</div>
+</details>
 
 {{/* Герои: показываются все, у неотмеченных выбран ноль — «героя нет».
      Ряд переключателей у каждого своей длины: ступеней у героев
      от десяти до двадцати. */}}
 {{with .Heroes}}
-<div class="card">
-    <h1>{{t "player.heroes"}}</h1>
+<details class="card fold">
+    <summary>
+        <span class="fold-title">{{t "player.heroes"}}</span>
+        <span class="muted">{{if $.HeroesMarked}}{{t "player.fold.marked" $.HeroesMarked}}{{else}}{{t "player.fold.none"}}{{end}}</span>
+    </summary>
     <form method="post" action="/players/{{$p.ID}}/heroes" class="note-form">
         <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <ul class="hero-rows">
@@ -181,7 +191,7 @@
         <button type="submit">{{t "player.heroes.save"}}</button>
         <p class="muted">{{t "player.heroes.hint"}}</p>
     </form>
-</div>
+</details>
 {{end}}
 
 <div class="card">
