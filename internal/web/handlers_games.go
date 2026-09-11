@@ -15,6 +15,7 @@ import (
 	"Vendetta_admin/internal/i18n"
 	"Vendetta_admin/internal/repo"
 	"Vendetta_admin/internal/supremacy"
+	"Vendetta_admin/internal/supremacy/heroes"
 )
 
 // gamesTimeout ограничивает поход в игру: страницу открывает живой человек
@@ -71,6 +72,10 @@ type gameSource interface {
 	// заходом в партию это не считается.
 	UserStatsBatch(ctx context.Context, siteUserIDs []string) (map[string]*supremacy.UserStats, error)
 	UserID() string
+	// HeroOffers — лестница прокачки героев из витрины магазина игры: по ней
+	// справочник героев узнаёт цены уровней. Витрина общая для всех, заходом
+	// в партию вопрос не считается.
+	HeroOffers(ctx context.Context) ([]heroes.Offer, error)
 	// GameSize — состав партии числом, если о ней уже спрашивали. По нему
 	// выбирается срок ожидания, см. gameBudget.
 	GameSize(gameID string) (int, bool)

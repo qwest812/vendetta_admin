@@ -1,4 +1,4 @@
-.PHONY: up down restart logs ps dev build game test tidy clean
+.PHONY: up down restart logs ps dev build game heroes test tidy clean
 
 # Поднять всё в docker: postgres и приложение.
 up:
@@ -30,6 +30,11 @@ build:
 game:
 	@test -n "$(GAME)" || { echo "нужен gameID: make game GAME=10868223"; exit 1; }
 	@set -a; . ./.env; set +a; go run ./cmd/gameinfo $(GAME)
+
+# Пересобрать вшитый справочник героев из открытых файлов игры. Ходит
+# в сеть, поэтому в обычный прогон тестов не входит: см. make test.
+heroes:
+	@set -a; . ./.env; set +a; HEROES_WRITE=1 go test -tags live -run TestHeroesFetchLive -v ./internal/supremacy/
 
 test:
 	go test ./...

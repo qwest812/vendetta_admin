@@ -75,9 +75,18 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 		}
 	}
 
+	// Справочник героев: он есть всегда — если своего снимка ещё нет,
+	// карточка расскажет про вшитый в образ.
+	heroes, err := s.heroesCard(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
 	s.render(w, r, status, "settings", map[string]any{
 		"Traits": traits, "Usage": usage, "Kinds": domain.TraitKinds,
-		"Coalitions": coalitions, "Maps": maps, "MapDays": int(mapStatsSpan.Hours() / 24),
+		"Coalitions": coalitions, "Heroes": heroes,
+		"Maps": maps, "MapDays": int(mapStatsSpan.Hours() / 24),
 		"MapsTotal": mapsTotal(maps), "Error": errMsg,
 	})
 }

@@ -60,6 +60,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	gamePlayers := repo.NewGamePlayers(pool)
 	coalitions := repo.NewCoalitions(pool)
 	settings := repo.NewSettings(pool)
+	heroes := repo.NewHeroes(pool)
 	checked := repo.NewCheckedGames(pool)
 	mapChecks := repo.NewMapChecks(pool)
 	topAlliances := repo.NewTopAlliances(pool)
@@ -88,7 +89,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Audit: audit, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Feedback: feedback, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery, HeroEveryMax: cfg.S1914HeroEveryMax,
-		Coalitions: coalitions, Settings: settings, Checked: checked, Checks: mapChecks,
+		Coalitions: coalitions, Settings: settings, Heroes: heroes,
+		Checked: checked, Checks: mapChecks,
 		TopAlliances: topAlliances, UserStats: userStats,
 		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 	}

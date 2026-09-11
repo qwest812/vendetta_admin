@@ -10,6 +10,7 @@ import (
 	"Vendetta_admin/internal/domain"
 	"Vendetta_admin/internal/i18n"
 	"Vendetta_admin/internal/supremacy"
+	"Vendetta_admin/internal/supremacy/heroes"
 )
 
 // Игра отдаёт время строкой с секундами, а порядок игр — как ей удобно.
@@ -885,6 +886,9 @@ func (sizeSource) UserStatsBatch(context.Context, []string) (map[string]*suprema
 	return nil, nil
 }
 func (sizeSource) UserID() string { return "101408369" }
+func (sizeSource) HeroOffers(context.Context) ([]heroes.Offer, error) {
+	return nil, nil
+}
 
 // Сколько ждать сайт, решает размер партии — но узнать его заранее неоткуда:
 // его называет тот самый ответ, которого мы ждём. Поэтому незнакомая партия

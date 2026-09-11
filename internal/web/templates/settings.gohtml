@@ -12,6 +12,12 @@
     {{template "coalitions-switch" (dict "C" . "CSRFToken" $.CSRFToken)}}
 {{end}}
 
+{{/* Справочник героев: та же схема, что у рубильника, — кнопка возвращает
+     карточку целиком, вместе со строкой о том, что вышло. */}}
+{{with .Heroes}}
+    {{template "heroes-card" (dict "H" . "CSRFToken" $.CSRFToken)}}
+{{end}}
+
 {{/* Открытия карты по дням. Считается тот же счётчик, что держит суточный
      лимит, поэтому несостоявшийся заход сюда не попадает: это ровно те
      карты, которые люди увидели. */}}
@@ -154,5 +160,37 @@
         {{if $c.On}}{{t "coalitions.on"}}{{else}}{{t "coalitions.off"}}{{end}}
         {{t "coalitions.stats.at"}}
     </p>
+</div>
+{{end}}
+
+{{define "heroes-card"}}
+{{$h := .H}}
+<div class="card" id="heroes">
+    <div class="card-head">
+        <h1>{{t "settings.heroes"}}</h1>
+        <div class="head-actions">
+            <form method="post" action="/settings/heroes"
+                  hx-post="/settings/heroes" hx-target="#heroes" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <button type="submit">{{t "settings.heroes.refresh"}}</button>
+            </form>
+        </div>
+    </div>
+    {{if $h.Error}}<p class="error">{{$h.Error}}{{if $h.Detail}} <span class="muted">{{$h.Detail}}</span>{{end}}</p>{{end}}
+    {{if $h.Done}}<p class="muted">{{t "settings.heroes.done"}}</p>{{end}}
+    <p>
+        <span class="kv">{{t "settings.heroes.count" $h.Count}}</span>
+        <span class="kv muted">{{t "settings.heroes.effects" $h.WithEffects}}</span>
+        <span class="kv muted">{{t "settings.heroes.collected" (datetime $h.CollectedAt)}}</span>
+        {{if $h.Client}}<span class="kv muted">{{t "settings.heroes.client" $h.Client}}</span>{{end}}
+    </p>
+    <p class="muted">
+        {{if $h.Builtin}}
+            {{t "settings.heroes.builtin"}}
+        {{else}}
+            {{t "settings.heroes.updated" $h.UpdatedBy (datetime $h.UpdatedAt)}}
+        {{end}}
+    </p>
+    <p class="muted">{{t "settings.heroes.note"}}</p>
 </div>
 {{end}}

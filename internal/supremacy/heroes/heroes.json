@@ -1,0 +1,6753 @@
+{
+ "version": 1,
+ "collected_at": "2026-09-11T13:39:07Z",
+ "client": "app.a21483.js",
+ "heroes": [
+  {
+   "identifier": "ViscountAllenby",
+   "unit_type_id": 22277,
+   "shard_item_id": 23132,
+   "class": "Cavalry",
+   "rarity": "Epic",
+   "image": "viscount_allenby.png",
+   "name_en": "Виконт Алленби",
+   "name_ru": "",
+   "short_en": "Allenby",
+   "short_ru": "Алленби",
+   "subtitle_en": "Cavalry Leader",
+   "subtitle_ru": "Кавалерийский военачальник",
+   "skills": [
+    {
+     "group_id": "all_mspd_buff",
+     "key": "MovementSpeedAllUnit",
+     "name_en": "Swift Command",
+     "name_ru": "Стремительныый приказ ",
+     "buff_en": "Movement Speed Boost",
+     "buff_ru": "Увеличение скорости передвижения",
+     "text_en": "Under this hero's leadership, all units in the army receive a %s boost to their movement speed, allowing for rapid maneuvers across the battlefield.",
+     "text_ru": "Под командованием этого героя все боевые единицы в армии получают %s бонус к скорости передвижения, что позволяет им быстрее перемещаться на поле боя."
+    },
+    {
+     "group_id": "cav_atk_buff",
+     "key": "CavalryAttackBuff",
+     "name_en": "Mounted Warfare",
+     "name_ru": "Бой в седле",
+     "buff_en": "Cavalry Attack Boost",
+     "buff_ru": "Усиление атаки кавалерии",
+     "text_en": "This hero's command increases the attack damage of all cavalry units in their army by %s, unleashing devastating assaults on the enemy.",
+     "text_ru": "Под командованием этого героя урон атак всех кавалерийских боевых единиц в его армии повышается на %s, что позволяет им эффективнее атаковать врага."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      22286,
+      23050
+     ],
+     "effects": [
+      {
+       "set": "cav_atk_buff_lvl1",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      23051
+     ],
+     "effects": [
+      {
+       "set": "cav_atk_buff_lvl2",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      23052
+     ],
+     "effects": [
+      {
+       "set": "cav_atk_buff_lvl3",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      23053
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      23054
+     ],
+     "effects": [
+      {
+       "set": "cav_atk_buff_lvl5",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52467
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl6",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52468
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl7",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.02
+      },
+      {
+       "set": "cav_atk_buff_lvl7",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52469
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52470
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl9",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.01
+      },
+      {
+       "set": "cav_atk_buff_lvl9",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52471
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl10",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.02
+      },
+      {
+       "set": "cav_atk_buff_lvl10",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52472
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl11",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.02
+      },
+      {
+       "set": "cav_atk_buff_lvl11",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52473
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl12",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.02
+      },
+      {
+       "set": "cav_atk_buff_lvl12",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52474
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl13",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.02
+      },
+      {
+       "set": "cav_atk_buff_lvl13",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52475
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl14",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.02
+      },
+      {
+       "set": "cav_atk_buff_lvl14",
+       "group_id": "cav_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52476
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl15",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.02
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "GeorgBruchmuller",
+   "unit_type_id": 23039,
+   "shard_item_id": 23133,
+   "class": "Artillery",
+   "rarity": "Legendary",
+   "image": "georg_bruchmuller.png",
+   "name_en": "Георг Брухмюллер",
+   "name_ru": "",
+   "short_en": "Bruchmüller",
+   "short_ru": "Брухмюллер",
+   "subtitle_en": "Artillery Leader",
+   "subtitle_ru": "Лидер артиллерии",
+   "skills": [
+    {
+     "group_id": "arty_atk_buff",
+     "key": "ArtilleryAttackBuff",
+     "name_en": "Artillery Barrage",
+     "name_ru": "Шквальный огонь",
+     "buff_en": "Artillery Attack Boost",
+     "buff_ru": "Усиление атаки артиллерии",
+     "text_en": "This hero's expertise increases the attack damage of all artillery units in his army by %s, unleashing devastating firepower on the enemy.",
+     "text_ru": "Под руководством этого героя урон атак всех артиллерийских боевых единиц в его армии повышается на %s, что позволяет им обрушить на врага убойный шквал огня."
+    },
+    {
+     "group_id": "arty_geo_mspd_buff",
+     "key": "ArtillerySpeedBuff",
+     "name_en": "Mobile Firepower!",
+     "name_ru": "Мобильная огневая мощь!",
+     "buff_en": "Artillery Movement Speed Boost",
+     "buff_ru": "Увеличение скорости передвижения артиллерии",
+     "text_en": "Under this hero's leadership, all artillery units in the army receive a %s boost to their movement speed, ensuring swift concentration of forces.",
+     "text_ru": "Под командованием этого героя все артиллерийские боевые единицы в армии получают %s бонус к скорости передвижения, что позволяет быстрее сосредоточивать силы."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      23043,
+      23055
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl1",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.15
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      23056
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl2",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      23057
+     ],
+     "effects": [
+      {
+       "set": "arty_geo_mspd_buff_lvl3",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      23058
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl4",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl4",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      23059
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52452
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl6",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl6",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52453
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl7",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl7",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52454
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl8",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl8",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52455
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl9",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl9",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52456
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52457
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl11",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl11",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52458
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl12",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl12",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52459
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl13",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl13",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52460
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl14",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl14",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52461
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl15",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl15",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      52462
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl16",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl16",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      52463
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl17",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl17",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      52464
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl18",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl18",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      52465
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl19",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl19",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      52466
+     ],
+     "effects": [
+      {
+       "set": "arty_atk_buff_lvl20",
+       "group_id": "arty_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "arty_geo_mspd_buff_lvl20",
+       "group_id": "arty_geo_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "HenryHankCallahan",
+   "unit_type_id": 23040,
+   "shard_item_id": 23134,
+   "class": "Infantry",
+   "rarity": "Uncommon",
+   "image": "henry_hank_callahan.png",
+   "name_en": "Генри «Хэнк» Каллахан",
+   "name_ru": "",
+   "short_en": "Callahan",
+   "short_ru": "Каллахан",
+   "subtitle_en": "Infantry Leader",
+   "subtitle_ru": "Лидер пехоты",
+   "skills": [
+    {
+     "group_id": "inf_atk_def_buff",
+     "key": "InfantryAttackDefenceBuff",
+     "name_en": "Inspiring Presence",
+     "name_ru": "Вдохновляющий пример",
+     "buff_en": "Infantry Attack \u0026 Defense Boost",
+     "buff_ru": "Усиление атаки и обороны пехоты",
+     "text_en": "This hero's inspiring presence increases the attack and defense damage of all Infantry units in his army by %s.",
+     "text_ru": "Вдохновляющий пример этого героя повышает урон в атаке и обороне всех пехотных боевых единиц в его армии на %s."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      23045,
+      23060
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      23061
+     ],
+     "effects": [
+      {
+       "set": "inf_atk_def_buff_lvl2",
+       "group_id": "inf_atk_def_buff",
+       "attack_factor": 0.03,
+       "defence_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      23062
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      23063
+     ],
+     "effects": [
+      {
+       "set": "inf_atk_def_buff_lvl4",
+       "group_id": "inf_atk_def_buff",
+       "attack_factor": 0.02,
+       "defence_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      23064
+     ],
+     "effects": [
+      {
+       "set": "inf_atk_def_buff_lvl5",
+       "group_id": "inf_atk_def_buff",
+       "attack_factor": 0.01,
+       "defence_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52567
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52568
+     ],
+     "effects": [
+      {
+       "set": "inf_atk_def_buff_lvl7",
+       "group_id": "inf_atk_def_buff",
+       "attack_factor": 0.01,
+       "defence_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52569
+     ],
+     "effects": [
+      {
+       "set": "inf_atk_def_buff_lvl8",
+       "group_id": "inf_atk_def_buff",
+       "attack_factor": 0.01,
+       "defence_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52570
+     ],
+     "effects": [
+      {
+       "set": "inf_atk_def_buff_lvl9",
+       "group_id": "inf_atk_def_buff",
+       "attack_factor": 0.01,
+       "defence_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52571
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "OrhanKangalDemir",
+   "unit_type_id": 23041,
+   "shard_item_id": 23135,
+   "class": "ArmoredCar",
+   "rarity": "Rare",
+   "image": "orhan_kangal_demir.png",
+   "name_en": "Орхан «Кангал» Демир",
+   "name_ru": "",
+   "short_en": "Kangal",
+   "short_ru": "Кангал",
+   "subtitle_en": "Armoured Cars Leader",
+   "subtitle_ru": "Лидер бронеавтомобилей",
+   "skills": [
+    {
+     "group_id": "ac_def_buff",
+     "key": "ArmouredCardDefenseBuff",
+     "name_en": "Stalwart Defender",
+     "name_ru": "Доблестный защитник",
+     "buff_en": "Armoured Car Defense Boost",
+     "buff_ru": "Усиление обороны бронеавтомобилей",
+     "text_en": "This hero's expertise increases the defense damage of all Armoured Car units in his army by %s, allowing him to quickly mount a robust defense wherever it is needed most.",
+     "text_ru": "Под руководством этого героя урон в обороне всех бронеавтомобилей в его армии повышается на %s, что позволяет быстро организовать мощную оборону на ключевом участке."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      23047,
+      23065
+     ],
+     "effects": [
+      {
+       "set": "ac_def_buff_lvl1",
+       "group_id": "ac_def_buff",
+       "defence_factor": 0.08
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      23066
+     ],
+     "effects": [
+      {
+       "set": "ac_def_buff_lvl2",
+       "group_id": "ac_def_buff",
+       "defence_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      23067
+     ],
+     "effects": [
+      {
+       "set": "ac_def_buff_lvl3",
+       "group_id": "ac_def_buff",
+       "defence_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      23068
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      23069
+     ],
+     "effects": [
+      {
+       "set": "ac_def_buff_lvl5",
+       "group_id": "ac_def_buff",
+       "defence_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52447
+     ],
+     "effects": [
+      {
+       "set": "ac_def_buff_lvl6",
+       "group_id": "ac_def_buff",
+       "defence_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52448
+     ],
+     "effects": [
+      {
+       "set": "ac_def_buff_lvl7",
+       "group_id": "ac_def_buff",
+       "defence_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52449
+     ],
+     "effects": [
+      {
+       "set": "ac_def_buff_lvl8",
+       "group_id": "ac_def_buff",
+       "defence_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52450
+     ],
+     "effects": [
+      {
+       "set": "ac_def_buff_lvl9",
+       "group_id": "ac_def_buff",
+       "defence_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52451
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "LawrenceOfArabia",
+   "unit_type_id": 23042,
+   "shard_item_id": 23136,
+   "class": "Cavalry",
+   "rarity": "Legendary",
+   "image": "lawrence_of_arabia.png",
+   "name_en": "Лоуренс Аравийский",
+   "name_ru": "",
+   "short_en": "Lawrence",
+   "short_ru": "Лоуренс",
+   "subtitle_en": "Guerilla Leader",
+   "subtitle_ru": "Лидер партизан",
+   "skills": [
+    {
+     "group_id": "all_mspd_buff",
+     "key": "MovementSpeedAllUnit",
+     "name_en": "Swift Command",
+     "name_ru": "Стремительныый приказ ",
+     "buff_en": "Movement Speed Boost",
+     "buff_ru": "Увеличение скорости передвижения",
+     "text_en": "Under this hero's leadership, all units in the army receive a %s boost to their movement speed, allowing for rapid maneuvers across the battlefield.",
+     "text_ru": "Под командованием этого героя все боевые единицы в армии получают %s бонус к скорости передвижения, что позволяет им быстрее перемещаться на поле боя."
+    },
+    {
+     "group_id": "law_atk_buff",
+     "key": "LawrenceAttackBuff",
+     "name_en": "Seven Pillars",
+     "name_ru": "Семь Cтолпов",
+     "buff_en": "Lawrence’s Attack Boost",
+     "buff_ru": "Усиление атаки Лоуренса",
+     "text_en": "Falling back on his wealth of experience in guerilla warfare, Lawrence boosts his own attack damage by %s.",
+     "text_ru": "Используя свой богатый опыт партизанской войны, Лоуренс повышает собственный урон на %s."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      23049,
+      23070
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl1",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      23071
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl2",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl2",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.75
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      23072
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl3",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl3",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      23073
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      23074
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl5",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl5",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52537
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52538
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl7",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl7",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52539
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52540
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl9",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl9",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52541
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52542
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl11",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl11",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52543
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52544
+     ],
+     "effects": [
+      {
+       "set": "law_atk_buff_lvl13",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52545
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl14",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl14",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52546
+     ],
+     "effects": [
+      {
+       "set": "law_atk_buff_lvl15",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      52547
+     ],
+     "effects": [
+      {
+       "set": "law_atk_buff_lvl16",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      52548
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl17",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl17",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      52549
+     ],
+     "effects": [
+      {
+       "set": "law_atk_buff_lvl18",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      52550
+     ],
+     "effects": [
+      {
+       "set": "law_atk_buff_lvl19",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      52551
+     ],
+     "effects": [
+      {
+       "set": "all_mspd_buff_lvl20",
+       "group_id": "all_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "law_atk_buff_lvl20",
+       "group_id": "law_atk_buff",
+       "attack_factor": 0.25
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "JosephJoffre",
+   "unit_type_id": 50613,
+   "shard_item_id": 50623,
+   "class": "ArmoredCar",
+   "rarity": "Epic",
+   "image": "joseph_joffre.png",
+   "name_en": "Жозеф Жоффр",
+   "name_ru": "",
+   "short_en": "Joffre",
+   "short_ru": "Жоффр",
+   "subtitle_en": "Victor of the Marne",
+   "subtitle_ru": "Победитель Марны",
+   "skills": [
+    {
+     "group_id": "ac_hp_buff_own",
+     "key": "ArmouredCardAndOwnHitpointsBuff",
+     "name_en": "Hold your Ground!",
+     "name_ru": "Ни шагу назад!",
+     "buff_en": "Armored Car Hitpoint Boost",
+     "buff_ru": "Увеличение здоровья бронеавтомобилей",
+     "text_en": "All Armored Cars under the direct leadership of this hero have their hitpoints increased by %s, as long as they’re within territory directly controlled by his nation.",
+     "text_ru": "Запас здоровья всех бронеавтомобилей под непосредственным командованием этого героя увеличивается на %s, если они находятся на территории, которую непосредственно контролирует его страна."
+    },
+    {
+     "group_id": "inf_ac_def_buff_own",
+     "key": "InfantryArmouredCarAndOwnDefenseBuff",
+     "name_en": "Defender of the Homeland",
+     "name_ru": "Защитник Родины",
+     "buff_en": "Infantry \u0026 Armored Car Defense Boost",
+     "buff_ru": "Усиление обороны пехоты и бронеавтомобилей",
+     "text_en": "This hero's leadership increases the defense damage of all Infantry and Armored Cars in his army by %s when fighting in territory directly controlled by his nation.",
+     "text_ru": "Под командованием этого героя урон в обороне всех пехотных боевых единиц и бронеавтомобилей в его армии повышается на %s, если бой идет на территории, которую непосредственно контролирует его страна."
+    },
+    {
+     "group_id": "inf_mspd_buff_own",
+     "key": "InfantryAndOwnSpeedBuff",
+     "name_en": "Rapid Redeployment",
+     "name_ru": "Быстрая передислокация",
+     "buff_en": "Infantry Movement Speed Boost",
+     "buff_ru": "Увеличение скорости передвижения пехоты",
+     "text_en": "A profound understanding of logistics and infrastructure results in %s increased movement speed for Infantry commanded by this hero. This only applies when marching on territory directly controlled by his nation.",
+     "text_ru": "Блестящее знание героем логистики и инфраструктуры позволяет повысить скорость передвижения подчиненной ему пехоты на %s. Бонус действует только при перемещении по территории, которую непосредственно контролирует страна героя."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50624,
+      50625
+     ],
+     "effects": [
+      {
+       "set": "inf_ac_def_buff_lvl1",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.1,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50626
+     ],
+     "effects": [
+      {
+       "set": "inf_ac_def_buff_lvl2",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50627
+     ],
+     "effects": [
+      {
+       "set": "ac_hp_buff_lvl3",
+       "group_id": "ac_hp_buff_own",
+       "hitpoints_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50628
+     ],
+     "effects": [
+      {
+       "set": "inf_ac_def_buff_lvl4",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.01,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_mspd_buff_lvl4",
+       "group_id": "inf_mspd_buff_own",
+       "speed_factor": 0.15,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50629
+     ],
+     "effects": [
+      {
+       "set": "ac_hp_buff_lvl5",
+       "group_id": "ac_hp_buff_own",
+       "hitpoints_factor": 0.04,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_ac_def_buff_lvl5",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.04,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52587
+     ],
+     "effects": [
+      {
+       "set": "inf_ac_def_buff_lvl6",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_mspd_buff_lvl6",
+       "group_id": "inf_mspd_buff_own",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52588
+     ],
+     "effects": [
+      {
+       "set": "ac_hp_buff_lvl7",
+       "group_id": "ac_hp_buff_own",
+       "hitpoints_factor": 0.04,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_ac_def_buff_lvl7",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52589
+     ],
+     "effects": [
+      {
+       "set": "inf_ac_def_buff_lvl8",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_mspd_buff_lvl8",
+       "group_id": "inf_mspd_buff_own",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52590
+     ],
+     "effects": [
+      {
+       "set": "ac_hp_buff_lvl9",
+       "group_id": "ac_hp_buff_own",
+       "hitpoints_factor": 0.04,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_ac_def_buff_lvl9",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52591
+     ],
+     "effects": [
+      {
+       "set": "inf_ac_def_buff_lvl10",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_mspd_buff_lvl10",
+       "group_id": "inf_mspd_buff_own",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52747
+     ],
+     "effects": [
+      {
+       "set": "ac_hp_buff_lvl11",
+       "group_id": "ac_hp_buff_own",
+       "hitpoints_factor": 0.04,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_ac_def_buff_lvl11",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52748
+     ],
+     "effects": [
+      {
+       "set": "inf_ac_def_buff_lvl12",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_mspd_buff_lvl12",
+       "group_id": "inf_mspd_buff_own",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52749
+     ],
+     "effects": [
+      {
+       "set": "ac_hp_buff_lvl13",
+       "group_id": "ac_hp_buff_own",
+       "hitpoints_factor": 0.04,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_ac_def_buff_lvl13",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_mspd_buff_lvl13",
+       "group_id": "inf_mspd_buff_own",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52750
+     ],
+     "effects": [
+      {
+       "set": "inf_ac_def_buff_lvl14",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_mspd_buff_lvl14",
+       "group_id": "inf_mspd_buff_own",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52751
+     ],
+     "effects": [
+      {
+       "set": "ac_hp_buff_lvl15",
+       "group_id": "ac_hp_buff_own",
+       "hitpoints_factor": 0.05,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_ac_def_buff_lvl15",
+       "group_id": "inf_ac_def_buff_own",
+       "defence_factor": 0.02,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_mspd_buff_lvl15",
+       "group_id": "inf_mspd_buff_own",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "TatianaMinchakievich",
+   "unit_type_id": 50614,
+   "shard_item_id": 50631,
+   "class": "Infantry",
+   "rarity": "Legendary",
+   "image": "tatiana_minchakievich.png",
+   "name_en": "Татьяна Минчакевич",
+   "name_ru": "",
+   "short_en": "Tatiana",
+   "short_ru": "Татьяна",
+   "subtitle_en": "Baba Yaga",
+   "subtitle_ru": "Баба-Яга",
+   "skills": [
+    {
+     "group_id": "inf_mspd_buff",
+     "key": "InfantrySpeedBuff",
+     "name_en": "Strike and Fade",
+     "name_ru": "Удар и отход",
+     "buff_en": "Tatiana \u0026 Infantry Movement Speed Boost",
+     "buff_ru": "Увеличение скорости передвижения Татьяны и пехоты",
+     "text_en": "The movement speed of Tatiana and Infantry under her command is increased by %s, enabling strike and fade raiding tactics.",
+     "text_ru": "Скорость передвижения Татьяны и пехоты под ее командованием увеличивается на %s, что позволяет использовать тактику вылазок с быстрым отходом после атаки. "
+    },
+    {
+     "group_id": "tat_atk_buff_enemy",
+     "key": "TatianaAttackBuffEnemy",
+     "name_en": "Shoot to Kill",
+     "name_ru": "Прицельный огонь",
+     "buff_en": "Tatiana's Attack Boost",
+     "buff_ru": "Увеличение атаки Татьяны",
+     "text_en": "Tatiana's marksmanship is legendary, striking fear into her opponents. Her attack damage is increased by %s when fighting on enemy territory.",
+     "text_ru": "Легендарная меткость Татьяны наводит ужас на врага. Если она сражается на вражеской территории, наносимый ею урон увеличивается на %s."
+    },
+    {
+     "group_id": "tat_view_buff_enemy",
+     "key": "TatianaViewBuffEnemy",
+     "name_en": "On the Prowl",
+     "name_ru": "Поиск цели",
+     "buff_en": "Tatiana's Vision Range Boost",
+     "buff_ru": "Увеличение дальности обзора Татьяны",
+     "text_en": "Tatiana is a seasoned scout, benefiting from %s increased vision range when positioned in enemy territory.",
+     "text_ru": "Татьяна – опытная разведчица. Когда она находится на вражеской территории, ее дальность обзора повышается на %s."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50632,
+      50633
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl1",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 1,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50634
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl2",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl2",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50635
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl3",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.1
+      },
+      {
+       "set": "tat_atk_buff_lvl3",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50636
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl4",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl4",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50637
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl5",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "tat_atk_buff_lvl5",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52572
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl6",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl6",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52573
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl7",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "tat_atk_buff_lvl7",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52574
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl8",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl8",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52575
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl9",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "tat_atk_buff_lvl9",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52576
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl10",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl10",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52577
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl11",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "tat_atk_buff_lvl11",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52578
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl12",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl12",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52579
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl13",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "tat_atk_buff_lvl13",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52580
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl14",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl14",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52581
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl15",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "tat_atk_buff_lvl15",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      52582
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl16",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.2,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl16",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      52583
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl17",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "tat_atk_buff_lvl17",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.25,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      52584
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl18",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.25,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl18",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      52585
+     ],
+     "effects": [
+      {
+       "set": "inf_mspd_buff_lvl19",
+       "group_id": "inf_mspd_buff",
+       "speed_factor": 0.05
+      },
+      {
+       "set": "tat_atk_buff_lvl19",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.25,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      52586
+     ],
+     "effects": [
+      {
+       "set": "tat_atk_buff_lvl20",
+       "group_id": "tat_atk_buff_enemy",
+       "attack_factor": 0.25,
+       "territory": [
+        2
+       ]
+      },
+      {
+       "set": "tat_view_buff_lvl20",
+       "group_id": "tat_view_buff_enemy",
+       "vision_factor": 0.2,
+       "territory": [
+        2
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "FieroMartello",
+   "unit_type_id": 50615,
+   "shard_item_id": 50639,
+   "class": "Tank",
+   "rarity": "Uncommon",
+   "image": "fiero_martello.png",
+   "name_en": "Фиеро «Марко» Мартелло",
+   "name_ru": "",
+   "short_en": "Martello",
+   "short_ru": "Мартелло",
+   "subtitle_en": "Tank Mechanic",
+   "subtitle_ru": "Танковый механик",
+   "skills": [
+    {
+     "group_id": "t_atk_buff",
+     "key": "TankAttackBuff",
+     "name_en": "Armourer",
+     "name_ru": "Механик по вооружению",
+     "buff_en": "Light Tank Attack Boost",
+     "buff_ru": "Усиление атаки легких танков",
+     "text_en": "Frequently sighting-in the guns and keeping the turret mechanisms well oiled allows tank crews to perform at their best when in battle. Light Tanks in this hero’s army have %s increased attack damage.",
+     "text_ru": "Частая пристрелка орудий и смазка башенных механизмов позволяют экипажам танков максимально эффективно действовать в бою. Танки в армии этого героя наносят на %s больше урона."
+    },
+    {
+     "group_id": "t_hp_buff",
+     "key": "TankHitPointsBuff",
+     "name_en": "Regular Maintenance",
+     "name_ru": "Плановое обслуживание",
+     "buff_en": "Light Tank Hitpoint Boost",
+     "buff_ru": "Увеличение здоровья тяжелых танков",
+     "text_en": "The hero takes expert care of the machinery allocated to his units, ensuring they don’t break down when it matters most. Light Tanks in his army benefit from %s increased hitpoints",
+     "text_ru": "Этот герой обеспечивает профессиональное обслуживание техники, вверенной его боевым единицам, чтобы она не подвела в ключевой момент. Все танки в армии этого героя получают бонус %s к запасу здоровья"
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50640,
+      50641
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl1",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50642
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl2",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50643
+     ],
+     "effects": [
+      {
+       "set": "t_hp_buff_lvl3",
+       "group_id": "t_hp_buff",
+       "hitpoints_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50644
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl4",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.01
+      },
+      {
+       "set": "t_hp_buff_lvl4",
+       "group_id": "t_hp_buff",
+       "hitpoints_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50645
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl5",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.01
+      },
+      {
+       "set": "t_hp_buff_lvl5",
+       "group_id": "t_hp_buff",
+       "hitpoints_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52752
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl6",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.01
+      },
+      {
+       "set": "t_hp_buff_lvl6",
+       "group_id": "t_hp_buff",
+       "hitpoints_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52753
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl7",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.01
+      },
+      {
+       "set": "t_hp_buff_lvl7",
+       "group_id": "t_hp_buff",
+       "hitpoints_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52754
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl8",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.01
+      },
+      {
+       "set": "t_hp_buff_lvl8",
+       "group_id": "t_hp_buff",
+       "hitpoints_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52755
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl9",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.01
+      },
+      {
+       "set": "t_hp_buff_lvl9",
+       "group_id": "t_hp_buff",
+       "hitpoints_factor": 0.01
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52756
+     ],
+     "effects": [
+      {
+       "set": "t_atk_buff_lvl10",
+       "group_id": "t_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "t_hp_buff_lvl10",
+       "group_id": "t_hp_buff",
+       "hitpoints_factor": 0.01
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "TogoHeihachiro",
+   "unit_type_id": 50616,
+   "shard_item_id": 50647,
+   "class": "Battleship",
+   "rarity": "Legendary",
+   "image": "togo_heihachiro.png",
+   "name_en": "Того Хэйхатиро",
+   "name_ru": "",
+   "short_en": "Tōgō",
+   "short_ru": "Того",
+   "subtitle_en": "Grand Admiral",
+   "subtitle_ru": "Адмирал флота",
+   "skills": [
+    {
+     "group_id": "bb_dmg_buff",
+     "key": "BattleShipDamageBuff",
+     "name_en": "Concentrate Fire!",
+     "name_ru": "Сосредоточить огонь!",
+     "buff_en": "Battleship Attack \u0026 Defense Boost",
+     "buff_ru": "Усиление атаки и обороны линкоров",
+     "text_en": "Enhances the firepower of all Battleships in the Hero's army by %s, increasing the attack and defense damage they deal in combat.",
+     "text_ru": "Усиление огневой мощи всех линкоров в армии этого героя позволяет увеличить урон, наносимый ими в бою, на %s."
+    },
+    {
+     "group_id": "bb_hp_buff",
+     "key": "BattleShipHitPointsBuff",
+     "name_en": "Battle-Hardened Crews",
+     "name_ru": "Команды ветеранов",
+     "buff_en": "Battleship Hitpoints Boost",
+     "buff_ru": "Увеличение здоровья линкоров",
+     "text_en": "Increases the hitpoints of all Battleships in the Hero's army by %s, enhancing their durability in combat.",
+     "text_ru": "Увеличение запаса здоровья всех линкоров в армии этого героя на %s позволяет повысить их живучесть в бою."
+    },
+    {
+     "group_id": "bombardment_active",
+     "key": "BombardmentActive",
+     "name_en": "Bombardment",
+     "name_ru": "Артобстрел",
+     "buff_en": "Bombardment Strike Damage",
+     "buff_ru": "Урон артобстрела",
+     "text_en": "Tōgō launches a bombardment that continuously damages the selected sea area or shorelines for %s, requiring him to remain stationary during the preparation phase. The bombardment affects all units in the targeted area, including friendly ones.",
+     "text_ru": "Того осуществляет непрерывный артиллерийский обстрел выбранной территории в течение %s часов. Прежде чем начать обстрел, Того должен не двигаться с места в течение %s часов. Бомбардировка затрагивает все подразделения в выбранной области, включая дружественные."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50648,
+      50649
+     ],
+     "effects": [
+      {
+       "set": "bombardment_lvl1",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 51147,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50650
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl2",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "bombardment_lvl2",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 51148,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50651
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl3",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.15,
+       "defence_factor": 0.15
+      },
+      {
+       "set": "bombardment_lvl3",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 51149,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50652
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl4",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.04
+      },
+      {
+       "set": "bombardment_lvl4",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 51150,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50653
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl5",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      },
+      {
+       "set": "bombardment_lvl5",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 51151,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52477
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl6",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.04
+      },
+      {
+       "set": "bombardment_lvl6",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52362,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52478
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl7",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      },
+      {
+       "set": "bombardment_lvl7",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52363,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52479
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl8",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.04
+      },
+      {
+       "set": "bombardment_lvl8",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52364,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52480
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl9",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      },
+      {
+       "set": "bombardment_lvl9",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52365,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52481
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl10",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "bombardment_lvl10",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52366,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52482
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl11",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.04,
+       "defence_factor": 0.04
+      },
+      {
+       "set": "bombardment_lvl11",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52367,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52483
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl12",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "bombardment_lvl12",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52368,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52484
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl13",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.04,
+       "defence_factor": 0.04
+      },
+      {
+       "set": "bombardment_lvl13",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52369,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52485
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl14",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "bombardment_lvl14",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52370,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52486
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl15",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.04,
+       "defence_factor": 0.04
+      },
+      {
+       "set": "bombardment_lvl15",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52371,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      52487
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl16",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "bombardment_lvl16",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52372,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      52488
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl17",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.04,
+       "defence_factor": 0.04
+      },
+      {
+       "set": "bombardment_lvl17",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52373,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      52489
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl18",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "bombardment_lvl18",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52374,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      52490
+     ],
+     "effects": [
+      {
+       "set": "bb_dmg_buff_lvl19",
+       "group_id": "bb_dmg_buff",
+       "attack_factor": 0.04,
+       "defence_factor": 0.04
+      },
+      {
+       "set": "bombardment_lvl19",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52375,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      52491
+     ],
+     "effects": [
+      {
+       "set": "bb_hp_buff_lvl20",
+       "group_id": "bb_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "bombardment_lvl20",
+       "group_id": "bombardment_active",
+       "deploy": {
+        "unit_type": 52376,
+        "amount": 1,
+        "time_sec": 7200,
+        "range": 75,
+        "cost": {
+         "5": 800,
+         "6": 800
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "FionaMaevePorter",
+   "unit_type_id": 50617,
+   "shard_item_id": 50655,
+   "class": "Infantry",
+   "rarity": "Epic",
+   "image": "fiona_maeve_porter.png",
+   "name_en": "Фиона «Мейв» Портер",
+   "name_ru": "",
+   "short_en": "Maeve",
+   "short_ru": "Мейв",
+   "subtitle_en": "Expert Recruiter",
+   "subtitle_ru": "Специалист по Вербовке",
+   "skills": [
+    {
+     "group_id": "fio_view_buff_own",
+     "key": "FionaViewBuffOwn",
+     "name_en": "Eyes of the Homeland",
+     "name_ru": "Глаза Родины",
+     "buff_en": "Maeve's Vision Range Boost",
+     "buff_ru": "Увеличение дальности обзора Мейв",
+     "text_en": "Maeve’s network of scouts and informants enhances her ability to survey the battlefield. While in her own territory, her view range increases by %s, providing critical information about enemy movements.",
+     "text_ru": "Созданная Мейв сеть шпионов и информаторов помогает ей лучше изучить поле боя. Когда Мейв находится на своей территории, ее дальность обзора увеличивается на %s, позволяя получать важную информацию о перемещениях противника."
+    },
+    {
+     "group_id": "inf_deploy_amount_active",
+     "key": "InfantryDeployAmountActive",
+     "name_en": "Call to Arms",
+     "name_ru": "К оружию",
+     "buff_en": "Infantry Deployment Count",
+     "buff_ru": "Количество размещаемой пехоты",
+     "text_en": "Maeve inspires locals as she travels, rallying them to join the armed forces. Activating this skill puts her in a \"deploying\" state, immobilizing her for %s hours while consuming %s Fish and %s Money to gather reinforcements. Once complete, %s Infantry units are added to her army.",
+     "text_ru": "Мейв вдохновляет местных жителей на подвиги, призывая их вступать в ряды вооруженных сил. При активации этого навыка она переходит в состояние «размещения», теряет подвижность на %s ч и расходует %s ед. рыбы и %s денег на создание подкреплений. По окончании этого периода в армию Мейв добавляются пехотные боевые единицы (%s)."
+    },
+    {
+     "group_id": "inf_mspd_buff_own_fio",
+     "key": "InfantrySpeedBuffOwn",
+     "name_en": "Swift Command",
+     "name_ru": "Стремительныый приказ ",
+     "buff_en": "Infantry Movement Speed Boost",
+     "buff_ru": "Увеличение скорости передвижения пехоты",
+     "text_en": "Maeve travels light and knows how to navigate difficult terrain. Infantry in her army have their movement speed increased by %s, allowing them to outmaneuver opponents and quickly adapt to changing battle conditions.",
+     "text_ru": "Мейв передвигается налегке и умеет ориентироваться на местности. Скорость передвижения пехоты в составе ее армии увеличивается на %s, позволяя опережать противника и быстро приспосабливаться к меняющейся ситуации."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50656,
+      50657
+     ],
+     "effects": [
+      {
+       "set": "inf_deploy_amount_lvl1",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 2,
+        "time_sec": 10800,
+        "cost": {
+         "1": 300,
+         "20": 8000
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50658
+     ],
+     "effects": [
+      {
+       "set": "inf_deploy_amount_lvl2",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 2,
+        "time_sec": 10800,
+        "cost": {
+         "1": 300,
+         "20": 8000
+        }
+       }
+      },
+      {
+       "set": "inf_mspd_buff_own_lvl2",
+       "group_id": "inf_mspd_buff_own_fio",
+       "speed_factor": 0.25,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50659
+     ],
+     "effects": [
+      {
+       "set": "inf_deploy_amount_lvl3",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 3,
+        "time_sec": 10800,
+        "cost": {
+         "1": 400,
+         "20": 10500
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50660
+     ],
+     "effects": [
+      {
+       "set": "fio_view_range_lvl4",
+       "group_id": "fio_view_buff_own",
+       "vision_factor": 0.2,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_deploy_amount_lvl4",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 3,
+        "time_sec": 10800,
+        "cost": {
+         "1": 400,
+         "20": 10500
+        }
+       }
+      },
+      {
+       "set": "inf_mspd_buff_own_lvl4",
+       "group_id": "inf_mspd_buff_own_fio",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50661
+     ],
+     "effects": [
+      {
+       "set": "inf_deploy_amount_lvl5",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 4,
+        "time_sec": 10800,
+        "cost": {
+         "1": 500,
+         "20": 13000
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52492
+     ],
+     "effects": [
+      {
+       "set": "fio_view_range_lvl6",
+       "group_id": "fio_view_buff_own",
+       "vision_factor": 0.2,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_deploy_amount_lvl6",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 4,
+        "time_sec": 10800,
+        "cost": {
+         "1": 500,
+         "20": 13000
+        }
+       }
+      },
+      {
+       "set": "inf_mspd_buff_own_lvl6",
+       "group_id": "inf_mspd_buff_own_fio",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52493
+     ],
+     "effects": [
+      {
+       "set": "inf_deploy_amount_lvl7",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 5,
+        "time_sec": 10800,
+        "cost": {
+         "1": 600,
+         "20": 15500
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52494
+     ],
+     "effects": [
+      {
+       "set": "fio_view_range_lvl8",
+       "group_id": "fio_view_buff_own",
+       "vision_factor": 0.3,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_deploy_amount_lvl8",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 5,
+        "time_sec": 10800,
+        "cost": {
+         "1": 600,
+         "20": 15500
+        }
+       }
+      },
+      {
+       "set": "inf_mspd_buff_own_lvl8",
+       "group_id": "inf_mspd_buff_own_fio",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52495
+     ],
+     "effects": [
+      {
+       "set": "inf_deploy_amount_lvl9",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 6,
+        "time_sec": 10800,
+        "cost": {
+         "1": 700,
+         "20": 18000
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52496
+     ],
+     "effects": [
+      {
+       "set": "fio_view_range_lvl10",
+       "group_id": "fio_view_buff_own",
+       "vision_factor": 0.3,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_deploy_amount_lvl10",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 6,
+        "time_sec": 10800,
+        "cost": {
+         "1": 700,
+         "20": 18000
+        }
+       }
+      },
+      {
+       "set": "inf_mspd_buff_own_lvl10",
+       "group_id": "inf_mspd_buff_own_fio",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52497
+     ],
+     "effects": [
+      {
+       "set": "fio_view_range_lvl11",
+       "group_id": "fio_view_buff_own",
+       "vision_factor": 0.2,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_deploy_amount_lvl11",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 7,
+        "time_sec": 10800,
+        "cost": {
+         "1": 800,
+         "20": 20500
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52498
+     ],
+     "effects": [
+      {
+       "set": "inf_deploy_amount_lvl12",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 7,
+        "time_sec": 10800,
+        "cost": {
+         "1": 800,
+         "20": 20500
+        }
+       }
+      },
+      {
+       "set": "inf_mspd_buff_own_lvl12",
+       "group_id": "inf_mspd_buff_own_fio",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52499
+     ],
+     "effects": [
+      {
+       "set": "fio_view_range_lvl13",
+       "group_id": "fio_view_buff_own",
+       "vision_factor": 0.1,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_deploy_amount_lvl13",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 8,
+        "time_sec": 10800,
+        "cost": {
+         "1": 900,
+         "20": 23000
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52500
+     ],
+     "effects": [
+      {
+       "set": "fio_view_range_lvl14",
+       "group_id": "fio_view_buff_own",
+       "vision_factor": 0.1,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_deploy_amount_lvl14",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 8,
+        "time_sec": 10800,
+        "cost": {
+         "1": 900,
+         "20": 23000
+        }
+       }
+      },
+      {
+       "set": "inf_mspd_buff_own_lvl14",
+       "group_id": "inf_mspd_buff_own_fio",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52501
+     ],
+     "effects": [
+      {
+       "set": "fio_view_range_lvl15",
+       "group_id": "fio_view_buff_own",
+       "vision_factor": 0.1,
+       "territory": [
+        0
+       ]
+      },
+      {
+       "set": "inf_deploy_amount_lvl15",
+       "group_id": "inf_deploy_amount_active",
+       "deploy": {
+        "unit_type": 2,
+        "amount": 9,
+        "time_sec": 10800,
+        "cost": {
+         "1": 1000,
+         "20": 25000
+        }
+       }
+      },
+      {
+       "set": "inf_mspd_buff_own_lvl15",
+       "group_id": "inf_mspd_buff_own_fio",
+       "speed_factor": 0.05,
+       "territory": [
+        0
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "JohnPershing",
+   "unit_type_id": 50618,
+   "shard_item_id": 50663,
+   "class": "Infantry",
+   "rarity": "Legendary",
+   "image": "john_pershing.png",
+   "name_en": "Джон Першинг",
+   "name_ru": "",
+   "short_en": "Pershing",
+   "short_ru": "Першинг",
+   "subtitle_en": "General of the Armies",
+   "subtitle_ru": "Генерал армий",
+   "skills": [
+    {
+     "group_id": "ht_hp_buff",
+     "key": "HeavyTankHitPointsBuff",
+     "name_en": "Heavy Assault Formation",
+     "name_ru": "Боевой порядок тяжелой техники",
+     "buff_en": "Heavy Tank Hitpoints Boost",
+     "buff_ru": "Увеличение здоровья тяжелых танков",
+     "text_en": "The hitpoints of Heavy Tanks in Pershing's army are increased by %s as a result of excellent coordination with other units.",
+     "text_ru": "Активная поддержка со стороны других боевых единиц повышает запас здоровья тяжелых танков в армии Першинга на %s."
+    },
+    {
+     "group_id": "inf_hp_buff",
+     "key": "InfantryHitPointsBuff",
+     "name_en": "Hold the Line",
+     "name_ru": "Держать оборону!",
+     "buff_en": "Infantry Hitpoints Boost",
+     "buff_ru": "Увеличение здоровья пехоты",
+     "text_en": "The hitpoints of Infantry under Pershing's command are increased by %s as a result of extensive training and preparation.",
+     "text_ru": "Всесторонняя и интенсивная подготовка повышает запас здоровья пехоты под командованием Першинга на %s."
+    },
+    {
+     "group_id": "land_atk_buff",
+     "key": "LandAttackBuff",
+     "name_en": "Combined Arms Tactics",
+     "name_ru": "Тактика общевойскового боя",
+     "buff_en": "Melee Land Attack Damage Boost",
+     "buff_ru": "Увеличение урона в атаке сухопутных войск ближнего боя",
+     "text_en": "Well coordinated attacks increasing the attack damage of all melee land units in Pershing's army by %s",
+     "text_ru": "Грамотная координация атак повышает урон в атаке на %s для всех сухопутных боевых единиц ближнего боя в армии Першинга."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50664,
+      50665
+     ],
+     "effects": [
+      {
+       "set": "land_meele_atk_lvl1",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50666
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl2",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl2",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50667
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl3",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "land_meele_atk_lvl3",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50668
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl4",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "land_meele_atk_lvl4",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50669
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl5",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl5",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52502
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl6",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "land_meele_atk_lvl6",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52503
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl7",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl7",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52504
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl8",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "land_meele_atk_lvl8",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52505
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl9",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl9",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52506
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl10",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "land_meele_atk_lvl10",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52507
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl11",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl11",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52508
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl12",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "land_meele_atk_lvl12",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52509
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl13",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl13",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52510
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl14",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "land_meele_atk_lvl14",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52511
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl15",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl15",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      52512
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl16",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "land_meele_atk_lvl16",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      52513
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl17",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl17",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      52514
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl18",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "land_meele_atk_lvl18",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      52515
+     ],
+     "effects": [
+      {
+       "set": "ht_hp_lvl19",
+       "group_id": "ht_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "land_meele_atk_lvl19",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      52516
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_lvl20",
+       "group_id": "inf_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "land_meele_atk_lvl20",
+       "group_id": "land_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "JohanMaes",
+   "unit_type_id": 50619,
+   "shard_item_id": 50671,
+   "class": "Infantry",
+   "rarity": "Legendary",
+   "image": "johan_maes.png",
+   "name_en": "Йохан «Когтекоп» Мас",
+   "name_ru": "",
+   "short_en": "Johan",
+   "short_ru": "Йохан",
+   "subtitle_en": "Fortification Expert",
+   "subtitle_ru": "Специалист по укреплениям",
+   "skills": [
+    {
+     "group_id": "trench_inf_def_buff",
+     "key": "TrenchInfantryDefenseBuff",
+     "name_en": "Hold the Line",
+     "name_ru": "Держать оборону!",
+     "buff_en": "Infantry Defense Damage Boost",
+     "buff_ru": "Увеличение урона в обороне пехоты",
+     "text_en": "Johan’s trench systems are built to withstand even the fiercest assaults. Increases the defense damage of all Infantry units merged with a trench by %s",
+     "text_ru": "Системы траншей Йохана выдержат самые яростные атаки противника. Урон в обороне всех объединенных с траншеей пехотных боевых единиц увеличивается на %s."
+    },
+    {
+     "group_id": "trench_inf_hp_buff",
+     "key": "TrenchInfantryHitPointsBuff",
+     "name_en": "Rapid Entrenchment",
+     "name_ru": "Быстрое окапывание",
+     "buff_en": "Infantry Hitpoints Boost",
+     "buff_ru": "Увеличение здоровья пехоты",
+     "text_en": "Johan is dedicated to building the best possible positions for the men who need to defend them. With each level of this skill, the quality of his trenches improves, allowing Infantry within to survive longer under fire. Increases the hitpoints of all Infantry units merged with a trench by %s.",
+     "text_ru": "Йохан старается как можно лучше оборудовать позиции для солдат, которым предстоит их защищать. С каждым уровнем навыка качество траншей улучшается, позволяя пехоте дольше продержаться под огнем. Запас здоровья всех объединенных с траншеей пехотных боевых единиц увеличивается на %s."
+    },
+    {
+     "group_id": "trench_deploy_time_active",
+     "key": "TrenchDeployTimeActive",
+     "name_en": "Earthen Bastion",
+     "name_ru": "Земляной бастион",
+     "buff_en": "Trench Deployment Speed",
+     "buff_ru": "Скорость размещения траншей",
+     "text_en": "Years of experience have made Johan a master of battlefield engineering. Each level of this skill reduces the time it takes him to deploy trenches, allowing defensive positions to be established more quickly. At the current level, Johan can deploy a trench in %s",
+     "text_ru": "Многолетний опыт сделал Йохана настоящим мастером полевых укреплений. С каждым уровнем этого навыка время размещения траншей уменьшается, позволяя быстрее обустраивать оборонительные позиции. На данном уровне Йохану нужно %s на размещение траншеи."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50672,
+      50673
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl1",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.25
+      },
+      {
+       "set": "trench_deploy_lvl1",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52076,
+        "amount": 1,
+        "time_sec": 64800,
+        "cost": {
+         "3": 850,
+         "4": 150
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50674
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl2",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.05
+      },
+      {
+       "set": "trench_deploy_lvl2",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52077,
+        "amount": 1,
+        "time_sec": 61200,
+        "cost": {
+         "3": 900,
+         "4": 200
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50675
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl3",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.05
+      },
+      {
+       "set": "trench_deploy_lvl3",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52078,
+        "amount": 1,
+        "time_sec": 57600,
+        "cost": {
+         "3": 950,
+         "4": 200
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50676
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl4",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.05
+      },
+      {
+       "set": "inf_hp_buff_lvl4",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.15
+      },
+      {
+       "set": "trench_deploy_lvl4",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52079,
+        "amount": 1,
+        "time_sec": 54000,
+        "cost": {
+         "3": 1000,
+         "4": 200
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50677
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_buff_lvl5",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "trench_deploy_lvl5",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52080,
+        "amount": 1,
+        "time_sec": 54000,
+        "cost": {
+         "3": 1050,
+         "4": 200
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52517
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl6",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.05
+      },
+      {
+       "set": "trench_deploy_lvl6",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52392,
+        "amount": 1,
+        "time_sec": 52200,
+        "cost": {
+         "3": 1100,
+         "4": 250
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52518
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_buff_lvl7",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "trench_deploy_lvl7",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52393,
+        "amount": 1,
+        "time_sec": 50400,
+        "cost": {
+         "3": 1150,
+         "4": 250
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52519
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl8",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.05
+      },
+      {
+       "set": "trench_deploy_lvl8",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52394,
+        "amount": 1,
+        "time_sec": 48600,
+        "cost": {
+         "3": 1200,
+         "4": 250
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52520
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_buff_lvl9",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "trench_deploy_lvl9",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52395,
+        "amount": 1,
+        "time_sec": 46800,
+        "cost": {
+         "3": 1250,
+         "4": 250
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52521
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl10",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.04
+      },
+      {
+       "set": "trench_deploy_lvl10",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52396,
+        "amount": 1,
+        "time_sec": 45000,
+        "cost": {
+         "3": 1300,
+         "4": 300
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52522
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_buff_lvl11",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "trench_deploy_lvl11",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52397,
+        "amount": 1,
+        "time_sec": 43200,
+        "cost": {
+         "3": 1350,
+         "4": 300
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52523
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl12",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.04
+      },
+      {
+       "set": "trench_deploy_lvl12",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52398,
+        "amount": 1,
+        "time_sec": 41400,
+        "cost": {
+         "3": 1400,
+         "4": 300
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52524
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_buff_lvl13",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "trench_deploy_lvl13",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52399,
+        "amount": 1,
+        "time_sec": 39600,
+        "cost": {
+         "3": 1450,
+         "4": 300
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52525
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl14",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.04
+      },
+      {
+       "set": "trench_deploy_lvl14",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52400,
+        "amount": 1,
+        "time_sec": 37800,
+        "cost": {
+         "3": 1500,
+         "4": 350
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52526
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_buff_lvl15",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "trench_deploy_lvl15",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52401,
+        "amount": 1,
+        "time_sec": 36000,
+        "cost": {
+         "3": 1550,
+         "4": 350
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      52527
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl16",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.04
+      },
+      {
+       "set": "trench_deploy_lvl16",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52402,
+        "amount": 1,
+        "time_sec": 34200,
+        "cost": {
+         "3": 1600,
+         "4": 350
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      52528
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_buff_lvl17",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.02
+      },
+      {
+       "set": "trench_deploy_lvl17",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52403,
+        "amount": 1,
+        "time_sec": 32400,
+        "cost": {
+         "3": 1650,
+         "4": 350
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      52529
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl18",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.04
+      },
+      {
+       "set": "trench_deploy_lvl18",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52404,
+        "amount": 1,
+        "time_sec": 28800,
+        "cost": {
+         "3": 1700,
+         "4": 400
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      52530
+     ],
+     "effects": [
+      {
+       "set": "inf_hp_buff_lvl19",
+       "group_id": "trench_inf_hp_buff",
+       "hitpoints_factor": 0.03
+      },
+      {
+       "set": "trench_deploy_lvl19",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52405,
+        "amount": 1,
+        "time_sec": 25200,
+        "cost": {
+         "3": 1750,
+         "4": 400
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      52531
+     ],
+     "effects": [
+      {
+       "set": "inf_def_buff_lvl20",
+       "group_id": "trench_inf_def_buff",
+       "defence_factor": 0.05
+      },
+      {
+       "set": "trench_deploy_lvl20",
+       "group_id": "trench_deploy_time_active",
+       "deploy": {
+        "unit_type": 52406,
+        "amount": 1,
+        "time_sec": 21600,
+        "cost": {
+         "3": 1800,
+         "4": 400
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "Gibraltar",
+   "unit_type_id": 50620,
+   "shard_item_id": 50679,
+   "class": "Bomber",
+   "rarity": "Rare",
+   "image": "gibraltar.png",
+   "name_en": "Иван «Ведмидь» Коваленко",
+   "name_ru": "",
+   "short_en": "Vedmid",
+   "short_ru": "Ведмидь",
+   "subtitle_en": "Bombers Leader",
+   "subtitle_ru": "Лидер бомбардировщиков",
+   "skills": [
+    {
+     "group_id": "bomber_atk_buff",
+     "key": "BomberAttackBuff",
+     "name_en": "Aerial Bombardment",
+     "name_ru": "Бомбардировка",
+     "buff_en": "Bombers Attack Damage Boost",
+     "buff_ru": "Увеличение урона в атаке бомбардировщиков",
+     "text_en": "Increases the damage output of all Bombers in the hero’s army by %s, allowing them to inflict greater destruction on enemy targets.",
+     "text_ru": "Увеличивает урон всех бомбардировщиков в армии этого героя на %s, что позволяет им наносить еще больший ущерб противнику."
+    },
+    {
+     "group_id": "bomber_hp_buff",
+     "key": "BomberHitPointsBuff",
+     "name_en": "Fortified Wings",
+     "name_ru": "Усиленные крылья",
+     "buff_en": "Bombers Hitpoints Boost",
+     "buff_ru": "Увеличение здоровья бомбардировщиков",
+     "text_en": "Increases the hitpoints of all Bombers in the hero’s army by %s, enhancing their survivability in combat.",
+     "text_ru": "Увеличение запаса здоровья всех бомбардировщиков в армии этого героя на %s позволяет повысить их живучесть в бою."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50680,
+      50681
+     ],
+     "effects": [
+      {
+       "set": "bomber_atk_buff_lvl1",
+       "group_id": "bomber_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50682
+     ],
+     "effects": [
+      {
+       "set": "bomber_atk_buff_lvl2",
+       "group_id": "bomber_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50683
+     ],
+     "effects": [
+      {
+       "set": "bomber_hp_buff_lvl3",
+       "group_id": "bomber_hp_buff",
+       "hitpoints_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50684
+     ],
+     "effects": [
+      {
+       "set": "bomber_atk_buff_lvl4",
+       "group_id": "bomber_atk_buff",
+       "attack_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50685
+     ],
+     "effects": [
+      {
+       "set": "bomber_hp_buff_lvl5",
+       "group_id": "bomber_hp_buff",
+       "hitpoints_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52532
+     ],
+     "effects": [
+      {
+       "set": "bomber_atk_buff_lvl6",
+       "group_id": "bomber_atk_buff",
+       "attack_factor": 0.02
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52533
+     ],
+     "effects": [
+      {
+       "set": "bomber_hp_buff_lvl7",
+       "group_id": "bomber_hp_buff",
+       "hitpoints_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52534
+     ],
+     "effects": [
+      {
+       "set": "bomber_atk_buff_lvl8",
+       "group_id": "bomber_atk_buff",
+       "attack_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52535
+     ],
+     "effects": [
+      {
+       "set": "bomber_hp_buff_lvl9",
+       "group_id": "bomber_hp_buff",
+       "hitpoints_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52536
+     ],
+     "effects": [
+      {
+       "set": "bomber_atk_buff_lvl10",
+       "group_id": "bomber_atk_buff",
+       "attack_factor": 0.02
+      },
+      {
+       "set": "bomber_hp_buff_lvl10",
+       "group_id": "bomber_hp_buff",
+       "hitpoints_factor": 0.03
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "LucienLaroche",
+   "unit_type_id": 50621,
+   "shard_item_id": 50687,
+   "class": "Artillery",
+   "rarity": "Epic",
+   "image": "lucien_laroche.png",
+   "name_en": "Люсьен Ларош",
+   "name_ru": "",
+   "short_en": "Laroche",
+   "short_ru": "Ларош",
+   "subtitle_en": "Chemical Warfare Expert",
+   "subtitle_ru": "Эксперт по химической войне",
+   "skills": [
+    {
+     "group_id": "gas_cloud_damage_active",
+     "key": "GasCloudDamageActive",
+     "name_en": "Gas! Gas! Gas!",
+     "name_ru": "Газ! Газ! Газ!",
+     "buff_en": "Bombardment damage buff",
+     "buff_ru": "Бонус к урону обстрела",
+     "text_en": "Lucien is always experimenting and concocting new and lethal poisons to spread across the battlefield. Hourly damage dealt by Toxic Barrage is increased to %s.",
+     "text_ru": "Люсьен постоянно экспериментирует с новыми боевыми отравляющими веществами. Урон, наносимый навыком «Токсичная ярость» в час, повышается до %s."
+    },
+    {
+     "group_id": "gas_cloud_deploy_range_active",
+     "key": "GasCloudDeployRangeActive",
+     "name_en": "Aerodynamic Shell",
+     "name_ru": "Обтекаемая форма снарядов",
+     "buff_en": "Increase range to cast bombardment",
+     "buff_ru": "Увеличение дальности обстрела",
+     "text_en": "Alterations made to the gas shells utilised by Lucien`s artillery allows them to easily cut through the air. The range at which he can use Toxic Barrage is increased to %s.",
+     "text_ru": "Новая форма газовых боеприпасов, используемых артиллерией Люсьена, позволяет им лучше преодолевать сопротивление воздуха. Расстояние, на котором он может применять навык «Токсичная ярость», увеличивается до %s."
+    },
+    {
+     "group_id": "gas_cloud_size_active",
+     "key": "GasCloudSizeActive",
+     "name_en": "Improved Diffusion",
+     "name_ru": "Улучшенная диффузия",
+     "buff_en": "Increase size of bombardment",
+     "buff_ru": "Увеличение зоны обстрела",
+     "text_en": "More advanced, compact explosives and diffusion technology increases the size of Lucien`s Toxic Barrage to a range of %s.",
+     "text_ru": "Использование более компактных и эффективных взрывчатых веществ и технологии диффузии позволяет увеличить радиус действия навыка «Токсичная ярость» Люсьена до %s."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      50688,
+      50689
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_damage_active_lvl1",
+       "group_id": "gas_cloud_damage_active"
+      },
+      {
+       "set": "gas_cloud_lvl1",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52407,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 30,
+        "cost": {
+         "6": 600
+        }
+       }
+      },
+      {
+       "set": "gas_cloud_size_active_lvl1",
+       "group_id": "gas_cloud_size_active"
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      50690
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl2",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52408,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 40,
+        "cost": {
+         "6": 750
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      50691
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl3",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52409,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 40,
+        "cost": {
+         "6": 900
+        }
+       }
+      },
+      {
+       "set": "gas_cloud_size_active_lvl3",
+       "group_id": "gas_cloud_size_active"
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      50692
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_damage_active_lvl4",
+       "group_id": "gas_cloud_damage_active"
+      },
+      {
+       "set": "gas_cloud_lvl4",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52410,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 40,
+        "cost": {
+         "6": 1050
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      50693
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl5",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52411,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 50,
+        "cost": {
+         "6": 1200
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      52552
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl6",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52412,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 50,
+        "cost": {
+         "6": 1350
+        }
+       }
+      },
+      {
+       "set": "gas_cloud_size_active_lvl6",
+       "group_id": "gas_cloud_size_active"
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      52553
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_damage_active_lvl7",
+       "group_id": "gas_cloud_damage_active"
+      },
+      {
+       "set": "gas_cloud_lvl7",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52413,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 50,
+        "cost": {
+         "6": 1500
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      52554
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl8",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52414,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 60,
+        "cost": {
+         "6": 1650
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      52555
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl9",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52415,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 60,
+        "cost": {
+         "6": 1800
+        }
+       }
+      },
+      {
+       "set": "gas_cloud_size_active_lvl9",
+       "group_id": "gas_cloud_size_active"
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      52556
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_damage_active_lvl10",
+       "group_id": "gas_cloud_damage_active"
+      },
+      {
+       "set": "gas_cloud_lvl10",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52416,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 60,
+        "cost": {
+         "6": 1950
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      52557
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl11",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52417,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 70,
+        "cost": {
+         "6": 2100
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      52558
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl12",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52418,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 70,
+        "cost": {
+         "6": 2250
+        }
+       }
+      },
+      {
+       "set": "gas_cloud_size_active_lvl12",
+       "group_id": "gas_cloud_size_active"
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      52559
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_damage_active_lvl13",
+       "group_id": "gas_cloud_damage_active"
+      },
+      {
+       "set": "gas_cloud_lvl13",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52419,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 70,
+        "cost": {
+         "6": 2400
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      52560
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_lvl14",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52420,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 80,
+        "cost": {
+         "6": 2550
+        }
+       }
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      52561
+     ],
+     "effects": [
+      {
+       "set": "gas_cloud_damage_active_lvl15",
+       "group_id": "gas_cloud_damage_active"
+      },
+      {
+       "set": "gas_cloud_lvl15",
+       "group_id": "gas_cloud_deploy_range_active",
+       "deploy": {
+        "unit_type": 52421,
+        "amount": 1,
+        "time_sec": 10800,
+        "range": 80,
+        "cost": {
+         "6": 2700
+        }
+       }
+      },
+      {
+       "set": "gas_cloud_size_active_lvl15",
+       "group_id": "gas_cloud_size_active"
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      52562
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      52563
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      52564
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      52565
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      52566
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "WilhelmVonThaden",
+   "unit_type_id": 53972,
+   "shard_item_id": 53113,
+   "class": "Zeppelin",
+   "rarity": "Epic",
+   "image": "wilhelm_von_thaden.png",
+   "name_en": "Wilhelm von Thaden",
+   "name_ru": "",
+   "short_en": "Von Thaden",
+   "short_ru": "Фон Таден",
+   "subtitle_en": "Zeppelin Expert",
+   "subtitle_ru": "Эксперт по дирижаблям",
+   "skills": [
+    {
+     "group_id": "zep_hp_buff",
+     "key": "ZepHpBuff",
+     "name_en": "Safety First",
+     "name_ru": "Безопасность превыше всего",
+     "buff_en": "Zeppelin Hitpoints Boost",
+     "buff_ru": "Увеличение здоровья дирижаблей",
+     "text_en": "Von Thaden expects discipline from his crew and insists his airship remain in pristine condition. By minimizing the risk of mechanical failure and drilling his men to handle any situation, he increases the hitpoints of Zeppelins under his command by %s.",
+     "text_ru": "Фон Таден поддерживает жёсткую дисциплину в экипажах и требует содержать дирижабли в безупречном состоянии. Сводя к минимуму риск неисправности и обучая подчинённых уверенно действовать в любой нештатной ситуации, он повышает живучесть вверенных ему дирижаблей, увеличивая их запас здоровья на %s."
+    },
+    {
+     "group_id": "zep_atk_buff",
+     "key": "ZepAtkBuff",
+     "name_en": "Precision Bombing",
+     "name_ru": "Точное бомбометание",
+     "buff_en": "Zeppelin Attack Boost",
+     "buff_ru": "Увеличение урона дирижаблей",
+     "text_en": "A pioneer of aerial bombardment, Von Thaden draws on the experience of dozens of missions. Knowing precisely when to release his deadly payload, he increases the damage dealt by Zeppelins under his command by %s.",
+     "text_ru": "Фон Таден, один из пионеров бомбардировки с воздуха, участвовал в десятках боевых вылетов и накопил в этом деле солидный опыт. Умение фон Тадена точно выбрать момент для сброса бомб позволяет повысить урон, наносимый дирижаблями под его командованием, на %s."
+    },
+    {
+     "group_id": "zep_spd_buff",
+     "key": "ZepSpdBuff",
+     "name_en": "Experienced Navigator",
+     "name_ru": "Опытный штурман",
+     "buff_en": "Zeppelin Speed Boost",
+     "buff_ru": "Увеличение скорости дирижаблей",
+     "text_en": "Armed with a compass, pocket watch, and occasionally the stars to determine his location, neither wind, weather, nor the enemy can stop Von Thaden from arriving precisely when he means to. The speed of all Zeppelins under his command is increased by %s.",
+     "text_ru": "Фон Таден использует компас, карманные часы и звёздное небо для определения местонахождения, поэтому ни ветер, ни ненастье, ни враг не помешают ему прибыть в нужное место в нужный момент. Скорость всех дирижаблей под его командованием повышается на %s."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      53093,
+      53114
+     ],
+     "effects": [
+      {
+       "set": "hp_buff_lvl1",
+       "group_id": "zep_hp_buff",
+       "hitpoints_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      53094
+     ],
+     "effects": [
+      {
+       "set": "zep_atk_buff_lvl2",
+       "group_id": "zep_atk_buff",
+       "attack_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      53095
+     ],
+     "effects": [
+      {
+       "set": "hp_buff_lvl3",
+       "group_id": "zep_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "zep_spd_buff_lvl3",
+       "group_id": "zep_spd_buff",
+       "speed_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      53096
+     ],
+     "effects": [
+      {
+       "set": "zep_atk_buff_lvl4",
+       "group_id": "zep_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      53097
+     ],
+     "effects": [
+      {
+       "set": "hp_buff_lvl5",
+       "group_id": "zep_hp_buff",
+       "hitpoints_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      53098
+     ],
+     "effects": [
+      {
+       "set": "zep_atk_buff_lvl6",
+       "group_id": "zep_atk_buff",
+       "attack_factor": 0.05
+      },
+      {
+       "set": "zep_spd_buff_lvl6",
+       "group_id": "zep_spd_buff",
+       "speed_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      53099
+     ],
+     "effects": [
+      {
+       "set": "hp_buff_lvl7",
+       "group_id": "zep_hp_buff",
+       "hitpoints_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      53100
+     ],
+     "effects": [
+      {
+       "set": "zep_atk_buff_lvl8",
+       "group_id": "zep_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      53101
+     ],
+     "effects": [
+      {
+       "set": "hp_buff_lvl9",
+       "group_id": "zep_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "zep_spd_buff_lvl9",
+       "group_id": "zep_spd_buff",
+       "speed_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      53102
+     ],
+     "effects": [
+      {
+       "set": "zep_atk_buff_lvl10",
+       "group_id": "zep_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      53103
+     ],
+     "effects": [
+      {
+       "set": "hp_buff_lvl11",
+       "group_id": "zep_hp_buff",
+       "hitpoints_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      53104
+     ],
+     "effects": [
+      {
+       "set": "zep_atk_buff_lvl12",
+       "group_id": "zep_atk_buff",
+       "attack_factor": 0.05
+      },
+      {
+       "set": "zep_spd_buff_lvl12",
+       "group_id": "zep_spd_buff",
+       "speed_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      53105
+     ],
+     "effects": [
+      {
+       "set": "hp_buff_lvl13",
+       "group_id": "zep_hp_buff",
+       "hitpoints_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      53106
+     ],
+     "effects": [
+      {
+       "set": "zep_atk_buff_lvl14",
+       "group_id": "zep_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      53107
+     ],
+     "effects": [
+      {
+       "set": "hp_buff_lvl15",
+       "group_id": "zep_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "zep_spd_buff_lvl15",
+       "group_id": "zep_spd_buff",
+       "speed_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      53108
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      53109
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      53110
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      53111
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      53112
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "ManfredVonRichthofen",
+   "unit_type_id": 53973,
+   "shard_item_id": 53136,
+   "class": "Airplane",
+   "rarity": "Legendary",
+   "image": "manfred_von_richthofen.png",
+   "name_en": "Manfred von Richthofen",
+   "name_ru": "",
+   "short_en": "Von Richthofen",
+   "short_ru": "Фон Рихтгофен",
+   "subtitle_en": "Red Baron",
+   "subtitle_ru": "Красный барон",
+   "skills": [
+    {
+     "group_id": "fighter_atk_buff",
+     "key": "FighterAtkBuff",
+     "name_en": "The Flying Circus",
+     "name_ru": "Летающий цирк",
+     "buff_en": "Fighter Attack Boost",
+     "buff_ru": "Увеличение атаки истребителей",
+     "text_en": "Von Richthofen commands a formation of elite pilots, with every aircraft being flown by a skilled airman and deadly shot. Any Fighter assigned to his command benefits from the experience of his wingmen, increasing the damage they inflict in the air by %s.",
+     "text_ru": "Фон Рихтгофен командует элитным подразделением асов — первоклассных лётчиков и метких стрелков. Все истребители под его командованием пользуются поддержкой опытных ведомых, что позволяет повысить наносимый ими в воздухе урон на %s."
+    },
+    {
+     "group_id": "fighter_mspd_buff",
+     "key": "FighterMspdBuff",
+     "name_en": "On Scarlet Wings",
+     "name_ru": "На алых крыльях",
+     "buff_en": "Fighter Speed Boost",
+     "buff_ru": "Увеличение скорости истребителей",
+     "text_en": "Von Richthofen’s Flying Circus is sent wherever superiority in the air is needed most. Aircraft are quickly relocated and made airworthy at a moment’s notice to dominate the skies. All Fighters under his command benefit from %s increased speed.",
+     "text_ru": "«Летающий цирк» фон Рихтгофена посылают туда, где срочно требуется обеспечить превосходство в воздухе. Поэтому переброска самолётов на новые аэродромы и подготовка их к вылетам осуществляются очень быстро. Скорость всех истребителей под его командованием повышается на %s."
+    },
+    {
+     "group_id": "rb_atk_buff",
+     "key": "RedBaronAtkBuff",
+     "name_en": "Ace of Aces",
+     "name_ru": "Ас из асов",
+     "buff_en": "Red Baron Attack Boost",
+     "buff_ru": "Увеличение атаки Красного барона",
+     "text_en": "Von Richthofen’s skill and determination are unmatched by any other pilot of the war. Fearlessly, he accepts any challenge from anyone foolish enough to engage him. The damage he inflicts against all targets is increased by %s.",
+     "text_ru": "Фон Рихтгофен не знает равных в лётном мастерстве и решимости. Барон бесстрашно принимает вызов любого, у кого хватило глупости вступить с ним в бой. Он наносит на %s больше урона любым целям."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      53116,
+      53137
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl1",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      53117
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl2",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      53118
+     ],
+     "effects": [
+      {
+       "set": "fighter_mspd_buff_lvl3",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.1
+      },
+      {
+       "set": "rb_atk_buff_lvl3",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.2
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      53119
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl4",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.05
+      },
+      {
+       "set": "fighter_mspd_buff_lvl4",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      53120
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl5",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      53121
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl6",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.05
+      },
+      {
+       "set": "fighter_mspd_buff_lvl6",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      53122
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl7",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      53123
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl8",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.05
+      },
+      {
+       "set": "fighter_mspd_buff_lvl8",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      53124
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl9",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      53125
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl10",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.05
+      },
+      {
+       "set": "fighter_mspd_buff_lvl10",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      53126
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl11",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      53127
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl12",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.04
+      },
+      {
+       "set": "fighter_mspd_buff_lvl12",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      53128
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl13",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      53129
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl14",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.04
+      },
+      {
+       "set": "fighter_mspd_buff_lvl14",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      53130
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl15",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      53131
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl16",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.04
+      },
+      {
+       "set": "fighter_mspd_buff_lvl16",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      53132
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl17",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      53133
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl18",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.04
+      },
+      {
+       "set": "fighter_mspd_buff_lvl18",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.03
+      }
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      53134
+     ],
+     "effects": [
+      {
+       "set": "rb_atk_buff_lvl19",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.4
+      }
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      53135
+     ],
+     "effects": [
+      {
+       "set": "fighter_atk_buff_lvl20",
+       "group_id": "fighter_atk_buff",
+       "attack_factor": 0.04
+      },
+      {
+       "set": "fighter_mspd_buff_lvl20",
+       "group_id": "fighter_mspd_buff",
+       "speed_factor": 0.03
+      },
+      {
+       "set": "rb_atk_buff_lvl20",
+       "group_id": "rb_atk_buff",
+       "attack_factor": 0.2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "OttoHersing",
+   "unit_type_id": 53974,
+   "shard_item_id": 53159,
+   "class": "Submarine",
+   "rarity": "Epic",
+   "image": "otto_hersing.png",
+   "name_en": "Отто Херзинг",
+   "name_ru": "",
+   "short_en": "Hersing",
+   "short_ru": "Першинг",
+   "subtitle_en": "Submarine Commander",
+   "subtitle_ru": "Командир подводной лодки",
+   "skills": [
+    {
+     "group_id": "own_hp_buff",
+     "key": "OwnHitPointsBuff",
+     "name_en": "Experienced Captain",
+     "name_ru": "Опытный капитан",
+     "buff_en": "Otto’s Hitpoints Boost",
+     "buff_ru": "Увеличение здоровья Отто",
+     "text_en": "To get out of dangerous situations, Otto pushes his crew and boat to their limits—but never to the breaking point. The hitpoints of his personal submarine are increased by %s.",
+     "text_ru": "Отто поддерживает свой корабль и его команду в максимальной боевой готовности, что помогает выжить в серьезных переделках. Увеличение запаса здоровья его личной подводной лодки на %s."
+    },
+    {
+     "group_id": "sub_atk_buff",
+     "key": "SubmarineAttackBuff",
+     "name_en": "Terror of the Seas",
+     "name_ru": "Гроза морей",
+     "buff_en": "Submarine Attack Boost",
+     "buff_ru": "Увеличение урона подводных лодок",
+     "text_en": "Under Otto’s leadership, submarines execute well-coordinated strikes against enemy vessels, increasing the amount of damage each submarine in his fleet can inflict with an attack by %s.",
+     "text_ru": "Слаженные действия подводных лодок под командованием Отто позволяют более эффективно атаковать вражеские суда. Урон, наносимый каждой подводной лодкой в его флотилии, увеличивается на %s."
+    },
+    {
+     "group_id": "sub_spd_buff",
+     "key": "SubmarineSpeedBuff",
+     "name_en": "Seawolf",
+     "name_ru": "Морской волк",
+     "buff_en": "Submarine Speed Boost",
+     "buff_ru": "Повышение скорости подводных лодок",
+     "text_en": "Otto knows the sea like no other. His expert navigational skills and emphasis on meticulous maintenance enable his fleet to traverse the seas at high speed. All submarines under his command benefit from %s increased movement speed.",
+     "text_ru": "Отто знает море как никто другой. Его отточенные навыки навигации и неустанная забота о техническом состоянии кораблей позволяют флотилии быстрее пересекать морские просторы. Скорость передвижения всех подводных лодок под командованием Отто увеличивается на %s."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      53139,
+      53160
+     ],
+     "effects": [
+      {
+       "set": "sub_atk_buff_lvl1",
+       "group_id": "sub_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      53140
+     ],
+     "effects": [
+      {
+       "set": "sub_atk_buff_lvl2",
+       "group_id": "sub_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      53141
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl3",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      53142
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl4",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "sub_atk_buff_lvl4",
+       "group_id": "sub_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      53143
+     ],
+     "effects": [
+      {
+       "set": "sub_spd_buff_lvl5",
+       "group_id": "sub_spd_buff",
+       "speed_factor": 0.1
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      53144
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl6",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "sub_atk_buff_lvl6",
+       "group_id": "sub_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      53145
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl7",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "sub_spd_buff_lvl7",
+       "group_id": "sub_spd_buff",
+       "speed_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      53146
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl8",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "sub_atk_buff_lvl8",
+       "group_id": "sub_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      53147
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl9",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "sub_spd_buff_lvl9",
+       "group_id": "sub_spd_buff",
+       "speed_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      53148
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl10",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.05
+      },
+      {
+       "set": "sub_atk_buff_lvl10",
+       "group_id": "sub_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      53149
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl11",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "sub_spd_buff_lvl11",
+       "group_id": "sub_spd_buff",
+       "speed_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      53150
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl12",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "sub_atk_buff_lvl12",
+       "group_id": "sub_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      53151
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl13",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "sub_spd_buff_lvl13",
+       "group_id": "sub_spd_buff",
+       "speed_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      53152
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl14",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "sub_atk_buff_lvl14",
+       "group_id": "sub_atk_buff",
+       "attack_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      53153
+     ],
+     "effects": [
+      {
+       "set": "own_hp_buff_lvl15",
+       "group_id": "own_hp_buff",
+       "hitpoints_factor": 0.1
+      },
+      {
+       "set": "sub_spd_buff_lvl15",
+       "group_id": "sub_spd_buff",
+       "speed_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      53154
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      53155
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      53156
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      53157
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      53158
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "AlvinYork",
+   "unit_type_id": 53976,
+   "shard_item_id": 53205,
+   "class": "Tank",
+   "rarity": "Legendary",
+   "image": "alvin_york.png",
+   "name_en": "Alvin C. York",
+   "name_ru": "",
+   "short_en": "York",
+   "short_ru": "York",
+   "subtitle_en": "Stormtrooper Leader",
+   "subtitle_ru": "Лидер штурмовиков",
+   "skills": [
+    {
+     "group_id": "storminf_dmg_buff",
+     "key": "StorminfDmgBuff",
+     "name_en": "Inspiring Presence",
+     "name_ru": "Вдохновляющий пример",
+     "buff_en": "Stormtroopers Attack \u0026 Defense Boost",
+     "buff_ru": "Штурмовики: атака и защита",
+     "text_en": "Stormtroopers inflict %s additional damage while under the command of Alvin York.",
+     "text_ru": "Штурмовики наносят %s дополнительного урона, когда их командует Элвин Йорк."
+    },
+    {
+     "group_id": "storminf_hp_buff",
+     "key": "StorminfHpBuff",
+     "name_en": "Fierce Determination",
+     "name_ru": "Жесткая решимость",
+     "buff_en": "Stormtroopers Hitpoints Boost",
+     "buff_ru": "Увеличение очков здоровья штурмовиков",
+     "text_en": "Stormtroopers have an additional %s Hitpoints while under the command of Alvin York.",
+     "text_ru": "Штурмовики получают на %s очков здоровья больше, когда их командует Элвин Йорк."
+    }
+   ],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      53185,
+      53206
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl1",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.15,
+       "defence_factor": 0.15
+      }
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      53186
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl2",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      53187
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl3",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      },
+      {
+       "set": "storminf_hp_buff_lvl3",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      53188
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl4",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      53189
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl5",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      53190
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl6",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      53191
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl7",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      53192
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl8",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      53193
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl9",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      53194
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl10",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      53195
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl11",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      53196
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl12",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      53197
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl13",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      53198
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl14",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      53199
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl15",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      53200
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl16",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      53201
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl17",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      53202
+     ],
+     "effects": [
+      {
+       "set": "storminf_dmg_buff_lvl18",
+       "group_id": "storminf_dmg_buff",
+       "attack_factor": 0.05,
+       "defence_factor": 0.05
+      }
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      53203
+     ],
+     "effects": [
+      {
+       "set": "storminf_hp_buff_lvl19",
+       "group_id": "storminf_hp_buff",
+       "hitpoints_factor": 0.04
+      }
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      53204
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "MilunkaSavic",
+   "unit_type_id": 53977,
+   "shard_item_id": 53228,
+   "class": "Infantry",
+   "rarity": "Epic",
+   "image": "milunka_savic.png",
+   "name_en": "",
+   "name_ru": "",
+   "short_en": "Savić",
+   "short_ru": "Савич",
+   "subtitle_en": "Assault Leader",
+   "subtitle_ru": "Лидер штурма",
+   "skills": [],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      53208,
+      53229
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      53209
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      53210
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      53211
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      53212
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      53213
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      53214
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      53215
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      53216
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      53217
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      53218
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      53219
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      53220
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      53221
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      53222
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      53223
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      53224
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      53225
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      53226
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      53227
+     ]
+    }
+   ]
+  }
+ ]
+}

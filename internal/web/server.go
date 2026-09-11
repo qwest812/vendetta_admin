@@ -44,7 +44,10 @@ type Server struct {
 	// берёт один: включён ли обход.
 	coalitions *repo.Coalitions
 	settings   *repo.Settings
-	tasks      *repo.GameTasks
+	// heroes — справочник героев игры: снимок и портреты. Пусто в базе
+	// означает «живём вшитым в образ», см. heroSnapshot.
+	heroes *repo.Heroes
+	tasks  *repo.GameTasks
 	// heroEveryMax — верхняя граница той же паузы: она случайна, и на
 	// странице партии написан диапазон, а не одно число.
 	heroEveryMax time.Duration
@@ -95,6 +98,8 @@ type Deps struct {
 	// Coalitions — архив коалиций, Settings — общие переключатели админки.
 	Coalitions *repo.Coalitions
 	Settings   *repo.Settings
+	// Heroes — справочник героев Supremacy, каким его обновляет рут.
+	Heroes *repo.Heroes
 	// Checked — какие партии кто смотрел: список у каждого свой.
 	Checked *repo.CheckedGames
 	// Checks — дневной счёт проверок карты.
@@ -116,7 +121,8 @@ func NewServer(d Deps) (*Server, error) {
 		feedback: d.Feedback,
 		games:    d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
 		gamePlayers: d.GamePlayers, userStats: d.UserStats,
-		coalitions: d.Coalitions, settings: d.Settings, checked: d.Checked, checks: d.Checks,
+		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
+		checked: d.Checked, checks: d.Checks,
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}
@@ -152,6 +158,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /clans", user(http.HandlerFunc(s.clansList)))
 	mux.Handle("GET /clans/{id}", user(http.HandlerFunc(s.clanCard)))
 	mux.Handle("GET /faq", user(http.HandlerFunc(s.faq)))
+	// Портреты героев: часть из них лежит в базе, часть вшита в образ,
+	// поэтому отдаёт их обработчик, а не файловый сервер статики.
+	mux.Handle("GET /heroes/img/{name}", user(http.HandlerFunc(s.heroImage)))
 
 	// Свой профиль ведёт каждый сам: имя, город и игровой ник — это справка
 	// для своих. Чужой профиль отсюда не правится, пользователь берётся
@@ -220,6 +229,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /settings/traits", root(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
 	mux.Handle("POST /settings/traits/{id}", root(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
 	mux.Handle("POST /settings/traits/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
+	// Справочник героев обновляется по кнопке: игра его меняет молча,
+	// а спрашивать её по таймеру не за чем — новый герой появляется
+	// от силы раз в пару месяцев.
+	mux.Handle("POST /settings/heroes", root(auth.VerifyCSRF(http.HandlerFunc(s.heroesRefresh))))
 
 	// Смотреть партии может тот, кому рут выдал доступ: право персональное,
 	// в лестницу ролей не встроено. Заход в состояние партии игра засчитывает
