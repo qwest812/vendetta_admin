@@ -94,10 +94,12 @@ func (r *Traits) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-// UsageCount — у скольких игроков отмечен признак. Нужен, чтобы предупредить
-// перед удалением: снятые отметки не вернуть.
+// UsageCount — у скольких игроков отмечен признак. Считаем игроков, а не
+// отметки: одного человека могли отметить пятеро, но предупреждать перед
+// удалением надо о карточках, которых это коснётся.
 func (r *Traits) UsageCount(ctx context.Context) (map[int64]int, error) {
-	rows, err := r.pool.Query(ctx, `SELECT trait_id, count(*) FROM player_traits GROUP BY trait_id`)
+	rows, err := r.pool.Query(ctx,
+		`SELECT trait_id, count(DISTINCT player_id) FROM player_traits GROUP BY trait_id`)
 	if err != nil {
 		return nil, err
 	}

@@ -223,9 +223,15 @@ h1.section { font-size: 18px; margin: 0 0 12px; }
 
 .trait-list { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
 
-/* Галочки признаков в форме заметки на карточке игрока. */
+/* Кто отметил признак: строка на признак — метка со счётчиком, имена
+   отметивших и кнопка снятия у всех. Видят её только админы. */
+.trait-marks { list-style: none; padding: 0; margin: 12px 0 0; }
+.trait-marks li { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.trait-marks form { margin-left: auto; }
+
+/* Галочки признаков в форме на карточке игрока. */
 .trait-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 12px 0 8px; }
-/* В форме заметки те же галочки идут под текстом и во всю её ширину. */
+/* В форме признаков галочки идут во всю её ширину. */
 .note-form .trait-checks { margin: 10px 0 4px; }
 .trait-checks .check { padding: 7px 10px; font-size: 13px; }
 

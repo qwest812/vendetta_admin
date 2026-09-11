@@ -109,20 +109,56 @@ func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	s.renderPlayerCard(w, r, http.StatusOK, player, "", "", player.MarkedTraits())
+	s.renderPlayerCard(w, r, http.StatusOK, player, "", "", nil)
 }
 
 // renderPlayerCard собирает карточку. Отдельно от обработчика, потому что
-// её же показывает форма заметки, когда с ней что-то не так: набранный текст
-// и расставленные галочки при этом возвращаются на место — терять их из-за
-// одной ошибки нельзя.
+// её же показывают формы признаков и комментария, когда с ними что-то
+// не так: набранный текст и расставленные галочки при этом возвращаются
+// на место — терять их из-за одной ошибки нельзя.
+//
+// marked пустой означает «взять как в базе»: так карточка открывается
+// обычным заходом, а не после неудачной отправки формы.
 func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status int,
 	player *domain.Player, errMsg, body string, marked map[int64]bool) {
 
-	notes, err := s.players.Notes(r.Context(), player.ID)
+	me := currentUser(r)
+
+	comments, err := s.players.Comments(r.Context(), player.ID)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
+	}
+
+	// Признаки со счётчиками: сколько человек отметили каждый и кто именно.
+	// Имена показываются только админам — в ленте и в счётчиках остальные
+	// видят числа без подписей.
+	marks, err := s.players.TraitMarks(r.Context(), player.ID, me.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	mine := make(map[int64]bool, len(marks))
+	for _, m := range marks {
+		if m.Mine {
+			mine[m.ID] = true
+		}
+	}
+	if marked == nil {
+		marked = mine
+	}
+
+	// Свой комментарий нужен форме: она подставляет прежний текст и
+	// предупреждает, что новый его заменит.
+	var myComment *domain.Comment
+	for i := range comments {
+		if comments[i].Mine(me) {
+			myComment = &comments[i]
+			break
+		}
+	}
+	if body == "" && myComment != nil {
+		body = myComment.Body
 	}
 
 	// Что игра рассказала про этого человека, когда мы в последний раз
@@ -168,9 +204,10 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 	}
 
 	s.render(w, r, status, "player", map[string]any{
-		"Player": player, "Notes": notes, "Error": errMsg, "Seen": seen,
-		"Bans": bans, "Traits": traits, "Stats": stats,
-		"Marked": marked, "Body": body,
+		"Player": player, "Comments": comments, "MyComment": myComment,
+		"Error": errMsg, "Seen": seen, "Bans": bans, "Traits": traits,
+		"Marks": marks, "Stats": stats, "Marked": marked, "Body": body,
+		"CommentMax": domain.CommentMaxLen,
 	})
 }
 
@@ -233,9 +270,11 @@ func (s *Server) playerCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Первая заметка не обязательна, но обычно она и есть повод завести карточку.
+	// Первый комментарий не обязателен, но обычно он и есть повод завести
+	// карточку. Слишком длинный обрезаем, а не отвергаем: карточка уже
+	// заведена, и отказывать из-за лишних символов поздно.
 	if body := strings.TrimSpace(r.PostFormValue("note")); body != "" {
-		if _, err := s.players.AddNote(r.Context(), player.ID, actor, body); err != nil {
+		if _, err := s.players.SaveComment(r.Context(), player.ID, actor.ID, cut(body, domain.CommentMaxLen)); err != nil {
 			s.serverError(w, r, err)
 			return
 		}
@@ -300,54 +339,44 @@ func (s *Server) playerDelete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// noteCreate сохраняет заметку и отметки признаков разом: замечают поведение
-// и пишут о нём в один заход, поэтому и кнопка одна. Текст необязателен —
-// можно отправить одни галочки, — но что-то из двух быть должно.
+// traitsSave сохраняет мои отметки признаков. Отметка личная: один и тот же
+// признак ставят разные люди, и в карточке напротив него стоит их число.
+// Чужие отметки эта форма не трогает — снимает их админ, каждую своей
+// кнопкой.
 //
-// Признаки правит любой, у кого есть доступ, как и заметки: замечает
-// поведение тот, кто играет рядом. Поэтому каждая снятая и поставленная
-// отметка идёт в журнал.
-func (s *Server) noteCreate(w http.ResponseWriter, r *http.Request) {
+// Отмечать может любой, у кого есть доступ: замечает поведение тот, кто
+// играет рядом. Поэтому каждая поставленная и снятая отметка идёт в журнал.
+func (s *Server) traitsSave(w http.ResponseWriter, r *http.Request) {
 	player, ok := s.loadPlayer(w, r)
 	if !ok {
 		return
 	}
-	body := strings.TrimSpace(r.PostFormValue("body"))
+	me := currentUser(r)
 
 	// Галочки приходят полным состоянием формы: отмеченные есть в запросе,
-	// снятые — нет. Сверяем их с тем, что стоит сейчас, и правим разницу.
+	// снятые — нет. Сверяем их со своими и правим разницу.
 	want := map[int64]bool{}
 	for _, v := range r.PostForm["traits"] {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
 			want[id] = true
 		}
 	}
-	has := player.MarkedTraits()
 
-	fail := func(msg string) {
-		s.renderPlayerCard(w, r, http.StatusUnprocessableEntity, player, msg, body, want)
-	}
-	if len([]rune(body)) > 4000 {
-		fail(langOf(r).T("err.note.length"))
+	marks, err := s.players.TraitMarks(r.Context(), player.ID, me.ID)
+	if err != nil {
+		s.serverError(w, r, err)
 		return
+	}
+	has := map[int64]bool{}
+	for _, m := range marks {
+		if m.Mine {
+			has[m.ID] = true
+		}
 	}
 
 	all, err := s.traits.List(r.Context(), true)
 	if err != nil {
 		s.serverError(w, r, err)
-		return
-	}
-
-	// Ни текста, ни правок — сохранять нечего, и молча делать вид, что
-	// сохранили, нечестно.
-	changes := 0
-	for _, tr := range all {
-		if want[tr.ID] != has[tr.ID] {
-			changes++
-		}
-	}
-	if body == "" && changes == 0 {
-		fail(langOf(r).T("err.note.empty"))
 		return
 	}
 
@@ -358,9 +387,9 @@ func (s *Server) noteCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		var changed bool
 		if on {
-			changed, err = s.players.MarkTrait(r.Context(), player.ID, tr.ID)
+			changed, err = s.players.MarkTrait(r.Context(), player.ID, tr.ID, me.ID)
 		} else {
-			changed, err = s.players.UnmarkTrait(r.Context(), player.ID, tr.ID)
+			changed, err = s.players.UnmarkTrait(r.Context(), player.ID, tr.ID, me.ID)
 		}
 		if err != nil {
 			s.serverError(w, r, err)
@@ -377,28 +406,25 @@ func (s *Server) noteCreate(w http.ResponseWriter, r *http.Request) {
 			map[string]any{"nickname": player.Nickname, "trait": tr.Name})
 	}
 
-	if body != "" {
-		id, err := s.players.AddNote(r.Context(), player.ID, currentUser(r), body)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		s.logAuditOn(r, "note.create", "note", id, map[string]any{"player": player.Nickname})
-	}
-
 	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
 }
 
-// noteDelete: свою заметку убирает автор, чужую — админ и выше.
-func (s *Server) noteDelete(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("noteID"), 10, 64)
+// traitDropAll снимает признак у всех, кто его отметил, — это админское
+// средство против наговора. Разбирать по одному не даём: карточка не место
+// для спора о том, кто из пятерых погорячился.
+func (s *Server) traitDropAll(w http.ResponseWriter, r *http.Request) {
+	player, ok := s.loadPlayer(w, r)
+	if !ok {
+		return
+	}
+	traitID, err := strconv.ParseInt(r.PathValue("traitID"), 10, 64)
 	if err != nil {
 		http.Error(w, "Некорректный id", http.StatusBadRequest)
 		return
 	}
-	note, err := s.players.NoteByID(r.Context(), id)
+	trait, err := s.traits.ByID(r.Context(), traitID)
 	if errors.Is(err, domain.ErrNotFound) {
-		http.Error(w, "Заметка не найдена", http.StatusNotFound)
+		http.Error(w, "Признак не найден", http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -406,17 +432,90 @@ func (s *Server) noteDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor := currentUser(r)
-	if !note.CanDelete(actor) {
-		http.Error(w, "Чужую заметку может удалить только админ", http.StatusForbidden)
-		return
-	}
-	if err := s.players.DeleteNote(r.Context(), id); err != nil {
+	dropped, err := s.players.UnmarkTraitAll(r.Context(), player.ID, traitID)
+	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.logAuditOn(r, "note.delete", "note", id, map[string]any{"author": note.AuthorEmail})
-	http.Redirect(w, r, "/players/"+strconv.FormatInt(note.PlayerID, 10), http.StatusSeeOther)
+	if dropped > 0 {
+		s.logAuditOn(r, "player.trait.dropall", "player", player.ID,
+			map[string]any{"nickname": player.Nickname, "trait": trait.Name, "marks": dropped})
+	}
+	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
+}
+
+// commentSave пишет комментарий об игроке. У каждого он один: новый текст
+// заменяет прежний и всплывает наверх ленты — форма предупреждает об этом
+// заранее, поэтому здесь замена уже не спрашивается.
+func (s *Server) commentSave(w http.ResponseWriter, r *http.Request) {
+	player, ok := s.loadPlayer(w, r)
+	if !ok {
+		return
+	}
+	body := strings.TrimSpace(r.PostFormValue("body"))
+
+	fail := func(msg string) {
+		s.renderPlayerCard(w, r, http.StatusUnprocessableEntity, player, msg, body, nil)
+	}
+	if body == "" {
+		fail(langOf(r).T("err.comment.empty"))
+		return
+	}
+	if len([]rune(body)) > domain.CommentMaxLen {
+		fail(langOf(r).T("err.comment.length", domain.CommentMaxLen))
+		return
+	}
+
+	id, err := s.players.SaveComment(r.Context(), player.ID, currentUser(r).ID, body)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.logAuditOn(r, "comment.save", "comment", id, map[string]any{"player": player.Nickname})
+	http.Redirect(w, r, "/players/"+strconv.FormatInt(player.ID, 10), http.StatusSeeOther)
+}
+
+// commentDelete: свой комментарий убирает автор, чужой — админ и выше.
+// Кто автор, из адреса не видно: удаляется он по своему номеру, а не
+// по имени написавшего.
+func (s *Server) commentDelete(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("commentID"), 10, 64)
+	if err != nil {
+		http.Error(w, "Некорректный id", http.StatusBadRequest)
+		return
+	}
+	comment, err := s.players.CommentByID(r.Context(), id)
+	if errors.Is(err, domain.ErrNotFound) {
+		http.Error(w, "Комментарий не найден", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
+	if !comment.CanDelete(currentUser(r)) {
+		http.Error(w, "Чужой комментарий может удалить только админ", http.StatusForbidden)
+		return
+	}
+	if err := s.players.DeleteComment(r.Context(), id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	// В журнале — чей комментарий убрали: своё удаление от чужого иначе
+	// не отличить, а чужое и есть то, за чем в журнал заглядывают.
+	s.logAuditOn(r, "comment.delete", "comment", id, map[string]any{"author": comment.AuthorName})
+	http.Redirect(w, r, "/players/"+strconv.FormatInt(comment.PlayerID, 10), http.StatusSeeOther)
+}
+
+// cut обрезает текст до допустимой длины по символам, а не по байтам:
+// кириллица иначе рвалась бы посередине буквы.
+func cut(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max])
 }
 
 func (s *Server) loadPlayer(w http.ResponseWriter, r *http.Request) (*domain.Player, bool) {

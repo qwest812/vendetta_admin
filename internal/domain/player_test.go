@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 // Знак признака — слово из формы, и незнакомое слово не должно молча
 // становиться нейтральным: так опечатка в справочнике осталась бы незаметной.
@@ -35,31 +38,63 @@ func TestTraitKindPredicates(t *testing.T) {
 	}
 }
 
-// Заметку удаляет её автор независимо от роли; чужую — админ и выше.
-func TestNoteCanDelete(t *testing.T) {
+// Комментарий удаляет его автор независимо от роли; чужой — админ и выше.
+func TestCommentCanDelete(t *testing.T) {
 	author := &User{ID: 4, Role: RoleUser}
 	stranger := &User{ID: 5, Role: RoleUser}
 	admin := &User{ID: 6, Role: RoleAdmin}
 	root := &User{ID: 1, Role: RoleRoot}
 
 	authorID := author.ID
-	note := Note{ID: 7, AuthorID: &authorID}
+	comment := Comment{ID: 7, AuthorID: &authorID}
 
-	if !note.CanDelete(author) {
-		t.Error("автор должен удалять свою заметку")
+	if !comment.CanDelete(author) {
+		t.Error("автор должен удалять свой комментарий")
 	}
-	if note.CanDelete(stranger) {
-		t.Error("обычный пользователь не должен удалять чужую заметку")
+	if comment.CanDelete(stranger) {
+		t.Error("обычный пользователь не должен удалять чужой комментарий")
 	}
-	if !note.CanDelete(admin) {
-		t.Error("админ должен удалять чужую заметку")
+	if !comment.CanDelete(admin) {
+		t.Error("админ должен удалять чужой комментарий")
 	}
-	if !note.CanDelete(root) {
-		t.Error("рут должен удалять любую заметку")
+	if !comment.CanDelete(root) {
+		t.Error("рут должен удалять любой комментарий")
 	}
 
-	orphan := Note{ID: 8}
+	orphan := Comment{ID: 8}
 	if orphan.CanDelete(stranger) || !orphan.CanDelete(admin) {
-		t.Error("заметку без автора убирает админ, но не обычный пользователь")
+		t.Error("комментарий без автора убирает админ, но не обычный пользователь")
+	}
+}
+
+// «Свой» комментарий — по автору, а не по роли: рут в чужом комментарии
+// не хозяин и предупреждения о замене видеть не должен.
+func TestCommentMine(t *testing.T) {
+	author := &User{ID: 4, Role: RoleUser}
+	root := &User{ID: 1, Role: RoleRoot}
+	authorID := author.ID
+	comment := Comment{AuthorID: &authorID}
+
+	if !comment.Mine(author) {
+		t.Error("автор не узнал свой комментарий")
+	}
+	if comment.Mine(root) || comment.Mine(nil) {
+		t.Error("чужой комментарий сошёл за свой")
+	}
+	if (Comment{}).Mine(author) {
+		t.Error("осиротевший комментарий сошёл за свой")
+	}
+}
+
+// Переписанный комментарий отличается от написанного: в ленте он всплывает
+// наверх, и подпись «изменён» объясняет, почему старая запись оказалась
+// выше свежей.
+func TestCommentEdited(t *testing.T) {
+	at := time.Now()
+	if (Comment{CreatedAt: at, UpdatedAt: at}).Edited() {
+		t.Error("нетронутый комментарий сочли изменённым")
+	}
+	if !(Comment{CreatedAt: at, UpdatedAt: at.Add(time.Minute)}).Edited() {
+		t.Error("переписанный комментарий сочли нетронутым")
 	}
 }

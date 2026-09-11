@@ -87,27 +87,75 @@ func (r *Players) Search(ctx context.Context, query string, status domain.ClanSt
 	return r.collect(ctx, rows)
 }
 
-// MarkTrait ставит отметку признака. Второе значение — изменилось ли что-то:
-// повторное нажатие (две вкладки, двойной клик) не должно попадать в журнал
-// второй раз.
-func (r *Players) MarkTrait(ctx context.Context, playerID, traitID int64) (bool, error) {
+// MarkTrait ставит отметку признака от имени человека. Отметки личные:
+// один и тот же признак ставят разные люди, и в карточке напротив него
+// стоит их число.
+//
+// Второе значение — изменилось ли что-то: повторное нажатие (две вкладки,
+// двойной клик) не должно попадать в журнал второй раз.
+func (r *Players) MarkTrait(ctx context.Context, playerID, traitID, userID int64) (bool, error) {
 	tag, err := r.pool.Exec(ctx,
-		`INSERT INTO player_traits (player_id, trait_id) VALUES ($1, $2)
-		 ON CONFLICT DO NOTHING`, playerID, traitID)
+		`INSERT INTO player_traits (player_id, trait_id, user_id) VALUES ($1, $2, $3)
+		 ON CONFLICT DO NOTHING`, playerID, traitID, userID)
 	if err != nil {
 		return false, err
 	}
 	return tag.RowsAffected() > 0, nil
 }
 
-// UnmarkTrait снимает отметку. Как и MarkTrait, говорит, была ли она вообще.
-func (r *Players) UnmarkTrait(ctx context.Context, playerID, traitID int64) (bool, error) {
+// UnmarkTrait снимает свою отметку. Чужие не трогает: их снимает админ,
+// и для этого есть UnmarkTraitAll.
+func (r *Players) UnmarkTrait(ctx context.Context, playerID, traitID, userID int64) (bool, error) {
 	tag, err := r.pool.Exec(ctx,
-		`DELETE FROM player_traits WHERE player_id = $1 AND trait_id = $2`, playerID, traitID)
+		`DELETE FROM player_traits WHERE player_id = $1 AND trait_id = $2 AND user_id = $3`,
+		playerID, traitID, userID)
 	if err != nil {
 		return false, err
 	}
 	return tag.RowsAffected() > 0, nil
+}
+
+// UnmarkTraitAll снимает признак у всех, кто его отметил. Это админское
+// средство против наговора: разбираться, кто из пятерых погорячился,
+// в карточке негде, а убрать обвинение целиком иногда нужно.
+func (r *Players) UnmarkTraitAll(ctx context.Context, playerID, traitID int64) (int64, error) {
+	tag, err := r.pool.Exec(ctx,
+		`DELETE FROM player_traits WHERE player_id = $1 AND trait_id = $2`, playerID, traitID)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
+// TraitMarks — признаки игрока со счётчиком: сколько человек отметили
+// каждый, отмечал ли его я и кто именно отмечал. Имена нужны только
+// админам, но берутся всегда: запрос один, а решает интерфейс.
+func (r *Players) TraitMarks(ctx context.Context, playerID, userID int64) ([]domain.TraitMark, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+prefixed(traitColumns, "t")+`, count(*),
+		        bool_or(pt.user_id = $2),
+		        array_remove(array_agg(u.nickname ORDER BY u.nickname), NULL)
+		   FROM player_traits pt
+		   JOIN traits t ON t.id = pt.trait_id
+		   LEFT JOIN users u ON u.id = pt.user_id
+		  WHERE pt.player_id = $1
+		  GROUP BY `+prefixed(traitColumns, "t")+`, t.weight
+		  ORDER BY (t.weight >= 0), t.sort_order, t.id`, playerID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []domain.TraitMark
+	for rows.Next() {
+		var m domain.TraitMark
+		if err := rows.Scan(&m.ID, &m.Code, &m.Name, &m.Kind, &m.IsActive, &m.SortOrder, &m.CreatedAt,
+			&m.Count, &m.Mine, &m.By); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }
 
 // ImportSeen заводит карточки всем, кого встретили в партии: ник и игровой
@@ -236,10 +284,16 @@ func (r *Players) attachTraits(ctx context.Context, players []*domain.Player) er
 		byID[p.ID] = p
 	}
 
+	// DISTINCT: в списках метка одна на признак, сколько бы человек его
+	// ни отметили. Счётчик показывает карточка, см. TraitMarks.
+	// Группировка вместо простого выбора: один признак от нескольких людей
+	// в списке остаётся одной меткой. Счётчик показывает карточка,
+	// см. TraitMarks.
 	rows, err := r.pool.Query(ctx,
 		`SELECT pt.player_id, `+prefixed(traitColumns, "t")+`
 		 FROM player_traits pt JOIN traits t ON t.id = pt.trait_id
 		 WHERE pt.player_id = ANY($1)
+		 GROUP BY pt.player_id, `+prefixed(traitColumns, "t")+`, t.weight
 		 ORDER BY (t.weight >= 0), t.sort_order, t.id`, ids)
 	if err != nil {
 		return err
@@ -337,49 +391,64 @@ func (r *Players) Count(ctx context.Context) (int, error) {
 	return n, err
 }
 
-func (r *Players) Notes(ctx context.Context, playerID int64) ([]domain.Note, error) {
+// Comments — лента комментариев об игроке: свежие сверху. Порядок по дате
+// правки, а не создания: переписанный комментарий — это свежее слово,
+// и ему место наверху.
+func (r *Players) Comments(ctx context.Context, playerID int64) ([]domain.Comment, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, player_id, author_id, author_email, body, created_at
-		 FROM player_notes WHERE player_id = $1 ORDER BY created_at DESC, id DESC`, playerID)
+		`SELECT c.id, c.player_id, c.author_id, COALESCE(u.nickname, ''), c.body, c.created_at, c.updated_at
+		   FROM player_comments c
+		   LEFT JOIN users u ON u.id = c.author_id
+		  WHERE c.player_id = $1
+		  ORDER BY c.updated_at DESC, c.id DESC`, playerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var out []domain.Note
+	var out []domain.Comment
 	for rows.Next() {
-		var n domain.Note
-		if err := rows.Scan(&n.ID, &n.PlayerID, &n.AuthorID, &n.AuthorEmail, &n.Body, &n.CreatedAt); err != nil {
+		var c domain.Comment
+		if err := rows.Scan(&c.ID, &c.PlayerID, &c.AuthorID, &c.AuthorName,
+			&c.Body, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
-		out = append(out, n)
+		out = append(out, c)
 	}
 	return out, rows.Err()
 }
 
-func (r *Players) AddNote(ctx context.Context, playerID int64, author *domain.User, body string) (int64, error) {
+// SaveComment пишет комментарий от имени человека. У каждого он один
+// на игрока, поэтому новый текст заменяет прежний — форма об этом
+// предупреждает заранее.
+func (r *Players) SaveComment(ctx context.Context, playerID, authorID int64, body string) (int64, error) {
 	var id int64
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO player_notes (player_id, author_id, author_email, body)
-		 VALUES ($1, $2, $3, $4) RETURNING id`,
-		playerID, author.ID, author.Display(), body).Scan(&id)
+		`INSERT INTO player_comments (player_id, author_id, body)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (player_id, author_id) WHERE author_id IS NOT NULL
+		 DO UPDATE SET body = EXCLUDED.body, updated_at = now()
+		 RETURNING id`, playerID, authorID, body).Scan(&id)
 	return id, err
 }
 
-func (r *Players) NoteByID(ctx context.Context, id int64) (domain.Note, error) {
-	var n domain.Note
+// CommentByID достаёт один комментарий: по нему проверяется право удаления.
+func (r *Players) CommentByID(ctx context.Context, id int64) (domain.Comment, error) {
+	var c domain.Comment
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, player_id, author_id, author_email, body, created_at
-		 FROM player_notes WHERE id = $1`, id).
-		Scan(&n.ID, &n.PlayerID, &n.AuthorID, &n.AuthorEmail, &n.Body, &n.CreatedAt)
+		`SELECT c.id, c.player_id, c.author_id, COALESCE(u.nickname, ''), c.body, c.created_at, c.updated_at
+		   FROM player_comments c
+		   LEFT JOIN users u ON u.id = c.author_id
+		  WHERE c.id = $1`, id).
+		Scan(&c.ID, &c.PlayerID, &c.AuthorID, &c.AuthorName, &c.Body, &c.CreatedAt, &c.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return n, domain.ErrNotFound
+		return c, domain.ErrNotFound
 	}
-	return n, err
+	return c, err
 }
 
-func (r *Players) DeleteNote(ctx context.Context, id int64) error {
-	tag, err := r.pool.Exec(ctx, `DELETE FROM player_notes WHERE id = $1`, id)
+func (r *Players) DeleteComment(ctx context.Context, id int64) error {
+	tag, err := r.pool.Exec(ctx, `DELETE FROM player_comments WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}

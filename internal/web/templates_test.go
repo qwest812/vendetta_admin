@@ -36,6 +36,14 @@ func TestPagesRender(t *testing.T) {
 	directory := append(append([]domain.Trait{}, enemy.Traits...),
 		domain.Trait{ID: 9, Code: "lies", Name: "Врёт", Kind: domain.TraitBad, IsActive: true})
 
+	// Отметки карточки: у признака есть счётчик и список отметивших.
+	// Мультивода отметили трое, и один из них — смотрящий.
+	marks := []domain.TraitMark{
+		{Trait: enemy.Traits[0], Count: 3, Mine: true, By: []string{"Dau7er", "root", "sova"}},
+		{Trait: enemy.Traits[1], Count: 1, By: []string{"root"}},
+		{Trait: enemy.Traits[2], Count: 2, By: []string{"root", "sova"}},
+	}
+
 	// Часть страниц выглядит по-разному для разных ролей, поэтому у случая
 	// есть свой смотрящий; пусто — обычный админ.
 	banSeen := time.Unix(1788984426, 0)
@@ -178,16 +186,17 @@ func TestPagesRender(t *testing.T) {
 		},
 		{
 			page: "player",
-			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
-				"Traits": directory, "Marked": enemy.MarkedTraits(), "Body": "",
+			data: map[string]any{"Player": enemy, "Comments": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": enemy.MarkedTraits(), "Body": "",
+				"CommentMax": domain.CommentMaxLen,
 				// Счёт с сайта игры: страница партии его посчитала, карточка
 				// только показывает.
 				"Stats": domain.UserStats{Level: 17, Defeated: 23440, Casualties: 15020,
 					Games: 41, SoloWins: 3, CoalitionWins: 7}},
 			// Клан на карточке — ссылка на клан, а не текст. Признаки —
-			// три метки трёх цветов, без числа рядом.
+			// три метки трёх цветов, и рядом с каждой число отметивших.
 			want: []string{`href="/clans/7"`, "Враждебный клан",
-				"tag neg", "tag zero", "tag pos", "Мультивод",
+				"tag neg", "tag zero", "tag pos", "Мультивод · 3", "Хорошо играет · 2",
 				"17 уровень", "кд 1.56", "партий сыграно 41", "побед в коалиции 7"},
 			// Про игру мы ничего не знаем — и молчим об этом. Шкал больше
 			// нет вовсе: искать стали по признакам, а не по проценту.
@@ -198,9 +207,9 @@ func TestPagesRender(t *testing.T) {
 			// человека, которого мы просто не спрашивали.
 			name: "player/без счёта с сайта",
 			page: "player",
-			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
-				"Traits": directory, "Marked": enemy.MarkedTraits(), "Body": "",
-				"Stats": domain.UserStats{}},
+			data: map[string]any{"Player": enemy, "Comments": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": enemy.MarkedTraits(), "Body": "",
+				"CommentMax": domain.CommentMaxLen, "Stats": domain.UserStats{}},
 			deny: []string{"По данным сайта игры", "кд"},
 		},
 		{
@@ -210,16 +219,19 @@ func TestPagesRender(t *testing.T) {
 			name: "player/галочки в форме заметки",
 			page: "player",
 			user: player,
-			data: map[string]any{"Player": enemy, "Notes": nil, "Error": "", "Seen": nil, "Bans": nil,
-				"Traits": directory, "Marked": enemy.MarkedTraits(), "Body": ""},
+			data: map[string]any{"Player": enemy, "Comments": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": enemy.MarkedTraits(), "Body": "",
+				"CommentMax": domain.CommentMaxLen},
 			want: []string{
-				`action="/players/3/notes"`,
+				`action="/players/3/traits"`,
+				`action="/players/3/comments"`,
 				`name="traits" value="1"`, "checked",
 				`name="traits" value="9"`, "Врёт",
-				"можно отметить их и без текста",
+				"Отмечаете вы за себя",
 			},
-			// Мгновенных переключателей больше нет: место для отметок одно.
-			deny: []string{"/traits/1/unmark", "Отметить признаки"},
+			// Признаки и комментарий правятся раздельно, и чужие отметки
+			// обычному пользователю не подчиняются.
+			deny: []string{"/traits/1/unmark", "снять у всех", "Отметили:"},
 		},
 		{
 			// Форма ошиблась — набранный текст и расставленные галочки
@@ -227,11 +239,12 @@ func TestPagesRender(t *testing.T) {
 			name: "player/ошибка формы заметки",
 			page: "player",
 			user: player,
-			data: map[string]any{"Player": enemy, "Notes": nil, "Seen": nil, "Bans": nil,
-				"Traits": directory, "Marked": map[int64]bool{9: true},
-				"Body": "врал про перемирие", "Error": "Напишите заметку или отметьте признаки"},
+			data: map[string]any{"Player": enemy, "Comments": nil, "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": map[int64]bool{9: true},
+				"CommentMax": domain.CommentMaxLen,
+				"Body":       "врал про перемирие", "Error": "Напишите комментарий"},
 			want: []string{
-				"врал про перемирие", "Напишите заметку или отметьте признаки",
+				"врал про перемирие", "Напишите комментарий",
 				`name="traits" value="9" checked`,
 			},
 		},
@@ -241,7 +254,7 @@ func TestPagesRender(t *testing.T) {
 			name: "player/забанен в игре",
 			page: "player",
 			data: map[string]any{
-				"Player": enemy, "Notes": nil, "Error": "",
+				"Player": enemy, "Comments": nil, "Error": "", "CommentMax": domain.CommentMaxLen,
 				"Seen": &domain.GamePlayer{
 					SiteUserID: "777", Nickname: "Мультовод", Banned: true,
 					BannedAt: &banSeen, SeenAt: banSeen, SeenGameID: "10892960",
@@ -262,7 +275,7 @@ func TestPagesRender(t *testing.T) {
 			name: "player/история банов",
 			page: "player",
 			data: map[string]any{
-				"Player": enemy, "Notes": nil, "Error": "",
+				"Player": enemy, "Comments": nil, "Error": "", "CommentMax": domain.CommentMaxLen,
 				"Seen": &domain.GamePlayer{
 					SiteUserID: "777", Nickname: "Мультовод", Banned: false,
 					SeenAt: banSeen, SeenGameID: "10892960",

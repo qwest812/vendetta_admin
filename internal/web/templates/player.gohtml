@@ -40,10 +40,13 @@
         {{end}}
     </div>
 
-    {{if $p.Traits}}
+    {{/* Метки со счётчиком: одна отметка и пять отметок — разные вещи.
+         Имена отметивших подсказкой видят только админы. */}}
+    {{if .Marks}}
         <div class="trait-list">
-            {{range $p.Traits}}
-                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
+            {{range .Marks}}
+                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}"
+                      {{if $.CurrentUser.IsAdmin}}title="{{t "player.traits.by" (join .By)}}"{{end}}>{{.Name}} · {{.Count}}</span>
             {{end}}
         </div>
     {{else}}
@@ -96,15 +99,13 @@
 </div>
 
 <div class="card">
-    <h1>{{t "player.notes"}}</h1>
-    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    <h1>{{t "player.traits"}}</h1>
 
-    {{/* Признаки отмечаются вместе с комментарием: замечают поведение
-         и пишут о нём в один заход, одной кнопкой. Текст при этом
-         необязателен — можно отправить одни галочки. */}}
-    <form method="post" action="/players/{{$p.ID}}/notes" class="note-form">
+    {{/* Галочки личные: правят только мои отметки, чужие не трогают.
+         Отмечать может любой, у кого есть доступ, — замечает поведение
+         тот, кто играет рядом. */}}
+    <form method="post" action="/players/{{$p.ID}}/traits" class="note-form">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <textarea name="body" rows="3" placeholder="{{t "player.note.placeholder"}}">{{.Body}}</textarea>
         {{if .Traits}}
             {{$marked := .Marked}}
             <div class="trait-checks">
@@ -116,21 +117,64 @@
                 {{end}}
             </div>
         {{end}}
-        <button type="submit">{{t "player.note.add"}}</button>
-        <p class="muted">{{t "player.note.hint"}}</p>
+        <button type="submit">{{t "player.traits.save"}}</button>
+        <p class="muted">{{t "player.traits.hint"}}</p>
+    </form>
+
+    {{/* Кто отметил — видно админам, им же доступно снятие признака
+         у всех разом: средство против наговора. */}}
+    {{if and .Marks .CurrentUser.IsAdmin}}
+        {{$csrf := .CSRFToken}}
+        <ul class="trait-marks">
+            {{range .Marks}}
+                <li>
+                    <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}} · {{.Count}}</span>
+                    <span class="muted">{{t "player.traits.by" (join .By)}}</span>
+                    <form method="post" action="/players/{{$p.ID}}/traits/{{.ID}}/dropall"
+                          onsubmit="return confirm('{{t "player.traits.dropall.confirm" .Name .Count}}')">
+                        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                        <button class="link" type="submit">{{t "player.traits.dropall"}}</button>
+                    </form>
+                </li>
+            {{end}}
+        </ul>
+    {{end}}
+</div>
+
+<div class="card">
+    <h1>{{t "player.comments"}}</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    {{/* Комментарий у каждого один: новый текст заменяет прежний. Про это
+         предупреждает и подпись, и вопрос перед отправкой — чтобы замена
+         не оказалась неожиданностью. */}}
+    <form method="post" action="/players/{{$p.ID}}/comments" class="note-form"
+          {{if .MyComment}}onsubmit="return confirm('{{t "player.comment.replace.confirm"}}')"{{end}}>
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <textarea name="body" rows="3" maxlength="{{.CommentMax}}"
+                  placeholder="{{t "player.comment.placeholder"}}">{{.Body}}</textarea>
+        <button type="submit">{{if .MyComment}}{{t "player.comment.update"}}{{else}}{{t "player.comment.add"}}{{end}}</button>
+        <p class="muted">{{t "player.comment.hint" .CommentMax}}</p>
     </form>
 
     {{$me := .CurrentUser}}
     {{$csrf := .CSRFToken}}
     <ul class="notes">
-        {{range .Notes}}
+        {{range .Comments}}
             <li>
                 <div class="note-head">
-                    <span class="author">{{.AuthorEmail}}</span>
-                    <span class="muted">{{datetime .CreatedAt}}</span>
+                    {{/* Лента анонимна: имя показывается админам, остальные
+                         видят только дату. Свой комментарий подписан всегда —
+                         иначе его не найти среди чужих. */}}
+                    {{if $me.IsAdmin}}
+                        <span class="author">{{if .AuthorName}}{{.AuthorName}}{{else}}{{t "player.comment.gone"}}{{end}}</span>
+                    {{else if .Mine $me}}
+                        <span class="author">{{t "player.comment.mine"}}</span>
+                    {{end}}
+                    <span class="muted">{{datetime .UpdatedAt}}{{if .Edited}} · {{t "player.comment.edited"}}{{end}}</span>
                     {{if .CanDelete $me}}
-                        <form method="post" action="/notes/{{.ID}}/delete"
-                              onsubmit="return confirm('{{t "player.note.delete.confirm"}}')">
+                        <form method="post" action="/comments/{{.ID}}/delete"
+                              onsubmit="return confirm('{{t "player.comment.delete.confirm"}}')">
                             <input type="hidden" name="csrf_token" value="{{$csrf}}">
                             <button class="link" type="submit">{{t "common.delete.lower"}}</button>
                         </form>
@@ -139,12 +183,8 @@
                 <p class="note-body">{{.Body}}</p>
             </li>
         {{else}}
-            <li class="muted">{{t "player.notes.empty"}}</li>
+            <li class="muted">{{t "player.comments.empty"}}</li>
         {{end}}
     </ul>
 </div>
 {{end}}
-
-{{/* Признаки игрока: отмеченные метками и весь справочник переключателями.
-     Блок отдаётся целиком и на нажатие тоже — метки и переключатели должны
-     сходиться, а одно нажатие меняет обе половины. */}}

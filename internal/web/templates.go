@@ -57,6 +57,9 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 		// подпись к коду — дело языка, а не предметной области.
 		"role":       func(r domain.Role) string { return l.T(r.TitleKey()) },
 		"clanStatus": func(c domain.ClanStatus) string { return l.T(c.TitleKey()) },
+		// Список имён в одну строку: подсказка «кто отметил» показывается
+		// атрибутом title, а он строку и ждёт.
+		"join": func(items []string) string { return strings.Join(items, ", ") },
 		"dict": func(values ...any) (map[string]any, error) {
 			if len(values)%2 != 0 {
 				return nil, fmt.Errorf("dict: нечётное число аргументов")

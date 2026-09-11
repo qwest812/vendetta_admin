@@ -192,13 +192,17 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /feedback/{id}/reply", user(auth.VerifyCSRF(http.HandlerFunc(s.feedbackReply))))
 	mux.Handle("POST /feedback/{id}/close", user(auth.VerifyCSRF(http.HandlerFunc(s.feedbackClose))))
 
-	// Заметки — и признаки вместе с ними — пишут все авторизованные:
-	// замечает поведение тот, кто играет рядом, а не тот, у кого есть право
-	// править карточку. Отметки идут в журнал так же, как правки карточки.
-	// Удаление заметки разрешает сам хендлер — свою убирает автор, чужую
-	// админ и выше.
-	mux.Handle("POST /players/{id}/notes", user(auth.VerifyCSRF(http.HandlerFunc(s.noteCreate))))
-	mux.Handle("POST /notes/{noteID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(s.noteDelete))))
+	// Признаки и комментарии оставляют все авторизованные: замечает
+	// поведение тот, кто играет рядом, а не тот, у кого есть право править
+	// карточку. Отметки идут в журнал так же, как правки карточки, и обе
+	// формы личные — правят они только своё.
+	//
+	// Удаление комментария разрешает сам хендлер: свой убирает автор, чужой
+	// админ и выше. Снятие признака у всех разом — админское, это средство
+	// против наговора.
+	mux.Handle("POST /players/{id}/traits", user(auth.VerifyCSRF(http.HandlerFunc(s.traitsSave))))
+	mux.Handle("POST /players/{id}/comments", user(auth.VerifyCSRF(http.HandlerFunc(s.commentSave))))
+	mux.Handle("POST /comments/{commentID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(s.commentDelete))))
 
 	// Управление доступами: админ и выше.
 	admin := auth.RequireRole(domain.RoleAdmin)
@@ -214,6 +218,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /players", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerCreate))))
 	mux.Handle("GET /players/{id}/edit", admin(http.HandlerFunc(s.playerEdit)))
 	mux.Handle("POST /players/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerUpdate))))
+
+	mux.Handle("POST /players/{id}/traits/{traitID}/dropall", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitDropAll))))
 
 	mux.Handle("POST /clans", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanCreate))))
 	mux.Handle("POST /clans/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanUpdate))))

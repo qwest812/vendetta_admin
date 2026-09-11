@@ -74,23 +74,61 @@ func (p Player) MarkedTraits() map[int64]bool {
 	return out
 }
 
-type Note struct {
-	ID          int64
-	PlayerID    int64
-	AuthorID    *int64
-	AuthorEmail string
-	Body        string
-	CreatedAt   time.Time
+// CommentMaxLen — насколько длинным бывает комментарий. Пятьсот символов
+// хватает, чтобы рассказать случай, и мало, чтобы устроить в карточке
+// переписку: разговоры ведут в обратной связи, а здесь копят наблюдения.
+const CommentMaxLen = 500
+
+// Comment — что человек написал об игроке. У каждого он один на игрока:
+// новый текст заменяет прежний и всплывает наверх ленты, поэтому у записи
+// две даты — когда написали впервые и когда переписали.
+//
+// В ленте комментарии анонимны: автора видят только админы. Имя здесь
+// поэтому и лежит отдельным полем — интерфейс решает, показывать его или
+// промолчать.
+type Comment struct {
+	ID       int64
+	PlayerID int64
+	// AuthorID пуст, если автора удалили. Сам комментарий при этом остаётся:
+	// сказанное об игроке не должно пропадать вместе с учётной записью.
+	AuthorID   *int64
+	AuthorName string
+	Body       string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
-// CanDelete: свою заметку убирает автор, чужую — админ и выше. Заметка без
-// автора (пользователя удалили) остаётся админам.
-func (n Note) CanDelete(actor *User) bool {
+// Edited — переписывали ли комментарий после того, как написали.
+func (c Comment) Edited() bool { return c.UpdatedAt.After(c.CreatedAt) }
+
+// Mine — мой ли это комментарий. По нему карточка решает, показывать ли
+// кнопку удаления и предупреждать ли, что новый текст заменит прежний.
+func (c Comment) Mine(actor *User) bool {
+	return actor != nil && c.AuthorID != nil && *c.AuthorID == actor.ID
+}
+
+// CanDelete: свой комментарий убирает автор, чужой — админ и выше.
+// Осиротевший (автора удалили) остаётся админам.
+func (c Comment) CanDelete(actor *User) bool {
 	if actor == nil {
 		return false
 	}
-	if n.AuthorID != nil && *n.AuthorID == actor.ID {
+	if c.Mine(actor) {
 		return true
 	}
 	return actor.IsAdmin()
+}
+
+// TraitMark — признак в карточке: сам признак и сколько людей его отметили.
+// Одна отметка и пять отметок — разные вещи, и число рядом с названием
+// говорит об игроке больше, чем сама метка.
+type TraitMark struct {
+	Trait
+	// Count — сколько человек отметили признак у этого игрока.
+	Count int
+	// Mine — отмечал ли его я. По нему стоит галочка в форме.
+	Mine bool
+	// By — кто отметил. Заполняется только для админов: остальным лента
+	// и счётчики показываются без имён.
+	By []string
 }
