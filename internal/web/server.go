@@ -260,6 +260,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
 	mux.Handle("POST /users/{id}/games", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetGamesAccess))))
 	mux.Handle("POST /users/{id}/checks", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetMapChecks))))
+	mux.Handle("POST /users/{id}/plan", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetPlan))))
 	mux.Handle("POST /users/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.usersDelete))))
 	mux.Handle("POST /players/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.playerDelete))))
 

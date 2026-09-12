@@ -10,6 +10,15 @@
 
 <div class="card">
     <h1>{{t "common.add"}}</h1>
+    {{/* Запас общий на врагов и друзей: в «Друзьях» в это число входят
+         и враги. Без предела (ультра и рут) счётчик не нужен вовсе. */}}
+    {{if .PlanLimit}}
+        {{if .PlanFull}}
+            <p class="error">{{t "rel.quota.full" .PlanUsed .PlanLimit}}</p>
+        {{else}}
+            <p class="muted">{{t "rel.quota" .PlanUsed .PlanLimit}}</p>
+        {{end}}
+    {{end}}
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
     {{/* Поиск вынесен из формы намеренно: иначе Enter в нём отправлял бы
@@ -83,7 +92,11 @@
                 {{end}}
             </select>
         </label>
-        {{if .CanAdd}}
+        {{if .PlanFull}}
+            {{/* Причина написана выше, в шапке карточки: повторять её
+                 у кнопки незачем, а подсказка нужна — на неё наведут. */}}
+            <button type="submit" disabled title="{{t "rel.full.title"}}">{{t "common.add"}}</button>
+        {{else if .CanAdd}}
             <button type="submit">{{t "common.add"}}</button>
         {{else}}
             <span class="muted">{{t .Words.AllListed}}</span>

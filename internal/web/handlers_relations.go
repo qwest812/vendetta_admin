@@ -117,13 +117,37 @@ func (rs *relationSection) render(w http.ResponseWriter, r *http.Request, status
 	rs.srv.render(w, r, status, rs.words.Path, data)
 }
 
+// quota — сколько карточек человек занял и сколько ему можно. Предел нулевой
+// означает «без предела»: так отвечает и ультра-пакет, и рут, которого
+// не считают вовсе.
+func (rs *relationSection) quota(r *http.Request) (used, limit int, err error) {
+	me := currentUser(r)
+	limit = me.RelationLimit()
+	if limit == 0 {
+		// Считать занятое незачем: показывать его не с чем, а запрос
+		// к базе на каждой странице стоит денег.
+		return 0, 0, nil
+	}
+	used, err = rs.repo.UsedTotal(r.Context(), me.ID)
+	return used, limit, err
+}
+
 // pick — данные подбора: кого нашли по запросу, кто из них уже в списке
 // и есть ли кого добавлять. Пустой запрос ничего не ищет: подбор — ответ
 // на набранное, а не витрина базы.
 func (rs *relationSection) pick(r *http.Request, query string) (map[string]any, error) {
+	// Запас общий на оба списка, поэтому считается он не по .List: в «Друзьях»
+	// надо видеть и то, что съели враги, иначе отказ выглядит беспричинным.
+	// Считается он здесь, а не в render: подбор перерисовывается на живой
+	// ввод, и кнопка «Добавить» должна гаснуть там же, где гаснут пометки.
+	used, limit, err := rs.quota(r)
+	if err != nil {
+		return nil, err
+	}
 	data := map[string]any{
 		"Words": rs.words, "Candidates": nil, "Marked": map[int64]bool{},
 		"Query": query, "Limit": relationCandidates, "CanAdd": false,
+		"PlanUsed": used, "PlanLimit": limit, "PlanFull": limit > 0 && used >= limit,
 	}
 	if query == "" {
 		return data, nil
@@ -189,8 +213,9 @@ func (rs *relationSection) mark(w http.ResponseWriter, r *http.Request) {
 
 	// Повтор не ошибка: выдача поиска могла устареть, а нужное состояние
 	// то же самое. Чужой комментарий при этом не трогается — Add его не пишет.
-	err := rs.repo.Add(r.Context(), currentUser(r).ID, playerID, "")
-	if err != nil && !errors.Is(err, domain.ErrAlreadyListed) {
+	err := rs.repo.Add(r.Context(), currentUser(r).ID, playerID, "", currentUser(r).RelationLimit())
+	full := errors.Is(err, domain.ErrPlanLimit)
+	if err != nil && !full && !errors.Is(err, domain.ErrAlreadyListed) {
 		rs.srv.serverError(w, r, err)
 		return
 	}
@@ -201,14 +226,25 @@ func (rs *relationSection) mark(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/"+rs.words.Path, http.StatusSeeOther)
 		return
 	}
-	rs.srv.renderPartial(w, r, "home", "mark", rs.markData(playerID, true, csrfToken(r)))
+	// Отказ по пределу возвращает ту же кнопку, но погашенной и с причиной
+	// в подсказке. Код при этом честный: нажатие не сработало.
+	status := http.StatusOK
+	if full {
+		status = http.StatusUnprocessableEntity
+	}
+	rs.srv.renderPartialStatus(w, r, status, "home", "mark",
+		rs.markData(playerID, !full, full, csrfToken(r)))
 }
 
 // markData — данные пометки одной строки поиска. Собираются в одном месте:
 // их отдают и список результатов, и ответ на нажатие.
-func (rs *relationSection) markData(playerID int64, marked bool, csrf string) map[string]any {
+//
+// marked и full — разные состояния: первое значит «уже в списке», второе —
+// «добавить некуда». Вместе они не встречаются.
+func (rs *relationSection) markData(playerID int64, marked, full bool, csrf string) map[string]any {
 	return map[string]any{
-		"ID": playerID, "Marked": marked, "CSRFToken": csrf, "Words": rs.words,
+		"ID": playerID, "Marked": marked, "Full": full,
+		"CSRFToken": csrf, "Words": rs.words,
 	}
 }
 
@@ -233,9 +269,15 @@ func (rs *relationSection) add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = rs.repo.Add(r.Context(), currentUser(r).ID, playerID, comment)
+	me := currentUser(r)
+	err = rs.repo.Add(r.Context(), me.ID, playerID, comment, me.RelationLimit())
 	if errors.Is(err, domain.ErrAlreadyListed) {
 		rs.render(w, r, http.StatusUnprocessableEntity, langOf(r).T(rs.words.Already))
+		return
+	}
+	if errors.Is(err, domain.ErrPlanLimit) {
+		rs.render(w, r, http.StatusUnprocessableEntity,
+			langOf(r).T("err.plan.limit", me.RelationLimit()))
 		return
 	}
 	if err != nil {

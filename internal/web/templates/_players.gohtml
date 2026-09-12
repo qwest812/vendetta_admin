@@ -8,6 +8,8 @@
 {{$friends := .MarkedFriends}}
 {{$enemyWords := .EnemyWords}}
 {{$friendWords := .FriendWords}}
+{{/* Запас общий на оба списка, поэтому гаснут обе пометки разом. */}}
+{{$full := .RelationFull}}
 {{if .Players}}
     <div class="players">
         {{range .Players}}
@@ -29,8 +31,8 @@
                 </a>
                 {{if $canMark}}
                     <div class="marks">
-                        {{template "mark" (dict "ID" .ID "Marked" (index $friends .ID) "CSRFToken" $csrf "Words" $friendWords)}}
-                        {{template "mark" (dict "ID" .ID "Marked" (index $enemies .ID) "CSRFToken" $csrf "Words" $enemyWords)}}
+                        {{template "mark" (dict "ID" .ID "Marked" (index $friends .ID) "Full" $full "CSRFToken" $csrf "Words" $friendWords)}}
+                        {{template "mark" (dict "ID" .ID "Marked" (index $enemies .ID) "Full" $full "CSRFToken" $csrf "Words" $enemyWords)}}
                     </div>
                 {{end}}
             </div>
@@ -61,6 +63,11 @@
 {{$w := .Words}}
 {{if .Marked}}
     <a class="mark done {{$w.Class}}" href="/{{$w.Path}}" title="{{t $w.DoneTitle}}">{{t $w.MarkDone}}</a>
+{{else if .Full}}
+    {{/* Запас карточек кончился. Кнопку гасим, а не прячем: исчезнувшая
+         кнопка читается как поломка, а погашенная — как «нельзя»,
+         и причина написана в подсказке. */}}
+    <button class="mark {{$w.Class}}" type="button" disabled title="{{t "rel.full.title"}}">{{t $w.MarkAdd}}</button>
 {{else}}
     <form method="post" action="/{{$w.Path}}/{{.ID}}/mark"
           hx-post="/{{$w.Path}}/{{.ID}}/mark" hx-target="this" hx-swap="outerHTML">

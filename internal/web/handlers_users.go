@@ -205,6 +205,38 @@ func (s *Server) usersSetGamesAccess(w http.ResponseWriter, r *http.Request) {
 	s.rowDone(w, r, target.ID, "games")
 }
 
+// usersSetPlan меняет пакет доступа. Право рутовое, как и всё в этом ряду:
+// пакет решает, сколько человеку можно, и раздавать это по лестнице ролей
+// мы не хотим.
+//
+// Записи сверх нового предела не трогаем. Человек их собирал, комментарии
+// писал сам, и удалять чужой труд из-за смены пакета нечестно: добавлять
+// он просто не сможет, пока не разгребёт сам.
+func (s *Server) usersSetPlan(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.manageableTarget(w, r)
+	if !ok {
+		return
+	}
+	plan := domain.Plan(r.PostFormValue("plan"))
+	if !plan.Valid() {
+		http.Error(w, "Недопустимый пакет", http.StatusBadRequest)
+		return
+	}
+	if err := s.users.SetPlan(r.Context(), target.ID, plan); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	// Сессии не сбрасываем: пользователь читается из базы на каждый запрос,
+	// так что новый пакет действует со следующей же страницы.
+	s.logAudit(r, "user.set_plan", target.ID,
+		map[string]any{"user": target.Display(), "from": string(target.Plan), "to": string(plan)})
+	if !hx(r) {
+		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		return
+	}
+	s.rowDone(w, r, target.ID, "plan")
+}
+
 // usersSetMapChecks меняет дневное число проверок карты. Право рутовое
 // по той же причине, что и доступ к разделу: каждая проверка — это данные
 // с игрового сервера, добытые общим аккаунтом проекта.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,14 +17,36 @@ type Users struct{ pool *pgxpool.Pool }
 
 func NewUsers(pool *pgxpool.Pool) *Users { return &Users{pool: pool} }
 
-const userColumns = `id, email, nickname, password_hash, role, is_active, games_access, map_checks, created_by, created_at, full_name, city, game_id`
+const userColumns = `id, email, nickname, password_hash, role, is_active, games_access, plan, map_checks, created_by, created_at, full_name, city, game_id`
+
+// userColumnsOf — те же колонки с именем таблицы впереди. Сессия читает
+// пользователя join-ом, и набор у неё должен быть ровно тот же: разошедшиеся
+// списки сборку не ломают, поле просто молча остаётся пустым — и замечают
+// это уже на странице, если вообще замечают.
+func userColumnsOf(alias string) string {
+	cols := strings.Split(userColumns, ", ")
+	for i, c := range cols {
+		cols[i] = alias + "." + c
+	}
+	return strings.Join(cols, ", ")
+}
+
+// userScanTargets — куда складывать userColumns, в том же порядке. Список
+// один на оба запроса по той же причине, что и колонки: разойтись порядку
+// негде, когда он написан один раз.
+//
+// Почта необязательна и хранится как NULL, поэтому едет через отдельный
+// указатель, а в домен попадает пустой строкой.
+func userScanTargets(u *domain.User, email **string) []any {
+	return []any{&u.ID, email, &u.Nickname, &u.PasswordHash, &u.Role, &u.IsActive,
+		&u.GamesAccess, &u.Plan, &u.MapChecks, &u.CreatedBy, &u.CreatedAt,
+		&u.FullName, &u.City, &u.GameID}
+}
 
 func scanUser(row pgx.Row) (*domain.User, error) {
 	var u domain.User
-	// Почта необязательна и хранится как NULL, в домене — пустая строка.
 	var email *string
-	err := row.Scan(&u.ID, &email, &u.Nickname, &u.PasswordHash, &u.Role, &u.IsActive,
-		&u.GamesAccess, &u.MapChecks, &u.CreatedBy, &u.CreatedAt, &u.FullName, &u.City, &u.GameID)
+	err := row.Scan(userScanTargets(&u, &email)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}
@@ -101,6 +124,12 @@ func (r *Users) SetRole(ctx context.Context, id int64, role domain.Role) error {
 // он проходит по роли, и флаг у него ничего не решает.
 func (r *Users) SetGamesAccess(ctx context.Context, id int64, allowed bool) error {
 	return r.exec(ctx, `UPDATE users SET games_access = $2 WHERE id = $1 AND role <> 'root'`, id, allowed)
+}
+
+// SetPlan меняет пакет доступа. Рута не трогаем, как и в остальных правах:
+// он вне счёта, и его пакет ни на что не влияет.
+func (r *Users) SetPlan(ctx context.Context, id int64, plan domain.Plan) error {
+	return r.exec(ctx, `UPDATE users SET plan = $2 WHERE id = $1 AND role <> 'root'`, id, plan)
 }
 
 // SetMapChecks меняет дневное число проверок карты. Рута не трогаем, как

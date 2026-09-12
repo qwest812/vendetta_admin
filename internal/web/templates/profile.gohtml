@@ -6,7 +6,10 @@
     <div class="card-head">
         <h1>{{t "profile.heading"}}</h1>
         <div class="head-actions">
+            {{/* Роль и пакет рядом, но говорят о разном: роль — кем человек
+                 вправе управлять, пакет — сколько можно ему самому. */}}
             <span class="badge role-{{$p.Role}}">{{role $p.Role}}</span>
+            <span class="badge">{{t "profile.plan"}}: {{plan $p.Plan}}</span>
         </div>
     </div>
 
@@ -16,6 +19,13 @@
     <p class="muted">
         {{t "profile.nick"}} <b>{{$p.Nickname}}</b>{{if $p.Email}}, {{t "profile.email"}} {{$p.Email}}{{end}}.
         {{t "profile.note"}}
+    </p>
+
+    {{/* Что даёт пакет. Пишем здесь, а не только в «Доступах»: человек
+         упирается в предел у себя, а раздел с пакетами видит один рут. */}}
+    <p class="muted">
+        {{$limit := $p.RelationLimit}}
+        {{if $limit}}{{t "profile.plan.limit" $limit}}{{else}}{{t "profile.plan.free"}}{{end}}
     </p>
 
     <form method="post" action="/profile">

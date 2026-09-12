@@ -47,7 +47,7 @@
                 <th>{{t "users.email"}}</th>
                 <th>{{t "users.role"}}</th>
                 {{/* Доступ к играм раздаёт только рут, остальным колонку не показываем. */}}
-                {{if $root}}<th>{{t "nav.games"}}</th><th>{{t "users.checks"}}</th>{{end}}
+                {{if $root}}<th>{{t "users.plan"}}</th><th>{{t "nav.games"}}</th><th>{{t "users.checks"}}</th>{{end}}
                 <th>{{t "common.status"}}</th>
                 <th>{{t "users.created"}}</th>
                 <th class="actions">{{t "common.actions"}}</th>
@@ -65,7 +65,10 @@
             </tbody>
         </table>
     </div>
-    {{if $root}}<p class="muted">{{t "users.checks.note"}}</p>{{end}}
+    {{if $root}}
+        <p class="muted">{{t "users.plan.note"}}</p>
+        <p class="muted">{{t "users.checks.note"}}</p>
+    {{end}}
 </div>
 
 {{/* Отказ приезжает с кодом 422 и разметкой строки, в которой и написано,
@@ -104,6 +107,28 @@
     <td data-label="{{t "users.email"}}">{{if $u.Email}}{{$u.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
     <td data-label="{{t "users.role"}}"><span class="badge role-{{$u.Role}}">{{role $u.Role}}</span></td>
     {{if $root}}
+        {{/* Пакет доступа: сколько человеку можно самому. Выпадающий список,
+             а не кнопка, — значений три, и дальше их станет больше.
+             Перечисляет их сам шаблон через plans: дописывать новый пакет
+             ещё и сюда пришлось бы забыть ровно один раз. */}}
+        <td class="access" data-label="{{t "users.plan"}}">
+            {{if $u.IsRoot}}
+                {{/* Руту запас не считают вовсе, и пакет ему ничего не меняет. */}}
+                <span class="muted">{{t "users.plan.root"}}</span>
+            {{else}}
+                <form method="post" action="/users/{{$u.ID}}/plan" class="inline-checks"
+                      hx-post="/users/{{$u.ID}}/plan" hx-target="closest tr" hx-swap="outerHTML">
+                    <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                    <select name="plan">
+                        {{range plans}}
+                            <option value="{{.}}" {{if eq . $u.Plan}}selected{{end}}>{{plan .}}</option>
+                        {{end}}
+                    </select>
+                    <button type="submit">{{t "users.plan.save"}}</button>
+                </form>
+                {{if eq .Field "plan"}}{{template "row-said" .}}{{end}}
+            {{end}}
+        </td>
         {{/* Колонка обычная, не «Действия»: та прижимает содержимое
              к правому краю, и столбец читался бы съехавшим. */}}
         <td class="access" data-label="{{t "nav.games"}}">
@@ -188,7 +213,7 @@
                     <button type="submit" class="danger">{{t "common.delete"}}</button>
                 </form>
             {{end}}
-            {{if ne .Field "checks"}}{{template "row-said" .}}{{end}}
+            {{if and (ne .Field "checks") (ne .Field "plan")}}{{template "row-said" .}}{{end}}
         {{end}}
     </td>
 </tr>

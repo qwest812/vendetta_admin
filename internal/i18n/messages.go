@@ -31,6 +31,12 @@ var messages = map[string]entry{
 	"role.admin": {ru: "Администратор", en: "Administrator"},
 	"role.user":  {ru: "Пользователь", en: "User"},
 
+	// Пакеты доступа. Не роли: роль про власть над другими, пакет — про то,
+	// сколько человеку можно самому.
+	"plan.basic":    {ru: "Базовый", en: "Basic"},
+	"plan.extended": {ru: "Расширенный", en: "Extended"},
+	"plan.ultra":    {ru: "Ультра", en: "Ultra"},
+
 	"traitkind.bad":     {ru: "Плохое", en: "Bad"},
 	"traitkind.neutral": {ru: "Нейтральное", en: "Neutral"},
 	"traitkind.good":    {ru: "Хорошее", en: "Good"},
@@ -265,11 +271,16 @@ var messages = map[string]entry{
 	"rel.comment":             {ru: "Комментарий", en: "Comment"},
 	"rel.comment.placeholder": {ru: "За что", en: "What for"},
 	"rel.list":                {ru: "Список", en: "List"},
-	"rel.noid":                {ru: "без ID", en: "no ID"},
-	"rel.already":             {ru: "уже в списке", en: "already listed"},
-	"rel.remove":              {ru: "убрать", en: "remove"},
-	"rel.notfound":            {ru: "По запросу «%s» никого не нашли. В список записываются только те, у кого есть карточка в базе, — новую заводит админ на главной.", en: "Nothing found for “%s”. Only people who already have a card in the database can be listed — an admin creates new ones on the main page."},
-	"rel.hint":                {ru: "Наберите ник или игровой ID — подходящие карточки появятся в списке.", en: "Type a nickname or game ID — matching cards will appear in the list."},
+	// Запас общий на врагов и друзей, поэтому и подпись говорит «в списках»
+	// во множественном числе: в «Друзьях» в это число входят и враги.
+	"rel.quota":      {ru: "Занято %d из %d в обоих списках", en: "%d of %d used across both lists"},
+	"rel.quota.full": {ru: "Места кончились: в списках %d из %d. Удалите лишнее или попросите расширить пакет.", en: "No room left: %d of %d used. Remove some or ask for a wider plan."},
+	"rel.full.title": {ru: "Места в личных списках кончились", en: "No room left in your personal lists"},
+	"rel.noid":       {ru: "без ID", en: "no ID"},
+	"rel.already":    {ru: "уже в списке", en: "already listed"},
+	"rel.remove":     {ru: "убрать", en: "remove"},
+	"rel.notfound":   {ru: "По запросу «%s» никого не нашли. В список записываются только те, у кого есть карточка в базе, — новую заводит админ на главной.", en: "Nothing found for “%s”. Only people who already have a card in the database can be listed — an admin creates new ones on the main page."},
+	"rel.hint":       {ru: "Наберите ник или игровой ID — подходящие карточки появятся в списке.", en: "Type a nickname or game ID — matching cards will appear in the list."},
 
 	// --- доступы ---
 	"users.title":          {ru: "Доступы — Vendetta", en: "Access — Vendetta"},
@@ -297,6 +308,13 @@ var messages = map[string]entry{
 	"users.saved":          {ru: "сохранено", en: "saved"},
 	"users.password.done":  {ru: "пароль сменён, сессии сброшены", en: "password changed, sessions cleared"},
 	"users.checks.save":    {ru: "Сохранить", en: "Save"},
+	"users.plan":           {ru: "Пакет", en: "Plan"},
+	"users.plan.save":      {ru: "Сохранить", en: "Save"},
+	"users.plan.root":      {ru: "вне счёта", en: "not counted"},
+	"profile.plan":         {ru: "Пакет доступа", en: "Access plan"},
+	"profile.plan.limit":   {ru: "До %d карточек в личных списках — врагов и друзей вместе.", en: "Up to %d cards in personal lists, enemies and friends together."},
+	"profile.plan.free":    {ru: "Личные списки без предела.", en: "Personal lists with no limit."},
+	"users.plan.note":      {ru: "Пакет решает, сколько человеку можно: пока — сколько карточек он держит в личных списках, врагов и друзей вместе. Базовый — 20, расширенный — 50, ультра — без предела. Понижение пакета ничего не удаляет: собранное остаётся, но добавлять новое не даёт, пока человек сам не разгребёт. Рут вне счёта.", en: "The plan decides how much a person may do: for now, how many cards they keep in their personal lists, enemies and friends together. Basic allows 20, extended 50, ultra is unlimited. Lowering a plan deletes nothing: what was collected stays, but nothing new can be added until the person clears it out. The root is not counted."},
 	"users.checks.note":    {ru: "Сколько раз в сутки человек может посмотреть карту партии. Каждый показ — проверка, даже обновление страницы; счёт обнуляется в полночь. Ноль закрывает карты совсем. Руту проверки не считают.", en: "How many times a day the person may look at a game map. Every view is a check, a page refresh included; the count resets at midnight. Zero closes maps entirely. The root is not counted."},
 	"users.delete.confirm": {ru: "Удалить %s безвозвратно?", en: "Delete %s permanently?"},
 
@@ -523,6 +541,10 @@ var messages = map[string]entry{
 	"faq.lists.a1": {ru: "Оба списка ваши личные: кого туда записали вы, видите только вы. У каждого он свой, и один и тот же игрок бывает у одного в друзьях, у другого во врагах — с разными комментариями. В журнал разделы не пишутся, администраторам чужие списки не показываются.", en: "Both lists are yours alone: only you see whom you put there. Everyone has their own, and the same player can be a friend to one person and an enemy to another, with different comments. These sections are not written to the audit log, and administrators are not shown anyone else’s lists."},
 	"faq.lists.a2": {ru: "Это пометка о конкретном человеке, а не позиция альянса: отношение к клану целиком помечается статусом в разделе «Кланы». На шкалы риска и лояльности списки не влияют — они про репутацию игрока, а личный список дело того, кто его ведёт.", en: "It is a note about one person, not an alliance stance: your attitude to a whole clan is marked by its status in the Clans section. The lists do not affect the risk and loyalty scales — those are about a player’s reputation, while a personal list is the business of whoever keeps it."},
 	"faq.lists.a3": {ru: "Добавляют двумя путями. Быстрый — кнопки «в друзья» и «во враги» справа в строке поиска: один клик, поиск не сбрасывается, комментарий дописывается потом. С комментарием сразу — в самом разделе: наберите в поиске игровой ID или ник, выберите нужного в выпадающем списке и нажмите «Добавить». Записать можно только того, у кого есть карточка в базе; нет карточки — попросите админа завести. Комментарий необязателен, до 4000 символов, и правится прямо в списке.", en: "There are two ways to add someone. The quick one is the “to friends” and “to enemies” buttons on the right of a search row: one click, the search is not reset, and the comment is added later. To add with a comment right away, use the section itself: type a game ID or nickname in the search, pick the person from the dropdown and press “Add”. Only someone who already has a card in the database can be listed; if there is no card, ask an admin to create one. The comment is optional, up to 4000 characters, and is edited right in the list."},
+	"faq.plan.q":   {ru: "Что такое пакет доступа и на что он влияет?", en: "What is an access plan and what does it affect?"},
+	"faq.plan.a1":  {ru: "Пакет — это не роль. Роль говорит, кем вы вправе управлять: кто правит чужие карточки, кто раздаёт доступы. Пакет говорит другое — сколько можно вам самим. Поэтому администратор с базовым пакетом правит чужие карточки, а свои списки ведёт по базовым правилам.", en: "A plan is not a role. A role says whom you may manage: who edits other people’s cards, who hands out access. A plan says something else — how much you yourself may do. So an administrator on the basic plan edits other people’s cards while keeping their own lists by basic rules."},
+	"faq.plan.a2":  {ru: "Пакетов три, и каждый следующий включает предыдущий. Базовый разрешает держать 20 карточек в личных списках, расширенный — 50, ультра — сколько угодно. Счёт общий на друзей и врагов вместе: 12 друзей и 8 врагов — это уже 20.", en: "There are three plans, and each one includes the previous. Basic allows keeping 20 cards in personal lists, extended 50, ultra as many as you like. The count is shared between friends and enemies: 12 friends and 8 enemies already make 20."},
+	"faq.plan.a3":  {ru: "Свой пакет виден в профиле. Меняет его рут. Если пакет понизили, собранное никуда не денется: списки останутся как были, но добавлять новое не выйдет, пока вы сами не удалите лишнее.", en: "Your own plan is shown in your profile. The root changes it. If your plan is lowered, nothing you collected disappears: the lists stay as they were, but you will not be able to add anything new until you remove some entries yourself."},
 	"faq.lists.a4": {ru: "В карточке партии оба списка видны на карте: враги обведены красным и подписаны мечом, друзья — зелёным и рукопожатием.", en: "On a game’s page both lists show up on the map: enemies are outlined in red and marked with a sword, friends in green with a handshake."},
 
 	"faq.newtrait.q":  {ru: "Как завести новый признак?", en: "How do I add a new trait?"},
@@ -547,6 +569,7 @@ var messages = map[string]entry{
 	"faq.rights.heroes":     {ru: "Обновлять данные героев", en: "Refresh hero data"},
 	"faq.rights.games":      {ru: "Раздел «Игры»", en: "The Games section"},
 	"faq.rights.checks":     {ru: "Менять число проверок карты", en: "Change the number of map checks"},
+	"faq.rights.plans":      {ru: "Выдавать пакеты доступа", en: "Hand out access plans"},
 	"faq.rights.hero":       {ru: "Призывать пехоту в партии", en: "Deploy infantry in a game"},
 	"faq.rights.feedback":   {ru: "Отвечать на обращения и закрывать их", en: "Answer tickets and close them"},
 
@@ -638,6 +661,7 @@ var messages = map[string]entry{
 	"err.user.nick.taken":  {ru: "Пользователь с таким ником уже есть", en: "A user with that nickname already exists"},
 	"err.password.short":   {ru: "пароль должен быть не короче 12 символов", en: "the password must be at least 12 characters"},
 	"err.password.long":    {ru: "пароль слишком длинный", en: "the password is too long"},
+	"err.plan.limit":       {ru: "Пакет позволяет держать в списках не больше %d карточек — врагов и друзей вместе. Удалите лишнее или попросите расширить пакет.", en: "Your plan allows at most %d cards in your lists, enemies and friends together. Remove some or ask for a wider plan."},
 	"err.checks.bad":       {ru: "Проверок в сутки — целое число от 0 до %d", en: "Checks a day must be a whole number from 0 to %d"},
 
 	// --- архив коалиций: рубильник и сводка (только руту) ---

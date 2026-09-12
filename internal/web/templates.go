@@ -55,7 +55,11 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 		},
 		// Роль, статус клана и уровень шкалы приходят из domain кодами:
 		// подпись к коду — дело языка, а не предметной области.
-		"role":       func(r domain.Role) string { return l.T(r.TitleKey()) },
+		"role": func(r domain.Role) string { return l.T(r.TitleKey()) },
+		"plan": func(p domain.Plan) string { return l.T(p.TitleKey()) },
+		// plans — все пакеты по возрастанию: выбор в «Доступах» перечисляет
+		// их сам, чтобы новый пакет не пришлось дописывать ещё и в шаблон.
+		"plans":      func() []domain.Plan { return domain.Plans },
 		"clanStatus": func(c domain.ClanStatus) string { return l.T(c.TitleKey()) },
 		// Список имён в одну строку: подсказка «кто отметил» показывается
 		// атрибутом title, а он строку и ждёт.

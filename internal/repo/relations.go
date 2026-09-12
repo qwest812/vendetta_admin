@@ -2,11 +2,30 @@ package repo
 
 import (
 	"context"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"Vendetta_admin/internal/domain"
 )
+
+// relationTables — оба личных списка сразу. Запас карточек у человека общий
+// на двоих, поэтому «сколько занято» по одной таблице не посчитать.
+//
+// Имена таблиц подставляются в SQL строкой, и живут они здесь, рядом
+// с конструкторами, — из запроса пользователя сюда не попадает ничего.
+var relationTables = []string{"user_enemies", "user_friends"}
+
+// usedSQL — выражение «сколько карточек уже занято», где $1 это user_id.
+// Собирается из relationTables, чтобы список таблиц был назван один раз:
+// забыть дописать сюда третий список, когда он появится, будет нельзя.
+func usedSQL() string {
+	parts := make([]string, 0, len(relationTables))
+	for _, t := range relationTables {
+		parts = append(parts, `(SELECT count(*) FROM `+t+` WHERE user_id = $1)`)
+	}
+	return strings.Join(parts, " + ")
+}
 
 // Relations — личный список игроков: враги или друзья. Списки устроены
 // одинаково и различаются только таблицей, поэтому работает с ними один тип.
@@ -86,19 +105,46 @@ func (r *Relations) Marked(ctx context.Context, userID int64, playerIDs []int64)
 	return marked, rows.Err()
 }
 
+// UsedTotal — сколько карточек человек уже занял. Считает оба списка вместе,
+// поэтому спрашивать можно любой из них: запас общий, и ответ будет один
+// и тот же.
+func (r *Relations) UsedTotal(ctx context.Context, userID int64) (int, error) {
+	var used int
+	err := r.pool.QueryRow(ctx, `SELECT `+usedSQL(), userID).Scan(&used)
+	return used, err
+}
+
 // Add записывает игрока в список. Повтор — не ошибка базы, а сообщение
 // пользователю: комментарий у записи уже свой, и молча затирать его нельзя.
-func (r *Relations) Add(ctx context.Context, userID, playerID int64, comment string) error {
+//
+// limit — сколько всего карточек человеку можно держать в обоих списках;
+// ноль означает «без предела». Предел проверяется здесь и тем же запросом,
+// что и вставка: между отдельной проверкой и вставкой успевает вклиниться
+// вторая вкладка, и запас уходит в минус.
+func (r *Relations) Add(ctx context.Context, userID, playerID int64, comment string, limit int) error {
 	tag, err := r.pool.Exec(ctx,
-		`INSERT INTO `+r.table+` (user_id, player_id, comment) VALUES ($1, $2, $3)
-		 ON CONFLICT (user_id, player_id) DO NOTHING`, userID, playerID, comment)
+		`INSERT INTO `+r.table+` (user_id, player_id, comment)
+		 SELECT $1, $2, $3 WHERE $4 = 0 OR `+usedSQL()+` < $4
+		 ON CONFLICT (user_id, player_id) DO NOTHING`, userID, playerID, comment, limit)
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() == 0 {
+	if tag.RowsAffected() > 0 {
+		return nil
+	}
+	// Строк не прибавилось по одной из двух причин, и человеку они говорят
+	// разное: «он уже в списке» и «места кончились». Различаем их вторым
+	// запросом — он случается только на неудачном пути.
+	var listed bool
+	if err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM `+r.table+` WHERE user_id = $1 AND player_id = $2)`,
+		userID, playerID).Scan(&listed); err != nil {
+		return err
+	}
+	if listed {
 		return domain.ErrAlreadyListed
 	}
-	return nil
+	return domain.ErrPlanLimit
 }
 
 // SetComment правит комментарий. Чужую запись не тронуть: user_id в условии.

@@ -75,6 +75,16 @@
         </div>
     </details>
 
+    {{/* Про пакет спрашивают сразу после списков: предел встречают там. */}}
+    <details>
+        <summary>{{t "faq.plan.q"}}</summary>
+        <div class="faq-body">
+            <p>{{t "faq.plan.a1"}}</p>
+            <p>{{t "faq.plan.a2"}}</p>
+            <p>{{t "faq.plan.a3"}}</p>
+        </div>
+    </details>
+
     <details>
         <summary>{{t "faq.rights.q"}}</summary>
         <div class="faq-body">
@@ -92,6 +102,9 @@
                     {{$yes := t "faq.rights.yes"}}
                     <tr><td>{{t "faq.rights.search"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
                     <tr><td>{{t "faq.rights.notes"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
+                    {{/* Право вести списки есть у всех, а сколько в них
+                         помещается — решает пакет, а не роль: об этом
+                         отдельный вопрос выше. */}}
                     <tr><td>{{t "faq.rights.lists"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
                     <tr><td>{{t "faq.rights.marktraits"}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
                     <tr><td>{{t "faq.rights.othernotes"}}</td><td class="no">—</td><td class="yes">{{$yes}}</td><td class="yes">{{$yes}}</td></tr>
@@ -108,6 +121,7 @@
                     <tr><td>{{t "faq.rights.games"}}</td><td>{{$granted}}</td><td>{{$granted}}</td><td class="yes">{{$yes}}</td></tr>
                     <tr><td>{{t "faq.rights.hero"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
                     <tr><td>{{t "faq.rights.checks"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
+                    <tr><td>{{t "faq.rights.plans"}}</td><td class="no">—</td><td class="no">—</td><td class="yes">{{$yes}}</td></tr>
                     </tbody>
                 </table>
             </div>

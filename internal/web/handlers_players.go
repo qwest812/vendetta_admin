@@ -66,9 +66,16 @@ func (s *Server) marks(r *http.Request, players []*domain.Player) (map[string]an
 	if err != nil {
 		return nil, err
 	}
+	// Запас карточек общий на оба списка, поэтому и гаснут пометки сразу
+	// обе. Спрашиваем любой раздел — ответ у них один и тот же.
+	used, limit, err := s.enemies.quota(r)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]any{
 		"MarkedEnemies": enemies, "MarkedFriends": friends,
 		"EnemyWords": enemyWords, "FriendWords": friendWords,
+		"RelationFull": limit > 0 && used >= limit,
 	}, nil
 }
 
