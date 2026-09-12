@@ -48,6 +48,10 @@ func TestPagesRender(t *testing.T) {
 	// есть свой смотрящий; пусто — обычный админ.
 	banSeen := time.Unix(1788984426, 0)
 	root := &domain.User{ID: 1, Nickname: "root", Role: domain.RoleRoot}
+	// Пакет решает, видно ли, когда игрока встречали и в какой партии.
+	// Роль у обоих обычная: пакет с ролью не связан.
+	seer := &domain.User{ID: 4, Nickname: "seer", Role: domain.RoleUser, Plan: domain.PlanExtended}
+	basic := &domain.User{ID: 5, Nickname: "basic", Role: domain.RoleUser, Plan: domain.PlanBasic}
 	// Автор обращения и тот, кто отвечает: в шаблоне они сравниваются по id.
 	adminID, playerID := int64(1), int64(2)
 	player := &domain.User{ID: 2, Nickname: "Dau7er", Role: domain.RoleUser,
@@ -129,9 +133,10 @@ func TestPagesRender(t *testing.T) {
 			user: root,
 			data: map[string]any{
 				"Users": []*domain.User{
-					{ID: 1, Nickname: "root", Role: domain.RoleRoot, IsActive: true},
+					{ID: 1, Nickname: "root", Role: domain.RoleRoot, IsActive: true,
+						Plan: domain.PlanUltra},
 					{ID: 9, Nickname: "tester", Role: domain.RoleUser, IsActive: true,
-						GamesAccess: true, MapChecks: 5},
+						GamesAccess: true, MapChecks: 5, Plan: domain.PlanExtended},
 				},
 				"Error": "", "FormEmail": "", "FormNickname": "", "FormRole": "user",
 			},
@@ -146,6 +151,10 @@ func TestPagesRender(t *testing.T) {
 				`value="5"`,
 				// Руту проверки не считают и доступ не снимают.
 				"всегда",
+				// Пакет правится у всех, включая строку самого рута:
+				// им, в отличие от роли, вход себе не закроешь.
+				`hx-post="/users/9/plan"`, `hx-post="/users/1/plan"`,
+				`<option value="extended" selected>`, `<option value="ultra" selected>`,
 				// 422 в ответе — не повод оставить строку прежней.
 				"htmx:beforeSwap",
 			},
@@ -253,6 +262,7 @@ func TestPagesRender(t *testing.T) {
 			// в карточке, а не только в партии, где мы его увидели.
 			name: "player/забанен в игре",
 			page: "player",
+			user: seer,
 			data: map[string]any{
 				"Player": enemy, "Comments": nil, "Error": "", "CommentMax": domain.CommentMaxLen,
 				"Seen": &domain.GamePlayer{
@@ -263,10 +273,28 @@ func TestPagesRender(t *testing.T) {
 			},
 			want: []string{
 				"забанен в игре", "под ником Мультовод",
-				`href="/games/10892960"`,
+				"Видели", `href="/games/10892960"`,
 			},
 			// Одного бана без истории мало: журнал пуст, и говорить не о чем.
 			deny: []string{"История банов"},
+		},
+		{
+			// Тот же игрок глазами базового пакета: ник и бан — свойства
+			// самого человека, их видно всем. А когда и в какой партии его
+			// встретили — след наших заходов в игру, и он закрыт.
+			name: "player/базовый пакет не видит, когда видели",
+			page: "player",
+			user: basic,
+			data: map[string]any{
+				"Player": enemy, "Comments": nil, "Error": "", "CommentMax": domain.CommentMaxLen,
+				"Seen": &domain.GamePlayer{
+					SiteUserID: "777", Nickname: "Мультовод", Banned: true,
+					BannedAt: &banSeen, SeenAt: banSeen, SeenGameID: "10892960",
+				},
+				"Bans": nil,
+			},
+			want: []string{"забанен в игре", "под ником Мультовод"},
+			deny: []string{"Видели", `href="/games/10892960"`},
 		},
 		{
 			// Снятый бан из сегодняшнего статуса исчезает совсем, поэтому
@@ -358,6 +386,30 @@ func TestPagesRender(t *testing.T) {
 				"Партия 10896278", `href="/games/10896278"`,
 			},
 			deny: []string{"Активные игры"},
+		},
+		{
+			// Анонимная партия закрыта пакетом: страница отдаётся пустой,
+			// и это главное в этом случае. Данные в data нарочно лежат
+			// самые говорящие — ни одно из них не должно доехать до глаз.
+			name: "game/анонимная закрыта пакетом",
+			page: "game",
+			user: basic,
+			data: map[string]any{
+				"GameID": "10903303", "AnonymousClosed": true,
+				"Game": &gameView{
+					ID: "10903303", Title: "[Speed] - Free For All", State: "идёт",
+					Day: "1", Players: "100",
+				},
+				"Roster": []rosterView{{Login: "NIKO_TODAY", Level: 19}},
+				"Error":  "", "Ours": false, "State": nil, "Mine": nil,
+			},
+			want: []string{
+				"Анонимная партия", "Разбор анонимных партий запрещён",
+				// Номер остаётся: иначе отказ неотличим от опечатки в нём.
+				"10903303",
+			},
+			// Ничего из партии: ни названия, ни состава, ни разделов карты.
+			deny: []string{"Free For All", "NIKO_TODAY", "Состав", "Коалиции", "Карта"},
 		},
 		{
 			name: "game/root",

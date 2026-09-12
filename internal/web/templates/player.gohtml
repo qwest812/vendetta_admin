@@ -54,12 +54,18 @@
     {{end}}
 
     {{/* Что игра рассказала про игрока сама. Появляется только у тех,
-         кого мы встретили в партии: связь идёт по игровому ID. */}}
+         кого мы встретили в партии: связь идёт по игровому ID.
+
+         Ник и бан — про самого человека, их видят все. А когда и в какой
+         партии его встретили — след наших собственных заходов в игру,
+         и он открыт с расширенного пакета. */}}
     {{with .Seen}}
         <p class="muted">
             {{t "player.seen.ingame"}}{{if .Nickname}} {{t "player.seen.as" .Nickname}}{{end}};
             {{if .Banned}}{{t "player.seen.banned"}}{{with .BannedAt}} — {{t "player.seen.noticed"}} {{datetime .}}{{end}}{{else}}{{t "player.seen.notbanned"}}{{end}}.
-            {{t "player.seen.at"}} {{datetime .SeenAt}}{{if .SeenGameID}} {{t "player.seen.ingamepre"}} <a href="/games/{{.SeenGameID}}">{{t "player.seen.game" .SeenGameID}}</a>{{end}}.
+            {{if $.CurrentUser.CanSeeLastSeen}}
+                {{t "player.seen.at"}} {{datetime .SeenAt}}{{if .SeenGameID}} {{t "player.seen.ingamepre"}} <a href="/games/{{.SeenGameID}}">{{t "player.seen.game" .SeenGameID}}</a>{{end}}.
+            {{end}}
         </p>
     {{end}}
 

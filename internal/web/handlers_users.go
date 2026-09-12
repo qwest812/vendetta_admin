@@ -213,7 +213,12 @@ func (s *Server) usersSetGamesAccess(w http.ResponseWriter, r *http.Request) {
 // писал сам, и удалять чужой труд из-за смены пакета нечестно: добавлять
 // он просто не сможет, пока не разгребёт сам.
 func (s *Server) usersSetPlan(w http.ResponseWriter, r *http.Request) {
-	target, ok := s.manageableTarget(w, r)
+	// Не manageableTarget: тот запрещает трогать себя и рута, и правильно
+	// делает — роль, блокировка и удаление себя закрыли бы вход насовсем.
+	// С пакетом иначе: рут ставит его и себе, чтобы посмотреть на админку
+	// глазами обычного человека, а обратно вернёт когда угодно — раздел
+	// открыт ему по роли, а не по пакету. Роут и так рутовый.
+	target, ok := s.userTarget(w, r)
 	if !ok {
 		return
 	}
@@ -341,7 +346,10 @@ func (s *Server) usersDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // manageableTarget разбирает id из пути и проверяет право актора им управлять.
-func (s *Server) manageableTarget(w http.ResponseWriter, r *http.Request) (*domain.User, bool) {
+// userTarget — пользователь из адреса, без вопроса о праве его менять.
+// Право проверяет тот, кто вызывает: у большинства правок оно одно
+// (CanManage), а у пакета своё.
+func (s *Server) userTarget(w http.ResponseWriter, r *http.Request) (*domain.User, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.Error(w, "Некорректный id", http.StatusBadRequest)
@@ -354,6 +362,14 @@ func (s *Server) manageableTarget(w http.ResponseWriter, r *http.Request) (*doma
 	}
 	if err != nil {
 		s.serverError(w, r, err)
+		return nil, false
+	}
+	return target, true
+}
+
+func (s *Server) manageableTarget(w http.ResponseWriter, r *http.Request) (*domain.User, bool) {
+	target, ok := s.userTarget(w, r)
+	if !ok {
 		return nil, false
 	}
 	if !domain.CanManage(currentUser(r), target) {

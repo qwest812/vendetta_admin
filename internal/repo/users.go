@@ -126,10 +126,15 @@ func (r *Users) SetGamesAccess(ctx context.Context, id int64, allowed bool) erro
 	return r.exec(ctx, `UPDATE users SET games_access = $2 WHERE id = $1 AND role <> 'root'`, id, allowed)
 }
 
-// SetPlan меняет пакет доступа. Рута не трогаем, как и в остальных правах:
-// он вне счёта, и его пакет ни на что не влияет.
+// SetPlan меняет пакет доступа — в том числе рутовый, и в том числе свой
+// собственный. Исключения для рута здесь нет, в отличие от роли, блокировки
+// и удаления: теми рут закрыл бы вход сам себе, и вернуть его было бы
+// некому, — а пакет он в любой момент меняет обратно.
+//
+// Ради этого всё и затевалось: пакет действует и на рута, и сменить его
+// себе — единственный способ увидеть админку глазами обычного человека.
 func (r *Users) SetPlan(ctx context.Context, id int64, plan domain.Plan) error {
-	return r.exec(ctx, `UPDATE users SET plan = $2 WHERE id = $1 AND role <> 'root'`, id, plan)
+	return r.exec(ctx, `UPDATE users SET plan = $2 WHERE id = $1`, id, plan)
 }
 
 // SetMapChecks меняет дневное число проверок карты. Рута не трогаем, как
@@ -152,9 +157,12 @@ func (r *Users) Delete(ctx context.Context, id int64) error {
 
 // EnsureRoot создаёт рута при первом запуске. Возвращает true, если рут был создан.
 func (r *Users) EnsureRoot(ctx context.Context, email, nickname, passwordHash string) (bool, error) {
+	// Пакет рута — ультра с самого начала. В проверках он и так вне счёта,
+	// но пакет у него виден в «Доступах», и «базовый» у того, кому открыто
+	// всё, читался бы как недосмотр.
 	tag, err := r.pool.Exec(ctx,
-		`INSERT INTO users (email, nickname, password_hash, role)
-		 VALUES (NULLIF($1, ''), $2, $3, 'root')
+		`INSERT INTO users (email, nickname, password_hash, role, plan)
+		 VALUES (NULLIF($1, ''), $2, $3, 'root', 'ultra')
 		 ON CONFLICT DO NOTHING`, email, nickname, passwordHash)
 	if err != nil {
 		return false, fmt.Errorf("создание рута: %w", err)

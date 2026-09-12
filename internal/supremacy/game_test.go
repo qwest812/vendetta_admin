@@ -275,3 +275,35 @@ func TestArmyDeployingIsSeen(t *testing.T) {
 		t.Error("армия без dwc размещающейся не считается")
 	}
 }
+
+// Признак анонимной партии игра шлёт то единицей, то строкой, то булевым —
+// как и остальные свойства партии. Разбор обязан пережить любой вид и любую
+// неожиданность: этим ключом нельзя ронять разбор всего лобби.
+func TestGameIsAnonymous(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want bool
+	}{
+		{"единица числом", `{"gameID":"1","anonymousRound":1}`, true},
+		{"единица строкой", `{"gameID":"1","anonymousRound":"1"}`, true},
+		{"булево", `{"gameID":"1","anonymousRound":true}`, true},
+		{"ноль", `{"gameID":"1","anonymousRound":0}`, false},
+		{"ноль строкой", `{"gameID":"1","anonymousRound":"0"}`, false},
+		{"ключа нет вовсе", `{"gameID":"1"}`, false},
+		{"null", `{"gameID":"1","anonymousRound":null}`, false},
+		// Незнакомое значение означает «нет»: не открыть лишнего важнее.
+		{"неожиданное", `{"gameID":"1","anonymousRound":"maybe"}`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var g Game
+			if err := json.Unmarshal([]byte(tt.json), &g); err != nil {
+				t.Fatalf("разбор упал: %v", err)
+			}
+			if got := g.IsAnonymous(); got != tt.want {
+				t.Errorf("анонимная = %v, ожидалось %v", got, tt.want)
+			}
+		})
+	}
+}

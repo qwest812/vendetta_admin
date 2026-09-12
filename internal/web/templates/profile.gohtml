@@ -26,6 +26,10 @@
     <p class="muted">
         {{$limit := $p.RelationLimit}}
         {{if $limit}}{{t "profile.plan.limit" $limit}}{{else}}{{t "profile.plan.free"}}{{end}}
+        {{/* Про закрытое пишем тоже: иначе человек не узнает, что поле
+             в карточке вообще бывает, и решит, что его просто нет. */}}
+        {{if $p.CanSeeLastSeen}}{{t "profile.plan.seen"}}{{else}}{{t "profile.plan.seen.no"}}{{end}}
+        {{if $p.CanSeeAnonymousMaps}}{{t "profile.plan.anon"}}{{else}}{{t "profile.plan.anon.no"}}{{end}}
     </p>
 
     <form method="post" action="/profile">

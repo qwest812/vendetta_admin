@@ -1,6 +1,28 @@
 {{define "title"}}{{t "game.title"}}{{end}}
 
 {{define "content"}}
+{{/* Анонимная партия не по зубам пакету — дальше не идёт ничего. Закрыта
+     вся страница, а не одна карта: состав с сайта — это те же имена, за
+     которыми сюда и приходят, и оставить его значило бы не закрыть ничего.
+
+     Обходить проверку целиком здесь, в разметке, нарочно: данных на такой
+     странице просто нет, а забыть спрятать один блок из десяти — вопрос
+     времени. */}}
+{{if .AnonymousClosed}}
+<div class="card">
+    <div class="card-head">
+        <h1>
+            {{t "game.anonymous.title"}}
+            <span class="game-id">ID {{.GameID}}</span>
+        </h1>
+        <div class="head-actions">
+            <a class="button ghost" href="/games">{{t "game.all"}}</a>
+        </div>
+    </div>
+    <p class="error">{{t "game.anonymous.closed"}}</p>
+    <p class="muted">{{t "game.anonymous.hint"}}</p>
+</div>
+{{else}}
 <div class="card">
     <div class="card-head">
         <h1>
@@ -545,6 +567,7 @@
 </div>
 {{end}}
 
+{{end}}{{/* AnonymousClosed */}}
 {{end}}
 
 {{/* Одна сторона пары: карточка, если она у нас есть, иначе ник из игры. */}}

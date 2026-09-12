@@ -111,23 +111,23 @@
              а не кнопка, — значений три, и дальше их станет больше.
              Перечисляет их сам шаблон через plans: дописывать новый пакет
              ещё и сюда пришлось бы забыть ровно один раз. */}}
-        <td class="access" data-label="{{t "users.plan"}}">
-            {{if $u.IsRoot}}
-                {{/* Руту запас не считают вовсе, и пакет ему ничего не меняет. */}}
-                <span class="muted">{{t "users.plan.root"}}</span>
-            {{else}}
-                <form method="post" action="/users/{{$u.ID}}/plan" class="inline-checks"
-                      hx-post="/users/{{$u.ID}}/plan" hx-target="closest tr" hx-swap="outerHTML">
-                    <input type="hidden" name="csrf_token" value="{{$csrf}}">
-                    <select name="plan">
-                        {{range plans}}
-                            <option value="{{.}}" {{if eq . $u.Plan}}selected{{end}}>{{plan .}}</option>
-                        {{end}}
-                    </select>
-                    <button type="submit">{{t "users.plan.save"}}</button>
-                </form>
-                {{if eq .Field "plan"}}{{template "row-said" .}}{{end}}
-            {{end}}
+        <td class="access plan" data-label="{{t "users.plan"}}">
+            {{/* Пакет правится у всех, включая сам рут и свою собственную
+                 строку: в отличие от роли и блокировки, им вход себе
+                 не закроешь. Рут ставит себе пакет пониже, чтобы увидеть
+                 админку глазами обычного человека, и возвращает обратно
+                 когда захочет — раздел открыт ему по роли, а не по пакету. */}}
+            <form method="post" action="/users/{{$u.ID}}/plan" class="inline-plan"
+                  hx-post="/users/{{$u.ID}}/plan" hx-target="closest tr" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                <select name="plan">
+                    {{range plans}}
+                        <option value="{{.}}" {{if eq . $u.Plan}}selected{{end}}>{{plan .}}</option>
+                    {{end}}
+                </select>
+                <button type="submit">{{t "users.plan.save"}}</button>
+            </form>
+            {{if eq .Field "plan"}}{{template "row-said" .}}{{end}}
         </td>
         {{/* Колонка обычная, не «Действия»: та прижимает содержимое
              к правому краю, и столбец читался бы съехавшим. */}}
