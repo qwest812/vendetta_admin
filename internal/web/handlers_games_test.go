@@ -912,3 +912,68 @@ func TestGameBudgetBySize(t *testing.T) {
 		}
 	}
 }
+
+// В событийной партии с анонимным раундом игра называет каждого участника
+// «анонимным», а сайт отдаёт тот же состав с живыми никами. Берём ник
+// у сайта: иначе одно слово затрёт настоящие ники всем, кого мы знаем,
+// а незнакомцам заведёт десятки одинаковых карточек.
+func TestSeenPlayersTakesNicknameFromRoster(t *testing.T) {
+	now := time.Unix(1789229949, 0)
+	state := &supremacy.GameState{
+		GameID: "10903303",
+		Players: map[int]supremacy.Player{
+			1: {ID: 1, SiteUserID: "12245835", Name: "анонимный"},
+			2: {ID: 2, SiteUserID: "16935048", Name: "анонимный", Banned: true},
+			// Сайт про этого молчит — остаётся то, что сказала игра.
+			3: {ID: 3, SiteUserID: "99999999", Name: "анонимный"},
+			// Нация без игрока: номера аккаунта нет, запоминать нечего.
+			4: {ID: 4, SiteUserID: ""},
+		},
+	}
+	roster := []supremacy.GameLogin{
+		{Login: "NIKO_TODAY", SiteUserID: "12245835"},
+		{Login: "shadowced1", SiteUserID: "16935048"},
+		// Удалённый аккаунт: сайт шлёт ноль вместо номера, и брать у него
+		// нечего — иначе все удалённые слились бы в одного.
+		{Login: "кто-то", SiteUserID: "0"},
+	}
+
+	got := map[string]domain.GamePlayer{}
+	for _, p := range seenPlayers(state, roster, now) {
+		got[p.SiteUserID] = p
+	}
+	if len(got) != 3 {
+		t.Fatalf("записей %d, ожидалось 3: %v", len(got), got)
+	}
+	if n := got["12245835"].Nickname; n != "NIKO_TODAY" {
+		t.Errorf("ник = %q, ожидался с сайта", n)
+	}
+	if p := got["16935048"]; p.Nickname != "shadowced1" || !p.Banned {
+		t.Errorf("ник = %q, бан = %v", p.Nickname, p.Banned)
+	}
+	// Про кого сайт промолчал — остаётся имя из партии, даже такое.
+	if n := got["99999999"].Nickname; n != "анонимный" {
+		t.Errorf("запасной ник = %q, ожидался из состояния", n)
+	}
+	if p := got["12245835"]; p.SeenGameID != "10903303" || !p.SeenAt.Equal(now) {
+		t.Errorf("партия = %q, время = %v", p.SeenGameID, p.SeenAt)
+	}
+}
+
+// Обычная партия: сайт и игра называют людей одинаково, и подмена ника
+// ничего не меняет — проверяем, что она не ломает привычный случай.
+func TestSeenPlayersKeepsUsualNames(t *testing.T) {
+	state := &supremacy.GameState{
+		GameID:  "10900334",
+		Players: map[int]supremacy.Player{1: {ID: 1, SiteUserID: "42", Name: "Dau7er"}},
+	}
+	list := seenPlayers(state, []supremacy.GameLogin{{Login: "Dau7er", SiteUserID: "42"}}, time.Now())
+	if len(list) != 1 || list[0].Nickname != "Dau7er" {
+		t.Errorf("получили %v", list)
+	}
+	// И без состава с сайта — тоже: он не единственный источник.
+	list = seenPlayers(state, nil, time.Now())
+	if len(list) != 1 || list[0].Nickname != "Dau7er" {
+		t.Errorf("без состава получили %v", list)
+	}
+}

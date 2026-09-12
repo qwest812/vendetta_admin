@@ -1264,6 +1264,44 @@ func premiumViews(l i18n.Lang, state *supremacy.GameState, meID int) []gamePlaye
 	return out
 }
 
+// seenPlayers сводит состояние партии с составом, который отдал сайт,
+// и готовит то, что мы запомним про самих людей.
+//
+// Ник берётся из состава с сайта, а не из состояния партии. Обычно они
+// совпадают, но в событийной партии с анонимным раундом игра подменяет имя
+// каждого участника на «анонимный» — и состояние затёрло бы этим словом
+// настоящие ники всем, кого мы уже знаем, а незнакомцам завело бы десятки
+// одинаковых карточек. Сайт при этом отдаёт состав как ни в чём не бывало:
+// анонимность у такой партии только на карте, номер аккаунта настоящий,
+// и по нему сайт называет живого человека.
+//
+// Состояние остаётся запасным источником: про чужую партию сайт иногда
+// молчит, и тогда известное игре имя лучше, чем никакого.
+func seenPlayers(state *supremacy.GameState, roster []supremacy.GameLogin, now time.Time) []domain.GamePlayer {
+	byID := make(map[string]string, len(roster))
+	for _, l := range roster {
+		if l.Known() && l.Login != "" {
+			byID[l.SiteUserID] = l.Login
+		}
+	}
+
+	list := make([]domain.GamePlayer, 0, len(state.Players))
+	for _, p := range state.Players {
+		if p.SiteUserID == "" {
+			continue
+		}
+		nickname := p.Name
+		if login, ok := byID[p.SiteUserID]; ok {
+			nickname = login
+		}
+		list = append(list, domain.GamePlayer{
+			SiteUserID: p.SiteUserID, Nickname: nickname, Banned: p.Banned,
+			SeenAt: now, SeenGameID: state.GameID,
+		})
+	}
+	return list
+}
+
 // rememberPlayers записывает состав партии в базу: ник и бан у каждого,
 // кто пришёл с номером на сайте. Свойства партии — поражение, выход, премиум
 // — сюда не идут: они про эту игру, а не про человека, и в другой партии
@@ -1276,18 +1314,10 @@ func premiumViews(l i18n.Lang, state *supremacy.GameState, meID int) []gamePlaye
 //
 // Ошибка записи страницу не отменяет: мы уже в партии, состав перед глазами,
 // и терять его показ из-за базы было бы обидно.
-func (s *Server) rememberPlayers(ctx context.Context, state *supremacy.GameState) error {
-	list := make([]domain.GamePlayer, 0, len(state.Players))
-	now := time.Now()
-	for _, p := range state.Players {
-		if p.SiteUserID == "" {
-			continue
-		}
-		list = append(list, domain.GamePlayer{
-			SiteUserID: p.SiteUserID, Nickname: p.Name, Banned: p.Banned,
-			SeenAt: now, SeenGameID: state.GameID,
-		})
-	}
+func (s *Server) rememberPlayers(ctx context.Context, state *supremacy.GameState,
+	roster []supremacy.GameLogin) error {
+
+	list := seenPlayers(state, roster, time.Now())
 	if err := s.gamePlayers.Save(ctx, list); err != nil {
 		return err
 	}
@@ -1724,7 +1754,7 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 
 		// Раз уж состав перед глазами — запомним про игроков то,
 		// что принадлежит им самим, а не этой партии.
-		if err := s.rememberPlayers(ctx, state); err != nil {
+		if err := s.rememberPlayers(ctx, state, roster); err != nil {
 			s.log.Error("запись состава партии", "gameID", gameID, "err", err)
 		}
 		data["Friends"] = relationViews(state, sides.Friends)
