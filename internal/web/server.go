@@ -263,7 +263,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /users/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.usersDelete))))
 	mux.Handle("POST /players/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.playerDelete))))
 
-	return s.recoverPanic(s.logRequests(s.auth.Attach(mux)))
+	// Порядок слоёв: паника ловится снаружи всего, заголовки безопасности
+	// ставятся и на ответ об ошибке, а чужой адрес отсекается до того, как
+	// мы полезем в базу за сессией.
+	return s.recoverPanic(securityHeaders(s.logRequests(s.crossOrigin(s.auth.Attach(mux)))))
 }
 
 // healthz отвечает 200, только если база отвечает: по нему docker
@@ -310,4 +313,52 @@ func (s *Server) recoverPanic(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+// securityHeaders ставит на каждый ответ запреты, которые браузер должен
+// узнать до того, как начнёт выполнять страницу. Ни один из них не зависит
+// от того, кто пришёл и куда, поэтому стоят они общей прослойкой снаружи —
+// в том числе на ответах об ошибках и на статике.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		// Админку нельзя показывать в чужом фрейме: иначе поверх неё рисуют
+		// свою страницу и ловят клики живого пользователя. frame-ancestors —
+		// то же самое для браузеров новее, шлём оба: они не спорят.
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Content-Security-Policy", "frame-ancestors 'none'")
+		// Портреты героев отдаёт обработчик, а не файловый сервер, и тип
+		// у них из базы. Разглядывать в них скрипт браузеру незачем.
+		h.Set("X-Content-Type-Options", "nosniff")
+		// Адреса у нас говорящие: /players/42 в заголовке Referer чужого
+		// сайта — это уже рассказ о том, за кем мы смотрим.
+		h.Set("Referrer-Policy", "same-origin")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// crossOrigin отклоняет изменяющие запросы, пришедшие с чужой страницы.
+// Это второй замок рядом с CSRF-токеном, а не замена ему: токен отвечает
+// за то, что форму рисовали мы, а эта проверка — за то, что отправляли её
+// с нашего адреса. Пригодится, если токен утечёт: комментарии и признаки
+// у нас пишут все подряд.
+//
+// Список своих адресов задавать не нужно. Стандартная библиотека смотрит
+// на Sec-Fetch-Site — его ставит сам браузер и со страницы не подделать, —
+// а где его нет, сравнивает хост из Origin с хостом запроса.
+//
+// Запросы вовсе без обоих заголовков она пропускает, считая их
+// не браузерными: бота с чужой кукой отсекает сессия, а не эта проверка.
+func (s *Server) crossOrigin(next http.Handler) http.Handler {
+	p := http.NewCrossOriginProtection()
+	p.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Своя админка сюда не попадает никогда, так что это не про то,
+		// что увидит человек, а про запись в журнале: кто-то пробовал.
+		s.log.Warn("запрос с чужого адреса отклонён",
+			"method", r.Method, "path", r.URL.Path,
+			"origin", r.Header.Get("Origin"),
+			"sec_fetch_site", r.Header.Get("Sec-Fetch-Site"))
+		http.Error(w, "Запрос пришёл с чужого адреса", http.StatusForbidden)
+	}))
+	return p.Handler(next)
 }
