@@ -714,15 +714,23 @@ func TestAllianceRows(t *testing.T) {
 	}
 }
 
-// Состав ставится в порядке, в котором его читают: соклановцы рядом,
-// безкланные в конце. Внутри клана — по нику, без учёта регистра.
+// Состав ставится в порядке, в котором его читают: сначала те, кого стоит
+// бояться. Опасность — уровень, умноженный на кд, поэтому один уровень
+// порядка не решает.
 func TestRosterOrder(t *testing.T) {
+	// Ровно те числа, что отличают уровень от опасности: у «слабого»
+	// уровень выше, но кд единица, и по опасности он ниже.
+	rated := func(level int, defeated, casualties int64) domain.UserStats {
+		at := time.Unix(1788984426, 0)
+		return domain.UserStats{Level: level, Defeated: defeated,
+			Casualties: casualties, CheckedAt: &at}
+	}
 	views := []rosterView{
-		{Login: "один", Clan: ""},
-		{Login: "яков", Clan: "F L O W"},
-		{Login: "Абрам", Clan: "F L O W"},
-		{Login: "второй", Clan: ""},
-		{Login: "кто-то", Clan: "VEN.DETTA"},
+		{Login: "непрошенный"},
+		{Login: "слабый", Stats: rated(20, 10, 10)}, // опасность 20.0
+		{Login: "Абрам", Stats: rated(17, 24, 10)},  // опасность 40.8
+		{Login: "аноним"},
+		{Login: "средний", Stats: rated(18, 27, 10)}, // опасность 48.6
 	}
 	sortRoster(views)
 
@@ -730,13 +738,89 @@ func TestRosterOrder(t *testing.T) {
 	for _, v := range views {
 		got = append(got, v.Login)
 	}
-	// Безкланные тоже по нику: список должен читаться, а не лежать
-	// в том порядке, в каком его прислал сайт.
-	want := []string{"Абрам", "яков", "кто-то", "второй", "один"}
+	// Сначала опасные по убыванию, потом те, про кого счёта нет, — по нику,
+	// чтобы порядок не плясал от запуска к запуску.
+	want := []string{"средний", "Абрам", "слабый", "аноним", "непрошенный"}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("порядок = %v, ожидался %v", got, want)
 		}
+	}
+}
+
+// Страницы нумеруются только у больших составов, и нумеруются после
+// сортировки: они про место в готовом списке, а не про игрока.
+func TestRosterPages(t *testing.T) {
+	if got := rosterPages(make([]rosterView, rosterPaged-1)); got != nil {
+		t.Errorf("маленький состав делить не на что, получили %v", got)
+	}
+	pages := rosterPages(make([]rosterView, rosterPageSize*3+1))
+	if len(pages) != 4 {
+		t.Errorf("страниц = %v, ожидалось 4", pages)
+	}
+	if pages[0] != 1 || pages[3] != 4 {
+		t.Errorf("нумерация с единицы и подряд: %v", pages)
+	}
+}
+
+// Страны приезжают из состояния партии, а состав — с сайта; сводятся они
+// по игровому ID. Без состояния страна остаётся пустой, и это не ошибка.
+func TestRosterFromStateNations(t *testing.T) {
+	views := []rosterView{{GameID: "1"}, {GameID: "2"}, {GameID: "3"}}
+	rosterFromState(views, &supremacy.GameState{Players: map[int]supremacy.Player{
+		10: {SiteUserID: "1", Nation: "Франция"},
+		11: {SiteUserID: "3", Nation: ""},
+	}}, nil)
+
+	byID := map[string]rosterView{}
+	for _, v := range views {
+		byID[v.GameID] = v
+	}
+	if byID["1"].Nation != "Франция" {
+		t.Errorf("страна первого = %q", byID["1"].Nation)
+	}
+	if byID["2"].Nation != "" || byID["3"].Nation != "" {
+		t.Errorf("неизвестным страну не выдумываем: %q %q", byID["2"].Nation, byID["3"].Nation)
+	}
+
+	// Без карты состояния нет вовсе — падать тут не на чем.
+	rosterFromState(views, nil, nil)
+}
+
+// Счёт, который карта дособрала по дороге, должен доехать до таблицы:
+// состав готовится раньше и читает из базы то, что было известно тогда.
+// Иначе прочерки стояли бы там, где числа только что приехали.
+func TestRosterFromStateRefreshesStats(t *testing.T) {
+	at := time.Unix(1788984426, 0)
+	fresh := domain.UserStats{Level: 20, Defeated: 30, Casualties: 10, CheckedAt: &at}
+	me := domain.UserStats{Level: 10, Defeated: 10, Casualties: 10, CheckedAt: &at}
+
+	views := []rosterView{
+		{GameID: "1", Login: "свежий"},
+		{GameID: "2", Login: "неспрошенный"},
+	}
+	state := &supremacy.GameState{Players: map[int]supremacy.Player{
+		7: {ID: 7, SiteUserID: "1", Nation: "Франция"},
+		8: {ID: 8, SiteUserID: "2"},
+	}}
+	rosterFromState(views, state, &gameSides{
+		Stats: map[int]domain.UserStats{7: fresh},
+		Me:    me,
+	})
+
+	// Порядок пересобран по новому счёту: спрошенный поднялся наверх.
+	if views[0].Login != "свежий" {
+		t.Fatalf("порядок = %s, %s", views[0].Login, views[1].Login)
+	}
+	if got := views[0].Stats.Level; got != 20 {
+		t.Errorf("уровень = %d, ожидался свежий", got)
+	}
+	// Он втрое опаснее смотрящего — полоса должна быть самой тревожной.
+	if got := views[0].Power; got != "power-much-up" {
+		t.Errorf("полоса = %q", got)
+	}
+	if views[1].Stats.Known() {
+		t.Errorf("про кого счёта нет, тому его не выдумываем: %+v", views[1].Stats)
 	}
 }
 

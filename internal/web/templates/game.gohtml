@@ -396,29 +396,14 @@
         <p class="muted">{{t "game.notplaying"}}</p>
     {{end}}
 
+    {{/* Список своих провинций с моралью отсюда убран: страница про то,
+         кто в партии играет, а не про свои клетки. Сколько их у нас —
+         одной строкой. */}}
     {{if .Me}}
         <p class="muted">
             {{t "game.me" .State.Day .Me.Nation .Me.Name .Me.ID}}
             {{t "game.me.provinces" (len .Mine) (len .State.Provinces)}}
         </p>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                <tr>
-                    <th>{{t "game.col.province"}}</th>
-                    <th>{{t "game.col.morale"}}</th>
-                </tr>
-                </thead>
-                <tbody>
-                {{range .Mine}}
-                    <tr>
-                        <td>{{.Name}}{{if .Capital}} <span class="badge">{{t "game.capital"}}</span>{{end}}</td>
-                        <td class="muted nowrap">{{printf "%.0f" .Morale}}%</td>
-                    </tr>
-                {{end}}
-                </tbody>
-            </table>
-        </div>
     {{end}}
 
     {{/* Кончившиеся проверки — не поломка: про них сказано выше своими
@@ -528,41 +513,95 @@
 {{/* Состав сайт отдаёт про любую партию, не спрашивая, играем ли мы в ней,
      и стоит он дёшево. Показываем его там, где карты нет: до захода в свою
      партию и тогда, когда со стороны посмотреть не удалось. */}}
-{{if and .Roster (not .State)}}
+{{/* Состав показывается и с картой, и без неё. С картой он стоит под ней
+     и отвечает на тот же вопрос, что и режим «Сила», только словами:
+     кто эти люди и кого из них стоит бояться. */}}
+{{if .Roster}}
 <div class="card">
     <h1>{{t "game.roster"}}</h1>
-    <p class="muted">
-        {{t "game.roster.note"}}
-    </p>
-    <div class="table-wrap">
-        <table>
-            <thead>
-            <tr>
-                <th>{{t "game.col.player"}}</th>
-                <th>{{t "playerform.clan"}}</th>
-                <th>{{t "game.col.team"}}</th>
-                <th>{{t "game.col.level"}}</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{range .Roster}}
+    <p class="muted">{{t "game.roster.note"}}</p>
+    {{/* Без своего боевого счёта колонка силы пуста целиком — сравнивать
+         не с чем. Молчать об этом нельзя: пустой столбец читается как
+         поломка, а не как «нам не с чем сравнивать». */}}
+    {{if not .PowerKnown}}<p class="muted">{{t "game.roster.nopower"}}</p>{{end}}
+
+    {{$pages := .RosterPages}}
+    <div class="paged">
+        {{if $pages}}
+            {{/* Страницы переключаются радиокнопками и css — как режимы
+                 карты. Ходить за ними на сервер нельзя: страница партии
+                 перезагружается вместе с показом карты, а тот стоит
+                 проверки из дневной квоты.
+
+                 Правила приходится собирать здесь: их ровно столько,
+                 сколько страниц, а это число своё у каждой партии. */}}
+            {{range $pages}}<input class="page-pick" type="radio" name="roster-page" id="roster-p{{.}}" {{if eq . 1}}checked{{end}}>{{end}}
+            <style>
+                {{range $pages}}#roster-p{{.}}:checked ~ .table-wrap tr.rpage:not(.rp{{.}}) { display: none; }
+                #roster-p{{.}}:checked ~ .pager label[for="roster-p{{.}}"] { background: var(--accent); color: #fff; }
+                {{end}}
+            </style>
+        {{end}}
+        <div class="table-wrap">
+            {{/* stack: на телефоне десять колонок не помещаются, и строка
+                 раскладывается в карточку с подписями из data-label. */}}
+            <table class="roster stack">
+                <thead>
                 <tr>
-                    <td>
-                        {{if .Card}}
-                            <a class="nick" href="/players/{{.Card.ID}}">{{.Login}}</a>
-                            {{if .Enemy}}<span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}
-                            {{if .Friend}}<span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}
-                        {{else}}
-                            {{.Login}}
-                        {{end}}
-                    </td>
-                    <td>{{if .Clan}}{{.Clan}}{{else}}<span class="muted">—</span>{{end}}</td>
-                    <td class="muted">{{if .Team}}{{t "game.team.no" .Team}}{{else}}—{{end}}</td>
-                    <td class="muted">{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
+                    <th>{{t "game.col.player"}}</th>
+                    <th>{{t "profile.gameid"}}</th>
+                    {{if .State}}<th>{{t "game.col.nation"}}</th>{{end}}
+                    <th>{{t "playerform.clan"}}</th>
+                    <th>{{t "game.col.team"}}</th>
+                    <th>{{t "game.col.level"}}</th>
+                    <th>{{t "game.col.kd"}}</th>
+                    <th>{{t "game.col.power"}}</th>
+                    <th>{{t "game.col.games"}}</th>
+                    <th>{{t "game.col.wins"}}</th>
                 </tr>
-            {{end}}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                {{$state := .State}}
+                {{range .Roster}}
+                    <tr class="{{if .Page}}rpage rp{{.Page}}{{end}}">
+                        <td data-label="{{t "game.col.player"}}">
+                            {{if .Card}}
+                                <a class="nick" href="/players/{{.Card.ID}}">{{.Login}}</a>
+                                {{if .Enemy}}<span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}
+                                {{if .Friend}}<span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}
+                            {{else}}
+                                {{.Login}}
+                            {{end}}
+                        </td>
+                        <td class="muted" data-label="{{t "profile.gameid"}}">{{if .GameID}}<span class="game-id">{{.GameID}}</span>{{else}}—{{end}}</td>
+                        {{if $state}}<td data-label="{{t "game.col.nation"}}">{{if .Nation}}{{.Nation}}{{else}}<span class="muted">—</span>{{end}}</td>{{end}}
+                        <td data-label="{{t "playerform.clan"}}">{{if .Clan}}{{.Clan}}{{else}}<span class="muted">—</span>{{end}}</td>
+                        <td class="muted" data-label="{{t "game.col.team"}}">{{if .Team}}{{t "game.team.no" .Team}}{{else}}—{{end}}</td>
+                        {{/* Уровень берём из состава с сайта: он известен
+                             про каждого участника, в отличие от боевого
+                             счёта, который собирается по мере встреч. */}}
+                        <td class="muted nowrap" data-label="{{t "game.col.level"}}">{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
+                        <td class="muted nowrap" data-label="{{t "game.col.kd"}}">{{if .Stats.Rated}}{{ratio .Stats.KD}}{{else}}—{{end}}</td>
+                        {{/* Полоса — та же, что красит карту: цвет говорит
+                             об отношении к вам, число — об игроке самом. */}}
+                        <td class="muted nowrap" data-label="{{t "game.col.power"}}">
+                            {{if .Stats.Rated}}
+                                {{if .Power}}<span class="swatch {{.Power}}"></span> {{end}}{{ratio .Stats.Danger}}
+                            {{else}}—{{end}}
+                        </td>
+                        <td class="muted nowrap" data-label="{{t "game.col.games"}}">{{if .Stats.Known}}{{.Stats.Games}}{{else}}—{{end}}</td>
+                        <td class="muted nowrap" data-label="{{t "game.col.wins"}}">{{if .Stats.Known}}{{t "game.wins.of" .Stats.SoloWins .Stats.CoalitionWins}}{{else}}—{{end}}</td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{if $pages}}
+            <nav class="pager">
+                {{t "game.roster.page"}}
+                {{range $pages}}<label for="roster-p{{.}}">{{.}}</label>{{end}}
+            </nav>
+        {{end}}
     </div>
 </div>
 {{end}}

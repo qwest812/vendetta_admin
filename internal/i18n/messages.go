@@ -454,17 +454,24 @@ var messages = map[string]entry{
 
 	"game.me":           {ru: "День %d, вы играете за %s (%s), номер в партии %d.", en: "Day %d, you play as %s (%s), player number %d."},
 	"game.me.provinces": {ru: "Провинций под контролем %d из %d на карте.", en: "You control %d of the %d provinces on the map."},
-	"game.col.province": {ru: "Провинция", en: "Province"},
-	"game.col.morale":   {ru: "Мораль", en: "Morale"},
-	"game.capital":      {ru: "столица", en: "capital"},
 
 	// Состав по данным сайта игры.
 	"game.roster":      {ru: "Кто играет", en: "Who is playing"},
-	"game.roster.note": {ru: "Состав партии по данным сайта игры: ник, клан, коалиция и уровень. Названий у коалиций здесь нет — их знает только игровой сервер, поэтому стоит номер: одинаковый номер значит «эти заодно». Кого мы знаем, тот подписан ссылкой на карточку.", en: "The roster as the game’s website reports it: nickname, clan, coalition and level. Coalitions have no names here — only the game server knows those — so a number stands in: the same number means “these are together”. Anyone we know is linked to their card."},
+	"game.roster.note": {ru: "Кто играет в этой партии. Ник, клан, коалиция и уровень — по данным сайта игры; страна — из самой партии, поэтому без карты её нет. Названий у коалиций здесь не бывает: их знает только игровой сервер, поэтому стоит номер — одинаковый номер значит «эти заодно». Кд, сила и победы (соло / в коалиции) считаются по всем партиям аккаунта; у тех, кого сайт ещё не спрашивали, стоят прочерки. Сила — уровень, умноженный на кд; цветная полоса рядом говорит, насколько человек опаснее вас, и это те же цвета, что на карте. Порядок — от самых опасных вниз. Кого мы знаем, тот подписан ссылкой на карточку.", en: "Who is playing this game. Nickname, clan, coalition and level come from the game’s website; the country comes from the game itself, so without a map there is none. Coalitions never have names here — only the game server knows those — so a number stands in: the same number means “these are together”. K/D, strength and wins (solo / in coalition) are counted across all of the account’s games; dashes mean the website has not been asked about that person yet. Strength is level multiplied by K/D; the coloured bar beside it says how much more dangerous the person is than you, in the same colours as on the map. The order runs from the most dangerous down. Anyone we know is linked to their card."},
 	"game.col.player":  {ru: "Игрок", en: "Player"},
 	"game.col.team":    {ru: "Коалиция", en: "Coalition"},
 	"game.col.level":   {ru: "Уровень", en: "Level"},
-	"game.team.no":     {ru: "№%s", en: "#%s"},
+	"game.col.nation":  {ru: "Страна", en: "Country"},
+	"game.col.kd":      {ru: "Кд", en: "K/D"},
+	"game.col.power":   {ru: "Сила", en: "Strength"},
+	"game.col.games":   {ru: "Партий", en: "Games"},
+	"game.col.wins":    {ru: "Побед", en: "Wins"},
+	// Победы: соло и в коалиции. В колонку помещаются только числа,
+	// что есть что — сказано в подписи к таблице.
+	"game.wins.of":        {ru: "%d / %d", en: "%d / %d"},
+	"game.roster.page":    {ru: "Страница:", en: "Page:"},
+	"game.roster.nopower": {ru: "Колонка «Сила» пуста: вашего боевого счёта у нас нет, и сравнивать не с чем. Укажите свой игровой ID в профиле и откройте любую партию — счёт соберётся сам.", en: "The Strength column is empty: we have no battle score of yours, so there is nothing to compare with. Put your game ID in your profile and open any game — the score will be collected on its own."},
+	"game.team.no":        {ru: "№%s", en: "#%s"},
 
 	// --- настройки: справочник признаков ---
 	"settings.title":      {ru: "Настройки — Vendetta", en: "Settings — Vendetta"},

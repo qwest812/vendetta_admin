@@ -1375,23 +1375,57 @@ func bannedViews(l i18n.Lang, state *supremacy.GameState) []gamePlayerView {
 // они видны только изнутри партии, поэтому номер здесь работает как метка
 // «эти трое заодно».
 type rosterView struct {
-	Login  string
+	Login string
+	// GameID — номер аккаунта на сайте игры. Тот же, которым карточка
+	// опознаётся в базе, и по нему же человека ищут руками.
+	GameID string
+	// Nation — за кого играет. Известна только из состояния партии,
+	// поэтому без карты пуста: сайт про страны не рассказывает.
+	Nation string
 	Clan   string
 	Team   string
 	Level  int
+	// Stats — боевой счёт с сайта игры: уровень, кд, партии, победы.
+	// Не про всех: страница показывает уже собранное, см. gameStats.
+	Stats domain.UserStats
+	// Power — та же полоса, что красит карту в режиме «Сила»: насколько
+	// человек опаснее смотрящего. Пусто, когда сравнивать не с чем —
+	// у него нет счёта, у нас нет своего или мы ещё не воевали.
+	Power string
+	// Page — на какой странице таблицы стоит строка. Считается после
+	// сортировки; ноль означает, что страниц нет и показывают всё сразу.
+	Page   int
 	Card   *domain.Player
 	Enemy  bool
 	Friend bool
 }
 
+// rosterPageSize — сколько строк состава на одной странице таблицы,
+// rosterPaged — с какого числа строк её вообще делят на страницы.
+//
+// Страницы переключаются радиокнопками и css, без походов на сервер:
+// страница партии перезагружается только вместе с показом карты, а каждый
+// такой показ стоит проверки из дневной квоты. Листать таблицу за свои
+// проверки человек не должен.
+const (
+	rosterPageSize = 50
+	rosterPaged    = supremacy.BigRoster
+)
+
 // rosterViews готовит состав партии к показу и сводит его с базой по
 // игровому ID: тот самый номер, что сайт зовёт siteUserID. Порядок — по
-// клану, чтобы соклановцы стояли рядом, а внутри клана по нику; безкланные
-// уходят в конец.
-func (s *Server) rosterViews(r *http.Request, roster []supremacy.GameLogin) ([]rosterView, error) {
+// силе, самые опасные сверху; кого не спрашивали, те в конце.
+//
+// Боевой счёт читается из базы и в сеть не ходит: его собирает показ карты
+// (gameStats), а здесь мы показываем уже собранное. Поэтому таблица
+// осмысленна и без карты, просто у неспрошенных будут прочерки.
+// Второе значение — есть ли счёт у самого смотрящего. Без него колонка силы
+// пуста целиком, и сказать об этом надо словами: пустой столбец читается
+// как поломка, а не как «сравнивать не с чем».
+func (s *Server) rosterViews(r *http.Request, roster []supremacy.GameLogin) ([]rosterView, bool, error) {
 	lang := langOf(r)
 	if len(roster) == 0 {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	ids := make([]string, 0, len(roster))
@@ -1402,7 +1436,14 @@ func (s *Server) rosterViews(r *http.Request, roster []supremacy.GameLogin) ([]r
 	}
 	cards, err := s.players.ByGameIDs(r.Context(), ids)
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	// Счёт смотрящего идёт в той же пачке: без него «опаснее» и «слабее»
+	// не значат ничего, и вся колонка силы остаётся пустой.
+	me := currentUser(r)
+	stats, err := s.userStats.Known(r.Context(), append(ids, me.GameID))
+	if err != nil {
+		return nil, false, err
 	}
 	list := make([]*domain.Player, 0, len(cards))
 	for _, c := range cards {
@@ -1410,16 +1451,20 @@ func (s *Server) rosterViews(r *http.Request, roster []supremacy.GameLogin) ([]r
 	}
 	enemies, err := s.enemies.marked(r, list)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	friends, err := s.friends.marked(r, list)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	out := make([]rosterView, 0, len(roster))
 	for _, l := range roster {
-		view := rosterView{Login: l.Login, Level: l.Level}
+		view := rosterView{Login: l.Login, Level: l.Level, GameID: l.SiteUserID}
+		if l.Known() {
+			view.Stats = stats[l.SiteUserID]
+			view.Power = powerClass(view.Stats, stats[me.GameID])
+		}
 		if l.InClan() {
 			view.Clan = nonEmpty(l.AllianceName, lang.T("tip.clan", l.AllianceID))
 		}
@@ -1433,21 +1478,99 @@ func (s *Server) rosterViews(r *http.Request, roster []supremacy.GameLogin) ([]r
 		out = append(out, view)
 	}
 
-	sortRoster(out)
-	return out, nil
+	finishRoster(out)
+	return out, stats[me.GameID].Rated(), nil
 }
 
-// sortRoster ставит состав в том порядке, в котором его читают: соклановцы
-// рядом, а безкланные в конце — они друг другу никто, и разбирать их стоит
-// после того, как видны стороны. Внутри клана порядок по нику.
+// finishRoster ставит состав в порядок и раскладывает по страницам.
+// Зовётся дважды: сразу после сборки и ещё раз, когда приедет состояние
+// партии и счёт станет полнее, — порядок-то от счёта и зависит.
+func finishRoster(list []rosterView) {
+	sortRoster(list)
+	// Страницы нумеруются после сортировки: они про место в готовом
+	// списке, а не про игрока.
+	for i := range list {
+		if len(list) >= rosterPaged {
+			list[i].Page = i/rosterPageSize + 1
+		} else {
+			list[i].Page = 0
+		}
+	}
+}
+
+// rosterPages — номера страниц таблицы состава, по порядку. Пусто, когда
+// делить не на что: шаблону тогда нечего рисовать, и переключателя не будет.
+func rosterPages(list []rosterView) []int {
+	if len(list) < rosterPaged {
+		return nil
+	}
+	n := (len(list) + rosterPageSize - 1) / rosterPageSize
+	pages := make([]int, 0, n)
+	for i := 1; i <= n; i++ {
+		pages = append(pages, i)
+	}
+	return pages
+}
+
+// rosterFromState дописывает в состав то, что знает только состояние партии:
+// страны участников и свежий боевой счёт.
+//
+// Счёт дописывается не из вредности. Состав готовится раньше, чем страница
+// сходит за состоянием, и читает из базы то, что известно на тот момент;
+// а показ карты по дороге сам дособирает счёт тех, кого давно не спрашивали
+// (см. gameStats). Без этого шага таблица показывала бы прочерки там, где
+// числа только что приехали, — и исправлялось бы это лишь со следующего
+// открытия партии.
+//
+// Страна нужна, чтобы таблицу можно было связать с картой глазами: на карте
+// видно страну, а не ник. Без карты её нет вовсе, и это не ошибка.
+//
+// Порядок после этого пересобирается: он считается от счёта.
+func rosterFromState(list []rosterView, state *supremacy.GameState, sides *gameSides) {
+	if state == nil {
+		return
+	}
+	nations := make(map[string]string, len(state.Players))
+	stats := make(map[string]domain.UserStats, len(state.Players))
+	for _, p := range state.Players {
+		if p.SiteUserID == "" {
+			continue
+		}
+		if p.Nation != "" {
+			nations[p.SiteUserID] = p.Nation
+		}
+		if sides != nil {
+			if st, ok := sides.Stats[p.ID]; ok {
+				stats[p.SiteUserID] = st
+			}
+		}
+	}
+	for i := range list {
+		list[i].Nation = nations[list[i].GameID]
+		if st, ok := stats[list[i].GameID]; ok {
+			list[i].Stats = st
+			if sides != nil {
+				list[i].Power = powerClass(st, sides.Me)
+			}
+		}
+	}
+	finishRoster(list)
+}
+
+// sortRoster ставит состав в том порядке, в котором его читают: сначала
+// те, кого стоит бояться. Кого сайт ещё не спрашивал, те уходят в конец —
+// не потому, что безобидны, а потому, что про них нечего сказать, и держать
+// их наверху значило бы прятать за ними опасных.
+//
+// Внутри равных — по нику, чтобы порядок не плясал от запуска к запуску.
 func sortRoster(list []rosterView) {
 	sort.SliceStable(list, func(i, j int) bool {
 		a, b := list[i], list[j]
-		if (a.Clan == "") != (b.Clan == "") {
-			return a.Clan != ""
+		if a.Stats.Rated() != b.Stats.Rated() {
+			return a.Stats.Rated()
 		}
-		if a.Clan != b.Clan {
-			return a.Clan < b.Clan
+		if d := a.Stats.Danger() - b.Stats.Danger(); d != 0 {
+			return d > 0
 		}
 		return strings.ToLower(a.Login) < strings.ToLower(b.Login)
 	})
@@ -1512,7 +1635,10 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		"Interval": s.heroEvery, "IntervalMax": s.heroEveryMax,
 		"Game": nil, "State": nil, "Mine": nil,
 		"Map": nil, "MapError": "", "Enemies": nil, "Friends": nil,
-		"Premium": nil, "Banned": nil, "Roster": nil,
+		"Premium": nil, "Banned": nil, "Roster": nil, "RosterPages": nil,
+		// PowerKnown — есть ли у смотрящего свой боевой счёт. Без него
+		// колонка силы в составе пуста, и таблица говорит об этом сама.
+		"PowerKnown": false,
 		// AlliancesPending — сколько игроков партии воркер ещё не спросил.
 		"AlliancesPending": 0,
 		// Pairs — кто из игроков этой партии уже союзничал раньше.
@@ -1715,12 +1841,14 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 
 	// Состав показываем там, где нет карты: в чужой партии он и есть вся
 	// проверка, а в своей — то, что видно до захода внутрь.
-	views, err := s.rosterViews(r, roster)
+	views, powerKnown, err := s.rosterViews(r, roster)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	data["Roster"] = views
+	data["RosterPages"] = rosterPages(views)
+	data["PowerKnown"] = powerKnown
 
 	// Чужая партия — не ошибка: название и состояние сайт называет про любую.
 	if !ours {
@@ -1808,6 +1936,15 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		data["Enemies"] = relationViews(state, sides.Enemies)
 		data["Premium"] = premiumViews(lang, state, meID)
 		data["Banned"] = bannedViews(lang, state)
+
+		// Страны и свежий счёт в таблицу состава. Срез тот же, что уже
+		// лежит в data, — переприсваивать нечего; страницы пересобираются
+		// внутри, порядок-то от счёта и зависит.
+		rosterFromState(views, state, sides)
+		data["RosterPages"] = rosterPages(views)
+		if sides.Me.Rated() {
+			data["PowerKnown"] = true
+		}
 
 		// Раз уж состав перед глазами — запомним про игроков то,
 		// что принадлежит им самим, а не этой партии.

@@ -521,13 +521,40 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
     list-style: none;
 }
 .map-legend li { display: flex; align-items: center; gap: 6px; }
-.map-legend .swatch {
+.map-legend .swatch,
+.roster .swatch {
     width: 14px;
     height: 14px;
     border-radius: 3px;
     border: 1px solid rgba(0, 0, 0, .45);
 }
-/* Образцы режимов списков и игроков — те же цвета, что и заливка на карте. */
+/* В таблице образец стоит перед числом, а не отдельной строкой списка. */
+.roster .swatch { display: inline-block; vertical-align: -2px; }
+
+/* Страницы таблицы состава. Переключаются радиокнопками и css, как режимы
+   карты: ходить за страницей на сервер нельзя — страница партии
+   перезагружается вместе с показом карты, а тот стоит проверки из дневной
+   квоты, и листание съедало бы её по одной за страницу.
+
+   Прячет чужие страницы правило, которое собирает шаблон: правил ровно
+   столько, сколько страниц, а это число своё у каждой партии. Показывать
+   выбранную нельзя — пришлось бы задавать display, а на телефоне строка
+   таблицы становится блоком (table.stack), и вёрстка бы поехала. */
+.paged .page-pick { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; color: var(--muted); }
+.pager label {
+    min-width: 28px;
+    padding: 4px 8px;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text);
+}
+.pager label:hover { border-color: var(--accent); }
+/* Образцы режимов списков и игроков — те же цвета, что и заливка на карте.
+   Полосы силы объявлены без места: тот же образец стоит и в легенде,
+   и в колонке «Сила» таблицы состава, и значит там ровно то же. */
 .map-legend .swatch.side-enemy { background: #a2453c; }
 .map-legend .swatch.side-friend { background: #3f7d5a; }
 .map-legend .swatch.human { background: #3c6e9c; }
@@ -535,11 +562,11 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 .map-legend .swatch.premium { background: #7d63a8; }
 .map-legend .swatch.banned { background: #a2453c; }
 /* Образцы режима силы — та же шкала от красного к зелёному. */
-.map-legend .swatch.power-much-up { background: #8f2f26; }
-.map-legend .swatch.power-up { background: #c0564a; }
-.map-legend .swatch.power-even { background: #b08a2e; }
-.map-legend .swatch.power-down { background: #4f8f5f; }
-.map-legend .swatch.power-much-down { background: #2f6b45; }
+.swatch.power-much-up { background: #8f2f26; }
+.swatch.power-up { background: #c0564a; }
+.swatch.power-even { background: #b08a2e; }
+.swatch.power-down { background: #4f8f5f; }
+.swatch.power-much-down { background: #2f6b45; }
 
 /* Ссылка, которой ещё рано: пока идёт счёт до следующего похода за картой,
    скрипт вешает этот класс, а по нулю снимает. Нажатие гасим и вида ради,
