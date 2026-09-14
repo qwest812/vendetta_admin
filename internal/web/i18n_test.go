@@ -201,7 +201,7 @@ func TestPageRendersInEnglish(t *testing.T) {
 	page := buf.String()
 	for _, want := range []string{
 		`<html lang="en">`,
-		">Search<", ">Clans<", ">Help<", ">Log out<", // меню и шапка
+		">Players<", ">Friends<", ">Help<", ">Log out<", // меню и шапка
 		"Root",                       // роль подписана словом, а не кодом
 		"How to use the admin panel", // текст самой страницы
 		// Переключатель ведёт обратно на эту же страницу; адрес шаблон

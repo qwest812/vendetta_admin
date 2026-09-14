@@ -12,7 +12,7 @@ type entry struct {
 // страницы стоят в меню; внутри раздела — в порядке появления на странице.
 var messages = map[string]entry{
 	// --- каркас: шапка, меню, общие кнопки ---
-	"nav.search":   {ru: "Поиск", en: "Search"},
+	"nav.search":   {ru: "Игроки", en: "Players"},
 	"nav.clans":    {ru: "Кланы", en: "Clans"},
 	"nav.friends":  {ru: "Друзья", en: "Friends"},
 	"nav.enemies":  {ru: "Враги", en: "Enemies"},

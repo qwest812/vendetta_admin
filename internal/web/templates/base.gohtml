@@ -13,7 +13,8 @@
         <a class="brand" href="/">Vendetta</a>
         <nav>
             <a href="/" {{if eq .Path "/"}}class="active"{{end}}>{{t "nav.search"}}</a>
-            <a href="/clans" {{if eq .Path "/clans"}}class="active"{{end}}>{{t "nav.clans"}}</a>
+            {{/* Пункт «Кланы» из меню убран: раздел жив и открывается прямой
+                 ссылкой /clans, но в навигации его пока не показываем. */}}
             <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>{{t "nav.friends"}}</a>
             <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>{{t "nav.enemies"}}</a>
             {{/* Число рядом с разделом: админу — сколько обращений ждут ответа,
