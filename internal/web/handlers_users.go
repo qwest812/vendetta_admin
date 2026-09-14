@@ -26,6 +26,9 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, status int,
 	data := map[string]any{
 		"Users": users, "Error": "",
 		"FormEmail": "", "FormNickname": "", "FormRole": "user",
+		// Подсети входов — рутовая колонка; обычному админу приезжает
+		// пустая карта, и строка показывает прочерк.
+		"Subnets": s.subnetsByUser(r),
 	}
 	for k, v := range extra {
 		data[k] = v
@@ -54,6 +57,9 @@ func (s *Server) userRow(w http.ResponseWriter, r *http.Request, id int64, statu
 	data := map[string]any{
 		"User": u, "Root": currentUser(r).IsRoot(), "Me": currentUser(r).ID,
 		"CSRFToken": csrfToken(r), "Field": field,
+		// Строка возвращается и в ответ на правку, и число подсетей в ней
+		// должно остаться: без него колонка после нажатия опустела бы.
+		"Subnets": s.subnetsByUser(r)[id],
 	}
 	for k, v := range said {
 		data[k] = v

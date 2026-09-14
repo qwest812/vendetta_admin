@@ -20,6 +20,7 @@ var messages = map[string]entry{
 	"nav.users":    {ru: "Доступы", en: "Access"},
 	"nav.settings": {ru: "Настройки", en: "Settings"},
 	"nav.audit":    {ru: "Журнал", en: "Audit log"},
+	"nav.logins":   {ru: "Входы", en: "Sign-ins"},
 	"nav.games":    {ru: "Игры", en: "Games"},
 	"nav.faq":      {ru: "Справка", en: "Help"},
 	"top.logout":   {ru: "Выйти", en: "Log out"},
@@ -84,6 +85,51 @@ var messages = map[string]entry{
 	"profile.city":               {ru: "Город", en: "City"},
 	"profile.gameid":             {ru: "Игровой ID", en: "Game ID"},
 	"profile.gameid.placeholder": {ru: "ваш ID в Supremacy", en: "your Supremacy ID"},
+
+	// --- журнал входов ---
+	// Рутовая страница: журнал входов и две сводки по нему. Слова выбраны
+	// осторожно: сводка показывает повод посмотреть, а не вину, и подписи
+	// не должны обещать большего.
+	"logins.title":   {ru: "Входы — Vendetta", en: "Sign-ins — Vendetta"},
+	"logins.heading": {ru: "Журнал входов", en: "Sign-in log"},
+	"logins.note":    {ru: "Последние 200 попыток входа, удачных и неудачных. Записи не удаляются из интерфейса: их убирает уборщик через %d дней.", en: "The last 200 sign-in attempts, successful and failed. Entries cannot be deleted from the interface: a janitor removes them after %d days."},
+	"logins.when":    {ru: "Когда", en: "When"},
+	"logins.who":     {ru: "Кто", en: "Who"},
+	"logins.ip":      {ru: "Адрес", en: "Address"},
+	"logins.subnet":  {ru: "Подсеть", en: "Subnet"},
+	"logins.result":  {ru: "Итог", en: "Result"},
+	"logins.agent":   {ru: "Браузер", en: "Browser"},
+	"logins.ok":      {ru: "вошёл", en: "signed in"},
+	"logins.fail":    {ru: "отказ", en: "denied"},
+	"logins.unknown": {ru: "нет такого логина:", en: "no such login:"},
+	"logins.empty":   {ru: "Пока пусто", en: "Nothing yet"},
+
+	"logins.filter.user":  {ru: "Пользователь", en: "User"},
+	"logins.filter.any":   {ru: "Все", en: "Everyone"},
+	"logins.filter.fails": {ru: "Только отказы", en: "Denied only"},
+	"logins.filter.apply": {ru: "Показать", en: "Show"},
+
+	"logins.subnets":      {ru: "Подсети", en: "Subnets"},
+	"logins.subnets.hint": {ru: "Из скольких разных подсетей входили в этот аккаунт за месяц. Нажмите, чтобы увидеть сами входы.", en: "How many different subnets this account was signed in to from over the last month. Click to see the sign-ins themselves."},
+	"logins.addresses":    {ru: "Адреса", en: "Addresses"},
+	"logins.last":         {ru: "Последний вход", en: "Last sign-in"},
+
+	"logins.shared.heading": {ru: "Вход из нескольких мест", en: "Sign-ins from several places"},
+	"logins.shared.note":    {ru: "Аккаунты, в которые за %d дней входили из %d и более разных подсетей.", en: "Accounts signed in to over the last %d days from %d or more different subnets."},
+	"logins.shared.caveat":  {ru: "Это повод посмотреть, а не обвинение: телефон, дом и работа — уже три подсети у любого честного человека. Адреса сравниваются подсетями, а не целиком, иначе в списке был бы каждый, кто ходит с мобильного.", en: "This is a reason to look, not an accusation: a phone, home and work already make three subnets for an honest person. Addresses are compared by subnet rather than in full — otherwise everyone on mobile internet would be listed."},
+	"logins.shared.empty":   {ru: "Таких аккаунтов нет", en: "No such accounts"},
+
+	"logins.sharedip.heading":  {ru: "Один адрес, несколько аккаунтов", en: "One address, several accounts"},
+	"logins.sharedip.note":     {ru: "Обратный случай: с одного адреса за %d дней входили больше чем в один аккаунт.", en: "The opposite case: more than one account was signed in to from the same address over the last %d days."},
+	"logins.sharedip.caveat":   {ru: "Общий адрес — не улика: у мобильных операторов один внешний адрес бывает у тысяч абонентов сразу, а дома и в офисе за одним адресом сидит вся сеть. Смотрите, чей это провайдер и повторяется ли совпадение.", en: "A shared address is not evidence: mobile carriers put thousands of subscribers behind one external address, and a whole home or office network sits behind one address too. Check whose provider it is and whether the match repeats."},
+	"logins.sharedip.accounts": {ru: "Аккаунты", en: "Accounts"},
+	"logins.sharedip.empty":    {ru: "Таких адресов нет", en: "No such addresses"},
+
+	"logins.live.heading":  {ru: "Кто в системе сейчас", en: "Who is signed in now"},
+	"logins.live.note":     {ru: "По строке на человека и адрес, с которого он сейчас в системе. Два адреса у одного человека в один момент — самое внятное, что вообще можно сказать про раздачу доступа. Сессий с одного адреса обычно несколько: каждый вход в новом браузере заводит свою, а живут они неделю.", en: "One row per person and the address they are signed in from. Two addresses for the same person at once is the clearest sign of a shared login there is. There are usually several sessions per address: every sign-in in a new browser starts one, and they live for a week."},
+	"logins.live.sessions": {ru: "Сессий", en: "Sessions"},
+	"logins.live.since":    {ru: "Последний вход", en: "Last sign-in"},
+	"logins.live.empty":    {ru: "Никого", en: "Nobody"},
 
 	// --- журнал ---
 	"audit.title":   {ru: "Журнал — Vendetta", en: "Audit log — Vendetta"},
@@ -533,6 +579,10 @@ var messages = map[string]entry{
 	"faq.signin.q":  {ru: "Не могу войти. Что делать?", en: "I cannot sign in. What should I do?"},
 	"faq.signin.a1": {ru: "Проверьте, что вводите тот логин, который вам выдали: подойдёт и ник, и почта, но почта есть не у всех. Регистр значения не имеет.", en: "Check that you are typing the login you were given: either the nickname or the email works, but not everyone has an email. Case does not matter."},
 	"faq.signin.a2": {ru: "Свой пароль изменить нельзя — новый выдаёт администратор. Если доступ закрыли, вход тоже не сработает: об этом скажет та же ошибка «Неверная почта, ник или пароль». Обратитесь к тому, кто выдавал доступ.", en: "You cannot change your own password — an administrator issues a new one. If your access was revoked, signing in will also fail, with the same “Wrong email, nickname or password” error. Ask whoever granted you access."},
+
+	"faq.logins.q":  {ru: "Записывается ли, откуда я вхожу?", en: "Is it recorded where I sign in from?"},
+	"faq.logins.a1": {ru: "Да. Каждая попытка входа — и удачная, и неудачная — попадает в журнал: время, набранный логин, адрес, с которого пришли, и браузер. Пароль в журнал не попадает ни в каком виде. Журнал видит только владелец сервера, и через полгода записи удаляются сами.", en: "Yes. Every sign-in attempt — successful or not — goes into a log: the time, the login typed, the address it came from and the browser. The password never enters the log in any form. Only the server owner sees the log, and entries are removed on their own after six months."},
+	"faq.logins.a2": {ru: "Зачем: по журналу видно, что один доступ раздали на несколько человек, и что чей-то пароль перебирают. Адреса сравниваются подсетями, а не целиком, поэтому смена адреса провайдером ничего не значит, а вот вход из трёх разных мест за месяц заметен. Сам журнал ничего не блокирует и ни на что не влияет — что делать с находкой, решает владелец.", en: "Why: the log shows when one login has been shared between several people, and when someone is guessing a password. Addresses are compared by subnet rather than in full, so an address changed by your provider means nothing, while signing in from three different places in a month is visible. The log itself blocks nothing and affects nothing — what to do about a finding is the owner’s decision."},
 
 	"faq.session.q": {ru: "Почему меня выкинуло из системы?", en: "Why was I signed out?"},
 	"faq.session.a": {ru: "Сессия живёт неделю — после этого нужно войти заново. Кроме того, все сессии обрываются сразу, если админ сменил вам роль, выдал новый пароль или закрыл доступ. Это не сбой.", en: "A session lives for a week — after that you sign in again. Besides, all sessions end at once if an admin changed your role, issued a new password or revoked your access. That is not a malfunction."},

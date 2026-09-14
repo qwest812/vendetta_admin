@@ -1,0 +1,185 @@
+{{define "title"}}{{t "logins.title"}}{{end}}
+
+{{define "content"}}
+{{/* Сводки стоят выше журнала: за ними сюда и приходят, а сам журнал —
+     то, чем сводку проверяют. */}}
+<div class="card">
+    <h1>{{t "logins.shared.heading"}}</h1>
+    <p class="muted">{{t "logins.shared.note" .WindowDays .MinSubnets}}</p>
+    {{/* Оговорка не для красоты: три подсети за месяц одинаково хорошо
+         объясняются и раздачей пароля, и поездкой. Без этой строки метка
+         через месяц читалась бы как приговор. */}}
+    <p class="muted">{{t "logins.shared.caveat"}}</p>
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
+            <tr>
+                <th>{{t "profile.nick"}}</th>
+                <th class="narrow">{{t "logins.subnets"}}</th>
+                <th class="narrow">{{t "logins.addresses"}}</th>
+                <th class="narrow">{{t "logins.last"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .Shared}}
+                <tr>
+                    <td data-label="{{t "profile.nick"}}">
+                        <a href="/logins?user={{.UserID}}">{{.Nickname}}</a>
+                    </td>
+                    <td data-label="{{t "logins.subnets"}}"><span class="badge count">{{.Subnets}}</span></td>
+                    <td class="muted" data-label="{{t "logins.addresses"}}">{{.IPs}}</td>
+                    <td class="muted nowrap" data-label="{{t "logins.last"}}">{{datetime .LastAt}}</td>
+                </tr>
+            {{else}}
+                <tr><td colspan="4" class="muted">{{t "logins.shared.empty"}}</td></tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h1>{{t "logins.sharedip.heading"}}</h1>
+    <p class="muted">{{t "logins.sharedip.note" .WindowDays}}</p>
+    {{/* Сравнение здесь по точному адресу, и всё равно не приговор:
+         мобильный оператор прячет за одним внешним адресом тысячи людей. */}}
+    <p class="muted">{{t "logins.sharedip.caveat"}}</p>
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
+            <tr>
+                <th class="narrow">{{t "logins.ip"}}</th>
+                <th>{{t "logins.sharedip.accounts"}}</th>
+                <th class="narrow">{{t "logins.last"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .SharedIPs}}
+                <tr>
+                    <td data-label="{{t "logins.ip"}}"><a href="/logins?ip={{.IP}}"><code>{{.IP}}</code></a></td>
+                    <td data-label="{{t "logins.sharedip.accounts"}}">{{join .Accounts}}</td>
+                    <td class="muted nowrap" data-label="{{t "logins.last"}}">{{datetime .LastAt}}</td>
+                </tr>
+            {{else}}
+                <tr><td colspan="3" class="muted">{{t "logins.sharedip.empty"}}</td></tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h1>{{t "logins.live.heading"}}</h1>
+    <p class="muted">{{t "logins.live.note"}}</p>
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
+            <tr>
+                <th>{{t "profile.nick"}}</th>
+                <th class="narrow">{{t "logins.ip"}}</th>
+                <th class="narrow">{{t "logins.live.sessions"}}</th>
+                <th class="narrow">{{t "logins.live.since"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .Live}}
+                <tr>
+                    <td data-label="{{t "profile.nick"}}">
+                        <a href="/logins?user={{.UserID}}">{{.Nickname}}</a>
+                    </td>
+                    {{/* Пусто у сессий, заведённых до того, как адрес стали
+                         запоминать: прочерк, а не выдуманный адрес. */}}
+                    <td data-label="{{t "logins.ip"}}">
+                        {{if .IP}}<a href="/logins?ip={{.IP}}"><code>{{.IP}}</code></a>{{else}}<span class="muted">—</span>{{end}}
+                    </td>
+                    <td class="muted" data-label="{{t "logins.live.sessions"}}">{{.Sessions}}</td>
+                    <td class="muted nowrap" data-label="{{t "logins.live.since"}}">{{datetime .LastAt}}</td>
+                </tr>
+            {{else}}
+                <tr><td colspan="4" class="muted">{{t "logins.live.empty"}}</td></tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h1>{{t "logins.heading"}}</h1>
+        {{/* Фильтр обычной формой, без htmx: журнал листают редко, а ссылка
+             на отфильтрованный список должна открываться и из сводки выше. */}}
+        <form class="filters" method="get" action="/logins">
+            <label>
+                {{t "logins.filter.user"}}
+                <select name="user">
+                    <option value="">{{t "logins.filter.any"}}</option>
+                    {{$sel := .FilterUser}}
+                    {{range .Users}}
+                        <option value="{{.ID}}" {{if eq (printf "%d" .ID) $sel}}selected{{end}}>{{.Nickname}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <label>
+                {{t "logins.ip"}}
+                {{/* type=search, а не text: под этим типом уже написаны
+                     правила узких экранов — иначе поле и список жмутся
+                     на телефоне в одну строку. */}}
+                <input type="search" name="ip" value="{{.FilterIP}}" autocomplete="off" placeholder="203.0.113.9">
+            </label>
+            <label class="check">
+                <input type="checkbox" name="fails" value="1" {{if .FilterFails}}checked{{end}}>
+                {{t "logins.filter.fails"}}
+            </label>
+            <button type="submit">{{t "logins.filter.apply"}}</button>
+        </form>
+    </div>
+    <p class="muted">{{t "logins.note" .TTLDays}}</p>
+    {{/* stack: на телефоне запись читается карточкой — в ней и адрес,
+         и подсеть, и браузер, вбок за ними не наездишься. */}}
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
+            <tr>
+                <th>{{t "logins.when"}}</th>
+                <th>{{t "logins.who"}}</th>
+                <th>{{t "logins.ip"}}</th>
+                <th>{{t "logins.subnet"}}</th>
+                <th>{{t "logins.result"}}</th>
+                <th>{{t "logins.agent"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .Entries}}
+                <tr class="{{if not .OK}}fail{{end}}">
+                    <td class="muted nowrap" data-label="{{t "logins.when"}}">{{datetime .CreatedAt}}</td>
+                    {{/* Ник — того, чей это аккаунт; набранный логин рядом,
+                         когда он не совпал с ником: по входам на несуществующий
+                         логин видно, что кто-то перебирает. */}}
+                    <td data-label="{{t "logins.who"}}">
+                        {{if .Nickname}}
+                            <a href="/logins?user={{.UserID}}">{{.Nickname}}</a>
+                            {{if ne .Login .Nickname}} <span class="muted">({{.Login}})</span>{{end}}
+                        {{else}}
+                            <span class="muted">{{t "logins.unknown"}}</span> {{.Login}}
+                        {{end}}
+                    </td>
+                    <td data-label="{{t "logins.ip"}}"><a href="/logins?ip={{.IP}}"><code>{{.IP}}</code></a></td>
+                    <td class="muted" data-label="{{t "logins.subnet"}}"><code>{{.Subnet}}</code></td>
+                    <td data-label="{{t "logins.result"}}">
+                        {{if .OK}}<span class="badge done">{{t "logins.ok"}}</span>
+                        {{else}}<span class="badge open">{{t "logins.fail"}}</span>{{end}}
+                    </td>
+                    {{/* Строка браузера длинная, и читать её целиком незачем:
+                         показываем начало, остальное — в подсказке. */}}
+                    <td class="muted" data-label="{{t "logins.agent"}}">
+                        <span class="agent" title="{{.UserAgent}}">{{.UserAgent}}</span>
+                    </td>
+                </tr>
+            {{else}}
+                <tr><td colspan="6" class="muted">{{t "logins.empty"}}</td></tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{end}}

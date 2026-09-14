@@ -139,9 +139,15 @@ func TestPagesRender(t *testing.T) {
 						GamesAccess: true, MapChecks: 5, Plan: domain.PlanExtended},
 				},
 				"Error": "", "FormEmail": "", "FormNickname": "", "FormRole": "user",
+				// Подсети входов: у одного их больше порога, у другого
+				// записей нет вовсе.
+				"Subnets": map[int64]int{9: 4},
 			},
 			want: []string{
 				`hx-post="/users/9/checks"`, `hx-target="closest tr"`, `hx-swap="outerHTML"`,
+				// Число подсетей ведёт в журнал входов этого человека,
+				// и сверх порога оно выделено.
+				`href="/logins?user=9"`, `<span class="badge count">4</span>`,
 				`hx-post="/users/9/games"`, `hx-post="/users/9/role"`,
 				`hx-post="/users/9/active"`, `hx-post="/users/9/password"`,
 				// Удаление спрашивает через htmx: обычный onsubmit спорил бы
@@ -161,6 +167,57 @@ func TestPagesRender(t *testing.T) {
 			// В обычной строке страницы говорить не о чем: сообщения
 			// приезжают только с ответом на нажатие.
 			deny: []string{"row-said"},
+		},
+		{
+			// Журнал входов: сводки сверху, сам журнал снизу. Страница
+			// рутовая и ничего не меняет — на ней только ссылки в саму
+			// себя с фильтрами.
+			name: "logins/журнал и сводки",
+			page: "logins",
+			user: root,
+			data: map[string]any{
+				"Entries": []repo.LoginEvent{
+					{ID: 3, UserID: &playerID, Nickname: "Dau7er", Login: "dau7er",
+						IP: "203.0.113.9", Subnet: "203.0.113.0/24",
+						UserAgent: "Mozilla/5.0 (Linux; Android 14)", OK: true, CreatedAt: banSeen},
+					// Попытка войти на несуществующий логин: такую записываем
+					// без пользователя — по ней и видно перебор.
+					{ID: 2, Login: "admin", IP: "198.51.100.7", Subnet: "198.51.100.0/24",
+						UserAgent: "curl/8.5.0", OK: false, CreatedAt: banSeen},
+				},
+				"Shared": []repo.SharedAccount{
+					{UserID: 2, Nickname: "Dau7er", Subnets: 4, IPs: 9, LastAt: banSeen},
+				},
+				"SharedIPs": []repo.SharedIP{
+					{IP: "203.0.113.9", Accounts: []string{"Dau7er", "sova"}, LastAt: banSeen},
+				},
+				"Live": []repo.LiveSession{
+					{UserID: 2, Nickname: "Dau7er", IP: "203.0.113.9",
+						Sessions: 3, LastAt: banSeen},
+					// Сессии, заведённые до того, как адрес стали запоминать:
+					// адреса у них нет, и в строке стоит прочерк.
+					{UserID: 1, Nickname: "root", Sessions: 12, LastAt: banSeen},
+				},
+				"Users":      []*domain.User{root, player},
+				"FilterUser": "2", "FilterIP": "", "FilterFails": false,
+				"WindowDays": 30, "TTLDays": 180, "MinSubnets": 3,
+			},
+			want: []string{
+				// Из сводки идут в журнал этого человека и этого адреса.
+				`href="/logins?user=2"`, `href="/logins?ip=203.0.113.9"`,
+				// Выбранный фильтр переживает перезагрузку страницы.
+				`value="2" selected`,
+				// Оговорка про то, что сводка ничего не доказывает, —
+				// часть страницы, а не пояснение на словах.
+				"повод посмотреть, а не обвинение",
+				// Отказ подсвечен, а не притушен: за неудачными попытками
+				// в журнал и приходят.
+				`class="fail"`, "нет такого логина:", "admin",
+				// Число подсетей и срок берутся из предметной области,
+				// а не пишутся в шаблоне.
+				">4<", "30 дней", "180 дней",
+				"Dau7er, sova",
+			},
 		},
 		{
 			page: "profile",

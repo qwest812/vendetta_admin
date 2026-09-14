@@ -851,3 +851,28 @@ details.fold > summary:focus-visible { outline: 2px solid var(--accent); outline
 .fold-title { font-size: 18px; font-weight: 700; }
 /* Первому блоку после заголовка нужен тот же отступ, что был у h1. */
 details.fold[open] > summary { margin-bottom: 14px; }
+
+/* Журнал входов. Отказ подсвечен, а не притушен, как заблокированный
+   пользователь: неудачные попытки — как раз то, за чем в журнал приходят.
+   Строка браузера ужимается до начала: она длиной в полстраницы,
+   а различают по ней телефон и настольный браузер — это видно и по началу.
+   Целиком её отдаёт подсказка. */
+tr.fail td { background: rgba(192, 57, 43, .07); }
+.agent {
+    display: inline-block;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+/* На телефоне запись раскладывается карточкой, и ужимать в ней нечего:
+   ширину держит сам экран. Подписанные поля фильтра занимают строку
+   целиком: в других фильтрах поля лежат в .filters напрямую, а здесь
+   они обёрнуты подписями — и без этого правила ужимались бы до половины
+   ширины, оставляя рядом пустоту. */
+@media (max-width: 640px) {
+    table.stack .agent { max-width: 100%; white-space: normal; }
+    .filters label:not(.check) { width: 100%; }
+}

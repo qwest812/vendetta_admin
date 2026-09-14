@@ -18,9 +18,12 @@ type Server struct {
 	users    *repo.Users
 	sessions *repo.Sessions
 	audit    *repo.Audit
-	players  *repo.Players
-	clans    *repo.Clans
-	traits   *repo.Traits
+	// logins — журнал входов: кто, откуда и получилось ли. Смотрит его
+	// рут, а число подсетей видно в «Доступах».
+	logins  *repo.Logins
+	players *repo.Players
+	clans   *repo.Clans
+	traits  *repo.Traits
 	// Личные списки: устроены одинаково, различаются таблицей и словами.
 	enemies *relationSection
 	friends *relationSection
@@ -71,11 +74,13 @@ type Deps struct {
 	Users    *repo.Users
 	Sessions *repo.Sessions
 	Audit    *repo.Audit
-	Players  *repo.Players
-	Clans    *repo.Clans
-	Traits   *repo.Traits
-	Enemies  *repo.Relations
-	Friends  *repo.Relations
+	// Logins — журнал входов. Пишет его auth, читает рутовая страница.
+	Logins  *repo.Logins
+	Players *repo.Players
+	Clans   *repo.Clans
+	Traits  *repo.Traits
+	Enemies *repo.Relations
+	Friends *repo.Relations
 	// Feedback — обратная связь: обращения пользователей и ответы на них.
 	Feedback *repo.Feedback
 	// Games — аккаунт Supremacy 1914 для рутового раздела «Игры».
@@ -117,7 +122,8 @@ func NewServer(d Deps) (*Server, error) {
 	}
 	s := &Server{
 		log: d.Log, auth: d.Auth, users: d.Users, sessions: d.Sessions,
-		audit: d.Audit, players: d.Players, clans: d.Clans, traits: d.Traits,
+		audit: d.Audit, logins: d.Logins,
+		players: d.Players, clans: d.Clans, traits: d.Traits,
 		feedback: d.Feedback,
 		games:    d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
 		gamePlayers: d.GamePlayers, userStats: d.UserStats,
@@ -232,6 +238,10 @@ func (s *Server) Handler() http.Handler {
 	// правка меняет то, что видят остальные. Удаление признака снимает
 	// отметки у всех игроков разом, и это тем более не админское дело.
 	mux.Handle("GET /settings", root(http.HandlerFunc(s.settingsPage)))
+	// Журнал входов — рутовый: по нему видно, откуда ходят все, и это
+	// не то же самое, что журнал правок, открытый админу. Ничего он
+	// не меняет, поэтому роут один и только на чтение.
+	mux.Handle("GET /logins", root(http.HandlerFunc(s.loginsPage)))
 	mux.Handle("POST /settings/coalitions", root(auth.VerifyCSRF(http.HandlerFunc(s.coalitionScanToggle))))
 	mux.Handle("POST /settings/traits", root(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
 	mux.Handle("POST /settings/traits/{id}", root(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))

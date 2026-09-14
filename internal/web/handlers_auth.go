@@ -25,7 +25,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	login := strings.TrimSpace(r.PostFormValue("login"))
 	password := r.PostFormValue("password")
 
-	user, err := s.auth.Login(r.Context(), w, login, password)
+	user, err := s.auth.Login(r.Context(), w, r, login, password)
 	if errors.Is(err, domain.ErrInvalidLogin) {
 		s.log.Warn("неудачный вход", "login", login, "ip", r.RemoteAddr)
 		s.render(w, r, http.StatusUnauthorized, "login", map[string]any{

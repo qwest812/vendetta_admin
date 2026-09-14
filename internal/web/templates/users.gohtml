@@ -47,7 +47,7 @@
                 <th>{{t "users.email"}}</th>
                 <th>{{t "users.role"}}</th>
                 {{/* Доступ к играм раздаёт только рут, остальным колонку не показываем. */}}
-                {{if $root}}<th>{{t "users.plan"}}</th><th>{{t "nav.games"}}</th><th>{{t "users.checks"}}</th>{{end}}
+                {{if $root}}<th>{{t "users.plan"}}</th><th>{{t "nav.games"}}</th><th>{{t "users.checks"}}</th><th class="narrow">{{t "logins.subnets"}}</th>{{end}}
                 <th>{{t "common.status"}}</th>
                 <th>{{t "users.created"}}</th>
                 <th class="actions">{{t "common.actions"}}</th>
@@ -56,11 +56,17 @@
             <tbody>
             {{$csrf := .CSRFToken}}
             {{$me := .CurrentUser.ID}}
+            {{/* Подсети входов приходят одной картой на всю страницу: строке
+                 достаётся её число. Пустую карту проверяем: index по ней
+                 роняет отрисовку целиком, а «Доступы» — как раз та страница,
+                 которая нужна, когда что-то пошло не так. */}}
+            {{$subnets := .Subnets}}
             {{range .Users}}
+                {{$n := 0}}{{if $subnets}}{{$n = index $subnets .ID}}{{end}}
                 {{/* Строка отдельным блоком: ту же разметку отдают и страница,
                      и ответы на нажатия — иначе после правки настройки строка
                      показывала бы одно, а база хранила другое. */}}
-                {{template "user-row" (dict "User" . "Root" $root "Me" $me "CSRFToken" $csrf "Field" "")}}
+                {{template "user-row" (dict "User" . "Root" $root "Me" $me "CSRFToken" $csrf "Field" "" "Subnets" $n)}}
             {{end}}
             </tbody>
         </table>
@@ -164,6 +170,18 @@
                 {{/* Сказанное о самом поле стоит у поля, а не в конце строки:
                      до правого края таблицы отсюда далеко. */}}
                 {{if eq .Field "checks"}}{{template "row-said" .}}{{end}}
+            {{end}}
+        </td>
+        {{/* Сколько разных подсетей за месяц. Не запрет и не настройка —
+             только число со ссылкой в журнал: что оно значит, написано там,
+             и значит оно «посмотрите», а не «этот аккаунт общий». */}}
+        <td class="narrow" data-label="{{t "logins.subnets"}}">
+            {{if .Subnets}}
+                <a href="/logins?user={{$u.ID}}" title="{{t "logins.subnets.hint"}}">
+                    {{if ge .Subnets minSubnets}}<span class="badge count">{{.Subnets}}</span>{{else}}{{.Subnets}}{{end}}
+                </a>
+            {{else}}
+                <span class="muted">—</span>
             {{end}}
         </td>
     {{end}}

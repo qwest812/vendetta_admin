@@ -21,11 +21,64 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
-func (r *Sessions) Create(ctx context.Context, tokenHash []byte, userID int64, csrf string, expiresAt time.Time) error {
+// Create заводит сессию. ip — адрес, с которого вошли; пустая строка
+// означает «адрес не разобрали», и в базе останется NULL: врать нулевым
+// адресом хуже, чем признать, что места мы не знаем.
+func (r *Sessions) Create(ctx context.Context, tokenHash []byte, userID int64, csrf, ip string, expiresAt time.Time) error {
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO sessions (token_hash, user_id, csrf_token, expires_at) VALUES ($1, $2, $3, $4)`,
-		tokenHash, userID, csrf, expiresAt)
+		`INSERT INTO sessions (token_hash, user_id, csrf_token, ip, expires_at)
+		 VALUES ($1, $2, $3, nullif($4, '')::inet, $5)`,
+		tokenHash, userID, csrf, ip, expiresAt)
 	return err
+}
+
+// LiveSession — человек и адрес, с которого он сейчас в системе. Говорит
+// не «когда входили», а «откуда сидят»: два адреса у одного человека
+// в один момент — самое внятное, что вообще можно сказать про раздачу
+// доступа.
+type LiveSession struct {
+	UserID   int64
+	Nickname string
+	// IP пуст у сессий, заведённых до того, как адрес стали запоминать,
+	// и у тех, чей адрес не разобрался.
+	IP string
+	// Sessions — сколько живых сессий с этого адреса. Обычно больше одной:
+	// каждый вход в новом браузере заводит свою, а живут они неделю.
+	Sessions int
+	LastAt   time.Time
+}
+
+// Live — кто сейчас в системе, по строке на «человек + адрес».
+//
+// Не по строке на сессию: за неделю их набегает по десятку на человека —
+// с каждого перезапуска и каждого браузера, — и блок превращался бы
+// в стену одинаковых строк, в которой второй адрес и не заметишь. А второй
+// адрес — ровно то, ради чего блок есть.
+//
+// Уборщик протухшие сессии удаляет раз в час, поэтому условие по сроку
+// здесь своё: страница не должна показывать вчерашнее как живое.
+func (r *Sessions) Live(ctx context.Context) ([]LiveSession, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT s.user_id, u.nickname, coalesce(host(s.ip), ''),
+		       count(*), max(s.created_at)
+		FROM sessions s JOIN users u ON u.id = s.user_id
+		WHERE s.expires_at > now()
+		GROUP BY s.user_id, u.nickname, s.ip
+		ORDER BY lower(u.nickname), max(s.created_at) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []LiveSession
+	for rows.Next() {
+		var s LiveSession
+		if err := rows.Scan(&s.UserID, &s.Nickname, &s.IP, &s.Sessions, &s.LastAt); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
 }
 
 // Lookup возвращает живую сессию вместе с пользователем. Пользователь

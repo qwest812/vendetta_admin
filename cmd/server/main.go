@@ -50,6 +50,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	users := repo.NewUsers(pool)
 	sessions := repo.NewSessions(pool)
 	audit := repo.NewAudit(pool)
+	logins := repo.NewLogins(pool)
 	players := repo.NewPlayers(pool)
 	clans := repo.NewClans(pool)
 	traits := repo.NewTraits(pool)
@@ -83,10 +84,10 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		s1914.UseSessionStore(s1914Sessions{settings})
 	}
 
-	authSvc := auth.NewService(users, sessions, cfg.SessionTTL, cfg.CookieSecure)
+	authSvc := auth.NewService(users, sessions, logins, log, cfg.SessionTTL, cfg.CookieSecure)
 	deps := web.Deps{
 		Log: log, Auth: authSvc, Users: users, Sessions: sessions,
-		Audit: audit, Players: players, Clans: clans, Traits: traits,
+		Audit: audit, Logins: logins, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Feedback: feedback, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery, HeroEveryMax: cfg.S1914HeroEveryMax,
 		Coalitions: coalitions, Settings: settings, Heroes: heroes,
@@ -106,6 +107,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	}
 
 	go cleanupSessions(ctx, log, sessions)
+	go cleanupLogins(ctx, log, logins)
 	go cleanupCheckedGames(ctx, log, checked)
 	go cleanupMapChecks(ctx, log, mapChecks)
 
@@ -250,6 +252,30 @@ func cleanupCheckedGames(ctx context.Context, log *slog.Logger, checked *repo.Ch
 			}
 			if n > 0 {
 				log.Info("забыты давние проверки партий", "count", n)
+			}
+		}
+	}
+}
+
+// cleanupLogins раз в час убирает записи о входах старше срока. Это
+// единственный способ что-то стереть из журнала входов: кнопки «очистить»
+// нет намеренно — первым делом почистили бы ровно то, из-за чего в журнал
+// пришли.
+func cleanupLogins(ctx context.Context, log *slog.Logger, logins *repo.Logins) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n, err := logins.Forget(ctx, time.Now().Add(-domain.LoginLogTTL))
+			if err != nil {
+				log.Error("очистка журнала входов", "err", err)
+				continue
+			}
+			if n > 0 {
+				log.Info("забыты давние записи о входах", "count", n)
 			}
 		}
 	}
