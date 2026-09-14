@@ -1,0 +1,34 @@
+{{define "title"}}{{t "register.title"}}{{end}}
+
+{{define "content"}}
+<form class="card login" method="post" action="/register">
+    <h1>Vendetta</h1>
+    <p class="muted">{{t "register.subtitle"}}</p>
+
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    <label>
+        {{t "login.login"}}
+        <input type="email" name="email" value="{{.Email}}" required autofocus autocomplete="email">
+    </label>
+    <label>
+        {{t "register.gameid"}}
+        <input type="text" name="game_id" value="{{.GameID}}" required inputmode="numeric" pattern="[0-9]{1,20}" maxlength="20" autocomplete="off">
+        <span class="hint">{{t "register.gameid.hint"}}</span>
+    </label>
+    <label>
+        {{t "login.password"}}
+        <input type="password" name="password" required minlength="12" autocomplete="new-password">
+        <span class="hint">{{t "register.password.hint"}}</span>
+    </label>
+    {{/* Ловушка для ботов: человек поля не видит и не попадёт в него
+         табом, а бот заполнит всё, что нашёл. Спрятано стилем, а не
+         type="hidden" — такие поля боты как раз пропускают. */}}
+    <label class="trap" aria-hidden="true">
+        {{t "register.honeypot"}}
+        <input type="text" name="website" value="" tabindex="-1" autocomplete="off">
+    </label>
+    <button type="submit">{{t "register.submit"}}</button>
+    <p class="muted switch">{{t "register.haveaccount"}} <a href="/login">{{t "register.login"}}</a></p>
+</form>
+{{end}}

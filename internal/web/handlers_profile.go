@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -28,7 +29,16 @@ func (s *Server) profileSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.users.UpdateProfile(r.Context(), me.ID, fullName, city, gameID); err != nil {
+	err := s.users.UpdateProfile(r.Context(), me.ID, fullName, city, gameID)
+	// ID уникален: по нему регистрация находит аккаунт, и назвать своим
+	// чужой ID значило бы закрыть его хозяину дорогу в админку.
+	if errors.Is(err, domain.ErrGameIDTaken) {
+		draft := *me
+		draft.FullName, draft.City, draft.GameID = fullName, city, gameID
+		s.renderProfile(w, r, http.StatusConflict, &draft, errText(r, err), "")
+		return
+	}
+	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}

@@ -11,8 +11,8 @@
             <input type="text" name="nickname" value="{{.FormNickname}}" required minlength="3" maxlength="32" autocomplete="off">
         </label>
         <label>
-            {{t "users.email"}} <span class="muted">— {{t "users.optional"}}</span>
-            <input type="email" name="email" value="{{.FormEmail}}" autocomplete="off">
+            {{t "users.email"}}
+            <input type="email" name="email" value="{{.FormEmail}}" required autocomplete="off">
         </label>
         <label>
             {{t "login.password"}}

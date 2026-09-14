@@ -706,6 +706,22 @@ func TestWatcherSkipsTutorialGames(t *testing.T) {
 	}
 }
 
+// Ник лежит прямо в пользователе. Форма взята из живого ответа
+// getUserDetailsFirefly с username=1; про неизвестный номер поля нет вовсе.
+func TestParseUsername(t *testing.T) {
+	tests := map[string]string{
+		`{"@c": "hup.model.users.User", "id": 101408369, "username": "Dau7er"}`:  "Dau7er",
+		`{"@c": "hup.model.users.User", "id": 1, "username": " V.D. Noxarion "}`: "V.D. Noxarion",
+		`{"@c": "hup.model.users.User", "id": 1}`:                                "",
+	}
+	for body, want := range tests {
+		got, err := parseUsername([]byte(body))
+		if err != nil || got != want {
+			t.Errorf("%s: ник = %q, err = %v; ожидался %q", body, got, err, want)
+		}
+	}
+}
+
 // Альянс сайт отдаёт вложенным в properties, а игроку без альянса кладёт
 // в это поле null. Форма взята из живого ответа getUserDetailsFirefly.
 func TestParseAlliance(t *testing.T) {

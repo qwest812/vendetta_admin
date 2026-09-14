@@ -41,7 +41,8 @@ func NewService(users *repo.Users, sessions *repo.Sessions, logins *repo.Logins,
 }
 
 // Login проверяет учётные данные и заводит сессию, выставляя cookie.
-// login — почта либо ник: у кого почты нет, тот входит только по нику.
+// login — почта: по нику больше не пускают. У кого почты нет, тот
+// дописывает её себе на странице регистрации, см. web.registerSubmit.
 //
 // Запрос нужен целиком: откуда пришёл вход и чем, попадает в журнал,
 // а адрес — ещё и в саму сессию.
@@ -58,7 +59,7 @@ func (s *Service) Login(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 	agent := r.UserAgent()
 
-	user, err := s.users.ByLogin(ctx, login)
+	user, err := s.users.ByEmail(ctx, login)
 	if errors.Is(err, domain.ErrNotFound) {
 		// Считаем хеш и на несуществующем логине, чтобы время ответа не
 		// выдавало, зарегистрирован такой пользователь или нет.
@@ -70,7 +71,7 @@ func (s *Service) Login(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		return nil, err
 	}
 	// Отказ по паролю и отказ заблокированному пишем на самого владельца
-	// ника: снаружи это одна и та же ошибка, а в журнале разница видна
+	// почты: снаружи это одна и та же ошибка, а в журнале разница видна
 	// по тому, есть ли рядом удачные входы.
 	if err := VerifyPassword(password, user.PasswordHash); err != nil {
 		s.record(ctx, &user.ID, login, place, agent, false)

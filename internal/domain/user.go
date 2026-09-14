@@ -141,6 +141,22 @@ func ValidateProfile(fullName, city, gameID string) error {
 	return nil
 }
 
+// gameIDRe — игровой ID, каким его знает сайт игры: номер пользователя.
+// Профиль строже не проверяет, а регистрация проверяет: по этому номеру
+// у игры спрашивают ник, и слать туда что попало незачем.
+var gameIDRe = regexp.MustCompile(`^[0-9]{1,20}$`)
+
+// ValidateSignupGameID проверяет игровой ID, названный при регистрации.
+func ValidateSignupGameID(gameID string) error {
+	if gameID == "" {
+		return ErrGameIDRequired
+	}
+	if !gameIDRe.MatchString(gameID) {
+		return ErrGameIDFormat
+	}
+	return nil
+}
+
 // MsgError — ошибка, которую увидит человек. Носит не текст, а ключ
 // сообщения: язык страницы выбирает тот, кто смотрит, и предметная
 // область не должна решать этот вопрос за него.
@@ -169,6 +185,9 @@ var (
 	ErrCityTooLong   = &MsgError{"err.city.toolong"}
 	ErrGameIDTooLong = &MsgError{"err.gameid.toolong"}
 	ErrGameIDSpaces  = &MsgError{"err.gameid.spaces"}
+	// Регистрация: игровой ID там обязателен и бывает только числом.
+	ErrGameIDRequired = &MsgError{"err.gameid.required"}
+	ErrGameIDFormat   = &MsgError{"err.gameid.format"}
 
 	ErrClanNameRequired = &MsgError{"err.clan.name.required"}
 	ErrClanNameTooLong  = &MsgError{"err.clan.name.toolong"}

@@ -236,6 +236,32 @@ func TestPagesRender(t *testing.T) {
 			},
 		},
 		{
+			// Вход только по почте, и со страницы входа видна дорога
+			// к регистрации — иначе вошедшим по нику деваться некуда.
+			page: "login",
+			data: map[string]any{"Error": "", "Login": "a@b.c"},
+			want: []string{
+				`action="/login"`, `type="email" name="login" value="a@b.c"`,
+				`href="/register"`,
+			},
+			deny: []string{"Почта или ник"},
+		},
+		{
+			// После ошибки введённое возвращается в поля, кроме пароля,
+			// а ловушка для ботов стоит в форме и пустая.
+			page: "register",
+			data: map[string]any{"Error": "В игре нет игрока с таким ID.",
+				"Email": "a@b.c", "GameID": "101408369"},
+			want: []string{
+				`action="/register"`, "В игре нет игрока с таким ID.",
+				`name="email" value="a@b.c"`, `name="game_id" value="101408369"`,
+				`name="password" required minlength="12"`,
+				`class="trap" aria-hidden="true"`, `name="website" value="" tabindex="-1"`,
+				`href="/login"`,
+			},
+			deny: []string{`name="nickname"`},
+		},
+		{
 			page: "clans",
 			data: map[string]any{
 				"Clans": []domain.Clan{clan}, "Statuses": domain.ClanStatuses, "Error": "",

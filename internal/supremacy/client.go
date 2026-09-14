@@ -810,6 +810,39 @@ func (c *Client) UserAlliance(ctx context.Context, siteUserID string) (*Alliance
 	return alliance, nil
 }
 
+// Username спрашивает у сайта ник игрока по его номеру. Нужен регистрации:
+// человек называет свой игровой ID, а ник в админке берётся из игры, чтобы
+// его нельзя было выдумать.
+//
+// Пустая строка без ошибки означает, что такого игрока сайт не знает.
+func (c *Client) Username(ctx context.Context, siteUserID string) (string, error) {
+	raw, err := c.call(ctx, "getUserDetailsFirefly", []param{
+		{"userID", siteUserID},
+		{"username", "1"},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	name, err := parseUsername(raw)
+	if err != nil {
+		return "", fmt.Errorf("ник игрока %s: %w", siteUserID, err)
+	}
+	return name, nil
+}
+
+// parseUsername разбирает ответ про игрока. Про несуществующий номер сайт
+// отвечает пустым пользователем, без поля username, — это не ошибка.
+func parseUsername(raw json.RawMessage) (string, error) {
+	var res struct {
+		Username string `json:"username"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return "", fmt.Errorf("разбор: %w", err)
+	}
+	return strings.TrimSpace(res.Username), nil
+}
+
 // parseAlliance разбирает ответ про игрока. Альянс приходит вложенным
 // в properties, а у игрока без альянса поле просто null — это не ошибка,
 // а полноценный ответ.

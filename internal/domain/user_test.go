@@ -77,6 +77,25 @@ func TestUserDisplay(t *testing.T) {
 	}
 }
 
+// При регистрации ID — номер пользователя на сайте игры: по нему у игры
+// спрашивают ник, поэтому ничего, кроме цифр, туда не пропускаем.
+func TestValidateSignupGameID(t *testing.T) {
+	tests := map[string]error{
+		"101408369":             nil,
+		"":                      ErrGameIDRequired,
+		"101 408":               ErrGameIDFormat,
+		"Dau7er":                ErrGameIDFormat,
+		"-1":                    ErrGameIDFormat,
+		strings.Repeat("1", 21): ErrGameIDFormat,
+		"101408369&username=1":  ErrGameIDFormat,
+	}
+	for id, want := range tests {
+		if got := ValidateSignupGameID(id); got != want {
+			t.Errorf("ValidateSignupGameID(%q) = %v, ожидалось %v", id, got, want)
+		}
+	}
+}
+
 // Профиль человек заполняет сам, поэтому проверки мягкие: пустое — норма,
 // а вот пробел в игровом ID сломал бы поиск по нему.
 func TestValidateProfile(t *testing.T) {

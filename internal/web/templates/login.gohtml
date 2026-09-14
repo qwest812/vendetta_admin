@@ -9,12 +9,13 @@
 
     <label>
         {{t "login.login"}}
-        <input type="text" name="login" value="{{.Login}}" required autofocus autocomplete="username">
+        <input type="email" name="login" value="{{.Login}}" required autofocus autocomplete="username">
     </label>
     <label>
         {{t "login.password"}}
         <input type="password" name="password" required autocomplete="current-password">
     </label>
     <button type="submit">{{t "login.submit"}}</button>
+    <p class="muted switch">{{t "login.noaccount"}} <a href="/register">{{t "login.register"}}</a></p>
 </form>
 {{end}}

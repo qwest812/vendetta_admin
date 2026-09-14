@@ -92,13 +92,11 @@ func (s *Server) usersCreate(w http.ResponseWriter, r *http.Request) {
 		fail(errText(r, err))
 		return
 	}
-	// Почта необязательна: входить можно по нику. Но если её указали,
-	// адрес должен быть разбираемым — по нему тоже пускают в систему.
-	if email != "" {
-		if _, err := mail.ParseAddress(email); err != nil {
-			fail(langOf(r).T("err.email.bad"))
-			return
-		}
+	// Почта обязательна: входят только по ней. Адрес — только сам адрес,
+	// «Имя <a@b>» разбирается, но логином служить не может.
+	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email {
+		fail(langOf(r).T("err.email.bad"))
+		return
 	}
 	// Рута назначить нельзя: он один и заводится при первом запуске.
 	if role != domain.RoleUser && role != domain.RoleAdmin {
@@ -400,7 +398,17 @@ func (s *Server) logAudit(r *http.Request, action string, targetID int64, payloa
 }
 
 func (s *Server) logAuditOn(r *http.Request, action, targetType string, targetID int64, payload map[string]any) {
-	if err := s.audit.Log(r.Context(), currentUser(r), action, targetType, targetID, payload); err != nil {
+	s.logAuditAs(r, currentUser(r), action, targetType, targetID, payload)
+}
+
+// logAuditBy — запись от имени того, кто ещё не вошёл: регистрация идёт
+// без сессии, и действующее лицо в ней — сам регистрирующийся.
+func (s *Server) logAuditBy(r *http.Request, actor *domain.User, action string, targetID int64, payload map[string]any) {
+	s.logAuditAs(r, actor, action, "user", targetID, payload)
+}
+
+func (s *Server) logAuditAs(r *http.Request, actor *domain.User, action, targetType string, targetID int64, payload map[string]any) {
+	if err := s.audit.Log(r.Context(), actor, action, targetType, targetID, payload); err != nil {
 		s.log.Error("не записан журнал", "err", err, "action", action, "target_id", targetID)
 	}
 }

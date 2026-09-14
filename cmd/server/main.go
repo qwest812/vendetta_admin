@@ -99,6 +99,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	// на проверку `== nil` не отвечает, и раздел счёл бы аккаунт настроенным.
 	if s1914 != nil {
 		deps.Games = s1914
+		deps.Nicks = s1914
 	}
 
 	srv, err := web.NewServer(deps)

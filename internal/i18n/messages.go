@@ -57,11 +57,36 @@ var messages = map[string]entry{
 	"format.date":     {ru: "02.01.2006", en: "Jan 2, 2006"},
 
 	// --- вход ---
-	"login.title":    {ru: "Вход — Vendetta", en: "Sign in — Vendetta"},
-	"login.subtitle": {ru: "Вход в базу игроков", en: "Sign in to the player database"},
-	"login.login":    {ru: "Почта или ник", en: "Email or nickname"},
-	"login.password": {ru: "Пароль", en: "Password"},
-	"login.submit":   {ru: "Войти", en: "Sign in"},
+	"login.title":     {ru: "Вход — Vendetta", en: "Sign in — Vendetta"},
+	"login.subtitle":  {ru: "Вход в базу игроков", en: "Sign in to the player database"},
+	"login.login":     {ru: "Почта", en: "Email"},
+	"login.password":  {ru: "Пароль", en: "Password"},
+	"login.submit":    {ru: "Войти", en: "Sign in"},
+	"login.noaccount": {ru: "Нет аккаунта или входили по нику?", en: "No account, or used to sign in by nickname?"},
+	"login.register":  {ru: "Зарегистрироваться", en: "Sign up"},
+
+	// --- регистрация ---
+	"register.title":         {ru: "Регистрация — Vendetta", en: "Sign up — Vendetta"},
+	"register.subtitle":      {ru: "Ник подтянется из игры по вашему ID", en: "Your nickname is taken from the game by your ID"},
+	"register.gameid":        {ru: "Игровой ID", en: "Game ID"},
+	"register.gameid.hint":   {ru: "число из вашего профиля в Supremacy 1914", en: "the number from your Supremacy 1914 profile"},
+	"register.password.hint": {ru: "не короче 12 символов; если аккаунт вам уже заводили — нынешний пароль", en: "at least 12 characters; if you already have an account, its current password"},
+	"register.submit":        {ru: "Зарегистрироваться", en: "Sign up"},
+	"register.haveaccount":   {ru: "Уже есть почта в админке?", en: "Already have an email here?"},
+	"register.login":         {ru: "Войти", en: "Sign in"},
+	// Скрытое поле-ловушка: человек его не видит, подпись нужна для
+	// читалок экрана, которые всё равно доберутся.
+	"register.honeypot": {ru: "Не заполняйте это поле", en: "Leave this field empty"},
+
+	"register.toomany":        {ru: "Слишком много попыток регистрации с вашей сети. Попробуйте завтра.", en: "Too many sign-up attempts from your network. Try again tomorrow."},
+	"register.unavailable":    {ru: "Регистрация сейчас недоступна: админка не подключена к игре. Напишите администратору.", en: "Sign-up is unavailable right now: the panel is not connected to the game. Contact an administrator."},
+	"register.gamefail":       {ru: "Игра не ответила, проверить ID не получилось. Попробуйте через пару минут.", en: "The game did not answer, so the ID could not be checked. Try again in a couple of minutes."},
+	"register.unknownid":      {ru: "В игре нет игрока с таким ID. Проверьте номер в своём профиле.", en: "There is no player with that ID in the game. Check the number in your profile."},
+	"register.nicktaken":      {ru: "Ник «%s» в админке уже занят другим игроком. Напишите администратору.", en: "The nickname “%s” is already taken here by another player. Contact an administrator."},
+	"register.emailtaken":     {ru: "Эта почта уже зарегистрирована — войдите с ней.", en: "That email is already registered — sign in with it."},
+	"register.exists":         {ru: "Аккаунт с этим игровым ID уже зарегистрирован — войдите по почте.", en: "An account with that game ID is already registered — sign in with its email."},
+	"register.claim.password": {ru: "Аккаунт для вас уже заведён администратором. Чтобы добавить к нему почту, введите его нынешний пароль.", en: "An administrator already created an account for you. To add your email to it, enter its current password."},
+	"register.disabled":       {ru: "Этот аккаунт отключён. Напишите администратору.", en: "This account is disabled. Contact an administrator."},
 
 	// --- поиск игроков (главная) ---
 	"home.title":              {ru: "Поиск игроков — Vendetta", en: "Player search — Vendetta"},
@@ -332,10 +357,9 @@ var messages = map[string]entry{
 	"users.title":          {ru: "Доступы — Vendetta", en: "Access — Vendetta"},
 	"users.grant":          {ru: "Выдать доступ", en: "Grant access"},
 	"users.email":          {ru: "Почта", en: "Email"},
-	"users.optional":       {ru: "необязательно", en: "optional"},
 	"users.role":           {ru: "Роль", en: "Role"},
 	"users.create":         {ru: "Создать", en: "Create"},
-	"users.note":           {ru: "Входить можно и по нику, и по почте, поэтому почту можно не указывать. Пароль не хранится в открытом виде — передайте его пользователю лично.", en: "Signing in works by nickname as well as by email, so the email is optional. The password is not stored in plain text — hand it to the user in person."},
+	"users.note":           {ru: "Входят только по почте, поэтому она обязательна. Люди могут и сами зарегистрироваться по почте и игровому ID. Пароль не хранится в открытом виде — передайте его пользователю лично.", en: "Signing in works by email only, so it is required. People can also sign up themselves with an email and a game ID. The password is not stored in plain text — hand it to the user in person."},
 	"users.heading":        {ru: "Пользователи", en: "Users"},
 	"users.created":        {ru: "Создан", en: "Created"},
 	"users.you":            {ru: "(это вы)", en: "(that’s you)"},
@@ -564,7 +588,7 @@ var messages = map[string]entry{
 
 	"faq.howto.q":          {ru: "Как пользоваться админкой", en: "How to use the admin panel"},
 	"faq.howto.login.h":    {ru: "Вход.", en: "Signing in."},
-	"faq.howto.login":      {ru: "В поле «Почта или ник» подойдёт и ник, и почта — что вам выдали; регистр не важен. Пароль выдаёт администратор. Вы остаётесь в системе неделю, кнопка «Выйти» — справа сверху.", en: "The “Email or nickname” field takes either — whichever you were given; case does not matter. The password comes from an administrator. You stay signed in for a week; the “Log out” button is at the top right."},
+	"faq.howto.login":      {ru: "Входят по почте и паролю; регистр почты не важен. Аккаунта нет — нажмите «Зарегистрироваться» на странице входа: почта, игровой ID и пароль, ник подтянется из игры. Если раньше входили по нику, зарегистрируйтесь с тем же игровым ID и нынешним паролем — к аккаунту добавится почта, и всё собранное останется. Вы остаётесь в системе неделю, кнопка «Выйти» — справа сверху.", en: "Sign in with your email and password; the case of the email does not matter. No account yet — press “Sign up” on the sign-in page: email, game ID and password, the nickname comes from the game. If you used to sign in by nickname, sign up with the same game ID and your current password — the email is added to your account and everything you collected stays. You stay signed in for a week; the “Log out” button is at the top right."},
 	"faq.howto.search.h":   {ru: "Поиск.", en: "Search."},
 	"faq.howto.search":     {ru: "Главная страница и есть поиск: результаты обновляются во время набора. Искать можно по игровому ID и по нику, целиком или по части. Показываются первые 50 совпадений — если нужного нет, уточните запрос.", en: "The main page is the search: results update as you type. You can search by game ID or nickname, whole or partial. The first 50 matches are shown — narrow the query if what you need is missing."},
 	"faq.howto.card.h":     {ru: "Карточка.", en: "The card."},
@@ -639,7 +663,7 @@ var messages = map[string]entry{
 	"faq.rights.feedback":   {ru: "Отвечать на обращения и закрывать их", en: "Answer tickets and close them"},
 
 	"faq.grant.q":  {ru: "Как выдать доступ новому человеку?", en: "How do I grant access to someone new?"},
-	"faq.grant.a1": {ru: "Раздел «Доступы». Обязателен ник, почта — по желанию: входить можно и по нику, и по почте. Пароль не короче 12 символов; в открытом виде он нигде не хранится и посмотреть его потом нельзя, поэтому передайте пароль человеку сразу и лично.", en: "The Access section. The nickname is required, the email optional: signing in works with either. The password must be at least 12 characters; it is stored nowhere in plain text and cannot be looked up later, so hand it over right away and in person."},
+	"faq.grant.a1": {ru: "Проще всего — дать ссылку на регистрацию: человек сам вводит почту, игровой ID и пароль, ник подтягивается из игры, и войти он может сразу, с базовыми правами. Можно завести и вручную, в разделе «Доступы»: там обязательны ник и почта — входят только по почте. Пароль не короче 12 символов; в открытом виде он нигде не хранится и посмотреть его потом нельзя, поэтому передайте пароль человеку сразу и лично.", en: "The easiest way is to share the sign-up link: the person enters an email, game ID and password, the nickname comes from the game, and they can sign in right away with basic rights. You can also create an account by hand in the Access section: the nickname and email are required there — signing in works by email only. The password must be at least 12 characters; it is stored nowhere in plain text and cannot be looked up later, so hand it over right away and in person."},
 	"faq.grant.a2": {ru: "Блокировка — мягкая мера: доступ закрывается, а комментарии и история остаются. Блокировка, смена роли и смена пароля тут же обрывают все сессии человека. Свою запись менять нельзя, рута — тоже.", en: "Blocking is the gentle measure: access closes while the comments and history stay. Blocking, a role change and a password change all end the person’s sessions at once. You cannot edit your own record, nor the root’s."},
 
 	"faq.bug.q": {ru: "Нашёл ошибку или нужен доступ", en: "I found a bug or need access"},
@@ -647,7 +671,7 @@ var messages = map[string]entry{
 
 	// --- сообщения обработчиков: ошибки форм и отказы ---
 	"err.badform":  {ru: "Некорректная форма", en: "Malformed form"},
-	"err.badlogin": {ru: "Неверная почта, ник или пароль", en: "Wrong email, nickname or password"},
+	"err.badlogin": {ru: "Неверная почта или пароль", en: "Wrong email or password"},
 	"err.badid":    {ru: "Некорректный id", en: "Malformed id"},
 
 	"err.notfound":       {ru: "не найдено", en: "not found"},
@@ -664,12 +688,14 @@ var messages = map[string]entry{
 	"err.forbidden":      {ru: "недостаточно прав", en: "not enough rights"},
 	"err.invalid.login":  {ru: "неверная почта или пароль", en: "wrong email or password"},
 
-	"err.nick.required":  {ru: "ник обязателен", en: "a nickname is required"},
-	"err.nick.format":    {ru: "ник: 3–32 символа, буквы, цифры, точка, дефис и подчёркивание; начинается с буквы или цифры", en: "nickname: 3–32 characters — letters, digits, dot, hyphen and underscore; starts with a letter or digit"},
-	"err.name.toolong":   {ru: "имя длиннее 100 символов", en: "the name is longer than 100 characters"},
-	"err.city.toolong":   {ru: "город длиннее 100 символов", en: "the city is longer than 100 characters"},
-	"err.gameid.toolong": {ru: "игровой ID длиннее 32 символов", en: "the game ID is longer than 32 characters"},
-	"err.gameid.spaces":  {ru: "игровой ID не должен содержать пробелов", en: "the game ID must not contain spaces"},
+	"err.nick.required":   {ru: "ник обязателен", en: "a nickname is required"},
+	"err.nick.format":     {ru: "ник: 3–32 символа, буквы, цифры, точка, дефис и подчёркивание; начинается с буквы или цифры", en: "nickname: 3–32 characters — letters, digits, dot, hyphen and underscore; starts with a letter or digit"},
+	"err.name.toolong":    {ru: "имя длиннее 100 символов", en: "the name is longer than 100 characters"},
+	"err.city.toolong":    {ru: "город длиннее 100 символов", en: "the city is longer than 100 characters"},
+	"err.gameid.toolong":  {ru: "игровой ID длиннее 32 символов", en: "the game ID is longer than 32 characters"},
+	"err.gameid.spaces":   {ru: "игровой ID не должен содержать пробелов", en: "the game ID must not contain spaces"},
+	"err.gameid.required": {ru: "Укажите игровой ID", en: "Enter your game ID"},
+	"err.gameid.format":   {ru: "Игровой ID — это число, без букв и пробелов", en: "The game ID is a number, with no letters or spaces"},
 
 	"err.feedback.subject":  {ru: "Тема: от 3 до 120 символов", en: "Subject: 3 to 120 characters"},
 	"err.feedback.body":     {ru: "Сообщение: от 3 до 4000 символов", en: "Message: 3 to 4000 characters"},

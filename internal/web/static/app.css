@@ -67,6 +67,11 @@ main.centered { display: flex; justify-content: center; align-items: center; min
 .login h1 { color: var(--accent); font-size: 22px; margin-bottom: 2px; }
 .login label { display: block; margin: 14px 0; }
 .login button { width: 100%; }
+.login .hint { display: block; margin-top: 4px; font-size: 12px; }
+.login .switch { margin: 14px 0 0; text-align: center; font-size: 13px; }
+/* Поле-ловушка регистрации: убрано за экран, а не display:none —
+   иные боты пропускают как раз невидимые по стилю поля. */
+.login .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 
 label { font-size: 13px; color: var(--muted); }
 

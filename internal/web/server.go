@@ -28,6 +28,10 @@ type Server struct {
 	enemies *relationSection
 	friends *relationSection
 	games   gameSource
+	// nicks — откуда регистрация берёт ник по игровому ID; signups —
+	// счёт её попыток по подсетям.
+	nicks   nickSource
+	signups *signupLimiter
 	// feedback — обращения в админку и переписка по ним.
 	feedback *repo.Feedback
 	// alliances — кеш кланов Supremacy: сайт игры отвечает про одного
@@ -86,6 +90,9 @@ type Deps struct {
 	// Games — аккаунт Supremacy 1914 для рутового раздела «Игры».
 	// Пусто, если аккаунт не настроен: раздел тогда скажет об этом сам.
 	Games gameSource
+	// Nicks — сайт игры для регистрации: ник по игровому ID. Пусто, если
+	// аккаунт не настроен, — регистрация тогда скажет, что недоступна.
+	Nicks nickSource
 	// Alliances — кеш кланов из самой Supremacy, по ним красится карта партии.
 	Alliances *repo.Alliances
 	// TopAlliances — верхушка рейтинга кланов: по ней карта отмечает,
@@ -126,6 +133,7 @@ func NewServer(d Deps) (*Server, error) {
 		players: d.Players, clans: d.Clans, traits: d.Traits,
 		feedback: d.Feedback,
 		games:    d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
+		nicks: d.Nicks, signups: newSignupLimiter(),
 		gamePlayers: d.GamePlayers, userStats: d.UserStats,
 		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
 		checked: d.Checked, checks: d.Checks,
@@ -146,12 +154,16 @@ func (s *Server) Handler() http.Handler {
 	}
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 
-	// Публичное: проверка живости, вход и выбор языка. Язык публичен
-	// намеренно: переключатель нужен и на странице входа.
+	// Публичное: проверка живости, вход, регистрация и выбор языка. Язык
+	// публичен намеренно: переключатель нужен и на странице входа.
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("GET /lang/{lang}", s.setLang)
 	mux.HandleFunc("GET /login", s.loginForm)
 	mux.Handle("POST /login", http.HandlerFunc(s.loginSubmit))
+	// Регистрация пускает сразу, с самыми узкими правами: обычная роль,
+	// базовый пакет, без раздела «Игры». Остальное выдаёт рут, как раньше.
+	mux.HandleFunc("GET /register", s.registerForm)
+	mux.Handle("POST /register", http.HandlerFunc(s.registerSubmit))
 	mux.Handle("POST /logout", auth.VerifyCSRF(http.HandlerFunc(s.logout)))
 
 	// Поиск и просмотр — всем авторизованным.

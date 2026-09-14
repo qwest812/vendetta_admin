@@ -187,13 +187,13 @@ func Load() (*Config, error) {
 		cfg.TelegramTopicID = id
 	}
 
-	// Входить можно по нику, поэтому почта рута необязательна — но хоть
-	// один логин нужен. Ник по умолчанию берём из локальной части адреса.
+	// Входят только по почте, поэтому без почты рут не вошёл бы вовсе.
+	// Ник по умолчанию берём из локальной части адреса.
 	if cfg.RootNickname == "" {
 		cfg.RootNickname, _, _ = strings.Cut(cfg.RootEmail, "@")
 	}
-	if cfg.RootNickname == "" || cfg.RootPassword == "" {
-		return nil, fmt.Errorf("нужно задать ROOT_PASSWORD и хотя бы одно из ROOT_NICKNAME или ROOT_EMAIL")
+	if cfg.RootEmail == "" || cfg.RootPassword == "" {
+		return nil, fmt.Errorf("нужно задать ROOT_EMAIL и ROOT_PASSWORD")
 	}
 	if err := domain.ValidateNickname(cfg.RootNickname); err != nil {
 		return nil, fmt.Errorf("ROOT_NICKNAME: %w", err)

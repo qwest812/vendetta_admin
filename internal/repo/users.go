@@ -63,13 +63,27 @@ func (r *Users) ByID(ctx context.Context, id int64) (*domain.User, error) {
 	return scanUser(r.pool.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE id = $1`, id))
 }
 
-// ByLogin ищет пользователя по тому, что он ввёл при входе: это либо почта,
-// либо ник. Оба поля уникальны без учёта регистра, поэтому строка совпадёт
-// максимум с одной записью.
-func (r *Users) ByLogin(ctx context.Context, login string) (*domain.User, error) {
+// ByEmail ищет пользователя по почте — единственному, по чему пускают
+// при входе. Почта уникальна без учёта регистра.
+func (r *Users) ByEmail(ctx context.Context, email string) (*domain.User, error) {
 	return scanUser(r.pool.QueryRow(ctx,
-		`SELECT `+userColumns+` FROM users
-		 WHERE lower(email) = lower($1) OR lower(nickname) = lower($1)`, login))
+		`SELECT `+userColumns+` FROM users WHERE lower(email) = lower($1)`, email))
+}
+
+// ByGameID ищет пользователя по игровому ID. Пустой ID не ищется: пустая
+// строка у нас значит «не указан», и таких много.
+func (r *Users) ByGameID(ctx context.Context, gameID string) (*domain.User, error) {
+	if gameID == "" {
+		return nil, domain.ErrNotFound
+	}
+	return scanUser(r.pool.QueryRow(ctx,
+		`SELECT `+userColumns+` FROM users WHERE game_id = $1`, gameID))
+}
+
+// ByNickname ищет пользователя по нику без учёта регистра.
+func (r *Users) ByNickname(ctx context.Context, nickname string) (*domain.User, error) {
+	return scanUser(r.pool.QueryRow(ctx,
+		`SELECT `+userColumns+` FROM users WHERE lower(nickname) = lower($1)`, nickname))
 }
 
 func (r *Users) List(ctx context.Context) ([]*domain.User, error) {
@@ -95,13 +109,55 @@ func (r *Users) List(ctx context.Context) ([]*domain.User, error) {
 // UpdateProfile сохраняет то, что человек написал о себе сам. Роли, ника
 // и пароля это не касается — их меняют в «Доступах».
 func (r *Users) UpdateProfile(ctx context.Context, id int64, fullName, city, gameID string) error {
-	return r.exec(ctx,
+	err := r.exec(ctx,
 		`UPDATE users SET full_name = $2, city = $3, game_id = $4 WHERE id = $1`,
 		id, fullName, city, gameID)
+	if isUniqueViolation(err, "users_game_id_key") {
+		return domain.ErrGameIDTaken
+	}
+	return err
 }
 
-// Create заводит пользователя. Пустая почта допустима — она уходит в NULL,
-// чтобы безадресные пользователи не конфликтовали друг с другом по индексу.
+// Register заводит того, кто пришёл сам. Права — самые узкие: обычная
+// роль и пакет, доступ к играм и проверки карты по умолчанию таблицы.
+// Заводящего нет, created_by остаётся пустым.
+func (r *Users) Register(ctx context.Context, email, nickname, gameID, passwordHash string) (*domain.User, error) {
+	u, err := scanUser(r.pool.QueryRow(ctx,
+		`INSERT INTO users (email, nickname, game_id, password_hash, role)
+		 VALUES ($1, $2, $3, $4, 'user') RETURNING `+userColumns,
+		email, nickname, gameID, passwordHash))
+	return u, registrationErr(err)
+}
+
+// AttachEmail дописывает почту аккаунту, заведённому без неё, — так старый
+// аккаунт получает вход по почте. Игровой ID ставится, только если его
+// не было: указанный раньше регистрация не переписывает.
+//
+// Аккаунт с почтой не трогается: ErrNotFound. Проверка стоит в самом
+// запросе, чтобы две регистрации наперегонки не переписали одна другую.
+func (r *Users) AttachEmail(ctx context.Context, id int64, email, gameID string) error {
+	err := r.exec(ctx,
+		`UPDATE users SET email = $2, game_id = CASE WHEN game_id = '' THEN $3 ELSE game_id END
+		 WHERE id = $1 AND email IS NULL`, id, email, gameID)
+	return registrationErr(err)
+}
+
+// registrationErr переводит нарушения уникальности в ошибки для человека.
+func registrationErr(err error) error {
+	switch {
+	case isUniqueViolation(err, "users_email_key"):
+		return domain.ErrEmailTaken
+	case isUniqueViolation(err, "users_nickname_key"):
+		return domain.ErrNickTaken
+	case isUniqueViolation(err, "users_game_id_key"):
+		return domain.ErrGameIDTaken
+	}
+	return err
+}
+
+// Create заводит пользователя из «Доступов». Почту там требует обработчик;
+// пустая уходит в NULL, как у заведённых раньше, чтобы безадресные
+// не конфликтовали друг с другом по индексу.
 func (r *Users) Create(ctx context.Context, email, nickname, passwordHash string, role domain.Role, createdBy *int64) (*domain.User, error) {
 	u, err := scanUser(r.pool.QueryRow(ctx,
 		`INSERT INTO users (email, nickname, password_hash, role, created_by)
