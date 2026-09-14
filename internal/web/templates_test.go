@@ -287,7 +287,7 @@ func TestPagesRender(t *testing.T) {
 					Games: 41, SoloWins: 3, CoalitionWins: 7}},
 			// Клан на карточке — ссылка на клан, а не текст. Признаки —
 			// три метки трёх цветов, и рядом с каждой число отметивших.
-			want: []string{`href="/clans/7"`, "Враждебный клан",
+			want: []string{`href="/clans/7"`, "Враждебный альянс",
 				"tag neg", "tag zero", "tag pos", "Мультивод · 3", "Хорошо играет · 2",
 				"17 уровень", "кд 1.56", "партий сыграно 41", "побед в коалиции 7"},
 			// Про игру мы ничего не знаем — и молчим об этом. Шкал больше
@@ -487,7 +487,7 @@ func TestPagesRender(t *testing.T) {
 				"Error":  "", "Ours": false, "State": nil, "Mine": nil,
 			},
 			want: []string{
-				"Анонимная партия", "Разбор анонимных партий запрещён",
+				"Анонимная партия", "Разбор анонимных партий недоступен",
 				// Номер остаётся: иначе отказ неотличим от опечатки в нём.
 				"10903303",
 			},
@@ -1003,7 +1003,7 @@ func TestEmptyResultsWording(t *testing.T) {
 	}{
 		{"поиск без запроса", map[string]any{"Limit": 50}, "Введите ник или игровой ID"},
 		{"нет совпадений", map[string]any{"Query": "abc", "Limit": 50}, "abc"},
-		{"фильтр по статусу", map[string]any{"Status": "ally", "Limit": 50}, "С таким статусом клана никого нет"},
+		{"фильтр по статусу", map[string]any{"Status": "ally", "Limit": 50}, "С таким статусом альянса никого нет"},
 		{"пустой клан", map[string]any{"Empty": "В этом клане пока нет карточек.", "Limit": 200}, "В этом клане пока нет карточек."},
 	}
 
@@ -1476,6 +1476,52 @@ func TestMapTickets(t *testing.T) {
 	tickets.grant(9, "10900334")
 	if _, ok := tickets.seen[mapTicketKey(7, "10895766")]; ok {
 		t.Error("протухший пропуск не выброшен при следующей выдаче")
+	}
+}
+
+// Про пакеты доступа знает только рут: ни в справке, ни в профиле обычный
+// пользователь или админ их не видит, как не видит и таблицы «кому что
+// доступно». Вопроса про журнал входов в справке нет ни у кого.
+func TestPlansVisibleToRootOnly(t *testing.T) {
+	pages, err := parseTemplates(i18n.RU)
+	if err != nil {
+		t.Fatalf("разбор шаблонов: %v", err)
+	}
+	render := func(page string, user *domain.User) string {
+		t.Helper()
+		var buf bytes.Buffer
+		err := pages[page].ExecuteTemplate(&buf, "base.gohtml", map[string]any{
+			"CurrentUser": user, "CSRFToken": "csrf", "Path": "/" + page,
+			"Profile": user, "Error": "", "Notice": "",
+		})
+		if err != nil {
+			t.Fatalf("%s: отрисовка: %v", page, err)
+		}
+		return buf.String()
+	}
+	hidden := []string{"Пакет доступа", "пакет", "Ультра", "Кому что доступно", "Записывается ли, откуда я вхожу"}
+
+	for _, user := range []*domain.User{
+		{ID: 2, Nickname: "player", Role: domain.RoleUser, Plan: domain.PlanBasic},
+		{ID: 3, Nickname: "admin", Role: domain.RoleAdmin, Plan: domain.PlanBasic},
+	} {
+		for _, page := range []string{"faq", "profile"} {
+			html := render(page, user)
+			for _, deny := range hidden {
+				if strings.Contains(html, deny) {
+					t.Errorf("%s видит на странице %s %q", user.Nickname, page, deny)
+				}
+			}
+		}
+	}
+
+	root := &domain.User{ID: 1, Nickname: "root", Role: domain.RoleRoot, Plan: domain.PlanUltra}
+	if html := render("faq", root); !strings.Contains(html, "Что такое пакет доступа") ||
+		!strings.Contains(html, "Кому что доступно") || strings.Contains(html, "Записывается ли, откуда я вхожу") {
+		t.Error("рут должен видеть в справке пакеты и таблицу прав, но не вопрос про входы")
+	}
+	if html := render("profile", root); !strings.Contains(html, "Пакет доступа") {
+		t.Error("рут должен видеть свой пакет в профиле")
 	}
 }
 

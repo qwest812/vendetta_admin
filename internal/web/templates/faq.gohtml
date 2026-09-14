@@ -41,16 +41,6 @@
         </div>
     </details>
 
-    {{/* Про журнал входов сказано всем, а не только руту: узнать, что твои
-         входы записывают, человек должен от нас, а не случайно. */}}
-    <details>
-        <summary>{{t "faq.logins.q"}}</summary>
-        <div class="faq-body">
-            <p>{{t "faq.logins.a1"}}</p>
-            <p>{{t "faq.logins.a2"}}</p>
-        </div>
-    </details>
-
     <details>
         <summary>{{t "faq.renamed.q"}}</summary>
         <div class="faq-body">
@@ -85,7 +75,9 @@
         </div>
     </details>
 
-    {{/* Про пакет спрашивают сразу после списков: предел встречают там. */}}
+    {{/* Пакеты и таблица прав — только руту: остальным про пакеты знать
+         незачем, предел в списках объясняется им без них. */}}
+    {{if .CurrentUser.IsRoot}}
     <details>
         <summary>{{t "faq.plan.q"}}</summary>
         <div class="faq-body">
@@ -140,7 +132,6 @@
         </div>
     </details>
 
-    {{if .CurrentUser.IsRoot}}
         <details>
             <summary>{{t "faq.newtrait.q"}}</summary>
             <div class="faq-body">

@@ -7,9 +7,10 @@
         <h1>{{t "profile.heading"}}</h1>
         <div class="head-actions">
             {{/* Роль и пакет рядом, но говорят о разном: роль — кем человек
-                 вправе управлять, пакет — сколько можно ему самому. */}}
+                 вправе управлять, пакет — сколько можно ему самому. Пакеты
+                 видит только рут: остальным про них знать незачем. */}}
             <span class="badge role-{{$p.Role}}">{{role $p.Role}}</span>
-            <span class="badge">{{t "profile.plan"}}: {{plan $p.Plan}}</span>
+            {{if .CurrentUser.IsRoot}}<span class="badge">{{t "profile.plan"}}: {{plan $p.Plan}}</span>{{end}}
         </div>
     </div>
 
@@ -21,16 +22,15 @@
         {{t "profile.note"}}
     </p>
 
-    {{/* Что даёт пакет. Пишем здесь, а не только в «Доступах»: человек
-         упирается в предел у себя, а раздел с пакетами видит один рут. */}}
+    {{/* Что даёт пакет — руту, который пакеты раздаёт и проверяет на себе. */}}
+    {{if .CurrentUser.IsRoot}}
     <p class="muted">
         {{$limit := $p.RelationLimit}}
         {{if $limit}}{{t "profile.plan.limit" $limit}}{{else}}{{t "profile.plan.free"}}{{end}}
-        {{/* Про закрытое пишем тоже: иначе человек не узнает, что поле
-             в карточке вообще бывает, и решит, что его просто нет. */}}
         {{if $p.CanSeeLastSeen}}{{t "profile.plan.seen"}}{{else}}{{t "profile.plan.seen.no"}}{{end}}
         {{if $p.CanSeeAnonymousMaps}}{{t "profile.plan.anon"}}{{else}}{{t "profile.plan.anon.no"}}{{end}}
     </p>
+    {{end}}
 
     <form method="post" action="/profile">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
