@@ -65,7 +65,10 @@ type Server struct {
 	checks *repo.MapChecks
 	// checked — личные списки проверенных партий: у каждого свой.
 	checked *repo.CheckedGames
-	health  func(context.Context) error
+	// mapTickets — кому какую карту только что показали: по ним запрос
+	// состава дорисовывает карту, не беря проверку второй раз.
+	mapTickets *mapTickets
+	health     func(context.Context) error
 	// cookieSecure — тот же флаг, что у куки сессии: язык хранится в куке,
 	// и жить она должна по тем же правилам.
 	cookieSecure bool
@@ -136,7 +139,7 @@ func NewServer(d Deps) (*Server, error) {
 		nicks: d.Nicks, signups: newSignupLimiter(),
 		gamePlayers: d.GamePlayers, userStats: d.UserStats,
 		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
-		checked: d.Checked, checks: d.Checks,
+		checked: d.Checked, checks: d.Checks, mapTickets: newMapTickets(),
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}
@@ -273,6 +276,9 @@ func (s *Server) Handler() http.Handler {
 	// по правилам мультиплексора — он точнее шаблона с параметром.
 	mux.Handle("GET /games/check", games(s.gamesCheck))
 	mux.Handle("GET /games/{id}", games(s.gameCard))
+	// Состав большой партии, которого страница ждать не стала: дорисовывает
+	// уже показанную карту и проверки не тратит, см. gameRoster.
+	mux.Handle("GET /games/{id}/roster", games(s.gameRoster))
 
 	// Только рут: он один жмёт кнопки в чужой партии от имени общего
 	// аккаунта, выдаёт доступ к разделу и удаляет пользователей и карточки.

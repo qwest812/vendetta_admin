@@ -123,6 +123,21 @@ func (c *Client) freshState(gameID string, maxAge time.Duration) (*GameState, ti
 	return e.state, e.at, true
 }
 
+// CachedState — копия состояния из кэша любого возраста, без похода в игру.
+// Нужна тому, кто уже показал человеку карту и дорисовывает её: свежесть
+// здесь проверена раньше, а новый заход стоил бы входа в партию.
+func (c *Client) CachedState(gameID string) (*GameState, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	e, ok := c.states[gameID]
+	if !ok || e.state == nil {
+		return nil, false
+	}
+	e.used = time.Now()
+	return e.state, true
+}
+
 // cacheState кладёт свежепривезённую копию. Зовётся из единственного места,
 // где состояние приходит с игрового сервера, поэтому кэш наполняют все разом:
 // и страница, и сборщик коалиций, и автопилот.

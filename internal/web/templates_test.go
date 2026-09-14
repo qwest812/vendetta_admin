@@ -1382,6 +1382,103 @@ func TestGameRosterLivesInPowerTab(t *testing.T) {
 	}
 }
 
+// Карту большой чужой партии страница рисует, не дождавшись сайта: названия
+// в шапке ещё нет, зато карта есть, и строка под режимами сама просит состав.
+// Когда он приходит, ответ заменяет блок карты и дописывает шапку.
+func TestGameMapWithRosterLater(t *testing.T) {
+	pages, err := parseTemplates(i18n.RU)
+	if err != nil {
+		t.Fatalf("разбор шаблонов: %v", err)
+	}
+	user := &domain.User{ID: 2, Nickname: "player", Role: domain.RoleUser}
+
+	var buf bytes.Buffer
+	err = pages["game"].ExecuteTemplate(&buf, "base.gohtml", map[string]any{
+		"CurrentUser": user, "CSRFToken": "csrf", "Path": "/games/10895766",
+		"GameID":   "10895766",
+		"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": false,
+		"State":       &supremacy.GameState{Day: 3},
+		"Map":         &gameMapView{Width: 100, Height: 50},
+		"RosterLater": true,
+	})
+	if err != nil {
+		t.Fatalf("отрисовка страницы: %v", err)
+	}
+	page := buf.String()
+	for _, want := range []string{
+		// Без ответа сайта партия зовётся номером, но карта у неё есть.
+		"Партия 10895766", `class="game-map"`,
+		`id="roster-later"`, `hx-get="/games/10895766/roster"`, `hx-trigger="load"`,
+		`hx-target="closest .map-view"`,
+		// Место, куда ответ допишет шапку.
+		`id="game-title"`, `id="game-about"`,
+		"htmx:beforeSwap",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("на странице нет %q", want)
+		}
+	}
+	// Строка стоит после радиокнопок режимов: правила css смотрят от
+	// отмеченной кнопки к соседям ниже, и вставка перед ними их сломала бы.
+	if strings.Index(page, `id="roster-later"`) < strings.Index(page, `id="map-top"`) {
+		t.Error("строка «догружаем состав» стоит раньше радиокнопок режимов")
+	}
+
+	buf.Reset()
+	err = pages["game"].ExecuteTemplate(&buf, "gamemap", map[string]any{
+		"CurrentUser": user, "GameID": "10895766",
+		"State":    &supremacy.GameState{Day: 3},
+		"Map":      &gameMapView{Width: 100, Height: 50},
+		"Roster":   []rosterView{{Login: "MigoV", Level: 13}},
+		"Game":     &gameView{ID: "10895766", Title: "[Speed] - The Great War", State: "идёт"},
+		"HeadSwap": true,
+	})
+	if err != nil {
+		t.Fatalf("отрисовка блока карты: %v", err)
+	}
+	part := buf.String()
+	for _, want := range []string{
+		`class="map-view"`, "MigoV",
+		`id="game-title" hx-swap-oob="true"`, "[Speed] - The Great War",
+		`id="game-about" hx-swap-oob="true"`,
+	} {
+		if !strings.Contains(part, want) {
+			t.Errorf("в ответе состава нет %q", want)
+		}
+	}
+	// Приехавший состав больше ничего не просит: иначе блок просил бы сам себя.
+	if strings.Contains(part, `id="roster-later"`) {
+		t.Error("в ответе состава осталась строка, которая его просит")
+	}
+}
+
+// Пропуск на дорисовку карты — личный и на одну партию: чужой человек или
+// другая партия по нему карту не получат.
+func TestMapTickets(t *testing.T) {
+	tickets := newMapTickets()
+	tickets.grant(7, "10895766")
+
+	if !tickets.has(7, "10895766") {
+		t.Error("только что выданный пропуск не действует")
+	}
+	if tickets.has(8, "10895766") {
+		t.Error("пропуск достался другому человеку")
+	}
+	if tickets.has(7, "10900334") {
+		t.Error("пропуск подошёл к другой партии")
+	}
+
+	// Срок вышел — пропуска нет, а следующая выдача его и выбрасывает.
+	tickets.seen[mapTicketKey(7, "10895766")] = time.Now().Add(-mapTicketTTL - time.Second)
+	if tickets.has(7, "10895766") {
+		t.Error("протухший пропуск всё ещё действует")
+	}
+	tickets.grant(9, "10900334")
+	if _, ok := tickets.seen[mapTicketKey(7, "10895766")]; ok {
+		t.Error("протухший пропуск не выброшен при следующей выдаче")
+	}
+}
+
 // Игровой ID обязателен и в форме правки: без него карточку не опознать
 // после смены ника, а старые записи иначе так и остались бы без ID.
 func TestPlayerFormRequiresGameID(t *testing.T) {

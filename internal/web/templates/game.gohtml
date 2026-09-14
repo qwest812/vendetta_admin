@@ -26,7 +26,7 @@
 <div class="card">
     <div class="card-head">
         <h1>
-            {{if .Game}}{{.Game.Title}}{{else}}{{t "game.unnamed" .GameID}}{{end}}
+            <span id="game-title">{{template "gametitle" .}}</span>
             <span class="game-id">ID {{.GameID}}</span>
         </h1>
         <div class="head-actions">
@@ -36,30 +36,9 @@
 
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
-    {{if .Game}}
-        <p class="muted">
-            {{t "game.state"}} {{.Game.State}}{{if .Game.Day}}, {{t "game.day" .Game.Day}}{{end}},
-            {{t "game.players" .Game.Players}}{{if .Game.Language}}, {{t "game.language" .Game.Language}}{{end}}{{if not .Game.Started.IsZero}},
-            {{t "game.startedat"}} {{datetime .Game.Started}}{{end}}{{/* Номер аккаунта проекта — внутренняя кухня,
-            и «мы» здесь означает именно его, а не того, кто смотрит. */}}{{if and .CurrentUser.IsRoot .Game.PlayerID}},
-            {{t "game.ourplayer" .Game.PlayerID}}{{end}}.
-        </p>
-        {{if not .Ours}}
-            {{/* Чужая партия: общий аккаунт в ней не играет, но смотреть
-                 со стороны игра не мешает — она отдаёт состояние партии
-                 и без входа в неё. */}}
-            <p class="muted">
-                {{t "game.foreign.note"}}
-            </p>
-        {{end}}
-        {{/* Про долгое открытие говорим на самой странице: ждать минуту
-             молча — это выглядеть сломанным. */}}
-        {{if .BigGame}}
-            <p class="muted">
-                {{t "game.big.note"}}
-            </p>
-        {{end}}
-    {{end}}
+    {{/* Обёртка с id — место, куда запрос состава допишет сведения о чужой
+         партии: их называет только сайт, а страница его не дождалась. */}}
+    <div id="game-about">{{template "gameabout" .}}</div>
 </div>
 
 {{if and .CurrentUser.IsRoot .Ours}}
@@ -99,7 +78,7 @@
 {{/* Карта и состав приезжают с игрового сервера, и для своей партии это
      стоит настоящего входа — поэтому там кнопка. Чужую смотрим наблюдателем,
      заходом в партию это не считается, и ждать нажатия незачем. */}}
-{{if or .Ours .Game}}
+{{if or .Ours .Game .State}}
 <div class="card">
     <div class="card-head">
         <h1>{{if .Ours}}{{t "game.inside.ours"}}{{else}}{{t "game.inside"}}{{end}}</h1>
@@ -136,301 +115,7 @@
         </p>
     {{end}}
 
-    {{if .Map}}
-        {{/* Карта одна, режимов два: в каждом заливка говорит об одном
-             и только одном, поэтому альянсы и личные списки не спорят
-             за цвет. Переключение — на радиокнопках и css: очертания
-             провинций тяжёлые, второй раз выводить их незачем, а скрипт
-             ради смены цветов сюда не просится. Порядок важен — правила
-             в app.css смотрят от отмеченной кнопки к соседям ниже. */}}
-        <div class="map-view">
-            <input class="map-mode" type="radio" name="map-mode" id="map-clans" checked>
-            <input class="map-mode" type="radio" name="map-mode" id="map-sides">
-            <input class="map-mode" type="radio" name="map-mode" id="map-teams">
-            <input class="map-mode" type="radio" name="map-mode" id="map-players">
-            <input class="map-mode" type="radio" name="map-mode" id="map-power">
-            <input class="map-mode" type="radio" name="map-mode" id="map-top">
-            <div class="map-tabs">
-                <label for="map-clans">{{t "game.map.clans"}}</label>
-                <label for="map-sides">{{t "game.map.mine"}}</label>
-                <label for="map-teams">{{t "game.map.teams"}}</label>
-                <label for="map-players">{{t "game.map.players"}}</label>
-                <label for="map-power">{{t "game.map.power"}}</label>
-                <label for="map-top">{{t "game.map.top"}}</label>
-            </div>
-            {{/* Карта в собственных координатах игры: viewBox их и берёт,
-                 а размер на странице задаёт css. */}}
-            <svg class="game-map" viewBox="0 0 {{.Map.Width}} {{.Map.Height}}"
-                 preserveAspectRatio="xMidYMid meet" role="img"
-                 aria-label="{{t "game.map.aria"}}">
-                <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
-                {{range .Map.Shapes}}
-                    <polygon points="{{.Points}}" class="{{.Class}}"
-                             {{if or .ClanColor .TeamColor .TopColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}; --top: {{.TopColor}}"{{end}}><title>{{.Title}}</title></polygon>
-                {{end}}
-                {{/* Подписи поверх заливки: страна пишется один раз, посередине
-                     своих владений. */}}
-                {{range .Map.Labels}}
-                    {{/* Значок отдельным tspan: он красится не как название
-                         и в режиме альянсов прячется целиком. Ник — второй
-                         строкой: перенос в svg не делается сам, поэтому
-                         у строки заново задаются x и сдвиг по y. */}}
-                    <text x="{{.X}}" y="{{.Y}}" text-anchor="middle"
-                          class="{{if .Enemy}}enemy{{else if .Friend}}friend{{end}}">{{if .Mark}}<tspan class="sign">{{.Mark}}</tspan> {{end}}{{.Text}}{{if .Nick}}<tspan class="player" x="{{.X}}" dy="36">{{.Nick}}</tspan>{{end}}</text>
-                {{end}}
-            </svg>
-
-            <div class="map-pane pane-clans">
-                {{/* Легенда обязательна: цвет раздаётся на партию, по убыванию
-                     владений, и без подписи не значит ничего. */}}
-                {{if .Map.Legend}}
-                    <ul class="map-legend">
-                        {{range .Map.Legend}}
-                            <li>
-                                <span class="swatch" style="background: {{if .Color}}{{.Color}}{{else}}#4a5b68{{end}}"></span>
-                                {{.Name}}{{if .Tag}} <span class="muted">[{{.Tag}}]</span>{{end}}
-                                <span class="muted">— {{.Provinces}}</span>
-                            </li>
-                        {{end}}
-                    </ul>
-                    <p class="muted">
-                        {{t "game.map.clans.note"}}
-                    </p>
-                {{else}}
-                    <p class="muted">
-                        {{t "game.map.clans.empty"}}
-                    </p>
-                {{end}}
-                {{if .AlliancesPending}}
-                    {{/* Серый у неспрошенного и у одиночки одинаковый,
-                         поэтому про очередь надо сказать словами. */}}
-                    <p class="muted">
-                        {{t "game.map.clans.pending" .AlliancesPending}}
-                    </p>
-                {{end}}
-            </div>
-
-            <div class="map-pane pane-sides">
-                <ul class="map-legend">
-                    {{/* Счётчик через with: пустой список — это и нет никого,
-                         и «состав партии ещё не смотрели», а обоим случаям
-                         подходит просто отсутствие числа. */}}
-                    <li><span class="swatch side-enemy"></span> {{t "game.map.sides.enemies"}}{{with .Enemies}} <span class="muted">— {{len .}}</span>{{end}}</li>
-                    <li><span class="swatch side-friend"></span> {{t "game.map.sides.friends"}}{{with .Friends}} <span class="muted">— {{len .}}</span>{{end}}</li>
-                </ul>
-                <p class="muted">
-                    {{t "game.map.sides.note"}}
-                </p>
-            </div>
-
-            <div class="map-pane pane-teams">
-                {{if .Map.Teams}}
-                    <ul class="map-legend">
-                        {{range .Map.Teams}}
-                            <li>
-                                <span class="swatch" style="background: {{.Color}}"></span>
-                                {{.Name}}{{if .Mine}} <span class="badge">{{t "game.map.teams.yours"}}</span>{{end}}
-                                <span class="muted">— {{.Members}}</span>
-                            </li>
-                        {{end}}
-                    </ul>
-                    <p class="muted">
-                        {{t "game.map.teams.note"}}
-                    </p>
-                {{else}}
-                    <p class="muted">
-                        {{t "game.map.teams.empty"}}
-                    </p>
-                {{end}}
-            </div>
-
-            <div class="map-pane pane-players">
-                {{/* Четыре рода владельцев — четыре цвета, и число рядом
-                     с каждым считает людей, а не провинции: цвет здесь
-                     говорит про игрока. Ничейная земля остаётся тёмной
-                     и в счёт не идёт. */}}
-                {{with .Map.Kinds}}
-                    <ul class="map-legend">
-                        <li><span class="swatch human"></span> {{t "game.map.players.regular"}} <span class="muted">— {{.Regular}}</span></li>
-                        <li><span class="swatch ai"></span> {{t "game.map.players.ai"}} <span class="muted">— {{.AI}}</span></li>
-                        <li><span class="swatch premium"></span> {{t "game.map.premium.legend"}} <span class="muted">— {{.Premium}}</span></li>
-                        <li><span class="swatch banned"></span> {{t "game.map.players.banned"}} <span class="muted">— {{.Banned}}</span></li>
-                    </ul>
-                {{end}}
-                <p class="muted">
-                    {{t "game.map.players.note"}}
-                </p>
-                {{if .Premium}}
-                    <p class="muted">
-                        {{t "game.map.premium.list"}}
-                        {{range $i, $p := .Premium}}{{if $i}}, {{end}}{{$p.Nation}}{{if $p.Name}} ({{$p.Name}}){{end}}{{if $p.Mine}} — {{t "game.thatsyou"}}{{end}}{{end}}.
-                    </p>
-                {{end}}
-                {{if .Banned}}
-                    <p class="muted">
-                        {{t "game.banned"}}
-                        {{range $i, $b := .Banned}}{{if $i}}, {{end}}{{$b.Nation}}{{if $b.Name}} ({{$b.Name}}){{end}}{{end}}.
-                    </p>
-                {{end}}
-            </div>
-
-            <div class="map-pane pane-power">
-                {{/* Полосы идут от опасных к слабым, как читается взгляд
-                     по карте: сначала то, чего стоит бояться. */}}
-                {{with .Map.Power}}
-                    <ul class="map-legend">
-                        <li><span class="swatch power-much-up"></span> {{t "game.map.power.muchup"}} <span class="muted">— {{.MuchUp}}</span></li>
-                        <li><span class="swatch power-up"></span> {{t "game.map.power.up"}} <span class="muted">— {{.Up}}</span></li>
-                        <li><span class="swatch power-even"></span> {{t "game.map.power.even"}} <span class="muted">— {{.Even}}</span></li>
-                        <li><span class="swatch power-down"></span> {{t "game.map.power.down"}} <span class="muted">— {{.Down}}</span></li>
-                        <li><span class="swatch power-much-down"></span> {{t "game.map.power.muchdown"}} <span class="muted">— {{.MuchDown}}</span></li>
-                        <li><span class="swatch"></span> {{t "game.map.power.unknown"}} <span class="muted">— {{.Unknown}}</span></li>
-                    </ul>
-                    {{/* Своё число — не украшение: без него «опаснее» и
-                         «слабее» не значат ничего. Нет своего счёта — вся
-                         карта серая, и сказать об этом надо прямо. */}}
-                    {{if .Me.Rated}}
-                        <p class="muted">{{t "game.map.power.you" .Me.Level (ratio .Me.KD) (ratio .Me.Danger)}}</p>
-                    {{else if $.NoProfileGameID}}
-                        <p class="muted">{{t "game.map.power.noid"}}</p>
-                    {{else}}
-                        <p class="muted">{{t "game.map.power.nostats"}}</p>
-                    {{end}}
-                {{end}}
-                <p class="muted">
-                    {{t "game.map.power.note"}}
-                </p>
-                {{/* Состав — во вкладке «Сила» и только при карте: до захода
-                     в партию таблицы нет, а с картой она отвечает на вопрос
-                     этой вкладки словами — кто эти люди и кого из них стоит
-                     бояться. Полоса в колонке силы — те же цвета, что выше. */}}
-                {{if .Roster}}
-                    <h2>{{t "game.roster"}}</h2>
-                    <p class="muted">{{t "game.roster.note"}}</p>
-                    {{/* Без своего боевого счёта колонка силы пуста целиком — сравнивать
-                         не с чем. Молчать об этом нельзя: пустой столбец читается как
-                         поломка, а не как «нам не с чем сравнивать». */}}
-                    {{if not .PowerKnown}}<p class="muted">{{t "game.roster.nopower"}}</p>{{end}}
-
-                    {{$pages := .RosterPages}}
-                    <div class="paged">
-                        {{if $pages}}
-                            {{/* Страницы переключаются радиокнопками и css — как режимы
-                                 карты. Ходить за ними на сервер нельзя: страница партии
-                                 перезагружается вместе с показом карты, а тот стоит
-                                 проверки из дневной квоты.
-
-                                 Правила приходится собирать здесь: их ровно столько,
-                                 сколько страниц, а это число своё у каждой партии. */}}
-                            {{range $pages}}<input class="page-pick" type="radio" name="roster-page" id="roster-p{{.}}" {{if eq . 1}}checked{{end}}>{{end}}
-                            <style>
-                                {{range $pages}}#roster-p{{.}}:checked ~ .table-wrap tr.rpage:not(.rp{{.}}) { display: none; }
-                                #roster-p{{.}}:checked ~ .pager label[for="roster-p{{.}}"] { background: var(--accent); color: #fff; }
-                                {{end}}
-                            </style>
-                        {{end}}
-                        <div class="table-wrap">
-                            {{/* stack: на телефоне десять колонок не помещаются, и строка
-                                 раскладывается в карточку с подписями из data-label. */}}
-                            <table class="roster stack">
-                                <thead>
-                                <tr>
-                                    <th>{{t "game.col.player"}}</th>
-                                    <th>{{t "profile.gameid"}}</th>
-                                    {{if .State}}<th>{{t "game.col.nation"}}</th>{{end}}
-                                    <th>{{t "playerform.clan"}}</th>
-                                    <th>{{t "game.col.team"}}</th>
-                                    <th>{{t "game.col.level"}}</th>
-                                    <th>{{t "game.col.kd"}}</th>
-                                    <th>{{t "game.col.power"}}</th>
-                                    <th>{{t "game.col.games"}}</th>
-                                    <th>{{t "game.col.wins"}}</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {{$state := .State}}
-                                {{range .Roster}}
-                                    <tr class="{{if .Page}}rpage rp{{.Page}}{{end}}">
-                                        <td data-label="{{t "game.col.player"}}">
-                                            {{if .Card}}
-                                                <a class="nick" href="/players/{{.Card.ID}}">{{.Login}}</a>
-                                                {{if .Enemy}}<span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}
-                                                {{if .Friend}}<span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}
-                                            {{else}}
-                                                {{.Login}}
-                                            {{end}}
-                                        </td>
-                                        <td class="muted" data-label="{{t "profile.gameid"}}">{{if .GameID}}<span class="game-id">{{.GameID}}</span>{{else}}—{{end}}</td>
-                                        {{if $state}}<td data-label="{{t "game.col.nation"}}">{{if .Nation}}{{.Nation}}{{else}}<span class="muted">—</span>{{end}}</td>{{end}}
-                                        <td data-label="{{t "playerform.clan"}}">{{if .Clan}}{{.Clan}}{{else}}<span class="muted">—</span>{{end}}</td>
-                                        <td class="muted" data-label="{{t "game.col.team"}}">{{if .Team}}{{t "game.team.no" .Team}}{{else}}—{{end}}</td>
-                                        {{/* Уровень берём из состава с сайта: он известен
-                                             про каждого участника, в отличие от боевого
-                                             счёта, который собирается по мере встреч. */}}
-                                        <td class="muted nowrap" data-label="{{t "game.col.level"}}">{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
-                                        <td class="muted nowrap" data-label="{{t "game.col.kd"}}">{{if .Stats.Rated}}{{ratio .Stats.KD}}{{else}}—{{end}}</td>
-                                        {{/* Полоса — та же, что красит карту: цвет говорит
-                                             об отношении к вам, число — об игроке самом. */}}
-                                        <td class="muted nowrap" data-label="{{t "game.col.power"}}">
-                                            {{if .Stats.Rated}}
-                                                {{if .Power}}<span class="swatch {{.Power}}"></span> {{end}}{{ratio .Stats.Danger}}
-                                            {{else}}—{{end}}
-                                        </td>
-                                        <td class="muted nowrap" data-label="{{t "game.col.games"}}">{{if .Stats.Known}}{{.Stats.Games}}{{else}}—{{end}}</td>
-                                        <td class="muted nowrap" data-label="{{t "game.col.wins"}}">{{if .Stats.Known}}{{t "game.wins.of" .Stats.SoloWins .Stats.CoalitionWins}}{{else}}—{{end}}</td>
-                                    </tr>
-                                {{end}}
-                                </tbody>
-                            </table>
-                        </div>
-                        {{if $pages}}
-                            <nav class="pager">
-                                {{t "game.roster.page"}}
-                                {{range $pages}}<label for="roster-p{{.}}">{{.}}</label>{{end}}
-                            </nav>
-                        {{end}}
-                    </div>
-                {{end}}
-            </div>
-
-            <div class="map-pane pane-top">
-                {{/* Три разных пустоты, и путать их нельзя: снимка ещё нет,
-                     снимок есть и никого из топа тут нет, и обычный случай
-                     с легендой. */}}
-                {{/* TopKnown отдельным флагом, а не проверкой времени:
-                     на нулевое время шаблон смотреть не умеет — у структуры
-                     в {{if}} всегда «истина». */}}
-                {{if .Map.Top}}
-                    <ul class="map-legend">
-                        {{range .Map.Top}}
-                            <li>
-                                <span class="swatch" style="background: {{if .Color}}{{.Color}}{{else}}#4a5b68{{end}}"></span>
-                                <b>#{{.Rank}}</b> {{.Name}}{{if .Tag}} <span class="muted">[{{.Tag}}]</span>{{end}}
-                                <span class="muted">— {{.Players}} {{t "game.map.top.players"}}, {{.Provinces}} {{t "game.map.top.provinces"}}</span>
-                            </li>
-                        {{end}}
-                    </ul>
-                    <p class="muted">
-                        {{t "game.map.top.note"}}
-                        {{if .TopKnown}} {{t "game.map.top.at" (datetime .TopAt)}}{{end}}
-                    </p>
-                {{else if .TopKnown}}
-                    <p class="muted">
-                        {{t "game.map.top.empty"}}
-                        {{t "game.map.top.at" (datetime .TopAt)}}
-                    </p>
-                {{else}}
-                    <p class="muted">
-                        {{t "game.map.top.none"}}
-                    </p>
-                {{end}}
-            </div>
-
-            <p class="muted">
-                {{if .Me}}{{t "game.map.yours"}} {{end}}{{t "game.map.hover"}}
-            </p>
-        </div>
-    {{end}}
+    {{if .Map}}{{template "gamemap" .}}{{end}}
     {{if .MapError}}<p class="muted">{{.MapError}}</p>{{end}}
 
     {{if .State}}
@@ -556,6 +241,28 @@
             })();
         </script>
     {{end}}
+
+    {{if .RosterLater}}
+        <script>
+            // Состав приезжает, когда человек, может, уже листает режимы
+            // карты. Блок карты при этом заменяется целиком, и выбранный
+            // режим вернулся бы к первому — запоминаем его и ставим обратно.
+            (function () {
+                var mode = null;
+                document.body.addEventListener('htmx:beforeSwap', function (e) {
+                    if (!e.detail.target.classList.contains('map-view')) return;
+                    var picked = e.detail.target.querySelector('.map-mode:checked');
+                    mode = picked && picked.id;
+                });
+                document.body.addEventListener('htmx:afterSettle', function () {
+                    if (!mode) return;
+                    var input = document.getElementById(mode);
+                    if (input) input.checked = true;
+                    mode = null;
+                });
+            })();
+        </script>
+    {{end}}
 </div>
 {{end}}
 {{/* Архив коалиций отвечает на вопрос, которого на карте не видно: эти двое
@@ -605,3 +312,362 @@
 
 {{/* Одна сторона пары: карточка, если она у нас есть, иначе ник из игры. */}}
 {{define "pairside"}}{{if .Card}}<a class="nick" href="/players/{{.Card.ID}}">{{.Card.Nickname}}</a>{{else if .Name}}{{.Name}}{{else}}{{t "game.unknown"}}{{end}}<span class="muted"> ({{.Nation}})</span>{{if .Enemy}} <span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}{{if .Friend}} <span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}{{end}}
+
+{{/* Название партии в шапке: у своей оно из списка своих, у чужой — от сайта. */}}
+{{define "gametitle"}}{{if .Game}}{{.Game.Title}}{{else}}{{t "game.unnamed" .GameID}}{{end}}{{end}}
+
+{{/* Сведения о партии под шапкой. Отдельным блоком: запрос состава
+     дописывает их в страницу чужой партии, которую сайт ещё не назвал. */}}
+{{define "gameabout"}}
+    {{if .Game}}
+        <p class="muted">
+            {{t "game.state"}} {{.Game.State}}{{if .Game.Day}}, {{t "game.day" .Game.Day}}{{end}},
+            {{t "game.players" .Game.Players}}{{if .Game.Language}}, {{t "game.language" .Game.Language}}{{end}}{{if not .Game.Started.IsZero}},
+            {{t "game.startedat"}} {{datetime .Game.Started}}{{end}}{{/* Номер аккаунта проекта — внутренняя кухня,
+            и «мы» здесь означает именно его, а не того, кто смотрит. */}}{{if and .CurrentUser.IsRoot .Game.PlayerID}},
+            {{t "game.ourplayer" .Game.PlayerID}}{{end}}.
+        </p>
+    {{end}}
+    {{if and (not .Ours) (or .Game .State)}}
+        {{/* Чужая партия: общий аккаунт в ней не играет, но смотреть
+             со стороны игра не мешает — она отдаёт состояние партии
+             и без входа в неё. */}}
+        <p class="muted">
+            {{t "game.foreign.note"}}
+        </p>
+    {{end}}
+    {{/* Про долгое открытие говорим на самой странице: ждать минуту
+         молча — это выглядеть сломанным. */}}
+    {{if and .Game .BigGame}}
+        <p class="muted">
+            {{t "game.big.note"}}
+        </p>
+    {{end}}
+{{end}}
+
+{{/* Состав не приехал: объяснение встаёт на место строки «догружаем».
+     Повторить можно, пока действует пропуск — кнопка просит тот же блок. */}}
+{{define "rosterfailed"}}
+<p class="muted" id="roster-later">
+    {{.Message}}
+    {{if .Retry}}
+        <button type="button"
+                hx-get="/games/{{.GameID}}/roster"
+                hx-target="closest .map-view" hx-swap="outerHTML">{{t "game.roster.retry"}}</button>
+    {{end}}
+</p>
+{{end}}
+
+{{/* Блок карты со всеми режимами и составом. Отдельным блоком, потому что
+     его отдаёт и страница, и запрос состава — тот заменяет карту целиком,
+     когда сайт наконец назовёт состав большой партии. */}}
+{{define "gamemap"}}
+    {{/* Карта одна, режимов два: в каждом заливка говорит об одном
+         и только одном, поэтому альянсы и личные списки не спорят
+         за цвет. Переключение — на радиокнопках и css: очертания
+         провинций тяжёлые, второй раз выводить их незачем, а скрипт
+         ради смены цветов сюда не просится. Порядок важен — правила
+         в app.css смотрят от отмеченной кнопки к соседям ниже. */}}
+    <div class="map-view">
+        <input class="map-mode" type="radio" name="map-mode" id="map-clans" checked>
+        <input class="map-mode" type="radio" name="map-mode" id="map-sides">
+        <input class="map-mode" type="radio" name="map-mode" id="map-teams">
+        <input class="map-mode" type="radio" name="map-mode" id="map-players">
+        <input class="map-mode" type="radio" name="map-mode" id="map-power">
+        <input class="map-mode" type="radio" name="map-mode" id="map-top">
+        {{/* Карта большой партии нарисована без состава с сайта: строка сама
+             просит его, как только страница загрузилась, и ответ заменяет
+             весь блок карты — уже с составом и кланами от сайта. Стоит после
+             радиокнопок: правила css смотрят от них к соседям ниже. */}}
+        {{if .RosterLater}}
+            <p class="muted" id="roster-later"
+               hx-get="/games/{{.GameID}}/roster" hx-trigger="load"
+               hx-target="closest .map-view" hx-swap="outerHTML">{{t "game.roster.later"}}</p>
+        {{end}}
+        <div class="map-tabs">
+            <label for="map-clans">{{t "game.map.clans"}}</label>
+            <label for="map-sides">{{t "game.map.mine"}}</label>
+            <label for="map-teams">{{t "game.map.teams"}}</label>
+            <label for="map-players">{{t "game.map.players"}}</label>
+            <label for="map-power">{{t "game.map.power"}}</label>
+            <label for="map-top">{{t "game.map.top"}}</label>
+        </div>
+        {{/* Карта в собственных координатах игры: viewBox их и берёт,
+             а размер на странице задаёт css. */}}
+        <svg class="game-map" viewBox="0 0 {{.Map.Width}} {{.Map.Height}}"
+             preserveAspectRatio="xMidYMid meet" role="img"
+             aria-label="{{t "game.map.aria"}}">
+            <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
+            {{range .Map.Shapes}}
+                <polygon points="{{.Points}}" class="{{.Class}}"
+                         {{if or .ClanColor .TeamColor .TopColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}; --top: {{.TopColor}}"{{end}}><title>{{.Title}}</title></polygon>
+            {{end}}
+            {{/* Подписи поверх заливки: страна пишется один раз, посередине
+                 своих владений. */}}
+            {{range .Map.Labels}}
+                {{/* Значок отдельным tspan: он красится не как название
+                     и в режиме альянсов прячется целиком. Ник — второй
+                     строкой: перенос в svg не делается сам, поэтому
+                     у строки заново задаются x и сдвиг по y. */}}
+                <text x="{{.X}}" y="{{.Y}}" text-anchor="middle"
+                      class="{{if .Enemy}}enemy{{else if .Friend}}friend{{end}}">{{if .Mark}}<tspan class="sign">{{.Mark}}</tspan> {{end}}{{.Text}}{{if .Nick}}<tspan class="player" x="{{.X}}" dy="36">{{.Nick}}</tspan>{{end}}</text>
+            {{end}}
+        </svg>
+
+        <div class="map-pane pane-clans">
+            {{/* Легенда обязательна: цвет раздаётся на партию, по убыванию
+                 владений, и без подписи не значит ничего. */}}
+            {{if .Map.Legend}}
+                <ul class="map-legend">
+                    {{range .Map.Legend}}
+                        <li>
+                            <span class="swatch" style="background: {{if .Color}}{{.Color}}{{else}}#4a5b68{{end}}"></span>
+                            {{.Name}}{{if .Tag}} <span class="muted">[{{.Tag}}]</span>{{end}}
+                            <span class="muted">— {{.Provinces}}</span>
+                        </li>
+                    {{end}}
+                </ul>
+                <p class="muted">
+                    {{t "game.map.clans.note"}}
+                </p>
+            {{else}}
+                <p class="muted">
+                    {{t "game.map.clans.empty"}}
+                </p>
+            {{end}}
+            {{if .AlliancesPending}}
+                {{/* Серый у неспрошенного и у одиночки одинаковый,
+                     поэтому про очередь надо сказать словами. */}}
+                <p class="muted">
+                    {{t "game.map.clans.pending" .AlliancesPending}}
+                </p>
+            {{end}}
+        </div>
+
+        <div class="map-pane pane-sides">
+            <ul class="map-legend">
+                {{/* Счётчик через with: пустой список — это и нет никого,
+                     и «состав партии ещё не смотрели», а обоим случаям
+                     подходит просто отсутствие числа. */}}
+                <li><span class="swatch side-enemy"></span> {{t "game.map.sides.enemies"}}{{with .Enemies}} <span class="muted">— {{len .}}</span>{{end}}</li>
+                <li><span class="swatch side-friend"></span> {{t "game.map.sides.friends"}}{{with .Friends}} <span class="muted">— {{len .}}</span>{{end}}</li>
+            </ul>
+            <p class="muted">
+                {{t "game.map.sides.note"}}
+            </p>
+        </div>
+
+        <div class="map-pane pane-teams">
+            {{if .Map.Teams}}
+                <ul class="map-legend">
+                    {{range .Map.Teams}}
+                        <li>
+                            <span class="swatch" style="background: {{.Color}}"></span>
+                            {{.Name}}{{if .Mine}} <span class="badge">{{t "game.map.teams.yours"}}</span>{{end}}
+                            <span class="muted">— {{.Members}}</span>
+                        </li>
+                    {{end}}
+                </ul>
+                <p class="muted">
+                    {{t "game.map.teams.note"}}
+                </p>
+            {{else}}
+                <p class="muted">
+                    {{t "game.map.teams.empty"}}
+                </p>
+            {{end}}
+        </div>
+
+        <div class="map-pane pane-players">
+            {{/* Четыре рода владельцев — четыре цвета, и число рядом
+                 с каждым считает людей, а не провинции: цвет здесь
+                 говорит про игрока. Ничейная земля остаётся тёмной
+                 и в счёт не идёт. */}}
+            {{with .Map.Kinds}}
+                <ul class="map-legend">
+                    <li><span class="swatch human"></span> {{t "game.map.players.regular"}} <span class="muted">— {{.Regular}}</span></li>
+                    <li><span class="swatch ai"></span> {{t "game.map.players.ai"}} <span class="muted">— {{.AI}}</span></li>
+                    <li><span class="swatch premium"></span> {{t "game.map.premium.legend"}} <span class="muted">— {{.Premium}}</span></li>
+                    <li><span class="swatch banned"></span> {{t "game.map.players.banned"}} <span class="muted">— {{.Banned}}</span></li>
+                </ul>
+            {{end}}
+            <p class="muted">
+                {{t "game.map.players.note"}}
+            </p>
+            {{if .Premium}}
+                <p class="muted">
+                    {{t "game.map.premium.list"}}
+                    {{range $i, $p := .Premium}}{{if $i}}, {{end}}{{$p.Nation}}{{if $p.Name}} ({{$p.Name}}){{end}}{{if $p.Mine}} — {{t "game.thatsyou"}}{{end}}{{end}}.
+                </p>
+            {{end}}
+            {{if .Banned}}
+                <p class="muted">
+                    {{t "game.banned"}}
+                    {{range $i, $b := .Banned}}{{if $i}}, {{end}}{{$b.Nation}}{{if $b.Name}} ({{$b.Name}}){{end}}{{end}}.
+                </p>
+            {{end}}
+        </div>
+
+        <div class="map-pane pane-power">
+            {{/* Полосы идут от опасных к слабым, как читается взгляд
+                 по карте: сначала то, чего стоит бояться. */}}
+            {{with .Map.Power}}
+                <ul class="map-legend">
+                    <li><span class="swatch power-much-up"></span> {{t "game.map.power.muchup"}} <span class="muted">— {{.MuchUp}}</span></li>
+                    <li><span class="swatch power-up"></span> {{t "game.map.power.up"}} <span class="muted">— {{.Up}}</span></li>
+                    <li><span class="swatch power-even"></span> {{t "game.map.power.even"}} <span class="muted">— {{.Even}}</span></li>
+                    <li><span class="swatch power-down"></span> {{t "game.map.power.down"}} <span class="muted">— {{.Down}}</span></li>
+                    <li><span class="swatch power-much-down"></span> {{t "game.map.power.muchdown"}} <span class="muted">— {{.MuchDown}}</span></li>
+                    <li><span class="swatch"></span> {{t "game.map.power.unknown"}} <span class="muted">— {{.Unknown}}</span></li>
+                </ul>
+                {{/* Своё число — не украшение: без него «опаснее» и
+                     «слабее» не значат ничего. Нет своего счёта — вся
+                     карта серая, и сказать об этом надо прямо. */}}
+                {{if .Me.Rated}}
+                    <p class="muted">{{t "game.map.power.you" .Me.Level (ratio .Me.KD) (ratio .Me.Danger)}}</p>
+                {{else if $.NoProfileGameID}}
+                    <p class="muted">{{t "game.map.power.noid"}}</p>
+                {{else}}
+                    <p class="muted">{{t "game.map.power.nostats"}}</p>
+                {{end}}
+            {{end}}
+            <p class="muted">
+                {{t "game.map.power.note"}}
+            </p>
+            {{/* Состав — во вкладке «Сила» и только при карте: до захода
+                 в партию таблицы нет, а с картой она отвечает на вопрос
+                 этой вкладки словами — кто эти люди и кого из них стоит
+                 бояться. Полоса в колонке силы — те же цвета, что выше. */}}
+            {{if .Roster}}
+                <h2>{{t "game.roster"}}</h2>
+                <p class="muted">{{t "game.roster.note"}}</p>
+                {{/* Без своего боевого счёта колонка силы пуста целиком — сравнивать
+                     не с чем. Молчать об этом нельзя: пустой столбец читается как
+                     поломка, а не как «нам не с чем сравнивать». */}}
+                {{if not .PowerKnown}}<p class="muted">{{t "game.roster.nopower"}}</p>{{end}}
+
+                {{$pages := .RosterPages}}
+                <div class="paged">
+                    {{if $pages}}
+                        {{/* Страницы переключаются радиокнопками и css — как режимы
+                             карты. Ходить за ними на сервер нельзя: страница партии
+                             перезагружается вместе с показом карты, а тот стоит
+                             проверки из дневной квоты.
+
+                             Правила приходится собирать здесь: их ровно столько,
+                             сколько страниц, а это число своё у каждой партии. */}}
+                        {{range $pages}}<input class="page-pick" type="radio" name="roster-page" id="roster-p{{.}}" {{if eq . 1}}checked{{end}}>{{end}}
+                        <style>
+                            {{range $pages}}#roster-p{{.}}:checked ~ .table-wrap tr.rpage:not(.rp{{.}}) { display: none; }
+                            #roster-p{{.}}:checked ~ .pager label[for="roster-p{{.}}"] { background: var(--accent); color: #fff; }
+                            {{end}}
+                        </style>
+                    {{end}}
+                    <div class="table-wrap">
+                        {{/* stack: на телефоне десять колонок не помещаются, и строка
+                             раскладывается в карточку с подписями из data-label. */}}
+                        <table class="roster stack">
+                            <thead>
+                            <tr>
+                                <th>{{t "game.col.player"}}</th>
+                                <th>{{t "profile.gameid"}}</th>
+                                {{if .State}}<th>{{t "game.col.nation"}}</th>{{end}}
+                                <th>{{t "playerform.clan"}}</th>
+                                <th>{{t "game.col.team"}}</th>
+                                <th>{{t "game.col.level"}}</th>
+                                <th>{{t "game.col.kd"}}</th>
+                                <th>{{t "game.col.power"}}</th>
+                                <th>{{t "game.col.games"}}</th>
+                                <th>{{t "game.col.wins"}}</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {{$state := .State}}
+                            {{range .Roster}}
+                                <tr class="{{if .Page}}rpage rp{{.Page}}{{end}}">
+                                    <td data-label="{{t "game.col.player"}}">
+                                        {{if .Card}}
+                                            <a class="nick" href="/players/{{.Card.ID}}">{{.Login}}</a>
+                                            {{if .Enemy}}<span class="badge clan-enemy">{{t "rel.enemies.markdone"}}</span>{{end}}
+                                            {{if .Friend}}<span class="badge clan-ally">{{t "rel.friends.markdone"}}</span>{{end}}
+                                        {{else}}
+                                            {{.Login}}
+                                        {{end}}
+                                    </td>
+                                    <td class="muted" data-label="{{t "profile.gameid"}}">{{if .GameID}}<span class="game-id">{{.GameID}}</span>{{else}}—{{end}}</td>
+                                    {{if $state}}<td data-label="{{t "game.col.nation"}}">{{if .Nation}}{{.Nation}}{{else}}<span class="muted">—</span>{{end}}</td>{{end}}
+                                    <td data-label="{{t "playerform.clan"}}">{{if .Clan}}{{.Clan}}{{else}}<span class="muted">—</span>{{end}}</td>
+                                    <td class="muted" data-label="{{t "game.col.team"}}">{{if .Team}}{{t "game.team.no" .Team}}{{else}}—{{end}}</td>
+                                    {{/* Уровень берём из состава с сайта: он известен
+                                         про каждого участника, в отличие от боевого
+                                         счёта, который собирается по мере встреч. */}}
+                                    <td class="muted nowrap" data-label="{{t "game.col.level"}}">{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
+                                    <td class="muted nowrap" data-label="{{t "game.col.kd"}}">{{if .Stats.Rated}}{{ratio .Stats.KD}}{{else}}—{{end}}</td>
+                                    {{/* Полоса — та же, что красит карту: цвет говорит
+                                         об отношении к вам, число — об игроке самом. */}}
+                                    <td class="muted nowrap" data-label="{{t "game.col.power"}}">
+                                        {{if .Stats.Rated}}
+                                            {{if .Power}}<span class="swatch {{.Power}}"></span> {{end}}{{ratio .Stats.Danger}}
+                                        {{else}}—{{end}}
+                                    </td>
+                                    <td class="muted nowrap" data-label="{{t "game.col.games"}}">{{if .Stats.Known}}{{.Stats.Games}}{{else}}—{{end}}</td>
+                                    <td class="muted nowrap" data-label="{{t "game.col.wins"}}">{{if .Stats.Known}}{{t "game.wins.of" .Stats.SoloWins .Stats.CoalitionWins}}{{else}}—{{end}}</td>
+                                </tr>
+                            {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                    {{if $pages}}
+                        <nav class="pager">
+                            {{t "game.roster.page"}}
+                            {{range $pages}}<label for="roster-p{{.}}">{{.}}</label>{{end}}
+                        </nav>
+                    {{end}}
+                </div>
+            {{end}}
+        </div>
+
+        <div class="map-pane pane-top">
+            {{/* Три разных пустоты, и путать их нельзя: снимка ещё нет,
+                 снимок есть и никого из топа тут нет, и обычный случай
+                 с легендой. */}}
+            {{/* TopKnown отдельным флагом, а не проверкой времени:
+                 на нулевое время шаблон смотреть не умеет — у структуры
+                 в {{if}} всегда «истина». */}}
+            {{if .Map.Top}}
+                <ul class="map-legend">
+                    {{range .Map.Top}}
+                        <li>
+                            <span class="swatch" style="background: {{if .Color}}{{.Color}}{{else}}#4a5b68{{end}}"></span>
+                            <b>#{{.Rank}}</b> {{.Name}}{{if .Tag}} <span class="muted">[{{.Tag}}]</span>{{end}}
+                            <span class="muted">— {{.Players}} {{t "game.map.top.players"}}, {{.Provinces}} {{t "game.map.top.provinces"}}</span>
+                        </li>
+                    {{end}}
+                </ul>
+                <p class="muted">
+                    {{t "game.map.top.note"}}
+                    {{if .TopKnown}} {{t "game.map.top.at" (datetime .TopAt)}}{{end}}
+                </p>
+            {{else if .TopKnown}}
+                <p class="muted">
+                    {{t "game.map.top.empty"}}
+                    {{t "game.map.top.at" (datetime .TopAt)}}
+                </p>
+            {{else}}
+                <p class="muted">
+                    {{t "game.map.top.none"}}
+                </p>
+            {{end}}
+        </div>
+
+        <p class="muted">
+            {{if .Me}}{{t "game.map.yours"}} {{end}}{{t "game.map.hover"}}
+        </p>
+    </div>
+    {{/* Шапку чужой партии запрос состава дописывает тем же ответом: название
+         ей называет только сайт. */}}
+    {{if .HeadSwap}}
+        <span id="game-title" hx-swap-oob="true">{{template "gametitle" .}}</span>
+        <div id="game-about" hx-swap-oob="true">{{template "gameabout" .}}</div>
+    {{end}}
+{{end}}

@@ -144,10 +144,13 @@ type Team struct {
 type GameState struct {
 	GameID string
 	// MapID — какая карта под партией: по нему берутся очертания провинций.
-	MapID   string
-	Day     int
-	Me      int // наш playerID в этой партии
-	Players map[int]Player
+	MapID string
+	Day   int
+	// Anonymous — анонимный раунд: игра подменяет имена участников, а номера
+	// аккаунтов оставляет настоящими. То же, что Game.IsAnonymous у сайта.
+	Anonymous bool
+	Me        int // наш playerID в этой партии
+	Players   map[int]Player
 	// Teams — коалиции партии по своему номеру. Пусто, если коалиций
 	// в партии нет: игроки тогда все с TeamID = 0.
 	Teams     map[int]Team
@@ -490,6 +493,13 @@ type gameStateResponse struct {
 		} `json:"11"`
 		Info struct {
 			DayOfGame int `json:"dayOfGame"`
+			// Свойства партии: клиент игры узнаёт анонимный раунд именно
+			// отсюда, по включённой фиче с номером featureAnonymous.
+			GameFeatures struct {
+				IDFeatures map[string]struct {
+					Enabled bool `json:"enabled"`
+				} `json:"idFeatures"`
+			} `json:"gameFeatures"`
 		} `json:"12"`
 	} `json:"states"`
 }
@@ -505,6 +515,10 @@ const (
 	// commandDeployWait — команда «идёт размещение»: игра ставит её армии
 	// на всё время призыва.
 	commandDeployWait = "dwc"
+
+	// featureAnonymous — номер фичи «анонимный раунд» в свойствах партии
+	// (FEATURE_ANONYMOUS в клиенте игры).
+	featureAnonymous = "6"
 )
 
 // build превращает ответ игры в наш вид. Провинции без владельца пропускаем:
@@ -516,11 +530,14 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	}
 
 	g := &GameState{
-		GameID:  gameID,
-		MapID:   r.States.Map.Map.MapID,
-		Day:     r.States.Info.DayOfGame,
-		Me:      me,
-		Players: make(map[int]Player, len(r.States.Players.Players)),
+		GameID: gameID,
+		MapID:  r.States.Map.Map.MapID,
+		Day:    r.States.Info.DayOfGame,
+		// Анонимность — то же свойство, что сайт отдаёт как anonymousRound,
+		// но приходит оно с самой партией, и ждать сайт ради него не нужно.
+		Anonymous: r.States.Info.GameFeatures.IDFeatures[featureAnonymous].Enabled,
+		Me:        me,
+		Players:   make(map[int]Player, len(r.States.Players.Players)),
 	}
 
 	// Распущенные коалиции пропускаем: игра оставляет их в списке, но

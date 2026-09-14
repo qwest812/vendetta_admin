@@ -59,6 +59,12 @@ const (
 type gameSource interface {
 	MyGames(ctx context.Context) ([]supremacy.Game, error)
 	Game(ctx context.Context, gameID string) (*supremacy.Game, []supremacy.GameLogin, error)
+	// CachedGame — тот же ответ, но только если он уже лежит в кэше: в сеть
+	// не ходит и не ждёт. По нему страница решает, ждать ли сайт вообще.
+	CachedGame(gameID string) (*supremacy.Game, []supremacy.GameLogin, bool)
+	// CachedState — копия состояния из кэша любого возраста, без захода
+	// в партию. Ей дорисовывают карту, которую человеку уже показали.
+	CachedState(gameID string) (*supremacy.GameState, bool)
 	// StateFor — состояние партии из общего кэша или с игрового сервера,
 	// вместе с временем съёмки копии; StateFresh — сколько эта копия
 	// считается свежей. Оба знают про скорость партии и про то, что руту
@@ -918,8 +924,12 @@ func viewerPlayer(state *supremacy.GameState, siteUserID string) (supremacy.Play
 //
 // Второй ответ — сколько игроков партии ещё не спрошено: об этом стоит
 // сказать на странице, иначе серый цвет читается как «клана нет».
+//
+// enqueue — ставить ли незнакомых в очередь. Не ставим, когда состав
+// уже едет с сайта: он назовёт кланы всех разом, а воркер спрашивал бы
+// тех же людей по одному.
 func (s *Server) gameAlliances(ctx context.Context, state *supremacy.GameState,
-	roster []supremacy.GameLogin) (map[int]domain.Alliance, int, error) {
+	roster []supremacy.GameLogin, enqueue bool) (map[int]domain.Alliance, int, error) {
 
 	byUser := make(map[string][]int, len(state.Players))
 	for _, p := range state.Players {
@@ -950,15 +960,17 @@ func (s *Server) gameAlliances(ctx context.Context, state *supremacy.GameState,
 	// того как кланы приезжают вместе с партией, таких почти не остаётся:
 	// разве что игрок пришёл в партию после того, как сайт отдал состав.
 	pending := 0
-	queue := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if a, ok := known[id]; !ok || !a.Known() {
-			pending++
-			queue = append(queue, id)
+	if enqueue {
+		queue := make([]string, 0, len(ids))
+		for _, id := range ids {
+			if a, ok := known[id]; !ok || !a.Known() {
+				pending++
+				queue = append(queue, id)
+			}
 		}
-	}
-	if err := s.alliances.Enqueue(ctx, queue); err != nil {
-		return nil, 0, err
+		if err := s.alliances.Enqueue(ctx, queue); err != nil {
+			return nil, 0, err
+		}
 	}
 
 	// Один игрок сайта в партии бывает ровно один раз, но связывать
@@ -1515,12 +1527,10 @@ func rosterPages(list []rosterView) []int {
 // rosterFromState дописывает в состав то, что знает только состояние партии:
 // страны участников и свежий боевой счёт.
 //
-// Счёт дописывается не из вредности. Состав готовится раньше, чем страница
-// сходит за состоянием, и читает из базы то, что известно на тот момент;
-// а показ карты по дороге сам дособирает счёт тех, кого давно не спрашивали
-// (см. gameStats). Без этого шага таблица показывала бы прочерки там, где
-// числа только что приехали, — и исправлялось бы это лишь со следующего
-// открытия партии.
+// Счёт дописывается не из вредности. Показ карты по дороге сам дособирает
+// счёт тех, кого давно не спрашивали (см. gameStats), и ставит в таблицу
+// именно его — тот же, которым покрашена карта. Без этого шага таблица
+// и карта могли бы разойтись, если запись в базу не удалась.
 //
 // Страна нужна, чтобы таблицу можно было связать с картой глазами: на карте
 // видно страну, а не ник. Без карты её нет вовсе, и это не ошибка.
@@ -1579,7 +1589,8 @@ func sortRoster(list []rosterView) {
 // gameAbout и gameLive — ответы двух походов наружу, которые страница партии
 // делает одновременно. Каналы под них буферизованные: если страница сдалась
 // раньше (сайт молчит, номер выдуман), горутина допишет ответ в буфер
-// и завершится, а не повиснет навсегда.
+// и завершится, а не повиснет навсегда. Ответ сайта, которого страница
+// ждать не стала, дочитывает фон — см. finishAbout.
 type gameAbout struct {
 	game   *supremacy.Game
 	roster []supremacy.GameLogin
@@ -1662,19 +1673,22 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		"LoaderMs": 0,
 		// BigGame — состав большой партии числом; ноль значит «обычная».
 		"BigGame": 0,
+		// RosterLater — карта нарисована без состава с сайта, и страница
+		// попросит его отдельным запросом. См. gameRoster.
+		"RosterLater": false,
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), s.gameBudget(gameID))
 	defer cancel()
 
-	// Три похода наружу независимы, а суммарно занимают почти три секунды,
-	// поэтому идут разом. Сведения о партии с сайта — самый долгий из них
-	// (около двух секунд), и ждать его, ничего не делая, обиднее всего.
-	about := make(chan gameAbout, 1)
-	go func() {
-		g, roster, err := s.games.Game(ctx, gameID)
-		about <- gameAbout{game: g, roster: roster, err: err}
-	}()
+	// Сведения о партии с сайта — самый долгий поход из всех: партию на
+	// пятьсот игроков сайт собирает секунд двадцать. Лежат в кэше — берём
+	// сразу; нет — отправляемся за ними, не дожидаясь остального.
+	game, roster, rosterKnown := s.games.CachedGame(gameID)
+	var about chan gameAbout
+	if !rosterKnown {
+		about = s.fetchAbout(r, gameID)
+	}
 
 	// Название и день берём из дешёвого списка партий: он же подтверждает,
 	// что партия наша и ещё идёт.
@@ -1698,13 +1712,9 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	}
 	ours := data["Ours"] == true
 
-	// Состояние партии — третий поход, и ему хватает уже известного: свою
+	// Состояние партии — второй поход, и ему хватает уже известного: свою
 	// партию открываем игроком, чужую смотрим наблюдателем. Отправляем его
 	// сейчас, чтобы он шёл под ответ сайта, а не после него.
-	//
-	// Цена решения: по выдуманному номеру партии мы теперь сходим в игру
-	// зря — сайт скажет «такой нет» уже после. Один лишний запрос на опечатку
-	// против секунды на каждом честном открытии.
 	//
 	// Показ карты стоит проверки: рут выдаёт их на сутки, и тратятся они
 	// на каждый показ — даже когда данные пришли из общего кэша. Человек
@@ -1727,7 +1737,7 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	// Про свою партию это известно уже сейчас, из списка своих игр, поэтому
 	// в неё мы даже не заходим: заход игра засчитывает как вход, и тратить
 	// его на страницу, которой человек не увидит, незачем. Про чужую скажет
-	// сайт, а его ответ придёт ниже — там та же проверка во второй раз.
+	// её состояние или сайт — там та же проверка ещё раз.
 	if mine != nil && mine.IsAnonymous() && !who.CanSeeAnonymousMaps() {
 		s.anonymousClosed(w, r, data, gameID)
 		return
@@ -1756,7 +1766,7 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 			data["ChecksLeft"] = left
 			if !ok {
 				// Проверки кончились — карты не будет. Остальное собирается
-				// ниже: сведения с сайта и состав ничего не стоят.
+				// ниже: сведения с сайта ничего не стоят.
 				data["ChecksOut"] = true
 				break
 			}
@@ -1778,36 +1788,56 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		data["ChecksLeft"] = left
 	}
 
-	// Состав сайт отдаёт вместе с самой партией и про любую партию, поэтому
-	// спрашиваем всегда: в нём кланы всех участников, а это вся раскраска
-	// карты — и её не приходится собирать по игроку за раз.
-	got := <-about
-	game, roster, err := got.game, got.roster, got.err
-	if err != nil {
-		s.log.Warn("сведения о партии", "gameID", gameID, "err", err)
-		// Не дождались — случай отдельный от всех прочих: партия жива,
-		// просто велика, и говорить про неё «не нашлось» неправда. Номер
-		// в такой ответ не идёт: человек его только что ввёл сам.
-		switch {
-		case errors.Is(err, context.DeadlineExceeded):
-			data["Error"] = joinErrors(errMsg,
-				lang.T("game.slow", waitSeconds(s.gameBudget(gameID))))
-		// Своя партия переживёт молчание сайта: название и день уже есть
-		// из списка, а альянсы возьмутся из базы. Чужая — нет, про неё мы
-		// больше ничего и не знаем.
-		case data["Game"] == nil:
-			data["Error"] = joinErrors(errMsg, lang.T("game.notfound", gameID, err))
-		default:
-			data["Error"] = joinErrors(errMsg, lang.T("game.roster.error", err))
+	small := false
+	if n, ok := s.games.GameSize(gameID); ok && n < supremacy.BigRoster {
+		small = true
+	}
+	wait, later := siteWait(rosterKnown, live != nil, small, ours)
+
+	// Страница, которая сайт ждать не стала, отдаёт его ответ в фон: там
+	// кланы из состава лягут в базу, игроки — с никами от сайта, а чужая
+	// партия — в список проверенных. Состояние к этому времени уже известно
+	// (или его не будет), поэтому фон зовётся на выходе.
+	var state *supremacy.GameState
+	if later {
+		defer func() { go s.finishAbout(about, who, gameID, mine, state) }()
+	}
+
+	if wait {
+		var got gameAbout
+		select {
+		case got = <-about:
+		case <-ctx.Done():
+			got.err = ctx.Err()
 		}
-		if data["Game"] == nil {
-			s.render(w, r, http.StatusOK, "game", data)
-			return
+		game, roster, err = got.game, got.roster, got.err
+		if err != nil {
+			s.log.Warn("сведения о партии", "gameID", gameID, "err", err)
+			// Не дождались — случай отдельный от всех прочих: партия жива,
+			// просто велика, и говорить про неё «не нашлось» неправда. Номер
+			// в такой ответ не идёт: человек его только что ввёл сам.
+			switch {
+			case errors.Is(err, context.DeadlineExceeded):
+				data["Error"] = joinErrors(errMsg,
+					lang.T("game.slow", waitSeconds(s.gameBudget(gameID))))
+			// Своя партия переживёт молчание сайта: название и день уже есть
+			// из списка, а альянсы возьмутся из базы. Чужая — нет, про неё мы
+			// больше ничего и не знаем.
+			case data["Game"] == nil:
+				data["Error"] = joinErrors(errMsg, lang.T("game.notfound", gameID, err))
+			default:
+				data["Error"] = joinErrors(errMsg, lang.T("game.roster.error", err))
+			}
+			if data["Game"] == nil {
+				s.render(w, r, http.StatusOK, "game", data)
+				return
+			}
 		}
+		rosterKnown = err == nil
 	}
 
 	// Та же проверка во второй раз: про чужую партию, что она анонимная,
-	// говорит только сайт, и раньше этой строки мы этого не знали. Стоит она
+	// говорит сайт, и раньше этой строки мы этого не знали. Стоит она
 	// прежде всего остального — ни состав, ни кланы со страницы уже
 	// не соберутся.
 	//
@@ -1815,46 +1845,27 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	// следа в ней оно не оставляет. Ответ допишется в буфер канала, горутина
 	// завершится, а нам он больше не нужен.
 	if game != nil && game.IsAnonymous() && !who.CanSeeAnonymousMaps() {
-		if spent {
-			// Та же вежливость, что и при неудачном заходе: человек ничего
-			// не увидел, брать за это проверку нечестно.
-			if err := s.checks.Refund(ctx, who.ID, day); err != nil {
-				s.log.Error("возврат проверки карты", "user_id", who.ID, "err", err)
-			}
+		s.closeAnonymous(w, r, data, gameID, spent)
+		return
+	}
+
+	if rosterKnown {
+		// Большая партия открывается ощутимо дольше маленькой, и человеку об
+		// этом стоит сказать самому: иначе долгое ожидание выглядит поломкой.
+		// Заодно объясняем, почему второй заход мгновенный.
+		if n := len(roster); n >= supremacy.BigRoster {
+			data["BigGame"] = n
 		}
-		s.anonymousClosed(w, r, data, gameID)
-		return
-	}
-
-	// Большая партия открывается ощутимо дольше маленькой, и человеку об
-	// этом стоит сказать самому: иначе долгое ожидание выглядит поломкой.
-	// Заодно объясняем, почему второй заход мгновенный.
-	if n := len(roster); n >= supremacy.BigRoster {
-		data["BigGame"] = n
-	}
-
-	// Кланы из состава кладём в базу независимо от того, дошло ли дело
-	// до карты: раз уж сайт их назвал, пусть остаются.
-	if err := s.rememberAlliances(ctx, roster); err != nil {
-		s.log.Error("запись кланов из состава", "gameID", gameID, "err", err)
-	}
-
-	// Состав готовим всегда, а показывает его шаблон только во вкладке
-	// «Сила» под картой: до захода в партию таблицы нет. Готовим заранее,
-	// потому что показ карты потом лишь дописывает в него страны и счёт.
-	views, powerKnown, err := s.rosterViews(r, roster)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	data["Roster"] = views
-	data["RosterPages"] = rosterPages(views)
-	data["PowerKnown"] = powerKnown
-
-	// Чужая партия — не ошибка: название и состояние сайт называет про любую.
-	if !ours {
-		view := gameViews(lang, []supremacy.Game{*game})[0]
-		data["Game"] = &view
+		// Кланы из состава кладём в базу независимо от того, дошло ли дело
+		// до карты: раз уж сайт их назвал, пусть остаются.
+		if err := s.rememberAlliances(ctx, roster); err != nil {
+			s.log.Error("запись кланов из состава", "gameID", gameID, "err", err)
+		}
+		// Чужая партия — не ошибка: название и состояние сайт называет про любую.
+		if !ours {
+			view := gameViews(lang, []supremacy.Game{*game})[0]
+			data["Game"] = &view
+		}
 	}
 
 	// Партия нашлась — значит, она проверена, и место ей в личном списке
@@ -1862,6 +1873,8 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	// до захода внутрь: проверкой считается сам взгляд на партию, а не то,
 	// как далеко он зашёл. Название пишем то, что видно сейчас: партия
 	// когда-нибудь кончится, а список должен читаться и без похода в игру.
+	// Чужую, которую сайт ещё не назвал, отметит фон — без названия
+	// отметка в списке читалась бы номером.
 	if view, ok := data["Game"].(*gameView); ok {
 		if err := s.checked.Mark(ctx, who.ID, gameID, view.Title, time.Now()); err != nil {
 			// Список — удобство, а не суть страницы: не вышло записать,
@@ -1875,8 +1888,7 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	// — значит, и прятать за кнопкой незачем.
 	if live != nil {
 		res := <-live
-		state, err := res.state, res.err
-		if err != nil {
+		if res.err != nil {
 			// Проверку возвращаем: человек ничего не увидел, брать за это
 			// плату нечестно. Не вышло вернуть — не беда, скажем в лог.
 			if spent {
@@ -1885,138 +1897,277 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 				}
 				data["ChecksLeft"] = data["ChecksLeft"].(int) + 1
 			}
-			s.log.Warn("состояние партии", "gameID", gameID, "наша", ours, "err", err)
+			s.log.Warn("состояние партии", "gameID", gameID, "наша", ours, "err", res.err)
 			if ours {
-				data["Error"] = joinErrors(errMsg, lang.T("game.enter.error", err))
+				data["Error"] = joinErrors(errMsg, lang.T("game.enter.error", res.err))
 			} else {
-				data["Error"] = joinErrors(errMsg, lang.T("game.observe.error", err))
+				data["Error"] = joinErrors(errMsg, lang.T("game.observe.error", res.err))
 			}
 			s.render(w, r, http.StatusOK, "game", data)
 			return
 		}
+
+		// Анонимность называет и само состояние — для чужой партии, которую
+		// сайт ещё не назвал, это единственный способ узнать её до показа.
+		// Состояние запоминаем до проверки: фон по нему тоже поймёт, что
+		// с закрытой партии записывать нечего.
+		state = res.state
+		if state.Anonymous && !who.CanSeeAnonymousMaps() {
+			s.closeAnonymous(w, r, data, gameID, spent)
+			return
+		}
+
 		data["State"] = state
 		// Копия общая, и снята она могла быть заметно раньше — скажем,
 		// когда именно, и когда можно будет взять новую.
 		data["MapAt"] = res.at
 		setMapWait(data, time.Until(res.at.Add(s.games.StateFresh(gameID, root))))
 
-		// Своя страна ищется по игровому ID из профиля: у каждого смотрящего
-		// она своя, а у кого-то её в этой партии и нет вовсе.
-		viewer := who.GameID
-		me, playing := viewerPlayer(state, viewer)
-		meID := 0
-		switch {
-		case playing:
-			meID = me.ID
-			mine := state.Owned(meID)
-			sort.Slice(mine, func(i, j int) bool {
-				if mine[i].Capital != mine[j].Capital {
-					return mine[i].Capital
-				}
-				return mine[i].Name < mine[j].Name
-			})
-			player := me
-			data["Me"] = &player
-			data["Mine"] = mine
-		case viewer == "":
-			data["NoProfileGameID"] = true
-		default:
-			data["NotPlaying"] = true
+		// Раз уж состав перед глазами — запомним про игроков то, что
+		// принадлежит им самим, а не этой партии. Ник берётся у сайта,
+		// поэтому без состава это дело фона.
+		//
+		// Коалиции этой партии оседают в архиве раньше, чем архив спросят,
+		// кто здесь уже союзничал. Сведения о партии берём откуда есть —
+		// у своей они из списка своих, у чужой из ответа сайта.
+		if rosterKnown {
+			if err := s.rememberPlayers(ctx, state, roster); err != nil {
+				s.log.Error("запись состава партии", "gameID", gameID, "err", err)
+			}
+		}
+		if about := nonNilGame(game, mine); about != nil {
+			s.rememberCoalitions(ctx, about, state)
 		}
 
-		// Карту рисуем, если получилось: очертания лежат отдельным файлом
-		// на static-сервере игры, и его недоступность не повод прятать
-		// остальную страницу.
-		// Игроков партии сводим с базой по игровому ID и отмечаем тех,
-		// кто в личных списках того, кто смотрит.
-		sides, err := s.gameLists(r, state)
-		if err != nil {
+		if err := s.fillLive(ctx, r, data, state, roster, later); err != nil {
 			s.serverError(w, r, err)
 			return
 		}
-		data["Enemies"] = relationViews(state, sides.Enemies)
-		data["Premium"] = premiumViews(lang, state, meID)
-		data["Banned"] = bannedViews(lang, state)
-
-		// Страны и свежий счёт в таблицу состава. Срез тот же, что уже
-		// лежит в data, — переприсваивать нечего; страницы пересобираются
-		// внутри, порядок-то от счёта и зависит.
-		rosterFromState(views, state, sides)
-		data["RosterPages"] = rosterPages(views)
-		if sides.Me.Rated() {
-			data["PowerKnown"] = true
-		}
-
-		// Раз уж состав перед глазами — запомним про игроков то,
-		// что принадлежит им самим, а не этой партии.
-		if err := s.rememberPlayers(ctx, state, roster); err != nil {
-			s.log.Error("запись состава партии", "gameID", gameID, "err", err)
-		}
-		data["Friends"] = relationViews(state, sides.Friends)
-
-		// Кланы игроков берутся из самой игры, но не сейчас: страница
-		// читает уже известное, а незнакомых ставит в очередь воркеру.
-		alliances, pending, err := s.gameAlliances(ctx, state, roster)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		sides.Alliances = alliances
-		data["AlliancesPending"] = pending
-
-		// Боевой счёт участников и смотрящего: из базы, а устаревшее
-		// пересчитывается прямо сейчас. Своё число нужно вместе с чужими,
-		// иначе сравнивать не с чем.
-		stats, myStats, err := s.gameStats(ctx, state, who.GameID)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		sides.Stats, sides.Me = stats, myStats
-
-		// Верхушка рейтинга — десяток строк на всю админку, поэтому
-		// читается целиком и на каждую страницу. Её отсутствие карту
-		// не ломает: режим топа просто останется серым.
-		top, err := s.topAlliances.All(ctx)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		sides.Top = make(map[string]domain.TopAlliance, len(top))
-		for _, t := range top {
-			sides.Top[t.ID] = t
-		}
-		at := topCapturedAt(top)
-		data["TopAt"] = at
-		data["TopKnown"] = !at.IsZero()
-
-		// Коалиции этой партии оседают в архиве: состояние всё равно перед
-		// глазами. Сведения о партии берём откуда есть — у своей они из
-		// списка своих, у чужой из ответа сайта.
-		about := game
-		if about == nil {
-			about = mine
-		}
-		s.rememberCoalitions(ctx, about, state)
-
-		// И сразу обратный вопрос к архиву: кто из здешних уже союзничал.
-		pairs, err := s.coalitionPairs(r, state, sides)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		data["Pairs"] = pairs
-
-		if geo, err := s.games.MapGeometry(ctx, state.MapID); err != nil {
-			s.log.Warn("очертания карты", "gameID", gameID, "mapID", state.MapID, "err", err)
-			data["MapError"] = lang.T("game.map.error", err)
-		} else {
-			data["Map"] = gameMap(lang, geo, state, sides, meID)
+		if data["Map"] != nil {
 			data["LoaderMs"] = loaderMs(time.Since(started))
+			if later {
+				data["RosterLater"] = true
+				s.mapTickets.grant(who.ID, gameID)
+			}
 		}
 	}
 
 	s.render(w, r, http.StatusOK, "game", data)
+}
+
+// siteWait решает, ждать ли странице ответ сайта о партии. wait — ждать
+// сейчас; later — не ждать, а дочитать ответ в фоне. Оба ложны, когда ответ
+// уже лежит в кэше.
+//
+// Карта от сайта не зависит: кланы для раскраски лежат в базе, анонимность
+// называет само состояние. Поэтому большую или незнакомую партию рисуем
+// сразу, а состав страница попросит следом. Маленькую ждём, как раньше:
+// сайт отдаёт её за секунду, и второй запрос обошёлся бы дороже ожидания.
+//
+// Без карты свою партию не ждём тоже — название уже есть из списка своих.
+// Чужую без карты ждём всегда: кроме сайта про неё сказать нечего.
+func siteWait(cached, withMap, small, ours bool) (wait, later bool) {
+	if cached {
+		return false, false
+	}
+	wait = (withMap && small) || (!withMap && !ours)
+	return wait, !wait
+}
+
+// nonNilGame — сведения о партии, какие есть: ответ сайта или своя партия
+// из списка своих. Пусто, когда нет ни того, ни другого.
+func nonNilGame(site, mine *supremacy.Game) *supremacy.Game {
+	if site != nil {
+		return site
+	}
+	return mine
+}
+
+// closeAnonymous закрывает страницу анонимной партии и возвращает проверку,
+// если её уже взяли: человек ничего не увидел, брать за это плату нечестно.
+func (s *Server) closeAnonymous(w http.ResponseWriter, r *http.Request, data map[string]any,
+	gameID string, spent bool) {
+
+	if spent {
+		who := currentUser(r)
+		if err := s.checks.Refund(r.Context(), who.ID, repo.Day(time.Now())); err != nil {
+			s.log.Error("возврат проверки карты", "user_id", who.ID, "err", err)
+		}
+	}
+	s.anonymousClosed(w, r, data, gameID)
+}
+
+// fetchAbout отправляет за сведениями о партии и составом. Поход отвязан
+// от запроса страницы: большую партию сайт отдаёт дольше, чем страница
+// соглашается ждать, а привезённое ляжет в кэш — оттуда его возьмёт запрос
+// состава, который страница пошлёт следом. Срок у похода свой, тот же,
+// что страница дала бы ему сама.
+func (s *Server) fetchAbout(r *http.Request, gameID string) chan gameAbout {
+	about := make(chan gameAbout, 1)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), s.gameBudget(gameID))
+	go func() {
+		defer cancel()
+		g, roster, err := s.games.Game(ctx, gameID)
+		about <- gameAbout{game: g, roster: roster, err: err}
+	}()
+	return about
+}
+
+// finishAbout дожидается сайта за страницу, которая ждать не стала, и делает
+// с его ответом то, что страница сделала бы сама: кланы из состава — в базу,
+// игроков партии — с никами от сайта, коалиции и отметку о проверке чужой
+// партии — туда же. Человеку сам состав покажет отдельный запрос, а это
+// должно случиться, даже если он закрыл страницу, не дождавшись.
+//
+// state — состояние, если страница его получила; mine — своя партия из
+// списка своих, если партия наша: тогда отметку и коалиции страница уже
+// записала сама.
+func (s *Server) finishAbout(about <-chan gameAbout, who *domain.User, gameID string,
+	mine *supremacy.Game, state *supremacy.GameState) {
+
+	got := <-about
+	if got.err != nil {
+		s.log.Warn("сведения о партии в фоне", "gameID", gameID, "err", got.err)
+		return
+	}
+	// Анонимную партию смотреть не дали — и запоминать с неё нечего.
+	anonymous := got.game.IsAnonymous() || (state != nil && state.Anonymous)
+	if anonymous && !who.CanSeeAnonymousMaps() {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), gamesTimeout)
+	defer cancel()
+
+	if err := s.rememberAlliances(ctx, got.roster); err != nil {
+		s.log.Error("запись кланов из состава", "gameID", gameID, "err", err)
+	}
+	if mine == nil {
+		if err := s.checked.Mark(ctx, who.ID, gameID, got.game.Title, time.Now()); err != nil {
+			s.log.Error("запись проверенной партии", "gameID", gameID, "err", err)
+		}
+	}
+	if state == nil {
+		return
+	}
+	if err := s.rememberPlayers(ctx, state, got.roster); err != nil {
+		s.log.Error("запись состава партии", "gameID", gameID, "err", err)
+	}
+	if mine == nil {
+		s.rememberCoalitions(ctx, got.game, state)
+	}
+}
+
+// fillLive собирает всё, что страница показывает по состоянию партии: карту
+// во всех режимах, состав, личные списки, премиум, баны и старые союзы.
+// Зовут её двое: сама страница и запрос состава, который дорисовывает карту
+// большой партии, когда сайт наконец ответит.
+//
+// later — состава с сайта пока нет, и он приедет отдельно. Тогда кланы для
+// раскраски берутся только из базы, а незнакомых не ставят в очередь.
+func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]any,
+	state *supremacy.GameState, roster []supremacy.GameLogin, later bool) error {
+
+	lang := langOf(r)
+	who := currentUser(r)
+
+	// Своя страна ищется по игровому ID из профиля: у каждого смотрящего
+	// она своя, а у кого-то её в этой партии и нет вовсе.
+	viewer := who.GameID
+	me, playing := viewerPlayer(state, viewer)
+	meID := 0
+	switch {
+	case playing:
+		meID = me.ID
+		mine := state.Owned(meID)
+		sort.Slice(mine, func(i, j int) bool {
+			if mine[i].Capital != mine[j].Capital {
+				return mine[i].Capital
+			}
+			return mine[i].Name < mine[j].Name
+		})
+		player := me
+		data["Me"] = &player
+		data["Mine"] = mine
+	case viewer == "":
+		data["NoProfileGameID"] = true
+	default:
+		data["NotPlaying"] = true
+	}
+
+	// Игроков партии сводим с базой по игровому ID и отмечаем тех,
+	// кто в личных списках того, кто смотрит.
+	sides, err := s.gameLists(r, state)
+	if err != nil {
+		return err
+	}
+	data["Enemies"] = relationViews(state, sides.Enemies)
+	data["Friends"] = relationViews(state, sides.Friends)
+	data["Premium"] = premiumViews(lang, state, meID)
+	data["Banned"] = bannedViews(lang, state)
+
+	// Кланы игроков берутся из самой игры, но не сейчас: страница
+	// читает уже известное, а незнакомых ставит в очередь воркеру.
+	alliances, pending, err := s.gameAlliances(ctx, state, roster, !later)
+	if err != nil {
+		return err
+	}
+	sides.Alliances = alliances
+	data["AlliancesPending"] = pending
+
+	// Боевой счёт участников и смотрящего: из базы, а устаревшее
+	// пересчитывается прямо сейчас. Своё число нужно вместе с чужими,
+	// иначе сравнивать не с чем.
+	stats, myStats, err := s.gameStats(ctx, state, who.GameID)
+	if err != nil {
+		return err
+	}
+	sides.Stats, sides.Me = stats, myStats
+
+	// Состав показывает шаблон во вкладке «Сила» под картой. Страны и счёт
+	// дописываются после того, как счёт пересчитан: иначе таблица показала
+	// бы прочерки там, где числа только что приехали.
+	views, powerKnown, err := s.rosterViews(r, roster)
+	if err != nil {
+		return err
+	}
+	rosterFromState(views, state, sides)
+	data["Roster"] = views
+	data["RosterPages"] = rosterPages(views)
+	data["PowerKnown"] = powerKnown || sides.Me.Rated()
+
+	// Верхушка рейтинга — десяток строк на всю админку, поэтому
+	// читается целиком и на каждую страницу. Её отсутствие карту
+	// не ломает: режим топа просто останется серым.
+	top, err := s.topAlliances.All(ctx)
+	if err != nil {
+		return err
+	}
+	sides.Top = make(map[string]domain.TopAlliance, len(top))
+	for _, t := range top {
+		sides.Top[t.ID] = t
+	}
+	at := topCapturedAt(top)
+	data["TopAt"] = at
+	data["TopKnown"] = !at.IsZero()
+
+	// Обратный вопрос к архиву коалиций: кто из здешних уже союзничал.
+	pairs, err := s.coalitionPairs(r, state, sides)
+	if err != nil {
+		return err
+	}
+	data["Pairs"] = pairs
+
+	// Карту рисуем, если получилось: очертания лежат отдельным файлом
+	// на static-сервере игры, и его недоступность не повод прятать
+	// остальную страницу.
+	if geo, err := s.games.MapGeometry(ctx, state.MapID); err != nil {
+		s.log.Warn("очертания карты", "gameID", state.GameID, "mapID", state.MapID, "err", err)
+		data["MapError"] = lang.T("game.map.error", err)
+	} else {
+		data["Map"] = gameMap(lang, geo, state, sides, meID)
+	}
+	return nil
 }
 
 // gameHeroToggle включает и выключает автопризыв пехоты в партии.

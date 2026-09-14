@@ -568,6 +568,28 @@ func (c *Client) Game(ctx context.Context, gameID string) (*Game, []GameLogin, e
 	return game, logins, nil
 }
 
+// CachedGame — ответ сайта о партии, если он уже лежит в кэше и не протух.
+// В сеть не ходит и не ждёт: страница по нему решает, ждать ли сайт вообще.
+// Пока ответ кто-то везёт, его здесь нет — занятую ячейку не трогаем, её
+// поля пишет тот, кто везёт.
+func (c *Client) CachedGame(gameID string) (*Game, []GameLogin, bool) {
+	// Ячейку не заводим: пустая живёт до первого удачного ответа, а про
+	// эту партию, может, никто так и не спросит.
+	c.mu.Lock()
+	entry, ok := c.games[gameID]
+	c.mu.Unlock()
+	if !ok {
+		return nil, nil, false
+	}
+	select {
+	case entry.busy <- struct{}{}:
+		defer func() { <-entry.busy }()
+	default:
+		return nil, nil, false
+	}
+	return entry.fresh()
+}
+
 // noteSize запоминает состав партии числом. Ответ целиком протухает, а это
 // число — нет: партия не усохнет вдвое, и следующий раз можно сразу ждать
 // столько, сколько она заслуживает.

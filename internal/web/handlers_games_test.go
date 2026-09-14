@@ -958,6 +958,10 @@ func (sizeSource) MyGames(context.Context) ([]supremacy.Game, error) { return ni
 func (sizeSource) Game(context.Context, string) (*supremacy.Game, []supremacy.GameLogin, error) {
 	return nil, nil, nil
 }
+func (sizeSource) CachedGame(string) (*supremacy.Game, []supremacy.GameLogin, bool) {
+	return nil, nil, false
+}
+func (sizeSource) CachedState(string) (*supremacy.GameState, bool) { return nil, false }
 func (sizeSource) StateFor(context.Context, string, bool, bool) (*supremacy.GameState, time.Time, error) {
 	return nil, time.Time{}, nil
 }
@@ -993,6 +997,30 @@ func TestGameBudgetBySize(t *testing.T) {
 	for _, c := range cases {
 		if got := s.gameBudget(c.gameID); got != c.want {
 			t.Errorf("%s: срок = %v, ждали %v", c.name, got, c.want)
+		}
+	}
+}
+
+// Сайт ждём только там, где без него не обойтись или где он отвечает быстро.
+// Большую партию с картой рисуем сразу — ради этого всё и затевалось.
+func TestSiteWait(t *testing.T) {
+	cases := []struct {
+		name                         string
+		cached, withMap, small, ours bool
+		wait, later                  bool
+	}{
+		{name: "ответ в кэше — ждать нечего", cached: true, withMap: true},
+		{name: "большая с картой — рисуем сразу", withMap: true, later: true},
+		{name: "незнакомая с картой — как большая", withMap: true, later: true},
+		{name: "маленькая с картой — ждём, это секунда", withMap: true, small: true, wait: true},
+		{name: "своя без карты — название уже есть", ours: true, later: true},
+		{name: "чужая без карты — кроме сайта сказать нечего", wait: true},
+		{name: "чужая маленькая без карты — тоже ждём", small: true, wait: true},
+	}
+	for _, c := range cases {
+		wait, later := siteWait(c.cached, c.withMap, c.small, c.ours)
+		if wait != c.wait || later != c.later {
+			t.Errorf("%s: ждать = %v, в фон = %v; ожидалось %v и %v", c.name, wait, later, c.wait, c.later)
 		}
 	}
 }

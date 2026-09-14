@@ -2,6 +2,7 @@ package supremacy
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -159,6 +160,42 @@ func TestGameStateBuildAsObserver(t *testing.T) {
 	// ничейный владелец сошёл бы за нас.
 	if _, _, ok := g.DeployArmy(); ok {
 		t.Error("у наблюдателя нашлась своя армия с героиней")
+	}
+}
+
+// Анонимный раунд страница узнаёт из состояния, не дожидаясь сайта: от этого
+// зависит, можно ли показывать карту. Фича лежит в свойствах партии под
+// номером 6, и важен её флаг enabled, а не само наличие — у обычной партии
+// она тоже есть, только выключена.
+func TestGameStateBuildAnonymous(t *testing.T) {
+	info := func(enabled bool) string {
+		return fmt.Sprintf(`{"states":{
+			"3":{"map":{"mapID":"51","locations":[{"@c":"p","id":1,"n":"Афины","o":0}]}},
+			"12":{"dayOfGame":3,"gameFeatures":{"idFeatures":{
+				"1":{"enabled":false,"featureID":1},
+				"6":{"@c":"ultshared.gamefeatures.UltAnonymousGameFeature","enabled":%v,"value":0,"featureID":6}
+			}}}}}`, enabled)
+	}
+	for _, c := range []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"включена", info(true), true},
+		{"выключена", info(false), false},
+		{"свойств нет вовсе", `{"states":{"3":{"map":{"locations":[{"@c":"p","id":1,"n":"Афины"}]}},"12":{"dayOfGame":3}}}`, false},
+	} {
+		var resp gameStateResponse
+		if err := json.Unmarshal([]byte(c.body), &resp); err != nil {
+			t.Fatalf("%s: разбор: %v", c.name, err)
+		}
+		g, err := resp.build("1", 0)
+		if err != nil {
+			t.Fatalf("%s: сборка: %v", c.name, err)
+		}
+		if g.Anonymous != c.want {
+			t.Errorf("%s: анонимная = %v, ждали %v", c.name, g.Anonymous, c.want)
+		}
 	}
 }
 
