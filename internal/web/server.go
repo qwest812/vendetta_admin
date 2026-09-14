@@ -294,8 +294,9 @@ func (s *Server) Handler() http.Handler {
 
 	// Порядок слоёв: паника ловится снаружи всего, заголовки безопасности
 	// ставятся и на ответ об ошибке, а чужой адрес отсекается до того, как
-	// мы полезем в базу за сессией.
-	return s.recoverPanic(securityHeaders(s.logRequests(s.crossOrigin(s.auth.Attach(mux)))))
+	// мы полезем в базу за сессией. Сжатие — сразу под заголовками: ему
+	// всё равно, что за ответ, лишь бы тип и размер того стоили.
+	return s.recoverPanic(securityHeaders(compress(s.logRequests(s.crossOrigin(s.auth.Attach(mux))))))
 }
 
 // healthz отвечает 200, только если база отвечает: по нему docker
