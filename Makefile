@@ -1,4 +1,4 @@
-.PHONY: up down restart logs ps dev build game heroes test tidy clean
+.PHONY: up down restart logs ps dev build maeve-windows game heroes test tidy clean
 
 # Поднять всё в docker: postgres и приложение.
 up:
@@ -25,6 +25,11 @@ dev:
 
 build:
 	go build -o bin/vendetta ./cmd/server
+
+# Отдельная программа только для кнопки Мейв — без базы и админки.
+# Кладётся в bin/maeve.exe; при первом запуске создаёт maeve.txt рядом.
+maeve-windows:
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/maeve.exe ./cmd/maeve
 
 # Состав игры: какая страна за кем. make game GAME=10868223
 game:
