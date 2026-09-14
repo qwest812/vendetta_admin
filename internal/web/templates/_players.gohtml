@@ -47,8 +47,6 @@
             {{.Empty}}
         {{else if .Query}}
             {{t "results.empty.query" .Query}}
-        {{else if .Status}}
-            {{t "results.empty.status"}}
         {{else}}
             {{t "results.empty.all"}}
         {{end}}

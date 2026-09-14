@@ -68,20 +68,23 @@ func TestPagesRender(t *testing.T) {
 		{
 			page: "home",
 			data: map[string]any{
-				"Query": "", "Status": "enemy", "Total": 1, "Limit": 50,
+				"Query": "КСГ", "Total": 1, "Limit": 50,
 				"Players": []*domain.Player{enemy},
 				"CanMark": true, "MarkedEnemies": map[int64]bool{},
 				"MarkedFriends": map[int64]bool{},
 				"EnemyWords":    enemyWords, "FriendWords": friendWords,
 			},
-			// Выбранный фильтр должен пережить перезагрузку страницы,
-			// а пометить врага можно прямо из строки поиска.
+			// Набранное должно пережить перезагрузку страницы, а пометить
+			// врага можно прямо из строки поиска. Фильтра по статусу альянса
+			// больше нет: он смотрел на альянс, вписанный руками, а такой
+			// почти ни у кого не заполнен.
 			want: []string{
-				`value="enemy" selected`, `clan clan-enemy`, "КСГ",
+				`name="q" value="КСГ"`, `clan clan-enemy`, "КСГ",
 				// Из строки поиска игрок помечается в оба личных списка.
 				`action="/enemies/3/mark"`, ">во враги<",
 				`action="/friends/3/mark"`, ">в друзья<",
 			},
+			deny: []string{`name="status"`, "Только союзные"},
 		},
 		{
 			// Справочник признаков живёт в рутовых настройках: строка
@@ -1003,7 +1006,6 @@ func TestEmptyResultsWording(t *testing.T) {
 	}{
 		{"поиск без запроса", map[string]any{"Limit": 50}, "Введите ник или игровой ID"},
 		{"нет совпадений", map[string]any{"Query": "abc", "Limit": 50}, "abc"},
-		{"фильтр по статусу", map[string]any{"Status": "ally", "Limit": 50}, "С таким статусом альянса никого нет"},
 		{"пустой клан", map[string]any{"Empty": "В этом клане пока нет карточек.", "Limit": 200}, "В этом клане пока нет карточек."},
 	}
 

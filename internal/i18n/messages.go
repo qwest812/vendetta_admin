@@ -93,10 +93,6 @@ var messages = map[string]entry{
 	"home.heading":            {ru: "Поиск игроков", en: "Player search"},
 	"home.add":                {ru: "Добавить игрока", en: "Add player"},
 	"home.search.placeholder": {ru: "Игровой ID или ник (можно часть)", en: "Game ID or nickname (partial is fine)"},
-	"home.filter.all":         {ru: "Все альянсы", en: "All alliances"},
-	"home.filter.ally":        {ru: "Только союзные", en: "Allied only"},
-	"home.filter.neutral":     {ru: "Только нейтральные", en: "Neutral only"},
-	"home.filter.enemy":       {ru: "Только враждебные", en: "Hostile only"},
 	"home.total":              {ru: "Всего в базе:", en: "In the database:"},
 	"home.searching":          {ru: "ищем…", en: "searching…"},
 
@@ -171,10 +167,9 @@ var messages = map[string]entry{
 	"common.save": {ru: "Сохранить", en: "Save"},
 
 	// --- список найденных игроков (поиск и карточка клана) ---
-	"results.truncated":    {ru: "Показаны первые %d — уточните запрос.", en: "Showing the first %d — narrow your query."},
-	"results.empty.query":  {ru: "По запросу «%s» никого не нашли.", en: "Nothing found for “%s”."},
-	"results.empty.status": {ru: "С таким статусом альянса никого нет.", en: "No one with that alliance status."},
-	"results.empty.all":    {ru: "Введите ник или игровой ID — список появится по запросу.", en: "Type a nickname or game ID — the list appears once you search."},
+	"results.truncated":   {ru: "Показаны первые %d — уточните запрос.", en: "Showing the first %d — narrow your query."},
+	"results.empty.query": {ru: "По запросу «%s» никого не нашли.", en: "Nothing found for “%s”."},
+	"results.empty.all":   {ru: "Введите ник или игровой ID — список появится по запросу.", en: "Type a nickname or game ID — the list appears once you search."},
 
 	// --- карточка игрока ---
 	"player.clan.status":     {ru: "%s альянс", en: "%s alliance"},
@@ -287,7 +282,7 @@ var messages = map[string]entry{
 
 	// --- кланы ---
 	"clans.title":          {ru: "Альянсы — Vendetta", en: "Alliances — Vendetta"},
-	"clans.intro":          {ru: "Статус — это отношение к альянсу целиком: помеченный альянс красит все свои карточки в поиске, а фильтр на главной показывает только своих или только чужих. На шкалы риска и лояльности статус не влияет — они про репутацию человека, а не про политику его альянса.", en: "A status is our stance towards a whole alliance: a marked alliance colours all of its players in search, and the filter on the main page shows only friends or only foes. The status does not affect the risk and loyalty scales — those are about a person’s reputation, not their alliance’s politics."},
+	"clans.intro":          {ru: "Статус — это отношение к альянсу целиком: помеченный альянс красит все свои карточки в поиске. На шкалы риска и лояльности статус не влияет — они про репутацию человека, а не про политику его альянса.", en: "A status is our stance towards a whole alliance: a marked alliance colours all of its players in search. The status does not affect the risk and loyalty scales — those are about a person’s reputation, not their alliance’s politics."},
 	"clans.new":            {ru: "Новый альянс", en: "New alliance"},
 	"clans.new.note":       {ru: "Обычно альянс заводить не нужно — он появляется сам, когда его вписывают в карточку игрока. Вручную удобно пометить альянс заранее.", en: "You rarely need to add an alliance by hand — it appears on its own once someone types it into a player’s card. Adding one manually is for marking an alliance in advance."},
 	"clans.col.clan":       {ru: "Альянс", en: "Alliance"},
@@ -613,7 +608,6 @@ var messages = map[string]entry{
 
 	"faq.clancolor.q":        {ru: "Что значит цвет альянса и как помечают своих и чужих?", en: "What does an alliance colour mean, and how are friends and foes marked?"},
 	"faq.clancolor.a1":       {ru: "У альянса есть статус: союзный, нейтральный или враждебный. Он стоит у альянса целиком, поэтому пометить альянс достаточно один раз — цвет получат все его карточки в поиске. Зелёный альянс союзный, красный враждебный, серый нейтральный; нейтральных большинство, и отдельной подписи у них нет.", en: "An alliance has a status: allied, neutral or hostile. It belongs to the whole alliance, so marking an alliance once is enough — all of its cards get the colour in search. Green is allied, red is hostile, grey is neutral; most are neutral and carry no separate label."},
-	"faq.clancolor.a2":       {ru: "На главной есть фильтр рядом со строкой поиска: «только союзные», «только нейтральные», «только враждебные». Фильтр смотрит на альянс, поэтому игроки без альянса в него не попадают.", en: "The main page has a filter next to the search box: allied only, neutral only, hostile only. The filter looks at the alliance, so players without one never match."},
 	"faq.clancolor.a3":       {ru: "Раздел «Альянсы» показывает все альянсы, сколько в каждом карточек и что за состав. Статус на шкалы не влияет: риск и лояльность — про репутацию человека, статус — про политику его альянса.", en: "The Alliances section lists every alliance, how many cards each holds and who is in it. The status does not affect the scales: risk and loyalty are about a person’s reputation, the status is about their alliance’s politics."},
 	"faq.clancolor.a3.admin": {ru: "Менять статус и название альянса может админ — в списке альянсов или на странице альянса.", en: "An admin can change an alliance’s status and name — in the alliance list or on the alliance’s page."},
 

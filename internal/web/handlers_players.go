@@ -14,8 +14,8 @@ const searchLimit = 50
 
 // home — стартовый экран поиска.
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
-	query, status := searchParams(r)
-	players, err := s.findPlayers(r, query, status)
+	query := searchQuery(r)
+	players, err := s.findPlayers(r, query)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -31,15 +31,15 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, r, http.StatusOK, "home", merge(marks, map[string]any{
-		"Query": query, "Status": string(status), "Players": players,
+		"Query": query, "Players": players,
 		"Total": total, "Limit": searchLimit, "CanMark": true,
 	}))
 }
 
 // search отвечает на живой ввод: HTMX подменяет только список результатов.
 func (s *Server) search(w http.ResponseWriter, r *http.Request) {
-	query, status := searchParams(r)
-	players, err := s.findPlayers(r, query, status)
+	query := searchQuery(r)
+	players, err := s.findPlayers(r, query)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -50,7 +50,7 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.renderPartial(w, r, "home", "results", merge(marks, map[string]any{
-		"Query": query, "Status": string(status),
+		"Query":   query,
 		"Players": players, "Limit": searchLimit, "CanMark": true,
 	}))
 }
@@ -88,28 +88,18 @@ func merge(base, extra map[string]any) map[string]any {
 	return base
 }
 
-// searchParams разбирает строку запроса. Незнакомый статус — это не ошибка,
-// а «фильтр не выбран»: поиск не то место, где показывают 400.
-func searchParams(r *http.Request) (string, domain.ClanStatus) {
-	q := r.URL.Query()
-	query := strings.TrimSpace(q.Get("q"))
-	status, ok := domain.ParseClanStatus(q.Get("status"))
-	if !ok {
-		status = ""
-	}
-	return query, status
+// searchQuery — что набрано в строке поиска.
+func searchQuery(r *http.Request) string {
+	return strings.TrimSpace(r.URL.Query().Get("q"))
 }
 
-// findPlayers ищет только когда есть о чём спрашивать: пустая строка и
-// невыбранный статус — это ещё не запрос, и вываливать в ответ на них всю
-// базу незачем.
-func (s *Server) findPlayers(r *http.Request, query string,
-	status domain.ClanStatus) ([]*domain.Player, error) {
-
-	if query == "" && status == "" {
+// findPlayers ищет только когда есть о чём спрашивать: пустая строка — это
+// ещё не запрос, и вываливать в ответ на неё всю базу незачем.
+func (s *Server) findPlayers(r *http.Request, query string) ([]*domain.Player, error) {
+	if query == "" {
 		return nil, nil
 	}
-	return s.players.Search(r.Context(), query, status, searchLimit)
+	return s.players.Search(r.Context(), query, searchLimit)
 }
 
 func (s *Server) playerCard(w http.ResponseWriter, r *http.Request) {

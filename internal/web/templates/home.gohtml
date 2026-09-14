@@ -7,25 +7,12 @@
         {{if .CurrentUser.IsAdmin}}<a class="button" href="/players/new">{{t "home.add"}}</a>{{end}}
     </div>
 
-    {{/* Строка и статус шлют один и тот же запрос, поэтому каждый
-         подмешивает значение соседа через hx-include. */}}
     <div class="filters">
         <input type="search" name="q" value="{{.Query}}" placeholder="{{t "home.search.placeholder"}}"
                autofocus autocomplete="off"
                hx-get="/search" hx-trigger="input changed delay:250ms, search"
-               hx-include="[name='status']"
                hx-target="#results" hx-swap="innerHTML"
                hx-indicator="#searching">
-        <select name="status" class="narrow"
-                hx-get="/search" hx-trigger="change"
-                hx-include="[name='q']"
-                hx-target="#results" hx-swap="innerHTML"
-                hx-indicator="#searching">
-            <option value="">{{t "home.filter.all"}}</option>
-            <option value="ally" {{if eq .Status "ally"}}selected{{end}}>{{t "home.filter.ally"}}</option>
-            <option value="neutral" {{if eq .Status "neutral"}}selected{{end}}>{{t "home.filter.neutral"}}</option>
-            <option value="enemy" {{if eq .Status "enemy"}}selected{{end}}>{{t "home.filter.enemy"}}</option>
-        </select>
     </div>
 
     <p class="muted">

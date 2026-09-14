@@ -3,7 +3,6 @@ package repo
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -35,55 +34,35 @@ func scanPlayer(row pgx.Row) (*domain.Player, error) {
 }
 
 // Search ищет по подстроке ника или игрового ID без учёта регистра. Пустой
-// запрос отдаёт последних добавленных — это стартовый экран поиска.
-//
-// Пустой status — «любой клан». Фильтр смотрит на клан игрока, поэтому
-// карточки без клана не попадают ни в один из статусов.
-//
-// traits — коды признаков, и выбранные складываются, а не заменяют друг
-// друга: отметили «врёт» и «мультивод» — получите тех, у кого стоят обе
-// отметки. Каждая галочка сужает выборку, как и положено фильтру.
-func (r *Players) Search(ctx context.Context, query string, status domain.ClanStatus,
-	limit int) ([]*domain.Player, error) {
-
+// запрос отдаёт последних изменённых.
+func (r *Players) Search(ctx context.Context, query string, limit int) ([]*domain.Player, error) {
 	query = strings.TrimSpace(query)
-
-	var conds []string
-	var args []any
-	if query != "" {
-		args = append(args, query)
-		conds = append(conds, `(p.nickname ILIKE '%' || $1 || '%' OR p.game_id ILIKE '%' || $1 || '%')`)
-	}
-	if status != "" {
-		args = append(args, string(status))
-		conds = append(conds, fmt.Sprintf(`c.status = $%d`, len(args)))
-	}
-
-	where := ""
-	if len(conds) > 0 {
-		where = " WHERE " + strings.Join(conds, " AND ")
-	}
 
 	// Без запроса сортировать не по чему — показываем свежие. С запросом
 	// сначала точное совпадение, потом начинающиеся с него, потом остальные.
 	// Игровой ID идёт первым: он не меняется, поэтому попадание по нему
 	// точнее совпадения по нику.
-	order := ` ORDER BY p.updated_at DESC`
-	if query != "" {
-		order = ` ORDER BY (lower(coalesce(p.game_id, '')) = lower($1)) DESC,
+	if query == "" {
+		rows, err := r.pool.Query(ctx, playerSelect+` ORDER BY p.updated_at DESC LIMIT $1`, limit)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return r.collect(ctx, rows)
+	}
+
+	rows, err := r.pool.Query(ctx, playerSelect+`
+		WHERE p.nickname ILIKE '%' || $1 || '%' OR p.game_id ILIKE '%' || $1 || '%'
+		ORDER BY (lower(coalesce(p.game_id, '')) = lower($1)) DESC,
 		         (lower(p.nickname) = lower($1)) DESC,
 		         (coalesce(p.game_id, '') ILIKE $1 || '%') DESC,
 		         (p.nickname ILIKE $1 || '%') DESC,
-		         length(p.nickname), p.nickname`
-	}
-
-	args = append(args, limit)
-	rows, err := r.pool.Query(ctx, playerSelect+where+order+fmt.Sprintf(" LIMIT $%d", len(args)), args...)
+		         length(p.nickname), p.nickname
+		LIMIT $2`, query, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	return r.collect(ctx, rows)
 }
 
