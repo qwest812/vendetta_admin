@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Vendetta</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+    <span class="brand">Vendetta</span>
+</header>
+
+<main>
+    <p id="busy" class="muted" hidden>Проверяем вход…</p>
+
+    <!-- Вход: адрес сервера, почта и пароль от админки. -->
+    <form id="login" hidden>
+        <label>
+            Адрес админки
+            <input type="text" name="server" placeholder="https://admin.example.com" autocomplete="url" required>
+        </label>
+        <label>
+            Почта
+            <input type="email" name="email" autocomplete="username" required>
+        </label>
+        <label>
+            Пароль
+            <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <p id="login-error" class="error" hidden></p>
+        <button type="submit">Войти</button>
+        <p class="muted small">Те же почта и пароль, что на сайте админки.</p>
+    </form>
+
+    <!-- Вошли: кто и куда. -->
+    <section id="signed-in" hidden>
+        <p>Вы вошли как <b id="nickname"></b> <span id="role" class="badge"></span></p>
+        <p class="muted small" id="server-line"></p>
+        <p id="me-warning" class="error" hidden></p>
+        <button id="logout" type="button" class="ghost">Выйти</button>
+    </section>
+</main>
+
+<script src="popup.js"></script>
+</body>
+</html>

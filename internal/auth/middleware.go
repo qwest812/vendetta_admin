@@ -24,6 +24,17 @@ func (s *Service) Attach(next http.Handler) http.Handler {
 	})
 }
 
+// AttachExtension — то же, что Attach, но для API расширения: сессия
+// берётся из заголовка Authorization, а не из куки.
+func (s *Service) AttachExtension(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if sess, err := s.CurrentExtension(r.Context(), r); err == nil {
+			r = r.WithContext(context.WithValue(r.Context(), sessionKey, sess))
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // RequireRole пропускает дальше только авторизованных с ролью не ниже min.
 func RequireRole(min domain.Role) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

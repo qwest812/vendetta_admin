@@ -168,6 +168,9 @@
                     <td data-label="{{t "logins.result"}}">
                         {{if .OK}}<span class="badge done">{{t "logins.ok"}}</span>
                         {{else}}<span class="badge open">{{t "logins.fail"}}</span>{{end}}
+                        {{/* Вход из расширения — другая дорога: токен вместо куки,
+                             и при разборе путать их нельзя. */}}
+                        {{if eq .Via "extension"}}<span class="badge">{{t "logins.via.extension"}}</span>{{end}}
                     </td>
                     {{/* Строка браузера длинная, и читать её целиком незачем:
                          показываем начало, остальное — в подсказке. */}}

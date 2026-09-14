@@ -52,4 +52,21 @@
         </div>
     </form>
 </div>
+
+{{/* Расширение Chrome входит своим токеном, и живёт этот вход отдельно
+     от браузера. Человек должен видеть, что он есть, и уметь его оборвать —
+     например, если компьютер с расширением остался у чужих. */}}
+<div class="card">
+    <h1>{{t "profile.extension.title"}}</h1>
+    {{if .Extensions}}
+        <p class="muted">{{t "profile.extension.on" .Extensions}}</p>
+        <form method="post" action="/profile/extension/disconnect"
+              onsubmit="return confirm({{t "profile.extension.confirm"}})">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button type="submit">{{t "profile.extension.disconnect"}}</button>
+        </form>
+    {{else}}
+        <p class="muted">{{t "profile.extension.off"}}</p>
+    {{end}}
+</div>
 {{end}}

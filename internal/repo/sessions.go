@@ -21,14 +21,25 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
+// SessionKind — род сессии: кука сайта или токен расширения. Один род
+// другим не подменяется, см. Lookup.
+type SessionKind string
+
+const (
+	SessionBrowser   SessionKind = "browser"
+	SessionExtension SessionKind = "extension"
+)
+
 // Create заводит сессию. ip — адрес, с которого вошли; пустая строка
 // означает «адрес не разобрали», и в базе останется NULL: врать нулевым
 // адресом хуже, чем признать, что места мы не знаем.
-func (r *Sessions) Create(ctx context.Context, tokenHash []byte, userID int64, csrf, ip string, expiresAt time.Time) error {
+func (r *Sessions) Create(ctx context.Context, tokenHash []byte, userID int64, csrf, ip string,
+	expiresAt time.Time, kind SessionKind) error {
+
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO sessions (token_hash, user_id, csrf_token, ip, expires_at)
-		 VALUES ($1, $2, $3, nullif($4, '')::inet, $5)`,
-		tokenHash, userID, csrf, ip, expiresAt)
+		`INSERT INTO sessions (token_hash, user_id, csrf_token, ip, expires_at, kind)
+		 VALUES ($1, $2, $3, nullif($4, '')::inet, $5, $6)`,
+		tokenHash, userID, csrf, ip, expiresAt, string(kind))
 	return err
 }
 
@@ -85,7 +96,11 @@ func (r *Sessions) Live(ctx context.Context) ([]LiveSession, error) {
 // читается на каждый запрос, поэтому снятый доступ и правки профиля
 // применяются сразу, без перелогина.
 // Заблокированные пользователи сессию не получают.
-func (r *Sessions) Lookup(ctx context.Context, tokenHash []byte) (*Session, error) {
+//
+// kind — какого рода сессию ищем. Токен расширения не годится как кука
+// сайта, а кука — как токен: у каждой дороги своя защита, и подмена обходила
+// бы чужую.
+func (r *Sessions) Lookup(ctx context.Context, tokenHash []byte, kind SessionKind) (*Session, error) {
 	var s Session
 	var u domain.User
 	var email *string // почта необязательна, в базе может быть NULL
@@ -95,7 +110,8 @@ func (r *Sessions) Lookup(ctx context.Context, tokenHash []byte) (*Session, erro
 	err := r.pool.QueryRow(ctx,
 		`SELECT s.csrf_token, s.expires_at, `+userColumnsOf("u")+`
 		 FROM sessions s JOIN users u ON u.id = s.user_id
-		 WHERE s.token_hash = $1 AND s.expires_at > now() AND u.is_active`, tokenHash).
+		 WHERE s.token_hash = $1 AND s.kind = $2 AND s.expires_at > now() AND u.is_active`,
+		tokenHash, string(kind)).
 		Scan(append([]any{&s.CSRFToken, &s.ExpiresAt}, userScanTargets(&u, &email)...)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrNotFound
@@ -124,6 +140,23 @@ func (r *Sessions) Delete(ctx context.Context, tokenHash []byte) error {
 // при понижении роли, блокировке и смене пароля.
 func (r *Sessions) DeleteByUser(ctx context.Context, userID int64) error {
 	_, err := r.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID)
+	return err
+}
+
+// CountByUser — сколько живых сессий этого рода у человека. Профилю этого
+// хватает, чтобы сказать «расширение подключено» и предложить отключить.
+func (r *Sessions) CountByUser(ctx context.Context, userID int64, kind SessionKind) (int, error) {
+	var n int
+	err := r.pool.QueryRow(ctx,
+		`SELECT count(*) FROM sessions WHERE user_id = $1 AND kind = $2 AND expires_at > now()`,
+		userID, string(kind)).Scan(&n)
+	return n, err
+}
+
+// DeleteByUserKind обрывает сессии одного рода: «отключить расширение»
+// не должно выкидывать человека из браузера, в котором он это нажал.
+func (r *Sessions) DeleteByUserKind(ctx context.Context, userID int64, kind SessionKind) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1 AND kind = $2`, userID, string(kind))
 	return err
 }
 

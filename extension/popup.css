@@ -1,0 +1,87 @@
+/* Цвета и шрифт — как в админке: тёмный фон, акцент красным. */
+:root {
+    --bg: #14181d;
+    --card: #1c2229;
+    --border: #2c343d;
+    --text: #e6e9ec;
+    --muted: #8b96a1;
+    --accent: #c4453c;
+    --error: #e0776f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    width: 320px;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.brand { color: var(--accent); font-weight: 700; }
+
+main { padding: 14px; }
+
+label {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+input {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+}
+
+input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+button {
+    width: 100%;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+button:disabled { opacity: .6; cursor: default; }
+
+button.ghost {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+}
+
+p { margin: 0 0 10px; }
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+form .small { margin-top: 8px; }
+.error { color: var(--error); }
+
+.badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+[hidden] { display: none !important; }

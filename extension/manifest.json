@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Vendetta",
+  "version": "0.1.0",
+  "description": "База игроков Vendetta прямо в браузере.",
+  "action": {
+    "default_title": "Vendetta",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage"],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ]
+}

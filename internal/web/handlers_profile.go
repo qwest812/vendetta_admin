@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/repo"
 )
 
 // profileForm — своя страница: человек рассказывает о себе сам. Чужой
@@ -52,7 +53,26 @@ func (s *Server) profileSave(w http.ResponseWriter, r *http.Request) {
 func (s *Server) renderProfile(w http.ResponseWriter, r *http.Request, status int,
 	user *domain.User, errMsg, notice string) {
 
+	// Сколько устройств с расширением сейчас подключено: человек должен
+	// видеть, что его вход живёт где-то ещё, и уметь это оборвать.
+	extensions, err := s.sessions.CountByUser(r.Context(), user.ID, repo.SessionExtension)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.render(w, r, status, "profile", map[string]any{
-		"Profile": user, "Error": errMsg, "Notice": notice,
+		"Profile": user, "Error": errMsg, "Notice": notice, "Extensions": extensions,
 	})
+}
+
+// profileExtensionDisconnect гасит все токены расширения этого человека.
+// Браузерные сессии не трогает: отключают расширение, а не выходят из сайта.
+func (s *Server) profileExtensionDisconnect(w http.ResponseWriter, r *http.Request) {
+	me := currentUser(r)
+	if err := s.sessions.DeleteByUserKind(r.Context(), me.ID, repo.SessionExtension); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.log.Info("расширение отключено", "user_id", me.ID)
+	s.renderProfile(w, r, http.StatusOK, me, "", langOf(r).T("profile.extension.done"))
 }

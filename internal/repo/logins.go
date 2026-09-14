@@ -33,15 +33,17 @@ type LoginEvent struct {
 	Subnet    string
 	UserAgent string
 	OK        bool
+	// Via — откуда пришла попытка: с формы сайта или из расширения.
+	Via       SessionKind
 	CreatedAt time.Time
 }
 
 // Log пишет попытку входа. Пароль здесь не участвует ни в каком виде.
 func (r *Logins) Log(ctx context.Context, e LoginEvent) error {
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO login_events (user_id, login, ip, subnet, user_agent, ok)
-		 VALUES ($1, $2, $3::inet, $4::inet, $5, $6)`,
-		e.UserID, e.Login, e.IP, e.Subnet, e.UserAgent, e.OK)
+		`INSERT INTO login_events (user_id, login, ip, subnet, user_agent, ok, via)
+		 VALUES ($1, $2, $3::inet, $4::inet, $5, $6, $7)`,
+		e.UserID, e.Login, e.IP, e.Subnet, e.UserAgent, e.OK, string(via(e.Via)))
 	return err
 }
 
@@ -68,7 +70,7 @@ func (r *Logins) Recent(ctx context.Context, f LoginFilter) ([]LoginEvent, error
 	for rows.Next() {
 		var e LoginEvent
 		if err := rows.Scan(&e.ID, &e.UserID, &e.Nickname, &e.Login,
-			&e.IP, &e.Subnet, &e.UserAgent, &e.OK, &e.CreatedAt); err != nil {
+			&e.IP, &e.Subnet, &e.UserAgent, &e.OK, &e.Via, &e.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
@@ -109,13 +111,22 @@ func recentSQL() string {
 	// где фильтра нет. NULL же сравнивается тихо и ни с чем не совпадает.
 	return `
 		SELECT e.id, e.user_id, coalesce(u.nickname, ''), e.login,
-		       host(e.ip), e.subnet::text, e.user_agent, e.ok, e.created_at
+		       host(e.ip), e.subnet::text, e.user_agent, e.ok, e.via, e.created_at
 		FROM login_events e LEFT JOIN users u ON u.id = e.user_id
 		WHERE ($1::bigint IS NULL OR e.user_id = $1)
 		  AND ($2 = '' OR e.ip = nullif($2, '')::inet)
 		  AND (NOT $3 OR NOT e.ok)
 		ORDER BY e.created_at DESC, e.id DESC
 		LIMIT $4`
+}
+
+// via — род входа для записи: пустой значит «с сайта», так пишут все
+// старые места, которые про расширение не знают.
+func via(k SessionKind) SessionKind {
+	if k == "" {
+		return SessionBrowser
+	}
+	return k
 }
 
 // Запрос вынесен функцией: «только удачные входы» — решение, которое

@@ -80,3 +80,24 @@ func TestRequireRootForHeroActions(t *testing.T) {
 		})
 	}
 }
+
+// Токен расширения берётся только из заголовка вида «Bearer …»: кука
+// и прочие схемы им не считаются.
+func TestBearerToken(t *testing.T) {
+	cases := map[string]string{
+		"Bearer abc":   "abc",
+		"bearer  abc ": "abc",
+		"Basic abc":    "",
+		"abc":          "",
+		"":             "",
+	}
+	for header, want := range cases {
+		r := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+		if header != "" {
+			r.Header.Set("Authorization", header)
+		}
+		if got := bearerToken(r); got != want {
+			t.Errorf("%q: токен %q, ожидался %q", header, got, want)
+		}
+	}
+}

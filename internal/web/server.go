@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"Vendetta_admin/internal/auth"
@@ -188,6 +189,9 @@ func (s *Server) Handler() http.Handler {
 	// из сессии.
 	mux.Handle("GET /profile", user(http.HandlerFunc(s.profileForm)))
 	mux.Handle("POST /profile", user(auth.VerifyCSRF(http.HandlerFunc(s.profileSave))))
+	// Отключить расширение Chrome на всех устройствах разом, не выходя
+	// из браузера, в котором это нажали.
+	mux.Handle("POST /profile/extension/disconnect", user(auth.VerifyCSRF(http.HandlerFunc(s.profileExtensionDisconnect))))
 
 	// Личные списки — враги и друзья — ведёт каждый сам: и обычный
 	// пользователь тоже, поэтому права те же, что у заметок. Чужой список
@@ -296,7 +300,19 @@ func (s *Server) Handler() http.Handler {
 	// ставятся и на ответ об ошибке, а чужой адрес отсекается до того, как
 	// мы полезем в базу за сессией. Сжатие — сразу под заголовками: ему
 	// всё равно, что за ответ, лишь бы тип и размер того стоили.
-	return s.recoverPanic(securityHeaders(compress(s.logRequests(s.crossOrigin(s.auth.Attach(mux))))))
+	//
+	// API расширения идёт мимо проверки происхождения и куки: вход там по
+	// токену в заголовке, и обе защиты про куку ему не нужны, см. api.go.
+	site := s.crossOrigin(s.auth.Attach(mux))
+	api := s.apiHandler()
+	routes := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			api.ServeHTTP(w, r)
+			return
+		}
+		site.ServeHTTP(w, r)
+	})
+	return s.recoverPanic(securityHeaders(compress(s.logRequests(routes))))
 }
 
 // healthz отвечает 200, только если база отвечает: по нему docker
