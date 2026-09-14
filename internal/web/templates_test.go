@@ -729,22 +729,20 @@ func TestPagesRender(t *testing.T) {
 					{Login: "MigoV", Level: 13},
 				},
 			},
-			// Посмотреть со стороны не вышло — остаются сведения из лобби
-			// и состав с сайта. Кнопки захода у чужой партии нет: заходить
-			// в неё нечем, а наблюдателем страница смотрит сама.
+			// Посмотреть со стороны не вышло — остаются сведения из лобби.
+			// Кнопки захода у чужой партии нет: заходить в неё нечем,
+			// а наблюдателем страница смотрит сама. Состава без карты нет:
+			// он живёт во вкладке «Игроки».
 			want: []string{
 				"[Event] - Colonial Uprising", "набор", "97",
 				"общий аккаунт проекта не играет",
-				"Кто играет", "Vakyla", "F L O W", "№5", "17",
-				// Кого знаем — тот со ссылкой на карточку и с меткой списка.
-				`href="/players/3"`, "во врагах",
-				"MigoV",
 			},
-			deny: []string{"Заглянуть в партию", "Что у нас в партии", "Призвать сейчас"},
+			deny: []string{"Заглянуть в партию", "Что у нас в партии", "Призвать сейчас",
+				"Кто играет", "Vakyla", "MigoV"},
 		},
 		{
-			// Проверки кончились: карты нет, но состав с сайта и объяснение
-			// на месте. Жаловаться на молчание игры тут не за что.
+			// Проверки кончились: карты нет, объяснение на месте. Жаловаться
+			// на молчание игры тут не за что, а состав без карты не показан.
 			name: "game/проверки кончились",
 			page: "game",
 			user: player,
@@ -758,9 +756,9 @@ func TestPagesRender(t *testing.T) {
 			},
 			want: []string{
 				"Проверки карты на сегодня кончились", "в полночь",
-				"осталось сегодня: 0 из 5", "MigoV",
+				"осталось сегодня: 0 из 5",
 			},
-			deny: []string{"Посмотреть партию со стороны не вышло"},
+			deny: []string{"Посмотреть партию со стороны не вышло", "Кто играет", "MigoV"},
 		},
 		{
 			// Карта показана: рядом время съёмки копии и таймер до новой.
@@ -819,7 +817,7 @@ func TestPagesRender(t *testing.T) {
 			},
 			deny: []string{
 				"Заглянуть в партию", "Что у нас в партии", "Призвать сейчас",
-				// Состав с сайта здесь лишний: те же люди видны на карте.
+				// Состава с сайта в данных нет — нет и пустой таблицы.
 				"Кто играет",
 			},
 		},
@@ -1343,6 +1341,44 @@ func TestGamePageAsksBeforeEnteringGame(t *testing.T) {
 	}
 	if strings.Contains(page, "Провинция") {
 		t.Error("таблица провинций не должна появляться без захода в партию")
+	}
+}
+
+// Состав партии — во вкладке «Сила» под картой, и только там: без карты
+// его нет вовсе, а с картой он не должен висеть отдельной карточкой, видной
+// при любой вкладке.
+func TestGameRosterLivesInPowerTab(t *testing.T) {
+	pages, err := parseTemplates(i18n.RU)
+	if err != nil {
+		t.Fatalf("разбор шаблонов: %v", err)
+	}
+
+	var buf bytes.Buffer
+	err = pages["game"].ExecuteTemplate(&buf, "base.gohtml", map[string]any{
+		"CurrentUser": &domain.User{ID: 2, Nickname: "player", Role: domain.RoleUser},
+		"CSRFToken":   "csrf", "Path": "/games/10895766",
+		"GameID":   "10895766",
+		"Game":     &gameView{ID: "10895766", Title: "Партия", State: "идёт"},
+		"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute, "Ours": false,
+		"State":  &supremacy.GameState{Day: 3},
+		"Map":    &gameMapView{Width: 100, Height: 50},
+		"Roster": []rosterView{{Login: "MigoV", Level: 13}},
+	})
+	if err != nil {
+		t.Fatalf("отрисовка: %v", err)
+	}
+
+	page := buf.String()
+	start := strings.Index(page, `class="map-pane pane-power"`)
+	end := strings.Index(page, `class="map-pane pane-top"`)
+	if start < 0 || end < start {
+		t.Fatal("на странице нет вкладки «Сила»")
+	}
+	if strings.Count(page, "MigoV") != 1 || !strings.Contains(page[start:end], "MigoV") {
+		t.Error("состав должен стоять во вкладке «Сила», и только в ней")
+	}
+	if !strings.Contains(page[start:end], "Кто играет") {
+		t.Error("у состава во вкладке должен быть заголовок")
 	}
 }
 
