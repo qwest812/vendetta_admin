@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"mime"
@@ -23,8 +24,9 @@ import (
 // разрешать чужим мы ничего не отвечаем. Расширению это разрешение не
 // нужно: доступ к адресу сервера оно получает от человека при установке.
 
-// apiBodyLimit — больше этого вход не присылает: почта и пароль.
-const apiBodyLimit = 16 << 10
+// apiBodyLimit — предел тела запроса. Самое большое, что присылает
+// расширение, — номера игроков партии на пятьсот мест: килобайт десять.
+const apiBodyLimit = 64 << 10
 
 // apiUser — человек, как его видит расширение. Только то, что нужно
 // показать в окне: хеш пароля, пакет и прочее внутреннее сюда не идут.
@@ -46,6 +48,7 @@ func (s *Server) apiHandler() http.Handler {
 	mux.HandleFunc("POST /api/auth/login", s.apiLogin)
 	mux.Handle("GET /api/auth/me", apiRequireUser(http.HandlerFunc(s.apiMe)))
 	mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
+	mux.Handle("POST /api/power", apiRequireUser(http.HandlerFunc(s.apiPower)))
 	// Незнакомый адрес под /api/ — JSON, а не страница 404 сайта:
 	// расширение разбирает ответы как данные.
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -116,6 +119,116 @@ func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// apiPowerMax — больше этого игроков в партии не бывает: самые большие
+// карты Supremacy на пятьсот мест. Запас — на случай новых режимов.
+const apiPowerMax = 1000
+
+// apiPowerTimeout — сколько ждать сайт, дособирая счёт. На новой большой
+// партии это сотни вопросов; что не успело — останется без цвета и
+// дособерётся при следующем запросе.
+const apiPowerTimeout = 60 * time.Second
+
+// apiPowerPlayer — один игрок в ответе: полоса силы относительно
+// смотрящего и числа, по которым она посчитана. Power пуст, когда
+// сравнивать не с чем: счёта нет у него или у самого смотрящего.
+type apiPowerPlayer struct {
+	Power  string  `json:"power"`
+	Rated  bool    `json:"rated"`
+	Level  int     `json:"level"`
+	KD     float64 `json:"kd"`
+	Danger float64 `json:"danger"`
+}
+
+func toAPIPower(st, me domain.UserStats) apiPowerPlayer {
+	p := apiPowerPlayer{Rated: st.Rated(), Power: powerClass(st, me)}
+	if p.Rated {
+		p.Level, p.KD, p.Danger = st.Level, st.KD(), st.Danger()
+	}
+	return p
+}
+
+// apiPower — сила игроков партии относительно смотрящего: то же, чем
+// красится режим «Сила» в админке. Состав партии присылает расширение —
+// оно берёт его из клиента игры, открытого у человека, — поэтому сервер
+// в партию не ходит и проверок карты не тратит.
+//
+// me — номер на сайте того аккаунта, что играет в этой вкладке, а не
+// игровой ID из профиля админки: у человека их бывает несколько, а
+// сравнивать честно с тем, кем он сейчас играет.
+//
+// Открыто ультра-пакету. Остальным — отказ без слова «пакет»: про пакеты
+// знает только рут.
+func (s *Server) apiPower(w http.ResponseWriter, r *http.Request) {
+	lang := langOf(r)
+	if !currentUser(r).CanPaintGameMap() {
+		writeAPIError(w, http.StatusForbidden, lang.T("api.power.closed"))
+		return
+	}
+
+	var req struct {
+		Me      string   `json:"me"`
+		Players []string `json:"players"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	ids, ok := powerIDs(req.Me, req.Players)
+	if !ok {
+		writeAPIError(w, http.StatusBadRequest, lang.T("api.power.bad"))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), apiPowerTimeout)
+	defer cancel()
+	stats, err := s.freshStats(ctx, ids)
+	if err != nil {
+		s.log.Error("сила для расширения", "err", err)
+		writeAPIError(w, http.StatusInternalServerError, lang.T("api.internal"))
+		return
+	}
+
+	me := stats[req.Me]
+	players := make(map[string]apiPowerPlayer, len(req.Players))
+	for _, id := range req.Players {
+		players[id] = toAPIPower(stats[id], me)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"me": toAPIPower(me, me), "players": players})
+}
+
+// powerIDs проверяет номера из запроса и собирает их в один список для
+// базы — вместе со своим. Номер на сайте — только цифры; всё прочее
+// в запрос к базе и к сайту не пускаем.
+func powerIDs(me string, players []string) ([]string, bool) {
+	if !digitsOnly(me) || len(players) == 0 || len(players) > apiPowerMax {
+		return nil, false
+	}
+	ids := make([]string, 0, len(players)+1)
+	seen := map[string]bool{me: true}
+	ids = append(ids, me)
+	for _, id := range players {
+		if !digitsOnly(id) {
+			return nil, false
+		}
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	return ids, true
+}
+
+func digitsOnly(s string) bool {
+	if s == "" || len(s) > 20 {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // readJSON разбирает тело запроса. Принимается только application/json:

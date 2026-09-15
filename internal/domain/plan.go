@@ -78,3 +78,9 @@ func (p Plan) CanSeeLastSeen() bool { return p.AtLeast(PlanExtended) }
 // с сайта по нему называет живого человека. Снятая анонимность — самое
 // острое, что админка умеет, и открыта она только ультра-пакету.
 func (p Plan) CanSeeAnonymousMaps() bool { return p.AtLeast(PlanUltra) }
+
+// CanPaintGameMap — перекрашивать ли расширению карту в самой игре по силе
+// игроков. Это та же «Сила», что в админке, только поверх клиента игры,
+// в любой партии, где человек сейчас играет, — и без проверок карты:
+// состав партии расширение берёт из браузера, а не с сервера игры.
+func (p Plan) CanPaintGameMap() bool { return p.AtLeast(PlanUltra) }

@@ -34,6 +34,16 @@ func TestPlanAtLeast(t *testing.T) {
 	}
 }
 
+// Карту в игре красит только ультра: это «Сила» без проверок карты,
+// в любой партии разом.
+func TestPlanCanPaintGameMap(t *testing.T) {
+	for plan, want := range map[Plan]bool{PlanBasic: false, PlanExtended: false, PlanUltra: true, Plan(""): false} {
+		if got := plan.CanPaintGameMap(); got != want {
+			t.Errorf("%q: красить = %v, ожидалось %v", plan, got, want)
+		}
+	}
+}
+
 func TestPlanValid(t *testing.T) {
 	for _, p := range Plans {
 		if !p.Valid() {

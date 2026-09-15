@@ -1,16 +1,40 @@
 {
   "manifest_version": 3,
   "name": "Vendetta",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "База игроков Vendetta прямо в браузере.",
   "action": {
     "default_title": "Vendetta",
     "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "permissions": ["storage"],
   "optional_host_permissions": [
     "https://*/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.supremacy1914.com/clients/*",
+        "https://supremacy1914.com/clients/*"
+      ],
+      "js": ["game-main.js"],
+      "world": "MAIN",
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.supremacy1914.com/clients/*",
+        "https://supremacy1914.com/clients/*"
+      ],
+      "js": ["game-content.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
   ]
 }

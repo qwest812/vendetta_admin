@@ -1104,15 +1104,9 @@ func (s *Server) gameStats(ctx context.Context, state *supremacy.GameState,
 		return nil, domain.UserStats{}, nil
 	}
 
-	known, err := s.userStats.Known(ctx, ids)
+	known, err := s.freshStats(ctx, ids)
 	if err != nil {
 		return nil, domain.UserStats{}, err
-	}
-
-	if stale := staleStats(known, ids, time.Now()); len(stale) > 0 {
-		for id, st := range s.refreshStats(ctx, stale) {
-			known[id] = st
-		}
 	}
 
 	out := make(map[int]domain.UserStats, len(known))
@@ -1122,6 +1116,26 @@ func (s *Server) gameStats(ctx context.Context, state *supremacy.GameState,
 		}
 	}
 	return out, known[viewerID], nil
+}
+
+// freshStats — боевой счёт по номерам на сайте: из базы, а устаревший
+// пересчитывается у сайта прямо сейчас. Общий для карты партии в админке
+// и для расширения: правило свежести у них одно.
+func (s *Server) freshStats(ctx context.Context, ids []string) (map[string]domain.UserStats, error) {
+	known, err := s.userStats.Known(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	// Без аккаунта игры спросить сайт некому — отдаём, что есть в базе.
+	if s.games == nil {
+		return known, nil
+	}
+	if stale := staleStats(known, ids, time.Now()); len(stale) > 0 {
+		for id, st := range s.refreshStats(ctx, stale) {
+			known[id] = st
+		}
+	}
+	return known, nil
 }
 
 // refreshStats спрашивает сайт про устаревших и записывает ответ. Молчание

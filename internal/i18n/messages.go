@@ -676,6 +676,8 @@ var messages = map[string]entry{
 	"api.json":         {ru: "Запрос должен быть в формате JSON", en: "The request must be JSON"},
 	"api.badjson":      {ru: "Не удалось разобрать запрос", en: "Could not parse the request"},
 	"api.internal":     {ru: "Ошибка на сервере, попробуйте позже", en: "Server error, please try again later"},
+	"api.power.closed": {ru: "Раскраска карты по силе вашему аккаунту недоступна.", en: "Colouring the map by strength is not available to your account."},
+	"api.power.bad":    {ru: "Не удалось прочитать состав партии", en: "Could not read the game roster"},
 	"err.badid":        {ru: "Некорректный id", en: "Malformed id"},
 
 	"err.notfound":       {ru: "не найдено", en: "not found"},

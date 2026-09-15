@@ -107,3 +107,33 @@ func TestAPIErrorsAreJSON(t *testing.T) {
 		})
 	}
 }
+
+// Номера из запроса силы уходят и в базу, и к сайту игры, поэтому
+// пропускаются только цифры; свой номер идёт в тот же список один раз.
+func TestPowerIDs(t *testing.T) {
+	ids, ok := powerIDs("101408369", []string{"75396888", "101408369", "75396888", "123"})
+	if !ok || strings.Join(ids, ",") != "101408369,75396888,123" {
+		t.Errorf("список = %v, ok = %v", ids, ok)
+	}
+
+	many := make([]string, apiPowerMax+1)
+	for i := range many {
+		many[i] = "1"
+	}
+	bad := []struct {
+		name    string
+		me      string
+		players []string
+	}{
+		{"без своего номера", "", []string{"1"}},
+		{"свой номер не цифры", "abc", []string{"1"}},
+		{"пустой состав", "1", nil},
+		{"чужой номер не цифры", "1", []string{"2", "1 OR 1=1"}},
+		{"слишком много игроков", "1", many},
+	}
+	for _, c := range bad {
+		if _, ok := powerIDs(c.me, c.players); ok {
+			t.Errorf("%s: запрос пропущен", c.name)
+		}
+	}
+}

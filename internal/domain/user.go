@@ -99,6 +99,10 @@ func (u *User) CanSeeLastSeen() bool { return u.Plan.CanSeeLastSeen() }
 // отдельно. Здесь только про анонимные партии.
 func (u *User) CanSeeAnonymousMaps() bool { return u.Plan.CanSeeAnonymousMaps() }
 
+// CanPaintGameMap — может ли расширение этого человека красить карту
+// в игре по силе. Открыто ультра-пакету, руту — по его пакету.
+func (u *User) CanPaintGameMap() bool { return u.Plan.CanPaintGameMap() }
+
 // Display — как подписывать пользователя там, где место на одну строку:
 // в журнале, в авторе заметки. Почта информативнее, но её может не быть.
 func (u *User) Display() string {
