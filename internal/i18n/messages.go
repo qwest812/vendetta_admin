@@ -56,8 +56,11 @@ var messages = map[string]entry{
 	"format.datetime": {ru: "02.01.2006 15:04", en: "Jan 2, 2006 15:04"},
 	"format.date":     {ru: "02.01.2006", en: "Jan 2, 2006"},
 
+	// Название в шапке, на входе и в заголовке вкладки по умолчанию.
+	"brand": {ru: "Админка", en: "Admin"},
+
 	// --- вход ---
-	"login.title":     {ru: "Вход — Vendetta", en: "Sign in — Vendetta"},
+	"login.title":     {ru: "Вход", en: "Sign in"},
 	"login.subtitle":  {ru: "Вход в базу игроков", en: "Sign in to the player database"},
 	"login.login":     {ru: "Почта", en: "Email"},
 	"login.password":  {ru: "Пароль", en: "Password"},
@@ -66,7 +69,7 @@ var messages = map[string]entry{
 	"login.register":  {ru: "Зарегистрироваться", en: "Sign up"},
 
 	// --- регистрация ---
-	"register.title":         {ru: "Регистрация — Vendetta", en: "Sign up — Vendetta"},
+	"register.title":         {ru: "Регистрация", en: "Sign up"},
 	"register.subtitle":      {ru: "Ник подтянется из игры по вашему ID", en: "Your nickname is taken from the game by your ID"},
 	"register.gameid":        {ru: "Игровой ID", en: "Game ID"},
 	"register.gameid.hint":   {ru: "число из вашего профиля в Supremacy 1914", en: "the number from your Supremacy 1914 profile"},
@@ -89,7 +92,7 @@ var messages = map[string]entry{
 	"register.disabled":       {ru: "Этот аккаунт отключён. Напишите администратору.", en: "This account is disabled. Contact an administrator."},
 
 	// --- поиск игроков (главная) ---
-	"home.title":              {ru: "Поиск игроков — Vendetta", en: "Player search — Vendetta"},
+	"home.title":              {ru: "Поиск игроков", en: "Player search"},
 	"home.heading":            {ru: "Поиск игроков", en: "Player search"},
 	"home.add":                {ru: "Добавить игрока", en: "Add player"},
 	"home.search.placeholder": {ru: "Игровой ID или ник (можно часть)", en: "Game ID or nickname (partial is fine)"},
@@ -97,7 +100,7 @@ var messages = map[string]entry{
 	"home.searching":          {ru: "ищем…", en: "searching…"},
 
 	// --- профиль ---
-	"profile.title":              {ru: "Профиль — Vendetta", en: "Profile — Vendetta"},
+	"profile.title":              {ru: "Профиль", en: "Profile"},
 	"profile.heading":            {ru: "Профиль", en: "Profile"},
 	"profile.nick":               {ru: "Ник", en: "Nickname"},
 	"profile.email":              {ru: "почта", en: "email"},
@@ -111,7 +114,7 @@ var messages = map[string]entry{
 	// Рутовая страница: журнал входов и две сводки по нему. Слова выбраны
 	// осторожно: сводка показывает повод посмотреть, а не вину, и подписи
 	// не должны обещать большего.
-	"logins.title":         {ru: "Входы — Vendetta", en: "Sign-ins — Vendetta"},
+	"logins.title":         {ru: "Входы", en: "Sign-ins"},
 	"logins.heading":       {ru: "Журнал входов", en: "Sign-in log"},
 	"logins.note":          {ru: "Последние 200 попыток входа, удачных и неудачных. Записи не удаляются из интерфейса: их убирает уборщик через %d дней.", en: "The last 200 sign-in attempts, successful and failed. Entries cannot be deleted from the interface: a janitor removes them after %d days."},
 	"logins.when":          {ru: "Когда", en: "When"},
@@ -154,7 +157,7 @@ var messages = map[string]entry{
 	"logins.live.empty":    {ru: "Никого", en: "Nobody"},
 
 	// --- журнал ---
-	"audit.title":   {ru: "Журнал — Vendetta", en: "Audit log — Vendetta"},
+	"audit.title":   {ru: "Журнал", en: "Audit log"},
 	"audit.heading": {ru: "Журнал действий", en: "Action log"},
 	"audit.note":    {ru: "Последние 200 записей. Журнал неизменяем и его нельзя очистить из интерфейса.", en: "The last 200 entries. The log is append-only and cannot be cleared from the interface."},
 	"audit.when":    {ru: "Когда", en: "When"},
@@ -247,7 +250,7 @@ var messages = map[string]entry{
 	"common.optional":     {ru: "(необязательно)", en: "(optional)"},
 
 	// --- обратная связь ---
-	"feedback.title":                   {ru: "Обратная связь — Vendetta", en: "Feedback — Vendetta"},
+	"feedback.title":                   {ru: "Обратная связь", en: "Feedback"},
 	"feedback.intro":                   {ru: "Напишите, что не работает или чего не хватает. Обращение видите только вы и админы; ответ придёт сюда же, а рядом с разделом в шапке загорится число.", en: "Write about what is broken or missing. Only you and the admins see the ticket; the reply lands right here, and a number lights up next to the section in the header."},
 	"feedback.intro.admin":             {ru: "Обращения от тех, кому выдан доступ. Ответ пишется в самой переписке; закрытое обращение автор поднимает новым сообщением, а ваш ответ в закрытое остаётся припиской.", en: "Tickets from the people who have access. Replies go into the thread itself; the author reopens a closed ticket with a new message, while your reply to a closed one stays a postscript."},
 	"feedback.new":                     {ru: "Новое обращение", en: "New ticket"},
@@ -282,7 +285,7 @@ var messages = map[string]entry{
 	"feedback.reopen.note":             {ru: "Обращение закрыто. Новое сообщение от автора откроет его снова.", en: "The ticket is closed. A new message from the author opens it again."},
 
 	// --- кланы ---
-	"clans.title":          {ru: "Альянсы — Vendetta", en: "Alliances — Vendetta"},
+	"clans.title":          {ru: "Альянсы", en: "Alliances"},
 	"clans.intro":          {ru: "Статус — это отношение к альянсу целиком: помеченный альянс красит все свои карточки в поиске. На шкалы риска и лояльности статус не влияет — они про репутацию человека, а не про политику его альянса.", en: "A status is our stance towards a whole alliance: a marked alliance colours all of its players in search. The status does not affect the risk and loyalty scales — those are about a person’s reputation, not their alliance’s politics."},
 	"clans.new":            {ru: "Новый альянс", en: "New alliance"},
 	"clans.new.note":       {ru: "Обычно альянс заводить не нужно — он появляется сам, когда его вписывают в карточку игрока. Вручную удобно пометить альянс заранее.", en: "You rarely need to add an alliance by hand — it appears on its own once someone types it into a player’s card. Adding one manually is for marking an alliance in advance."},
@@ -350,7 +353,7 @@ var messages = map[string]entry{
 	"rel.hint":       {ru: "Наберите ник или игровой ID — подходящие карточки появятся в списке.", en: "Type a nickname or game ID — matching cards will appear in the list."},
 
 	// --- доступы ---
-	"users.title":                  {ru: "Доступы — Vendetta", en: "Access — Vendetta"},
+	"users.title":                  {ru: "Доступы", en: "Access"},
 	"users.grant":                  {ru: "Выдать доступ", en: "Grant access"},
 	"users.email":                  {ru: "Почта", en: "Email"},
 	"users.role":                   {ru: "Роль", en: "Role"},
@@ -394,7 +397,7 @@ var messages = map[string]entry{
 	"users.delete.confirm":         {ru: "Удалить %s безвозвратно?", en: "Delete %s permanently?"},
 
 	// --- раздел «Игры»: список и проверка по номеру ---
-	"games.title":             {ru: "Игры — Vendetta", en: "Games — Vendetta"},
+	"games.title":             {ru: "Игры", en: "Games"},
 	"games.check":             {ru: "Проверить игру", en: "Check a game"},
 	"games.check.placeholder": {ru: "номер партии", en: "game number"},
 	"games.check.submit":      {ru: "Проверить", en: "Check"},
@@ -423,7 +426,7 @@ var messages = map[string]entry{
 	"games.checked.col.when": {ru: "Проверена", en: "Checked"},
 
 	// --- страница партии ---
-	"game.title":        {ru: "Партия — Vendetta", en: "Game — Vendetta"},
+	"game.title":        {ru: "Партия", en: "Game"},
 	"game.unnamed":      {ru: "Партия %s", en: "Game %s"},
 	"game.all":          {ru: "Все партии", en: "All games"},
 	"game.state":        {ru: "Состояние:", en: "State:"},
@@ -546,7 +549,7 @@ var messages = map[string]entry{
 	"game.team.no":        {ru: "№%s", en: "#%s"},
 
 	// --- настройки: справочник признаков ---
-	"settings.title":      {ru: "Настройки — Vendetta", en: "Settings — Vendetta"},
+	"settings.title":      {ru: "Настройки", en: "Settings"},
 	"settings.heading":    {ru: "Настройки", en: "Settings"},
 	"settings.note":       {ru: "Общее для всей админки. Правит только рут: справочник признаков один на всех, и его изменения видят все.", en: "Everything shared by the whole admin panel. Root only: the trait directory is common to everyone, and changes to it are seen by all."},
 	"settings.maps":       {ru: "Открытия карты", en: "Map openings"},
@@ -585,7 +588,7 @@ var messages = map[string]entry{
 	"settings.trait.active.note":      {ru: "Снятый флаг «активен» убирает признак из фильтра поиска и с карточек, но сохраняет уже проставленные отметки. Так гасят устаревшее, не теряя истории. Удаление снимает отметки у всех навсегда.", en: "Clearing the “active” flag removes the trait from the search filter and from cards but keeps the marks already made. That is how something outdated is retired without losing history. Deleting unmarks it on everyone for good."},
 
 	// --- справка ---
-	"faq.title": {ru: "Справка — Vendetta", en: "Help — Vendetta"},
+	"faq.title": {ru: "Справка", en: "Help"},
 	"faq.intro": {ru: "Частые вопросы. Первый пункт — короткая инструкция по админке, с него и стоит начать.", en: "Frequently asked questions. The first item is a short guide to the admin panel — start there."},
 
 	"faq.howto.q":          {ru: "Как пользоваться админкой", en: "How to use the admin panel"},

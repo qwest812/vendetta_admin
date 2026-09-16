@@ -9,7 +9,7 @@
 (() => {
     "use strict";
 
-    const CHANNEL = "vendetta-power";
+    const CHANNEL = "admin-power";
 
     // Полосы силы — те же, что в режиме «Сила» в админке, но цвета ярче:
     // заливка на карте ложится поверх рельефа, и приглушённая палитра
@@ -77,7 +77,7 @@
 
     function buildUI() {
         const host = document.createElement("div");
-        host.id = "vendetta-power";
+        host.id = "admin-power";
         // Своя тень: стили игры не трогают кнопку, а наши — игру.
         const root = host.attachShadow({ mode: "closed" });
         root.innerHTML = `

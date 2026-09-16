@@ -59,7 +59,7 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		DatabaseURL:  env("DATABASE_URL", "postgres://vendetta:vendetta@localhost:5432/vendetta?sslmode=disable"),
+		DatabaseURL:  env("DATABASE_URL", "postgres://admin:admin@localhost:5432/admin?sslmode=disable"),
 		ListenAddr:   env("LISTEN_ADDR", ":8080"),
 		CookieSecure: env("COOKIE_SECURE", "false") == "true",
 		RootEmail:    env("ROOT_EMAIL", ""),

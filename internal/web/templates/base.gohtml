@@ -3,14 +3,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{block "title" .}}Vendetta{{end}}</title>
+    <title>{{block "title" .}}{{t "brand"}}{{end}}</title>
     <link rel="stylesheet" href="/static/app.css">
     <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
 {{if .CurrentUser}}
     <header class="topbar">
-        <a class="brand" href="/">Vendetta</a>
+        <a class="brand" href="/">{{t "brand"}}</a>
         <nav>
             <a href="/" {{if eq .Path "/"}}class="active"{{end}}>{{t "nav.search"}}</a>
             {{/* Пункт «Кланы» из меню убран: раздел жив и открывается прямой

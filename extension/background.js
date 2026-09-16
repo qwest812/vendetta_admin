@@ -23,7 +23,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 async function power(me, players) {
     const { server, token } = await chrome.storage.local.get(["server", "token"]);
     if (!server || !token) {
-        return { error: "Войдите в расширении Vendetta — значок справа от адресной строки.", status: 401 };
+        return { error: "Войдите в расширении «Админка» — значок справа от адресной строки.", status: 401 };
     }
 
     let res;

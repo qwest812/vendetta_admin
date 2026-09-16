@@ -24,7 +24,7 @@ dev:
 	set -a; . ./.env; set +a; go run ./cmd/server
 
 build:
-	go build -o bin/vendetta ./cmd/server
+	go build -o bin/server ./cmd/server
 
 # Отдельная программа только для кнопки Мейв — без базы и админки.
 # Кладётся в bin/maeve.exe; при первом запуске создаёт maeve.txt рядом.

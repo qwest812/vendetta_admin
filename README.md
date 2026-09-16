@@ -1,4 +1,4 @@
-# Vendetta admin
+# Админка Supremacy 1914
 
 База игроков с поиском по нику и игровому ID, карточками и комментариями.
 
@@ -38,7 +38,7 @@ make up                # соберёт образ и поднимет postgres 
 | `make logs` | логи приложения |
 | `make ps` | статус контейнеров |
 | `make dev` | база в docker, приложение локально из исходников |
-| `make build` | бинарник в `bin/vendetta` |
+| `make build` | бинарник в `bin/server` |
 | `make maeve-windows` | отдельная программа для Мейв под Windows в `bin/maeve.exe`, см. [cmd/maeve](cmd/maeve/README.md) |
 | `make heroes` | пересобрать вшитый справочник героев из открытых файлов игры |
 | `make test` | тесты |
@@ -53,7 +53,7 @@ make up                # соберёт образ и поднимет postgres 
 |---|---|---|
 | `APP_PORT` | `8080` | порт админки на хосте |
 | `POSTGRES_PORT` | `5434` | порт базы на хосте, для psql и `make dev` |
-| `POSTGRES_USER` / `PASSWORD` / `DB` | `vendetta` | учётные данные базы |
+| `POSTGRES_USER` / `PASSWORD` / `DB` | `admin` | учётные данные базы |
 | `DATABASE_URL` | localhost:5434 | только для `make dev`; в docker перекрывается адресом `postgres:5432` |
 | `SESSION_TTL` | `168h` | срок жизни сессии |
 | `LOG_LEVEL` | `info` | `debug` показывает каждый опрос лобби |

@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Vendetta",
+  "name": "Админка",
   "version": "0.2.0",
-  "description": "База игроков Vendetta прямо в браузере.",
+  "description": "База игроков прямо в браузере.",
   "action": {
-    "default_title": "Vendetta",
+    "default_title": "Админка",
     "default_popup": "popup.html"
   },
   "background": {

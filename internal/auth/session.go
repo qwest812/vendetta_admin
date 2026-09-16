@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	CookieName = "vendetta_session"
+	CookieName = "session"
 	tokenBytes = 32
 )
 

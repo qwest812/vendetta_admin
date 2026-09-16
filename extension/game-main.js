@@ -15,10 +15,10 @@
 (() => {
     "use strict";
 
-    const CHANNEL = "vendetta-power";
+    const CHANNEL = "admin-power";
 
-    if (window.__vendettaPower) return;
-    window.__vendettaPower = true;
+    if (window.__adminPower) return;
+    window.__adminPower = true;
 
     let colors = null;   // Map: номер игрока в партии → цвет
     let patched = false;
@@ -89,11 +89,11 @@
     // притеняется (uFowIntensity). В той же текстуре тумана лежат границы
     // стран — их затемнение оставляем, иначе соседи одного цвета сольются.
     //
-    // В оба шейдера вписывается переключатель uVendettaPaint. Пока он 1:
+    // В оба шейдера вписывается переключатель uAdminPaint. Пока он 1:
     // провинции суши берут наш цвет как есть, почти плоским, а туман не
     // белит и не притеняет. 0 — шейдеры ведут себя как родные.
 
-    const PAINT_UNIFORM = "uVendettaPaint";
+    const PAINT_UNIFORM = "uAdminPaint";
 
     function mapRenderer() {
         const ui = window.hup.ui;
