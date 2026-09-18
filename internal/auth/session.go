@@ -140,15 +140,16 @@ func (s *Service) checkLogin(ctx context.Context, r *http.Request, login, passwo
 		return nil, place, err
 	}
 	// Отказ по паролю и отказ заблокированному пишем на самого владельца
-	// почты: снаружи это одна и та же ошибка, а в журнале разница видна
-	// по тому, есть ли рядом удачные входы.
+	// почты.
 	if err := VerifyPassword(password, user.PasswordHash); err != nil {
 		s.record(ctx, &user.ID, login, place, agent, false, via)
 		return nil, place, domain.ErrInvalidLogin
 	}
+	// О блокировке говорим прямо, но только после верного пароля: кто
+	// пароля не знает, по ответу не поймёт, закрыт этот аккаунт или нет.
 	if !user.IsActive {
 		s.record(ctx, &user.ID, login, place, agent, false, via)
-		return nil, place, domain.ErrInvalidLogin
+		return nil, place, domain.ErrLoginBlocked
 	}
 	return user, place, nil
 }

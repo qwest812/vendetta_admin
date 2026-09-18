@@ -297,6 +297,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /users/{id}/checks", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetMapChecks))))
 	mux.Handle("POST /users/{id}/plan", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetPlan))))
 	mux.Handle("POST /users/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.usersDelete))))
+	// Данные аккаунта — ник, почта, игровой ID — правит только рут: по нику
+	// человека узнают, по почте он входит.
+	mux.Handle("GET /users/{id}/edit", root(http.HandlerFunc(s.userEditForm)))
+	mux.Handle("POST /users/{id}/edit", root(auth.VerifyCSRF(http.HandlerFunc(s.userEditSave))))
 	mux.Handle("POST /players/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.playerDelete))))
 
 	// Порядок слоёв: паника ловится снаружи всего, заголовки безопасности

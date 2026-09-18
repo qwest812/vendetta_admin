@@ -982,3 +982,7 @@ td .change .change-value { font-size: 14px; }
     .card-head:has(.seg) { flex-direction: column; }
     .tile-value, .tile .change .change-value { font-size: 24px; }
 }
+
+/* Две строки полей одной формы (страница аккаунта): без зазора подпись
+   второй строки липнет к полям первой. */
+.row-form + .row-form { margin-top: 12px; }

@@ -172,6 +172,25 @@ func TestPagesRender(t *testing.T) {
 			deny: []string{"row-said"},
 		},
 		{
+			// Страница аккаунта у рута: форма с тем, что набрали, кнопка
+			// блокировки и последние входы со ссылкой на весь журнал.
+			page: "user_edit",
+			user: root,
+			data: map[string]any{
+				"Account": player,
+				"Form": repo.AccountFields{Nickname: "Dau7er", Email: "dau@example.com",
+					GameID: "101408369"},
+				"Error": "", "Notice": "сохранено", "CanBlock": true,
+				"Logins": []repo.LoginEvent{{ID: 1, UserID: &playerID, Login: "dau@example.com",
+					IP: "203.0.113.9", Subnet: "203.0.113.0/24", OK: false, CreatedAt: banSeen}},
+			},
+			want: []string{`action="/users/2/edit"`, `value="dau@example.com"`,
+				`name="back" value="/users/2/edit"`,
+				// У player вход закрыт: кнопка предлагает открыть его.
+				`name="active" value="true"`, "Разблокировать",
+				`href="/logins?user=2"`, "203.0.113.9"},
+		},
+		{
 			// Неделя: трое сейчас против двоих раньше — рост на половину.
 			page: "signups",
 			user: root,

@@ -1,0 +1,102 @@
+{{define "title"}}{{.Account.Nickname}} — {{t "useredit.title"}}{{end}}
+
+{{define "content"}}
+{{$a := .Account}}{{$f := .Form}}
+<div class="card">
+    <div class="card-head">
+        <h1>{{$a.Nickname}}</h1>
+        <div class="head-actions">
+            <span class="badge role-{{$a.Role}}">{{role $a.Role}}</span>
+            {{if $a.IsActive}}<span class="badge done">{{t "users.active"}}</span>
+            {{else}}<span class="badge open">{{t "users.blocked"}}</span>{{end}}
+        </div>
+    </div>
+    <p class="muted"><a href="/users">← {{t "useredit.back"}}</a></p>
+
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    {{if .Notice}}<p class="muted">{{.Notice}}</p>{{end}}
+
+    <form method="post" action="/users/{{$a.ID}}/edit">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <div class="row-form">
+            <label>
+                {{t "profile.nick"}}
+                <input type="text" name="nickname" value="{{$f.Nickname}}" required minlength="3" maxlength="32" autocomplete="off">
+            </label>
+            <label>
+                {{t "users.email"}}
+                <input type="email" name="email" value="{{$f.Email}}" {{if $a.IsRoot}}required{{end}} autocomplete="off">
+            </label>
+            <label>
+                {{t "profile.gameid"}}
+                <input type="text" name="game_id" value="{{$f.GameID}}" maxlength="32" autocomplete="off">
+            </label>
+        </div>
+        <div class="row-form">
+            <label>
+                {{t "profile.fullname"}}
+                <input type="text" name="full_name" value="{{$f.FullName}}" maxlength="100" autocomplete="off">
+            </label>
+            <label>
+                {{t "profile.city"}}
+                <input type="text" name="city" value="{{$f.City}}" maxlength="100" autocomplete="off">
+            </label>
+            <button type="submit">{{t "common.save"}}</button>
+        </div>
+    </form>
+    <p class="muted">{{t "useredit.note"}}</p>
+</div>
+
+<div class="card">
+    <h1>{{t "useredit.access"}}</h1>
+    {{if .CanBlock}}
+        <p class="muted">{{if $a.IsActive}}{{t "useredit.block.note"}}{{else}}{{t "useredit.unblock.note"}}{{end}}</p>
+        <form method="post" action="/users/{{$a.ID}}/active">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="hidden" name="back" value="/users/{{$a.ID}}/edit">
+            <input type="hidden" name="active" value="{{if $a.IsActive}}false{{else}}true{{end}}">
+            <button type="submit" {{if $a.IsActive}}class="danger"{{end}}>{{if $a.IsActive}}{{t "users.block"}}{{else}}{{t "users.unblock"}}{{end}}</button>
+        </form>
+    {{else}}
+        {{/* Себя и рута не блокируют: вход в админку закрылся бы насовсем. */}}
+        <p class="muted">{{t "useredit.block.self"}}</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h1>{{t "useredit.logins"}}</h1>
+        <a class="button ghost" href="/logins?user={{$a.ID}}">{{t "useredit.logins.all"}}</a>
+    </div>
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
+            <tr>
+                <th>{{t "logins.when"}}</th>
+                <th>{{t "logins.ip"}}</th>
+                <th>{{t "logins.result"}}</th>
+                <th>{{t "logins.agent"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .Logins}}
+                <tr class="{{if not .OK}}fail{{end}}">
+                    <td class="muted nowrap" data-label="{{t "logins.when"}}">{{datetime .CreatedAt}}</td>
+                    <td data-label="{{t "logins.ip"}}"><a href="/logins?ip={{.IP}}"><code>{{.IP}}</code></a></td>
+                    <td data-label="{{t "logins.result"}}">
+                        {{if .OK}}<span class="badge done">{{t "logins.ok"}}</span>
+                        {{else}}<span class="badge open">{{t "logins.fail"}}</span>{{end}}
+                        {{if eq .Via "extension"}}<span class="badge">{{t "logins.via.extension"}}</span>{{end}}
+                    </td>
+                    <td class="muted" data-label="{{t "logins.agent"}}">
+                        <span class="agent" title="{{.UserAgent}}">{{.UserAgent}}</span>
+                    </td>
+                </tr>
+            {{else}}
+                <tr><td colspan="4" class="muted">{{t "useredit.logins.empty"}}</td></tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{end}}

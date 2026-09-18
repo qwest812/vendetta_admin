@@ -417,6 +417,16 @@ var messages = map[string]entry{
 	"profile.plan.anon.no":         {ru: "Карты анонимных партий — с ультра-пакета.", en: "Maps of anonymous games — from the ultra plan."},
 	"users.plan.note":              {ru: "Пакет решает, сколько человеку можно. Личные списки: базовый — 20 карточек, расширенный — 50, ультра — без предела; счёт общий на врагов и друзей вместе. С расширенного вдобавок видно, когда игрока встречали в партии и в какой именно. Ультра сверх того открывает партии, объявленные анонимными, — в них игра прячет имена всех участников. Понижение пакета ничего не удаляет: собранное остаётся, но добавлять новое не даёт, пока человек сам не разгребёт. Пакет действует и на рута, и свой он тоже меняет здесь — затем, чтобы увидеть админку глазами обычного человека; вернуть ультра он может в любой момент.", en: "The plan decides how much a person may do. Personal lists: basic allows 20 cards, extended 50, ultra is unlimited; the count is shared between enemies and friends. From extended upwards they also see when a player was met in a game, and in which one. Ultra additionally opens games declared anonymous, where the game hides every participant’s name. Lowering a plan deletes nothing: what was collected stays, but nothing new can be added until the person clears it out. The plan applies to the root as well, and the root changes their own here too — so as to see the admin panel through an ordinary person’s eyes; ultra can be restored at any moment."},
 	"users.checks.note":            {ru: "Сколько раз в сутки человек может посмотреть карту партии. Каждый показ — проверка, даже обновление страницы; счёт обнуляется в полночь. Ноль закрывает карты совсем. Руту проверки не считают.", en: "How many times a day the person may look at a game map. Every view is a check, a page refresh included; the count resets at midnight. Zero closes maps entirely. The root is not counted."},
+	"useredit.title":               {ru: "аккаунт", en: "account"},
+	"useredit.back":                {ru: "ко всем доступам", en: "back to access"},
+	"useredit.note":                {ru: "Входят по почте: без неё человек войти не сможет. Смена почты или ника сессии не сбрасывает. Каждая правка пишется в журнал с прежним значением.", en: "Sign-in is by email: without one the person cannot sign in. Changing the email or nickname does not end sessions. Every edit is logged with the previous value."},
+	"useredit.access":              {ru: "Вход", en: "Sign-in"},
+	"useredit.block.note":          {ru: "Блокировка сразу завершает все сессии, в том числе в расширении. При входе с верным паролем человек увидит «Вам заблокировали вход».", en: "Blocking ends all sessions at once, the extension included. Signing in with the right password will show “Your sign-in has been blocked”."},
+	"useredit.unblock.note":        {ru: "Вход заблокирован. После разблокировки человек войдёт с прежним паролем.", en: "Sign-in is blocked. Once unblocked, the person signs in with the same password."},
+	"useredit.block.self":          {ru: "Себя и рута заблокировать нельзя.", en: "You cannot block yourself or the root."},
+	"useredit.logins":              {ru: "Последние входы", en: "Recent sign-ins"},
+	"useredit.logins.all":          {ru: "Весь журнал", en: "Full log"},
+	"useredit.logins.empty":        {ru: "Входов ещё не было.", en: "No sign-ins yet."},
 	"users.delete.confirm":         {ru: "Удалить %s безвозвратно?", en: "Delete %s permanently?"},
 
 	// --- раздел «Игры»: список и проверка по номеру ---
@@ -694,8 +704,9 @@ var messages = map[string]entry{
 	"faq.bug.a": {ru: "Раздел «Обратная связь»: заведите обращение, и разговор останется в админке — с ответом и датами. Обращение видите вы и админы; когда вопрос решён, его закрывают.", en: "The Feedback section: open a ticket and the conversation stays inside the admin panel, with the reply and the dates. You and the admins see it; once the question is settled, it gets closed."},
 
 	// --- сообщения обработчиков: ошибки форм и отказы ---
-	"err.badform":  {ru: "Некорректная форма", en: "Malformed form"},
-	"err.badlogin": {ru: "Неверная почта или пароль", en: "Wrong email or password"},
+	"err.badform":       {ru: "Некорректная форма", en: "Malformed form"},
+	"err.badlogin":      {ru: "Неверная почта или пароль", en: "Wrong email or password"},
+	"err.login.blocked": {ru: "Вам заблокировали вход. Напишите администратору.", en: "Your sign-in has been blocked. Contact an administrator."},
 
 	// --- API расширения ---
 	"api.unauthorized": {ru: "Вход из расширения закончился — войдите снова.", en: "The extension sign-in has ended — please sign in again."},

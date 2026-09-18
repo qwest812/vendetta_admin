@@ -104,7 +104,9 @@
 {{$u := .User}}{{$root := .Root}}{{$me := .Me}}{{$csrf := .CSRFToken}}
 {{$checks := printf "%d" $u.MapChecks}}{{if .ChecksInput}}{{$checks = .ChecksInput}}{{end}}
 <tr class="{{if not $u.IsActive}}inactive{{end}}">
-    <td data-label="{{t "profile.nick"}}">{{$u.Nickname}}{{if eq $u.ID $me}} <span class="muted">{{t "users.you"}}</span>{{end}}</td>
+    {{/* Руту ник — ссылка на страницу аккаунта: там правятся почта, ник
+         и игровой ID и видны последние входы. */}}
+    <td data-label="{{t "profile.nick"}}">{{if $root}}<a href="/users/{{$u.ID}}/edit">{{$u.Nickname}}</a>{{else}}{{$u.Nickname}}{{end}}{{if eq $u.ID $me}} <span class="muted">{{t "users.you"}}</span>{{end}}</td>
     {{/* Профиль человек заполняет сам, поэтому пустые поля здесь
          обычное дело — прочерк, а не пустая ячейка. */}}
     <td data-label="{{t "profile.fullname"}}">{{if $u.FullName}}{{$u.FullName}}{{else}}<span class="muted">—</span>{{end}}</td>

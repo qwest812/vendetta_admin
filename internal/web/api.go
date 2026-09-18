@@ -68,9 +68,9 @@ func apiRequireUser(next http.Handler) http.Handler {
 	})
 }
 
-// apiLogin — вход расширения по почте и паролю. Отказ один на всё: нет
-// такой почты, не тот пароль, закрыт доступ — снаружи неразличимы, как
-// и на форме сайта.
+// apiLogin — вход расширения по почте и паролю. Нет такой почты и не тот
+// пароль снаружи неразличимы, как и на форме сайта. О блокировке говорим
+// прямо, но только тому, кто назвал верный пароль.
 func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 	lang := langOf(r)
 	var req struct {
@@ -90,6 +90,11 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, domain.ErrInvalidLogin) {
 		s.log.Warn("неудачный вход из расширения", "login", email, "ip", r.RemoteAddr)
 		writeAPIError(w, http.StatusUnauthorized, lang.T("err.badlogin"))
+		return
+	}
+	if errors.Is(err, domain.ErrLoginBlocked) {
+		s.log.Warn("вход заблокированного из расширения", "login", email, "ip", r.RemoteAddr)
+		writeAPIError(w, http.StatusForbidden, lang.T("err.login.blocked"))
 		return
 	}
 	if err != nil {

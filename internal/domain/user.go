@@ -182,6 +182,9 @@ var (
 	ErrPlanLimit     = &MsgError{"err.plan.limit"}
 	ErrForbidden     = &MsgError{"err.forbidden"}
 	ErrInvalidLogin  = &MsgError{"err.invalid.login"}
+	// ErrLoginBlocked — пароль верный, но вход закрыт рутом или админом.
+	// Отдельно от ErrInvalidLogin: человеку надо знать, что дело не в пароле.
+	ErrLoginBlocked = &MsgError{"err.login.blocked"}
 
 	ErrNickRequired  = &MsgError{"err.nick.required"}
 	ErrNickFormat    = &MsgError{"err.nick.format"}

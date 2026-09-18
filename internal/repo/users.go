@@ -134,6 +134,24 @@ func (r *Users) UpdateProfile(ctx context.Context, id int64, fullName, city, gam
 	return err
 }
 
+// AccountFields — что рут правит в чужом аккаунте. Роль, пакет, пароль
+// и блокировка сюда не входят: у них свои кнопки и свои записи в журнале.
+type AccountFields struct {
+	Nickname, Email, GameID, FullName, City string
+}
+
+// UpdateAccount переписывает данные аккаунта целиком. Пустая почта уходит
+// в NULL, как у заведённых без неё, чтобы безадресные не спорили друг
+// с другом по уникальному индексу.
+func (r *Users) UpdateAccount(ctx context.Context, id int64, f AccountFields) error {
+	err := r.exec(ctx,
+		`UPDATE users SET nickname = $2, email = NULLIF($3, ''), game_id = $4,
+		        full_name = $5, city = $6
+		 WHERE id = $1`,
+		id, f.Nickname, f.Email, f.GameID, f.FullName, f.City)
+	return registrationErr(err)
+}
+
 // Register заводит того, кто пришёл сам. Права — самые узкие: обычная
 // роль и пакет, проверки карты по умолчанию таблицы. Раздел «Игры» открыт
 // сразу: без карты партии регистрироваться незачем.

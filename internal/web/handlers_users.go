@@ -179,7 +179,14 @@ func (s *Server) usersSetActive(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logAudit(r, "user.set_active", target.ID, map[string]any{"user": target.Display(), "active": active})
 	if !hx(r) {
-		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		// Со страницы аккаунта возвращаемся на неё же. Адрес сверяем
+		// с собственным, а не берём какой прислали: иначе форма уводила
+		// бы куда угодно.
+		back := "/users"
+		if r.PostFormValue("back") == editPath(target.ID) {
+			back = editPath(target.ID)
+		}
+		http.Redirect(w, r, back, http.StatusSeeOther)
 		return
 	}
 	s.rowDone(w, r, target.ID, "active")

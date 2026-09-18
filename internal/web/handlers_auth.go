@@ -34,6 +34,14 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	if errors.Is(err, domain.ErrLoginBlocked) {
+		s.log.Warn("вход заблокированного", "login", login, "ip", r.RemoteAddr)
+		s.render(w, r, http.StatusForbidden, "login", map[string]any{
+			"Error": langOf(r).T("err.login.blocked"),
+			"Login": login,
+		})
+		return
+	}
 	if err != nil {
 		s.serverError(w, r, err)
 		return
