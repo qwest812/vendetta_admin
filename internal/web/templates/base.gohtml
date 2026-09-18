@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/app.css">
     <script src="/static/htmx.min.js" defer></script>
 </head>
-<body>
+<body{{if not .CurrentUser}} class="guest"{{end}}>
 {{if .CurrentUser}}
     <header class="topbar">
         <a class="brand" href="/">{{t "brand"}}</a>
@@ -17,9 +17,6 @@
                  ссылкой /clans, но в навигации его пока не показываем. */}}
             <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>{{t "nav.friends"}}</a>
             <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>{{t "nav.enemies"}}</a>
-            {{/* Число рядом с разделом: админу — сколько обращений ждут ответа,
-                 автору — на сколько его обращений ответили. */}}
-            <a href="/feedback" {{if eq .Path "/feedback"}}class="active"{{end}}>{{t "nav.feedback"}}{{if .FeedbackBadge}} <span class="badge count">{{.FeedbackBadge}}</span>{{end}}</a>
             {{if .CurrentUser.IsAdmin}}
                 <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>{{t "nav.users"}}</a>
                 <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>{{t "nav.audit"}}</a>
@@ -33,6 +30,11 @@
                 <a href="/games" {{if eq .Path "/games"}}class="active"{{end}}>{{t "nav.games"}}</a>
             {{end}}
             <a href="/faq" {{if eq .Path "/faq"}}class="active"{{end}}>{{t "nav.faq"}}</a>
+            {{/* Обратная связь — последней: ходят туда редко, а число рядом
+                 с разделом само зовёт, когда есть чего ждать. Админу оно
+                 показывает, сколько обращений ждут ответа, автору — на сколько
+                 его обращений ответили. */}}
+            <a href="/feedback" {{if eq .Path "/feedback"}}class="active"{{end}}>{{t "nav.feedback"}}{{if .FeedbackBadge}} <span class="badge count">{{.FeedbackBadge}}</span>{{end}}</a>
         </nav>
         <div class="me">
             <a class="email" href="/profile">{{.CurrentUser.Display}}</a>

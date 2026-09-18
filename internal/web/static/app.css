@@ -53,6 +53,20 @@ a.lang:hover { color: var(--accent); border-color: var(--accent); }
 main { padding: 24px; max-width: 1100px; margin: 0 auto; }
 main.centered { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
 
+/* Вход и регистрация — на фоне картинки из самой игры. Сверху затемнение,
+   чтобы форма читалась и на светлом небе; на узком экране — вертикальный
+   вариант той же сцены, иначе от широкой остаётся одна середина. */
+body.guest {
+    background: linear-gradient(rgba(10, 12, 16, .55), rgba(10, 12, 16, .75)),
+        url("/static/auth/bg-wide.jpg") center / cover no-repeat fixed, var(--bg);
+}
+body.guest .login { background: rgba(28, 31, 38, .88); backdrop-filter: blur(4px); box-shadow: 0 10px 40px rgba(0, 0, 0, .5); }
+@media (max-aspect-ratio: 4/5) {
+    /* fixed на телефонах либо не работает, либо растягивает картинку на всю
+       высоту страницы — там фон просто прокручивается. */
+    body.guest { background-image: linear-gradient(rgba(10, 12, 16, .55), rgba(10, 12, 16, .75)), url("/static/auth/bg-tall.jpg"); background-attachment: scroll; }
+}
+
 .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -577,8 +591,6 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
    скрипт вешает этот класс, а по нулю снимает. Нажатие гасим и вида ради,
    и по делу — раньше срока оно вернёт тот же отказ. */
 a.button.waiting, a.waiting { opacity: .45; pointer-events: none; }
-/* Секунды в таймере не должны прыгать шириной. */
-.map-wait .timer { font-variant-numeric: tabular-nums; }
 
 /* Число проверок карты правится прямо в строке пользователя: поле узкое,
    счёт там двузначный. */
@@ -623,6 +635,23 @@ td.plan { min-width: 18rem; }
     background: var(--surface);
     color: var(--muted);
     font-size: 14px;
+}
+
+/* То же «Собираем данные о партии», но на всю страницу: нажатое «Заглянуть
+   в партию» уводит на новый адрес, а ответа сайт игры ждёт до минуты. Браузер
+   всё это время показывает прежнюю страницу, поэтому накрываем её сами —
+   иначе нажатие выглядит потерянным. Снимать не нужно: перекрытие уходит
+   вместе со страницей, а при возврате назад его убирает скрипт. */
+.page-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(20, 22, 26, .85);
+    color: var(--text);
+    font-size: 15px;
 }
 
 /* Счётчик проверок у формы «Проверить игру»: число крупнее подписи, потому

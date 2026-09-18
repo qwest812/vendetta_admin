@@ -15,9 +15,7 @@
                hx-indicator="#searching">
     </div>
 
-    <p class="muted">
-        {{t "home.total"}} {{.Total}}. <span id="searching" class="htmx-indicator">{{t "home.searching"}}</span>
-    </p>
+    <p class="muted"><span id="searching" class="htmx-indicator">{{t "home.searching"}}</span></p>
 </div>
 
 <div id="results">{{template "results" .}}</div>

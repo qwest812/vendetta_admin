@@ -20,11 +20,6 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	total, err := s.players.Count(r.Context())
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
 	marks, err := s.marks(r, players)
 	if err != nil {
 		s.serverError(w, r, err)
@@ -32,7 +27,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	}
 	s.render(w, r, http.StatusOK, "home", merge(marks, map[string]any{
 		"Query": query, "Players": players,
-		"Total": total, "Limit": searchLimit, "CanMark": true,
+		"Limit": searchLimit, "CanMark": true,
 	}))
 }
 

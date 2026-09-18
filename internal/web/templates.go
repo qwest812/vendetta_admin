@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -159,7 +160,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	data["Lang"] = lang
 	// Back — куда вернуться после переключения языка: на ту же страницу
 	// со всеми её параметрами, а не на главную.
-	data["Back"] = r.URL.RequestURI()
+	data["Back"] = backTo(r.URL)
 
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base.gohtml", data); err != nil {
@@ -226,4 +227,19 @@ func csrfToken(r *http.Request) string {
 		return sess.CSRFToken
 	}
 	return ""
+}
+
+// backTo — адрес страницы для переключателя языка. Параметры сохраняем: без
+// них человек вернулся бы к пустому поиску. Кроме state: он означает «сходи
+// в партию за состоянием», и в чужой партии это проверка карты, а в своей —
+// настоящий вход в игру. Смена языка ни того, ни другого стоить не должна.
+func backTo(u *url.URL) string {
+	if !u.Query().Has("state") {
+		return u.RequestURI()
+	}
+	back := *u
+	q := back.Query()
+	q.Del("state")
+	back.RawQuery = q.Encode()
+	return back.RequestURI()
 }

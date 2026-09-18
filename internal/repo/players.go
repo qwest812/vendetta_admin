@@ -364,12 +364,6 @@ func (r *Players) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *Players) Count(ctx context.Context) (int, error) {
-	var n int
-	err := r.pool.QueryRow(ctx, `SELECT count(*) FROM players`).Scan(&n)
-	return n, err
-}
-
 // HeroMarks — герои игрока со сводным уровнем: какой назвали чаще других,
 // сколько человек отметили и что поставил я. Сводный считается модой,
 // а не средним: уровни — это ступени, и «13,5» не бывает.

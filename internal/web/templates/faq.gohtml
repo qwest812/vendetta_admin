@@ -7,13 +7,40 @@
 </div>
 
 <div class="card faq">
-    {{/* Первый вопрос открыт: это и есть инструкция, ради которой сюда заходят. */}}
+    {{/* Сверху три вопроса, ради которых сюда приходят чаще всего, —
+         в этом порядке. Первый открыт: новичка после регистрации ведут
+         прямо сюда. */}}
     <details open>
+        <summary>{{t "faq.map.q"}}</summary>
+        <div class="faq-body">
+            <p>{{t "faq.map.a1"}}</p>
+            <p>{{t "faq.map.a2"}}</p>
+            <p>{{t "faq.map.a3"}}</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>{{t "faq.lists.q"}}</summary>
+        <div class="faq-body">
+            <p>{{t "faq.lists.why"}}</p>
+            <p>{{t "faq.lists.a3"}}</p>
+            <p>{{t "faq.lists.a4"}}</p>
+            <p>{{t "faq.lists.a1"}}</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>{{t "faq.search.q"}}</summary>
+        <div class="faq-body">
+            <p>{{t "faq.search.a1"}}</p>
+            <p>{{t "faq.search.a2"}}</p>
+        </div>
+    </details>
+
+    <details>
         <summary>{{t "faq.howto.q"}}</summary>
         <div class="faq-body">
             <p><b>{{t "faq.howto.login.h"}}</b> {{t "faq.howto.login"}}</p>
-
-            <p><b>{{t "faq.howto.search.h"}}</b> {{t "faq.howto.search"}}</p>
 
             <p><b>{{t "faq.howto.card.h"}}</b> {{t "faq.howto.card"}}</p>
 
@@ -61,16 +88,6 @@
         <summary>{{t "faq.comments.q"}}</summary>
         <div class="faq-body">
             <p>{{t "faq.comments.a"}}</p>
-        </div>
-    </details>
-
-    <details>
-        <summary>{{t "faq.lists.q"}}</summary>
-        <div class="faq-body">
-            <p>{{t "faq.lists.a1"}}</p>
-            <p>{{t "faq.lists.a2"}}</p>
-            <p>{{t "faq.lists.a3"}}</p>
-            <p>{{t "faq.lists.a4"}}</p>
         </div>
     </details>
 

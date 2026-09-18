@@ -102,17 +102,16 @@
             {{if .ChecksTotal}}{{t "game.limit.left" .ChecksLeft .ChecksTotal}}{{else}}{{t "game.limit.none"}}{{end}}
         </p>
     {{end}}
-    {{/* Строку показываем по готовому тексту таймера: он есть тогда же,
-         когда есть и время съёмки, а отсутствующий ключ карты «точки»
-         на метод не проверить. */}}
+    {{/* Метка для скрипта: про возраст копии и срок до новой на странице
+         не говорится, но гасить ссылки на это время всё равно нужно —
+         нажимать их раньше срока незачем: данные вернутся те же,
+         а проверку съедят. Отсюда пустая скрытая метка со сроком.
+
+         Показываем её по готовому тексту таймера: он есть тогда же, когда
+         есть и время съёмки, а отсутствующий ключ карты «точки» на метод
+         не проверить. */}}
     {{if .MapWaitText}}
-        {{/* Когда сняли копию и когда будет новая. Секунды тикает скрипт,
-             он же гасит на это время ссылки: нажимать их раньше срока
-             незачем — данные вернутся те же, а проверку съедят. */}}
-        <p class="muted map-wait" data-wait="{{.MapWait}}" data-ready="{{t "game.limit.ready"}}">
-            {{t "game.limit.at"}} {{datetime .MapAt}}.
-            <span class="wait-left">{{t "game.limit.next"}} <b class="timer">{{.MapWaitText}}</b></span>
-        </p>
+        <span class="map-wait" hidden data-wait="{{.MapWait}}"></span>
     {{end}}
 
     {{if .Map}}{{template "gamemap" .}}{{end}}
@@ -183,46 +182,58 @@
     {{end}}
 
     {{/* Кончившиеся проверки — не поломка: про них сказано выше своими
-         словами, и жаловаться на молчание игры тут не за что. */}}
-    {{if and (not .State) (or .Ours (not .ChecksOut))}}
-        <p class="muted">
-            {{if .Ours}}
-                {{t "game.enter.note"}}
-            {{else}}
-                {{t "game.observe.failed"}}
-            {{end}}
-        </p>
+         словами, и жаловаться на молчание игры тут не за что. У своей
+         партии состав приезжает по кнопке, и объяснять это словами
+         не нужно — кнопка сама рядом. */}}
+    {{if and (not .State) (not .Ours) (not .ChecksOut)}}
+        <p class="muted">{{t "game.observe.failed"}}</p>
     {{end}}
 
     {{if .MapWait}}
         <script>
-            // Таймер до следующей копии. Сервер назвал число секунд, страница
-            // их тикает и в конце сама оживляет ссылки: нажатая раньше срока,
-            // любая из них вернёт ту же копию, а проверку потратит.
+            // Срок до следующей копии страница отсчитывает молча и в конце
+            // сама оживляет ссылки: нажатая раньше срока, любая из них
+            // вернёт ту же копию, а проверку потратит.
             (function () {
                 var box = document.querySelector('.map-wait');
                 if (!box) return;
-                var out = box.querySelector('.timer');
                 var left = parseInt(box.dataset.wait, 10) || 0;
                 var links = document.querySelectorAll('a.map-again');
                 links.forEach(function (a) { a.classList.add('waiting'); });
-                // Час ожидания секундами не показать: «2951» ни о чём
-                // не говорит, а «49:11» читается сразу.
-                var clock = function (sec) {
-                    if (sec < 0) sec = 0;
-                    return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2);
-                };
                 var tick = setInterval(function () {
                     left -= 1;
-                    out.textContent = clock(left);
                     if (left > 0) return;
                     clearInterval(tick);
-                    box.querySelector('.wait-left').textContent = box.dataset.ready;
                     links.forEach(function (a) { a.classList.remove('waiting'); });
                 }, 1000);
             })();
         </script>
     {{end}}
+
+    {{/* Нажатое «Заглянуть в партию» уводит на новый адрес, и до ответа
+         браузер показывает прежнюю страницу. Накрываем её сразу, чтобы
+         нажатие не выглядело потерянным: снимать перекрытие не нужно — оно
+         уходит вместе со страницей. Возврат «назад» показывает страницу
+         из кэша браузера вместе с перекрытием, поэтому там убираем сами. */}}
+    <script>
+        (function () {
+            var box = null;
+            document.querySelectorAll('a.map-again').forEach(function (a) {
+                a.addEventListener('click', function () {
+                    if (a.classList.contains('waiting') || box) return;
+                    box = document.createElement('div');
+                    box.className = 'page-loading';
+                    box.textContent = {{t "game.limit.loading"}};
+                    document.body.appendChild(box);
+                });
+            });
+            window.addEventListener('pageshow', function (e) {
+                if (!e.persisted || !box) return;
+                box.remove();
+                box = null;
+            });
+        })();
+    </script>
 
     {{if .LoaderMs}}
         <script>
@@ -326,14 +337,6 @@
             {{t "game.startedat"}} {{datetime .Game.Started}}{{end}}{{/* Номер аккаунта проекта — внутренняя кухня,
             и «мы» здесь означает именно его, а не того, кто смотрит. */}}{{if and .CurrentUser.IsRoot .Game.PlayerID}},
             {{t "game.ourplayer" .Game.PlayerID}}{{end}}.
-        </p>
-    {{end}}
-    {{if and (not .Ours) (or .Game .State)}}
-        {{/* Чужая партия: общий аккаунт в ней не играет, но смотреть
-             со стороны игра не мешает — она отдаёт состояние партии
-             и без входа в неё. */}}
-        <p class="muted">
-            {{t "game.foreign.note"}}
         </p>
     {{end}}
     {{/* Про долгое открытие говорим на самой странице: ждать минуту
@@ -540,7 +543,6 @@
                  бояться. Полоса в колонке силы — те же цвета, что выше. */}}
             {{if .Roster}}
                 <h2>{{t "game.roster"}}</h2>
-                <p class="muted">{{t "game.roster.note"}}</p>
                 {{/* Без своего боевого счёта колонка силы пуста целиком — сравнивать
                      не с чем. Молчать об этом нельзя: пустой столбец читается как
                      поломка, а не как «нам не с чем сравнивать». */}}

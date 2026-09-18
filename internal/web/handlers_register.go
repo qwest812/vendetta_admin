@@ -206,13 +206,14 @@ func (s *Server) claimAccount(w http.ResponseWriter, r *http.Request, existing *
 }
 
 // enter заводит сессию сразу после регистрации тем же путём, что и обычный
-// вход: так он попадает в журнал входов наравне с остальными.
+// вход: так он попадает в журнал входов наравне с остальными. Новичка
+// ведём сразу в справку — там рассказано, что где в админке.
 func (s *Server) enter(w http.ResponseWriter, r *http.Request, email, password string) {
 	if _, err := s.auth.Login(r.Context(), w, r, email, password); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/faq", http.StatusSeeOther)
 }
 
 func (s *Server) renderRegister(w http.ResponseWriter, r *http.Request, status int,

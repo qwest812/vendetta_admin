@@ -119,12 +119,13 @@ func (r *Users) UpdateProfile(ctx context.Context, id int64, fullName, city, gam
 }
 
 // Register заводит того, кто пришёл сам. Права — самые узкие: обычная
-// роль и пакет, доступ к играм и проверки карты по умолчанию таблицы.
+// роль и пакет, проверки карты по умолчанию таблицы. Раздел «Игры» открыт
+// сразу: без карты партии регистрироваться незачем.
 // Заводящего нет, created_by остаётся пустым.
 func (r *Users) Register(ctx context.Context, email, nickname, gameID, passwordHash string) (*domain.User, error) {
 	u, err := scanUser(r.pool.QueryRow(ctx,
-		`INSERT INTO users (email, nickname, game_id, password_hash, role)
-		 VALUES ($1, $2, $3, $4, 'user') RETURNING `+userColumns,
+		`INSERT INTO users (email, nickname, game_id, password_hash, role, games_access)
+		 VALUES ($1, $2, $3, $4, 'user', TRUE) RETURNING `+userColumns,
 		email, nickname, gameID, passwordHash))
 	return u, registrationErr(err)
 }

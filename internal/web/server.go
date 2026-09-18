@@ -165,7 +165,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /login", s.loginForm)
 	mux.Handle("POST /login", http.HandlerFunc(s.loginSubmit))
 	// Регистрация пускает сразу, с самыми узкими правами: обычная роль,
-	// базовый пакет, без раздела «Игры». Остальное выдаёт рут, как раньше.
+	// базовый пакет. Раздел «Игры» открыт сразу — карта партии и есть то,
+	// ради чего регистрируются; проверок в сутки столько, сколько по
+	// умолчанию. Остальное выдаёт рут, как раньше.
 	mux.HandleFunc("GET /register", s.registerForm)
 	mux.Handle("POST /register", http.HandlerFunc(s.registerSubmit))
 	mux.Handle("POST /logout", auth.VerifyCSRF(http.HandlerFunc(s.logout)))
