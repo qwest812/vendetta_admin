@@ -76,12 +76,6 @@ p { margin: 0 0 10px; }
 .small { font-size: 12px; }
 form .small { margin-top: 8px; }
 .error { color: var(--error); }
-.warning {
-    padding: 6px 8px;
-    border: 1px solid #b08a2e;
-    border-radius: 6px;
-    color: #e0c068;
-}
 
 .badge {
     display: inline-block;

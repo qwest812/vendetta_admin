@@ -13,9 +13,8 @@ const $ = (id) => document.getElementById(id);
 const show = (el, on) => { el.hidden = !on; };
 
 // Адрес сервера. Без схемы считаем https. Голый http пока разрешён: у боевой
-// админки ещё нет сертификата. Пароль и токен по нему идут открытым текстом,
-// поэтому панель об этом предупреждает всё время, пока вход живёт
-// (insecure). Когда у админки появится https, http надо снова закрыть —
+// админки ещё нет сертификата, и пароль с токеном по нему идут открытым
+// текстом. Когда у админки появится https, http надо снова закрыть —
 // оставив, как и раньше, только свой компьютер.
 function normalizeServer(raw) {
     let text = raw.trim();
@@ -87,25 +86,12 @@ function showSignedIn(state, warning) {
     $("nickname").textContent = state.user.nickname;
     $("role").textContent = roles[state.user.role] || state.user.role;
     $("server-line").textContent = state.server;
-    show($("insecure"), insecure(state.server));
     $("me-warning").textContent = warning || "";
     show($("me-warning"), Boolean(warning));
     show($("busy"), false);
     show($("login"), false);
     show($("signed-in"), true);
     mapPanel.start();
-}
-
-// insecure — ходит ли расширение к админке без шифрования. Свой компьютер
-// не в счёт: там пароль по сети не идёт.
-function insecure(server) {
-    try {
-        const url = new URL(server);
-        const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-        return url.protocol === "http:" && !local;
-    } catch {
-        return false;
-    }
 }
 
 async function load() {
