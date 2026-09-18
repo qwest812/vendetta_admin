@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Админка",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "База игроков прямо в браузере.",
   "action": {
     "default_title": "Админка"
@@ -18,8 +18,7 @@
   ],
   "optional_host_permissions": [
     "https://*/*",
-    "http://localhost/*",
-    "http://127.0.0.1/*"
+    "http://*/*"
   ],
   "content_scripts": [
     {

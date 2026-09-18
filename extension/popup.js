@@ -12,8 +12,11 @@ const roles = { user: "пользователь", admin: "админ", root: "р
 const $ = (id) => document.getElementById(id);
 const show = (el, on) => { el.hidden = !on; };
 
-// Адрес сервера — только https: по голому http пароль и токен уходили бы
-// открытым текстом. Исключение — свой компьютер, для проверки.
+// Адрес сервера. Без схемы считаем https. Голый http пока разрешён: у боевой
+// админки ещё нет сертификата. Пароль и токен по нему идут открытым текстом,
+// поэтому панель об этом предупреждает всё время, пока вход живёт
+// (insecure). Когда у админки появится https, http надо снова закрыть —
+// оставив, как и раньше, только свой компьютер.
 function normalizeServer(raw) {
     let text = raw.trim();
     if (!/^[a-z]+:\/\//i.test(text)) {
@@ -25,9 +28,8 @@ function normalizeServer(raw) {
     } catch {
         throw new Error("Не похоже на адрес сайта.");
     }
-    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-    if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) {
-        throw new Error("Нужен адрес с https://: по http пароль уходил бы открытым текстом.");
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+        throw new Error("Нужен адрес, начинающийся с https:// или http://.");
     }
     return url.origin;
 }
@@ -85,12 +87,25 @@ function showSignedIn(state, warning) {
     $("nickname").textContent = state.user.nickname;
     $("role").textContent = roles[state.user.role] || state.user.role;
     $("server-line").textContent = state.server;
+    show($("insecure"), insecure(state.server));
     $("me-warning").textContent = warning || "";
     show($("me-warning"), Boolean(warning));
     show($("busy"), false);
     show($("login"), false);
     show($("signed-in"), true);
     mapPanel.start();
+}
+
+// insecure — ходит ли расширение к админке без шифрования. Свой компьютер
+// не в счёт: там пароль по сети не идёт.
+function insecure(server) {
+    try {
+        const url = new URL(server);
+        const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+        return url.protocol === "http:" && !local;
+    } catch {
+        return false;
+    }
 }
 
 async function load() {
