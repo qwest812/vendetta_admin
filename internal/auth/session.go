@@ -91,6 +91,12 @@ func (s *Service) LoginExtension(ctx context.Context, r *http.Request,
 	if err != nil {
 		return nil, "", time.Time{}, err
 	}
+	// Расширение открыто не всем. Токен закрытому не выдаём вовсе, а попытку
+	// пишем отказом: вошёл бы — был бы в журнале, не вошёл — тоже.
+	if !user.CanUseExtension() {
+		s.record(ctx, &user.ID, login, place, r.UserAgent(), false, repo.SessionExtension)
+		return nil, "", time.Time{}, domain.ErrExtensionClosed
+	}
 
 	token, err := randomToken()
 	if err != nil {

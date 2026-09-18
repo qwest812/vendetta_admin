@@ -10,17 +10,17 @@
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // Слушаем только свои скрипты: чужие расширения сюда писать не должны.
-    if (sender.id !== chrome.runtime.id || !msg || msg.type !== "power") {
+    if (sender.id !== chrome.runtime.id || !msg || msg.type !== "map") {
         return false;
     }
-    power(msg.me, msg.players).then(sendResponse);
+    map(msg.me, msg.players, msg.teams).then(sendResponse);
     return true; // ответ придёт позже
 });
 
-// power спрашивает сервер, кто из игроков партии насколько сильнее.
+// map спрашивает сервер о цветах всех режимов карты для партии.
 // Ответ всегда объект: {data} при удаче или {error, status} при отказе —
 // сообщения между частями расширения исключения не переносят.
-async function power(me, players) {
+async function map(me, players, teams) {
     const { server, token } = await chrome.storage.local.get(["server", "token"]);
     if (!server || !token) {
         return { error: "Войдите в расширении «Админка» — значок справа от адресной строки.", status: 401 };
@@ -28,10 +28,10 @@ async function power(me, players) {
 
     let res;
     try {
-        res = await fetch(server + "/api/power", {
+        res = await fetch(server + "/api/map", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-            body: JSON.stringify({ me, players }),
+            body: JSON.stringify({ me, players, teams }),
             credentials: "omit",
             cache: "no-store",
         });
@@ -41,8 +41,9 @@ async function power(me, players) {
 
     const body = await res.json().catch(() => null);
     if (!res.ok) {
-        if (res.status === 401) {
-            // Токен погасили — забываем вход, окно расширения попросит войти.
+        if (res.status === 401 || res.status === 403) {
+            // Токен погасили или расширение аккаунту закрыли — забываем
+            // вход, окно расширения попросит войти и скажет почему.
             await chrome.storage.local.remove(["token", "user"]);
         }
         return { error: (body && body.error) || `Ошибка сервера (${res.status}).`, status: res.status };

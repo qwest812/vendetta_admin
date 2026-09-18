@@ -1,7 +1,6 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"mime"
@@ -24,8 +23,8 @@ import (
 // разрешать чужим мы ничего не отвечаем. Расширению это разрешение не
 // нужно: доступ к адресу сервера оно получает от человека при установке.
 
-// apiBodyLimit — предел тела запроса. Самое большое, что присылает
-// расширение, — номера игроков партии на пятьсот мест: килобайт десять.
+// apiBodyLimit — предел тела запроса: вход и прочие мелкие запросы. Состав
+// партии для карты крупнее, у него свой предел — apiMapBodyLimit.
 const apiBodyLimit = 64 << 10
 
 // apiUser — человек, как его видит расширение. Только то, что нужно
@@ -48,7 +47,7 @@ func (s *Server) apiHandler() http.Handler {
 	mux.HandleFunc("POST /api/auth/login", s.apiLogin)
 	mux.Handle("GET /api/auth/me", apiRequireUser(http.HandlerFunc(s.apiMe)))
 	mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
-	mux.Handle("POST /api/power", apiRequireUser(http.HandlerFunc(s.apiPower)))
+	mux.Handle("POST /api/map", apiRequireUser(http.HandlerFunc(s.apiMap)))
 	// Незнакомый адрес под /api/ — JSON, а не страница 404 сайта:
 	// расширение разбирает ответы как данные.
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -57,11 +56,18 @@ func (s *Server) apiHandler() http.Handler {
 	return s.auth.AttachExtension(mux)
 }
 
-// apiRequireUser пускает дальше только с живым токеном.
+// apiRequireUser пускает дальше только с живым токеном и только тех, кому
+// расширение открыто. Второе проверяется на каждом запросе, а не только
+// при входе: пакет понизили — старый токен перестаёт работать сразу.
 func apiRequireUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if auth.UserFrom(r.Context()) == nil {
+		user := auth.UserFrom(r.Context())
+		if user == nil {
 			writeAPIError(w, http.StatusUnauthorized, langOf(r).T("api.unauthorized"))
+			return
+		}
+		if !user.CanUseExtension() {
+			writeAPIError(w, http.StatusForbidden, langOf(r).T("api.closed"))
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -90,6 +96,10 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, domain.ErrInvalidLogin) {
 		s.log.Warn("неудачный вход из расширения", "login", email, "ip", r.RemoteAddr)
 		writeAPIError(w, http.StatusUnauthorized, lang.T("err.badlogin"))
+		return
+	}
+	if errors.Is(err, domain.ErrExtensionClosed) {
+		writeAPIError(w, http.StatusForbidden, lang.T("api.closed"))
 		return
 	}
 	if errors.Is(err, domain.ErrLoginBlocked) {
@@ -126,104 +136,17 @@ func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// apiPowerMax — больше этого игроков в партии не бывает: самые большие
+// apiMapMax — больше этого игроков в партии не бывает: самые большие
 // карты Supremacy на пятьсот мест. Запас — на случай новых режимов.
-const apiPowerMax = 1000
+const apiMapMax = 1000
 
-// apiPowerTimeout — сколько ждать сайт, дособирая счёт. На новой большой
-// партии это сотни вопросов; что не успело — останется без цвета и
-// дособерётся при следующем запросе.
-const apiPowerTimeout = 60 * time.Second
+// apiMapTimeout — сколько ждать сайт, дособирая счёт для режима «Сила».
+// На новой большой партии это сотни вопросов; что не успело — останется
+// серым и дособерётся при следующем запросе.
+const apiMapTimeout = 60 * time.Second
 
-// apiPowerPlayer — один игрок в ответе: полоса силы относительно
-// смотрящего и числа, по которым она посчитана. Power пуст, когда
-// сравнивать не с чем: счёта нет у него или у самого смотрящего.
-type apiPowerPlayer struct {
-	Power  string  `json:"power"`
-	Rated  bool    `json:"rated"`
-	Level  int     `json:"level"`
-	KD     float64 `json:"kd"`
-	Danger float64 `json:"danger"`
-}
-
-func toAPIPower(st, me domain.UserStats) apiPowerPlayer {
-	p := apiPowerPlayer{Rated: st.Rated(), Power: powerClass(st, me)}
-	if p.Rated {
-		p.Level, p.KD, p.Danger = st.Level, st.KD(), st.Danger()
-	}
-	return p
-}
-
-// apiPower — сила игроков партии относительно смотрящего: то же, чем
-// красится режим «Сила» в админке. Состав партии присылает расширение —
-// оно берёт его из клиента игры, открытого у человека, — поэтому сервер
-// в партию не ходит и проверок карты не тратит.
-//
-// me — номер на сайте того аккаунта, что играет в этой вкладке, а не
-// игровой ID из профиля админки: у человека их бывает несколько, а
-// сравнивать честно с тем, кем он сейчас играет.
-//
-// Открыто ультра-пакету. Остальным — отказ без слова «пакет»: про пакеты
-// знает только рут.
-func (s *Server) apiPower(w http.ResponseWriter, r *http.Request) {
-	lang := langOf(r)
-	if !currentUser(r).CanPaintGameMap() {
-		writeAPIError(w, http.StatusForbidden, lang.T("api.power.closed"))
-		return
-	}
-
-	var req struct {
-		Me      string   `json:"me"`
-		Players []string `json:"players"`
-	}
-	if !readJSON(w, r, &req) {
-		return
-	}
-	ids, ok := powerIDs(req.Me, req.Players)
-	if !ok {
-		writeAPIError(w, http.StatusBadRequest, lang.T("api.power.bad"))
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), apiPowerTimeout)
-	defer cancel()
-	stats, err := s.freshStats(ctx, ids)
-	if err != nil {
-		s.log.Error("сила для расширения", "err", err)
-		writeAPIError(w, http.StatusInternalServerError, lang.T("api.internal"))
-		return
-	}
-
-	me := stats[req.Me]
-	players := make(map[string]apiPowerPlayer, len(req.Players))
-	for _, id := range req.Players {
-		players[id] = toAPIPower(stats[id], me)
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"me": toAPIPower(me, me), "players": players})
-}
-
-// powerIDs проверяет номера из запроса и собирает их в один список для
-// базы — вместе со своим. Номер на сайте — только цифры; всё прочее
-// в запрос к базе и к сайту не пускаем.
-func powerIDs(me string, players []string) ([]string, bool) {
-	if !digitsOnly(me) || len(players) == 0 || len(players) > apiPowerMax {
-		return nil, false
-	}
-	ids := make([]string, 0, len(players)+1)
-	seen := map[string]bool{me: true}
-	ids = append(ids, me)
-	for _, id := range players {
-		if !digitsOnly(id) {
-			return nil, false
-		}
-		if !seen[id] {
-			seen[id] = true
-			ids = append(ids, id)
-		}
-	}
-	return ids, true
-}
-
+// digitsOnly — номер на сайте: только цифры и не длиннее двадцати. Всё
+// прочее в запрос к базе и к сайту не пускаем.
 func digitsOnly(s string) bool {
 	if s == "" || len(s) > 20 {
 		return false
@@ -241,12 +164,18 @@ func digitsOnly(s string) bool {
 // разрешения у сервера, которого мы не даём. Так вход нельзя дёрнуть
 // с чужого сайта даже вслепую.
 func readJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	return readJSONLimit(w, r, dst, apiBodyLimit)
+}
+
+// readJSONLimit — readJSON со своим пределом тела: состав большой партии
+// крупнее прочих запросов.
+func readJSONLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
 	mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mt != "application/json" {
 		writeAPIError(w, http.StatusUnsupportedMediaType, langOf(r).T("api.json"))
 		return false
 	}
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, apiBodyLimit))
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
 		writeAPIError(w, http.StatusBadRequest, langOf(r).T("api.badjson"))

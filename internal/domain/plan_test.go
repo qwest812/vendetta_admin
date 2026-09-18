@@ -34,12 +34,12 @@ func TestPlanAtLeast(t *testing.T) {
 	}
 }
 
-// Карту в игре красит только ультра: это «Сила» без проверок карты,
-// в любой партии разом.
-func TestPlanCanPaintGameMap(t *testing.T) {
+// Расширение целиком — только ультра: оно красит карту в игре без проверок
+// карты и в анонимных партиях тоже.
+func TestPlanCanUseExtension(t *testing.T) {
 	for plan, want := range map[Plan]bool{PlanBasic: false, PlanExtended: false, PlanUltra: true, Plan(""): false} {
-		if got := plan.CanPaintGameMap(); got != want {
-			t.Errorf("%q: красить = %v, ожидалось %v", plan, got, want)
+		if got := plan.CanUseExtension(); got != want {
+			t.Errorf("%q: расширение = %v, ожидалось %v", plan, got, want)
 		}
 	}
 }

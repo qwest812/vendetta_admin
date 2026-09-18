@@ -109,7 +109,9 @@ async function start() {
         await chrome.storage.local.set({ user: data.user });
         showSignedIn(state);
     } catch (err) {
-        if (err.status === 401) {
+        // 403 — расширение этому аккаунту закрыли: вход тоже забываем,
+        // а причину показываем у формы.
+        if (err.status === 401 || err.status === 403) {
             await chrome.storage.local.remove(["token", "user"]);
             showLogin({ server: state.server, email: state.user.email }, err.message);
             return;

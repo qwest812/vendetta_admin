@@ -624,6 +624,11 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	return g, nil
 }
 
+// CSSColor — то же, что cssColor, для цветов, которые приходят не с игрового
+// сервера, а из клиента игры в браузере (расширение Chrome): формат у них
+// тот же самый.
+func CSSColor(c string) string { return cssColor(c) }
+
 // cssColor переводит цвет страны из игрового «rgba(230,190,140,255)»
 // в то, что понимает браузер. Непрозрачность игра всегда шлёт полной,
 // поэтому четвёртый компонент отбрасываем.

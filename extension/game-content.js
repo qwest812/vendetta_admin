@@ -1,41 +1,25 @@
 // Часть расширения на странице игры, но в своём, изолированном мире: клиент
-// игры её не видит. Отсюда рисуется кнопка «Сила» с легендой, отсюда же
-// идут сообщения обоим соседям — фону (сервер админки) и game-main.js
-// (карта в клиенте игры).
+// игры её не видит. Отсюда рисуется кнопка «Карта» с режимами и легендой,
+// отсюда же идут сообщения обоим соседям — фону (сервер админки)
+// и game-main.js (карта в клиенте игры).
 //
-// Цепочка при включении: состав партии из клиента → фон → /api/power →
-// цвета по полосам силы → клиент перекрашивает карту.
+// Цепочка при включении: состав партии из клиента → фон → /api/map →
+// цвета всех режимов разом → клиент перекрашивает карту выбранным. Смена
+// режима на сервер уже не ходит: цвета всех шести приехали одним ответом.
 
 (() => {
     "use strict";
 
-    const CHANNEL = "admin-power";
-
-    // Полосы силы — те же, что в режиме «Сила» в админке, но цвета ярче:
-    // заливка на карте ложится поверх рельефа, и приглушённая палитра
-    // админки на нём теряется. Бледность самого клиента (разбавление цвета
-    // и полупрозрачность) снимает game-main.js, так что цвет на карте тот
-    // же, что в легенде.
-    // Цвет в виде rgba(…,255): так его отдаёт сам клиент игры, и в таком
-    // виде его ждёт код, который этот цвет разбирает.
-    const BANDS = [
-        { key: "power-much-up", label: "Намного опаснее", color: [220, 20, 20] },
-        { key: "power-up", label: "Опаснее", color: [255, 130, 0] },
-        { key: "power-even", label: "Примерно поровну", color: [240, 210, 0] },
-        { key: "power-down", label: "Слабее", color: [60, 200, 60] },
-        { key: "power-much-down", label: "Намного слабее", color: [0, 150, 200] },
-        { key: "unknown", label: "Счёта нет", color: [200, 200, 200] },
-        { key: "ai", label: "Компьютер", color: [90, 90, 90] },
-        { key: "me", label: "Вы", color: [230, 0, 230] },
-    ];
-    const rgba = ([r, g, b]) => `rgba(${r},${g},${b},255)`;
-    const css = ([r, g, b]) => `rgb(${r},${g},${b})`;
+    const CHANNEL = "admin-map";
 
     // Как часто перечитывать состав, пока раскраска включена: в партию
-    // приходят новые игроки, а боты занимают места выбывших.
+    // приходят новые игроки, боты занимают места выбывших, а альянсы
+    // незнакомых игроков сервер узнаёт не сразу.
     const REFRESH_MS = 10 * 60 * 1000;
 
     let enabled = false;
+    let mode = "clans";   // выбранный режим, помнится между партиями
+    let modes = null;     // ответ сервера: режимы с цветами и легендами
     let refreshTimer = null;
     let ui = null;
 
@@ -73,11 +57,22 @@
         });
     }
 
-    // --- кнопка и легенда ---
+    // --- кнопка, режимы и легенда ---
+
+    // Подписи режимов до ответа сервера: кнопки нужны сразу, а названия
+    // потом всё равно приедут с сервера на языке аккаунта.
+    const MODES = [
+        ["clans", "Альянсы"],
+        ["sides", "Мои списки"],
+        ["teams", "Коалиции"],
+        ["players", "Игроки"],
+        ["power", "Сила"],
+        ["top", "Топ альянсов"],
+    ];
 
     function buildUI() {
         const host = document.createElement("div");
-        host.id = "admin-power";
+        host.id = "admin-map";
         // Своя тень: стили игры не трогают кнопку, а наши — игру.
         const root = host.attachShadow({ mode: "closed" });
         root.innerHTML = `
@@ -90,18 +85,23 @@
                          color: #e6e9ec; padding: 6px 10px; font: inherit; cursor: pointer; }
                 button.on { background: #c4453c; border-color: #c4453c; color: #fff; }
                 .panel { margin-top: 6px; padding: 8px 10px; border: 1px solid #2c343d;
-                         border-radius: 6px; background: rgba(20, 24, 29, .92); min-width: 190px; }
-                ul { list-style: none; margin: 0; padding: 0; }
+                         border-radius: 6px; background: rgba(20, 24, 29, .92); width: 260px; }
+                .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+                .modes button { padding: 4px 6px; font-size: 12px; color: #8b96a1; }
+                .modes button.active { border-color: #c4453c; color: #fff; }
+                ul { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }
                 li { display: flex; align-items: center; gap: 6px; }
                 .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
-                .n { margin-left: auto; color: #8b96a1; }
-                .status { margin: 0 0 6px; color: #8b96a1; max-width: 240px; }
+                .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .n { margin-left: auto; color: #8b96a1; padding-left: 6px; }
+                .status { margin: 0 0 6px; color: #8b96a1; }
                 .status.error { color: #e0776f; }
                 [hidden] { display: none !important; }
             </style>
             <div class="box">
-                <button type="button" class="toggle">⚔ Сила</button>
+                <button type="button" class="toggle">🎨 Карта</button>
                 <div class="panel" hidden>
+                    <div class="modes"></div>
                     <p class="status"></p>
                     <ul class="legend"></ul>
                 </div>
@@ -110,8 +110,20 @@
 
         const toggle = root.querySelector(".toggle");
         toggle.addEventListener("click", () => setEnabled(!enabled));
+
+        const buttons = new Map();
+        const box = root.querySelector(".modes");
+        for (const [key, title] of MODES) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.textContent = title;
+            b.addEventListener("click", () => chooseMode(key));
+            box.append(b);
+            buttons.set(key, b);
+        }
         return {
             toggle,
+            buttons,
             panel: root.querySelector(".panel"),
             status: root.querySelector(".status"),
             legend: root.querySelector(".legend"),
@@ -119,26 +131,38 @@
     }
 
     function showStatus(text, isError) {
-        ui.panel.hidden = false;
         ui.status.textContent = text || "";
         ui.status.hidden = !text;
         ui.status.classList.toggle("error", Boolean(isError));
     }
 
-    function showLegend(counts) {
+    function showModes() {
+        for (const [key, b] of ui.buttons) {
+            b.classList.toggle("active", key === mode);
+            const m = modes && modes.find((x) => x.key === key);
+            if (m) {
+                b.textContent = m.title;
+                // Пояснение к режиму — то же, что под картой в админке.
+                // Длинное, поэтому подсказкой, а не текстом в панели.
+                b.title = m.note || "";
+            }
+        }
+    }
+
+    function showLegend(rows) {
         ui.legend.textContent = "";
-        if (!counts) return;
-        for (const band of BANDS) {
-            if (!counts[band.key]) continue;
+        for (const row of rows || []) {
             const li = document.createElement("li");
             const sw = document.createElement("span");
             sw.className = "sw";
-            sw.style.background = css(band.color);
+            sw.style.background = row.color;
             const label = document.createElement("span");
-            label.textContent = band.label;
+            label.className = "label";
+            label.textContent = row.label;
+            label.title = row.label;
             const n = document.createElement("span");
             n.className = "n";
-            n.textContent = counts[band.key];
+            n.textContent = row.count;
             li.append(sw, label, n);
             ui.legend.append(li);
         }
@@ -146,68 +170,73 @@
 
     // --- раскраска ---
 
-    async function paint() {
-        showStatus("Считаем силу игроков…");
+    // load спрашивает сервер о цветах всех режимов для этой партии.
+    async function load() {
+        showStatus("Загружаем карту…");
         showLegend(null);
 
         const answer = await ask("roster", "roster");
         if (!answer || !answer.roster) {
             showStatus("Партия ещё загружается — попробуйте через несколько секунд.", true);
-            return;
+            return false;
         }
-        const { me, players } = answer.roster;
-        const humans = players.filter((p) => !p.ai && p.siteUserID);
-        if (!me.siteUserID || humans.length === 0) {
+        const { me, players, teams } = answer.roster;
+        if (!me.site || players.length === 0) {
             showStatus("Не удалось прочитать состав партии.", true);
-            return;
+            return false;
         }
 
-        const res = await chrome.runtime.sendMessage({
-            type: "power",
-            me: me.siteUserID,
-            players: humans.map((p) => p.siteUserID),
-        });
-        if (!enabled) return; // выключили, пока ждали сервер
+        const res = await chrome.runtime.sendMessage({ type: "map", me: me.site, players, teams });
+        if (!enabled) return false; // выключили, пока ждали сервер
         if (!res || res.error) {
             showStatus(res ? res.error : "Расширение не ответило.", true);
-            return;
+            return false;
         }
+        modes = res.data.modes;
+        return true;
+    }
 
-        const colors = {};
-        const counts = {};
-        for (const p of players) {
-            let key;
-            if (p.playerID === me.playerID) key = "me";
-            else if (p.ai || !p.siteUserID) key = "ai";
-            else key = (res.data.players[p.siteUserID] || {}).power || "unknown";
-            const band = BANDS.find((b) => b.key === key) || BANDS.find((b) => b.key === "unknown");
-            colors[p.playerID] = rgba(band.color);
-            counts[band.key] = (counts[band.key] || 0) + 1;
-        }
-
-        const painted = await ask("paint", "painted", { colors });
+    // paint красит карту выбранным режимом из уже загруженных цветов.
+    async function paint() {
+        showModes();
+        const m = modes && modes.find((x) => x.key === mode);
+        if (!m) return;
+        const painted = await ask("paint", "painted", { colors: m.colors });
         if (!painted || !painted.ok) {
             const detail = painted && painted.error ? ` (${painted.error})` : "";
             showStatus(`Клиент игры не дал перекрасить карту — возможно, его обновили.${detail}`, true);
             return;
         }
-        const mine = res.data.me;
-        showStatus(mine && mine.rated
-            ? `Вы: ${mine.level} ур., кд ${mine.kd.toFixed(2)}, сила ${mine.danger.toFixed(2)}`
-            : "Вашего счёта ещё нет — сравнивать не с чем, карта серая.", !(mine && mine.rated));
-        showLegend(counts);
+        showStatus(m.status || "");
+        showLegend(m.legend);
+    }
+
+    async function refresh() {
+        if (await load()) await paint();
+    }
+
+    async function chooseMode(key) {
+        mode = key;
+        await chrome.storage.local.set({ paintMode: key });
+        if (!enabled) {
+            await setEnabled(true);
+            return;
+        }
+        await paint();
     }
 
     async function setEnabled(on) {
         enabled = on;
         ui.toggle.classList.toggle("on", on);
-        await chrome.storage.local.set({ paintPower: on });
+        ui.panel.hidden = !on;
+        await chrome.storage.local.set({ paintOn: on });
         clearInterval(refreshTimer);
         if (on) {
-            await paint();
-            refreshTimer = setInterval(() => enabled && paint(), REFRESH_MS);
+            showModes();
+            await refresh();
+            refreshTimer = setInterval(() => enabled && refresh(), REFRESH_MS);
         } else {
-            ui.panel.hidden = true;
+            modes = null;
             await ask("clear", "cleared");
         }
     }
@@ -223,8 +252,13 @@
             await new Promise((r) => setTimeout(r, 3000));
         }
         ui = buildUI();
-        const { paintPower } = await chrome.storage.local.get("paintPower");
-        if (paintPower) setEnabled(true);
+        const saved = await chrome.storage.local.get(["paintOn", "paintMode", "paintPower"]);
+        if (MODES.some(([key]) => key === saved.paintMode)) mode = saved.paintMode;
+        // paintPower — как это помнила версия 0.2, где режим был один.
+        if (saved.paintOn || (saved.paintOn === undefined && saved.paintPower)) {
+            if (saved.paintOn === undefined) mode = "power";
+            setEnabled(true);
+        }
     }
 
     start();

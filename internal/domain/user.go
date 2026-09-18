@@ -99,9 +99,9 @@ func (u *User) CanSeeLastSeen() bool { return u.Plan.CanSeeLastSeen() }
 // отдельно. Здесь только про анонимные партии.
 func (u *User) CanSeeAnonymousMaps() bool { return u.Plan.CanSeeAnonymousMaps() }
 
-// CanPaintGameMap — может ли расширение этого человека красить карту
-// в игре по силе. Открыто ультра-пакету, руту — по его пакету.
-func (u *User) CanPaintGameMap() bool { return u.Plan.CanPaintGameMap() }
+// CanUseExtension — пускать ли этого человека в расширение Chrome.
+// Открыто ультра-пакету, руту — по его пакету.
+func (u *User) CanUseExtension() bool { return u.Plan.CanUseExtension() }
 
 // Display — как подписывать пользователя там, где место на одну строку:
 // в журнале, в авторе заметки. Почта информативнее, но её может не быть.
@@ -185,6 +185,9 @@ var (
 	// ErrLoginBlocked — пароль верный, но вход закрыт рутом или админом.
 	// Отдельно от ErrInvalidLogin: человеку надо знать, что дело не в пароле.
 	ErrLoginBlocked = &MsgError{"err.login.blocked"}
+	// ErrExtensionClosed — пароль верный, но расширение этому аккаунту
+	// не открыто. Слова «пакет» в тексте нет: про пакеты знает только рут.
+	ErrExtensionClosed = &MsgError{"api.closed"}
 
 	ErrNickRequired  = &MsgError{"err.nick.required"}
 	ErrNickFormat    = &MsgError{"err.nick.format"}

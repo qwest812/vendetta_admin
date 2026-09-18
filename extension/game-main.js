@@ -15,10 +15,10 @@
 (() => {
     "use strict";
 
-    const CHANNEL = "admin-power";
+    const CHANNEL = "admin-map";
 
-    if (window.__adminPower) return;
-    window.__adminPower = true;
+    if (window.__adminMap) return;
+    window.__adminMap = true;
 
     let colors = null;   // Map: номер игрока в партии → цвет
     let patched = false;
@@ -52,25 +52,62 @@
         return true;
     }
 
-    // roster — кто в партии: номер в партии и номер на сайте. У ботов
-    // номера на сайте нет, их сила не считается.
+    // provinceCounts — сколько провинций у каждого владельца. Альянсы
+    // на карте получают цвета по убыванию владений, а легенды считают
+    // только тех, у кого есть земля, — как и в админке.
+    function provinceCounts() {
+        const counts = new Map();
+        const map = window.hup.gameState.getMapState();
+        const provinces = map && typeof map.getProvinceArray === "function" ? map.getProvinceArray() : [];
+        for (const p of provinces) {
+            const owner = p && typeof p.getOwnerID === "function" ? p.getOwnerID() : 0;
+            if (owner > 0) counts.set(owner, (counts.get(owner) || 0) + 1);
+        }
+        return counts;
+    }
+
+    // Клиент отдаёт название коалиции уже экранированным для разметки;
+    // расширение пишет его текстом, и экранирование надо снять.
+    const unescape = (s) => String(s || "").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+
+    // roster — кто в партии и что о нём знает сам клиент: номер в партии
+    // и на сайте, бот ли он, премиум, бан, коалиция и сколько у него
+    // провинций. Всё остальное — альянсы, личные списки, счёт — сервер
+    // админки находит по номеру на сайте. У ботов этого номера нет.
     function roster() {
         const me = window.hup.config.userData;
+        const counts = provinceCounts();
         const list = [];
         for (const p of players()) {
             const id = p.getPlayerID();
             if (!(id > 0)) continue;
             const site = Number(p.getSiteUserID());
             list.push({
-                playerID: id,
-                siteUserID: site > 0 ? String(site) : "",
+                id,
+                site: site > 0 ? String(site) : "",
                 ai: Boolean(p.getComputerPlayer()) || !(site > 0),
+                premium: typeof p.isPremiumUser === "function" && Boolean(p.isPremiumUser()),
+                banned: typeof p.getBanned === "function" && Boolean(p.getBanned()),
+                team: typeof p.getTeamID === "function" ? Number(p.getTeamID()) || 0 : 0,
+                provinces: counts.get(id) || 0,
+            });
+        }
+        const teams = [];
+        const all = window.hup.gameState.getPlayerState().getTeams() || {};
+        for (const t of Object.values(all)) {
+            if (!t || typeof t.getTeamID !== "function") continue;
+            const id = Number(t.getTeamID());
+            if (!(id > 0)) continue;
+            teams.push({
+                id,
+                name: unescape(typeof t.getTeamName === "function" ? t.getTeamName() : ""),
+                color: typeof t.getPrimaryColor === "function" ? String(t.getPrimaryColor() || "") : "",
             });
         }
         return {
-            gameID: String(me.gameID || ""),
-            me: { playerID: Number(me.playerID), siteUserID: String(me.siteUserID || "") },
+            me: { id: Number(me.playerID), site: String(me.siteUserID || "") },
             players: list,
+            teams,
         };
     }
 
