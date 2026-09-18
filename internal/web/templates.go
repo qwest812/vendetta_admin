@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,6 +38,39 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 		"datetime": func(t time.Time) string { return t.Local().Format(l.T("format.datetime")) },
 		// Дата без времени: в счёте по дням час ни к чему.
 		"date": func(t time.Time) string { return t.Local().Format(l.T("format.date")) },
+		// День без года — подпись под столбиком графика, где год и так один.
+		"day": func(t time.Time) string { return t.Local().Format(l.T("format.day")) },
+		// Изменение со знаком: «+3», «−2», «0». Минус типографский — у
+		// дефиса другая ширина, и столбец чисел пляшет.
+		"signed": func(n int) string {
+			switch {
+			case n > 0:
+				return "+" + strconv.Itoa(n)
+			case n < 0:
+				return "−" + strconv.Itoa(-n)
+			}
+			return "0"
+		},
+		// Высота столбика в процентах от самого высокого. Пустой день
+		// остаётся без столбика, а не делится на ноль.
+		"barPct": func(n, maxN int) int {
+			if maxN <= 0 {
+				return 0
+			}
+			return n * 100 / maxN
+		},
+		// Среднее за сутки с одним знаком: «0.4 в день» говорит больше, чем «0».
+		// Редкие регистрации за длинный отрезок округлились бы до «0.0»,
+		// будто их не было вовсе, — такие пишутся «<0.1».
+		"perDay": func(n, days int) string {
+			if n <= 0 || days <= 0 {
+				return "0"
+			}
+			if v := float64(n) / float64(days); v >= 0.05 {
+				return strconv.FormatFloat(v, 'f', 1, 64)
+			}
+			return "<0.1"
+		},
 		// Кд и опасность печатаются с двумя знаками: числа маленькие,
 		// и разница между 1.2 и 1.25 в них существенна.
 		"ratio": formatRatio,

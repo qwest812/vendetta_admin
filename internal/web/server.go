@@ -263,6 +263,7 @@ func (s *Server) Handler() http.Handler {
 	// не то же самое, что журнал правок, открытый админу. Ничего он
 	// не меняет, поэтому роут один и только на чтение.
 	mux.Handle("GET /logins", root(http.HandlerFunc(s.loginsPage)))
+	mux.Handle("GET /signups", root(http.HandlerFunc(s.signupsPage)))
 	mux.Handle("POST /settings/coalitions", root(auth.VerifyCSRF(http.HandlerFunc(s.coalitionScanToggle))))
 	mux.Handle("POST /settings/traits", root(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
 	mux.Handle("POST /settings/traits/{id}", root(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))

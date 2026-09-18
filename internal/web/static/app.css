@@ -31,7 +31,10 @@ a:hover { color: var(--accent); }
 }
 
 .brand { font-weight: 700; letter-spacing: .5px; color: var(--accent); }
-.topbar nav { display: flex; gap: 18px; }
+/* Пункты меню переносятся целиком: у рута их столько, что на ноутбуке
+   строка не помещается, и «Обратная связь» иначе рвалась бы пополам. */
+.topbar nav { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.topbar nav a { white-space: nowrap; }
 .topbar nav a.active { color: var(--accent); }
 .topbar .me { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .topbar .email { color: var(--muted); font-size: 13px; }
@@ -692,6 +695,7 @@ td.plan { min-width: 18rem; }
     .topbar nav {
         order: 3;
         width: 100%;
+        flex-wrap: nowrap;
         gap: 16px;
         overflow-x: auto;
         padding-bottom: 2px;
@@ -909,4 +913,72 @@ tr.fail td { background: rgba(192, 57, 43, .07); }
 @media (max-width: 640px) {
     table.stack .agent { max-width: 100%; white-space: normal; }
     .filters label:not(.check) { width: 100%; }
+}
+
+/* --- регистрации --- */
+
+/* Выбор отрезка — те же вкладки, что у карты партии, только ссылками. */
+.seg { display: flex; gap: 8px; }
+.seg a {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+.seg a:hover { color: var(--text); }
+.seg a.active { border-color: var(--accent); color: var(--text); }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.tile { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.tile-label { color: var(--muted); font-size: 12px; text-transform: uppercase; margin-bottom: 6px; }
+.tile-value { font-size: 30px; font-weight: 600; line-height: 1.1; margin-bottom: 4px; }
+
+/* Направление изменения — стрелкой и словом, цвет только помогает. */
+.change .change-value { font-size: 20px; font-weight: 600; }
+.change.up .change-value, .change.up .change-pct { color: var(--ok); }
+.change.down .change-value, .change.down .change-pct { color: #e88b81; }
+.tile .change .muted { display: block; }
+.tile .change .change-value { font-size: 30px; }
+td .change .change-value { font-size: 14px; }
+
+/* Столбики по дням. Зазор в 2px разделяет соседние, верх скруглён,
+   низ стоит на оси. Столбец целиком ловит наведение: в тонкий столбик
+   мышью не попасть. */
+.bars {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    height: 140px;
+    border-bottom: 1px solid var(--border);
+}
+.bar { flex: 1; display: flex; align-items: flex-end; min-width: 0; }
+.bar span {
+    display: block;
+    width: 100%;
+    min-height: 3px;
+    background: var(--accent);
+    border-radius: 4px 4px 0 0;
+}
+.bar:hover span { opacity: .8; }
+.bar:hover { background: rgba(255, 255, 255, .04); }
+.bars-axis { display: flex; justify-content: space-between; margin-top: 6px; }
+
+.hbar {
+    display: inline-block;
+    width: 120px;
+    height: 8px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+.hbar span { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+
+@media (max-width: 900px) {
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hbar { width: 80px; }
+}
+@media (max-width: 640px) {
+    .card-head:has(.seg) { flex-direction: column; }
+    .tile-value, .tile .change .change-value { font-size: 24px; }
 }

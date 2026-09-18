@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -104,6 +105,21 @@ func (r *Users) List(ctx context.Context) ([]*domain.User, error) {
 		users = append(users, u)
 	}
 	return users, rows.Err()
+}
+
+// SignupTimes — когда регистрировались те, кто пришёл сам. Их узнаём так
+// же, как миграция 00034: created_by пуст, роль обычная. Заведённых рутом
+// и админом здесь нет, а удалённые выпадают из счёта вместе с аккаунтом.
+//
+// Отдаём даты целиком, а по суткам раскладываем в Go: сутки считаются
+// в поясе админки, и базе его пришлось бы передавать отдельно.
+func (r *Users) SignupTimes(ctx context.Context) ([]time.Time, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT created_at FROM users WHERE created_by IS NULL AND role = 'user'`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[time.Time])
 }
 
 // UpdateProfile сохраняет то, что человек написал о себе сам. Роли, ника

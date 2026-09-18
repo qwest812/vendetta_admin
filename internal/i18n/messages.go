@@ -21,6 +21,7 @@ var messages = map[string]entry{
 	"nav.settings": {ru: "Настройки", en: "Settings"},
 	"nav.audit":    {ru: "Журнал", en: "Audit log"},
 	"nav.logins":   {ru: "Входы", en: "Sign-ins"},
+	"nav.signups":  {ru: "Регистрации", en: "Sign-ups"},
 	"nav.games":    {ru: "Игры", en: "Games"},
 	"nav.faq":      {ru: "Справка", en: "Help"},
 	"top.logout":   {ru: "Выйти", en: "Log out"},
@@ -55,6 +56,7 @@ var messages = map[string]entry{
 	// Формат даты и времени: у языков он разный, и это часть перевода.
 	"format.datetime": {ru: "02.01.2006 15:04", en: "Jan 2, 2006 15:04"},
 	"format.date":     {ru: "02.01.2006", en: "Jan 2, 2006"},
+	"format.day":      {ru: "02.01", en: "Jan 2"},
 
 	// Название в шапке, на входе и в заголовке вкладки по умолчанию.
 	"brand": {ru: "Админка", en: "Admin"},
@@ -154,6 +156,28 @@ var messages = map[string]entry{
 	"logins.live.sessions": {ru: "Сессий", en: "Sessions"},
 	"logins.live.since":    {ru: "Последний вход", en: "Last sign-in"},
 	"logins.live.empty":    {ru: "Никого", en: "Nobody"},
+
+	// --- регистрации (только руту) ---
+	"signups.title":      {ru: "Регистрации", en: "Sign-ups"},
+	"signups.days":       {ru: "%d дней", en: "%d days"},
+	"signups.note":       {ru: "Считаются только те, кто зарегистрировался сам. Заведённые в «Доступах» и удалённые аккаунты в счёт не идут. Текущий отрезок заканчивается сегодняшним днём, и сегодняшние сутки в нём ещё не полные.", en: "Only people who signed up on their own are counted. Accounts created in Access and deleted accounts are not. The current period ends today, and today is not over yet."},
+	"signups.current":    {ru: "За последние %d дней", en: "Last %d days"},
+	"signups.previous":   {ru: "Предыдущие %d дней", en: "Previous %d days"},
+	"signups.change":     {ru: "Изменение", en: "Change"},
+	"signups.change.new": {ru: "раньше не было никого", en: "none before"},
+	"signups.perday":     {ru: "%s в день", en: "%s a day"},
+	"signups.total":      {ru: "Всего", en: "Total"},
+	"signups.total.note": {ru: "за всё время", en: "all time"},
+	"signups.daily":      {ru: "По дням", en: "By day"},
+	"signups.daily.max":  {ru: "больше всего за день: %d", en: "most in a day: %d"},
+	"signups.daily.bar":  {ru: "%s: %d", en: "%s: %d"},
+	"signups.trend":      {ru: "Тенденция", en: "Trend"},
+	"signups.trend.note": {ru: "Отрезки по %d дней подряд, свежий сверху. Изменение — к отрезку строкой ниже.", en: "Consecutive %d-day periods, newest first. Change is against the period below."},
+	"signups.period":     {ru: "Отрезок", en: "Period"},
+	"signups.count":      {ru: "Регистраций", en: "Sign-ups"},
+	"signups.up":         {ru: "рост", en: "up"},
+	"signups.down":       {ru: "спад", en: "down"},
+	"signups.flat":       {ru: "без изменений", en: "no change"},
 
 	// --- журнал ---
 	"audit.title":   {ru: "Журнал", en: "Audit log"},

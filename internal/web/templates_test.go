@@ -172,6 +172,20 @@ func TestPagesRender(t *testing.T) {
 			deny: []string{"row-said"},
 		},
 		{
+			// Неделя: трое сейчас против двоих раньше — рост на половину.
+			page: "signups",
+			user: root,
+			data: map[string]any{
+				"Stats": domain.CountSignups([]time.Time{
+					banSeen, banSeen.Add(-time.Hour), banSeen.Add(-50 * time.Hour),
+					banSeen.Add(-8 * 24 * time.Hour), banSeen.Add(-9 * 24 * time.Hour),
+				}, banSeen, 7, time.Local),
+				"Periods": domain.SignupPeriods, "Days": 7,
+			},
+			want: []string{`href="/signups?days=7" class="active"`, "(&#43;50%)",
+				"рост", "без изменений", `style="height: 100%"`},
+		},
+		{
 			// Журнал входов: сводки сверху, сам журнал снизу. Страница
 			// рутовая и ничего не меняет — на ней только ссылки в саму
 			// себя с фильтрами.

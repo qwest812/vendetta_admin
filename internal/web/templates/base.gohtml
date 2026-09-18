@@ -24,6 +24,7 @@
             {{if .CurrentUser.IsRoot}}
                 <a href="/settings" {{if eq .Path "/settings"}}class="active"{{end}}>{{t "nav.settings"}}</a>
                 <a href="/logins" {{if eq .Path "/logins"}}class="active"{{end}}>{{t "nav.logins"}}</a>
+                <a href="/signups" {{if eq .Path "/signups"}}class="active"{{end}}>{{t "nav.signups"}}</a>
             {{end}}
             {{/* Раздел «Игры» — по персональному доступу от рута, а не по роли. */}}
             {{if .CurrentUser.CanViewGames}}

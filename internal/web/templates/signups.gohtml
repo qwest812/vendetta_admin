@@ -1,0 +1,103 @@
+{{define "title"}}{{t "signups.title"}}{{end}}
+
+{{define "content"}}
+{{$st := .Stats}}
+<div class="card">
+    <div class="card-head">
+        <h1>{{t "signups.title"}}</h1>
+        {{/* Отрезок — ссылками, а не формой: выбор в один щелчок, и адрес
+             с выбранным отрезком можно сохранить. */}}
+        <nav class="seg">
+            {{$days := .Days}}
+            {{range .Periods}}
+                <a href="/signups?days={{.}}" {{if eq . $days}}class="active"{{end}}>{{t "signups.days" .}}</a>
+            {{end}}
+        </nav>
+    </div>
+
+    <div class="tiles">
+        <div class="tile">
+            <div class="tile-label">{{t "signups.current" $st.Days}}</div>
+            <div class="tile-value">{{$st.Current.Count}}</div>
+            <div class="muted">{{t "signups.perday" (perDay $st.Current.Count $st.Days)}}</div>
+        </div>
+        <div class="tile">
+            <div class="tile-label">{{t "signups.previous" $st.Days}}</div>
+            <div class="tile-value">{{$st.Previous.Count}}</div>
+            <div class="muted">{{date $st.Previous.From}} – {{date $st.Previous.To}}</div>
+        </div>
+        <div class="tile">
+            <div class="tile-label">{{t "signups.change"}}</div>
+            {{template "signupChange" $st.Current}}
+        </div>
+        <div class="tile">
+            <div class="tile-label">{{t "signups.total"}}</div>
+            <div class="tile-value">{{$st.Total}}</div>
+            <div class="muted">{{t "signups.total.note"}}</div>
+        </div>
+    </div>
+    <p class="muted">{{t "signups.note"}}</p>
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h1>{{t "signups.daily"}}</h1>
+        <span class="muted">{{t "signups.daily.max" $st.MaxDaily}}</span>
+    </div>
+    {{/* Столбики — обычными блоками: подпись дня и число висят подсказкой,
+         а точные числа по отрезкам — в таблице ниже. */}}
+    <div class="bars" role="img">
+        {{range $st.Daily}}
+            <div class="bar" title="{{t "signups.daily.bar" (day .Day) .Count}}">
+                {{if .Count}}<span style="height: {{barPct .Count $st.MaxDaily}}%"></span>{{end}}
+            </div>
+        {{end}}
+    </div>
+    <div class="bars-axis muted">
+        <span>{{date $st.Current.From}}</span>
+        <span>{{date $st.Current.To}}</span>
+    </div>
+</div>
+
+<div class="card">
+    <h1>{{t "signups.trend"}}</h1>
+    <p class="muted">{{t "signups.trend.note" $st.Days}}</p>
+    <div class="table-wrap">
+        <table class="stack">
+            <thead>
+            <tr>
+                <th>{{t "signups.period"}}</th>
+                <th>{{t "signups.count"}}</th>
+                <th>{{t "signups.change"}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range $st.Periods}}
+                <tr>
+                    <td class="nowrap" data-label="{{t "signups.period"}}">{{date .From}} – {{date .To}}</td>
+                    <td data-label="{{t "signups.count"}}">
+                        <span class="hbar"><span style="width: {{barPct .Count $st.MaxPeriod}}%"></span></span>
+                        <b>{{.Count}}</b>
+                    </td>
+                    <td data-label="{{t "signups.change"}}">{{template "signupChange" .}}</td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{end}}
+
+{{/* Изменение отрезка к предыдущему: число, процент и слово. Направление
+     пишется словом и стрелкой, а не только цветом. */}}
+{{define "signupChange"}}
+    <div class="change {{if gt .Change 0}}up{{else if lt .Change 0}}down{{end}}">
+        <span class="change-value">{{if gt .Change 0}}▲{{else if lt .Change 0}}▼{{end}} {{signed .Change}}</span>
+        {{if .HasPct}}<span class="change-pct">({{signed .ChangePct}}%)</span>{{end}}
+        <span class="muted">
+            {{if gt .Change 0}}{{if .HasPct}}{{t "signups.up"}}{{else}}{{t "signups.change.new"}}{{end}}
+            {{else if lt .Change 0}}{{t "signups.down"}}
+            {{else}}{{t "signups.flat"}}{{end}}
+        </span>
+    </div>
+{{end}}
