@@ -129,16 +129,16 @@ func TestPagesRender(t *testing.T) {
 			},
 		},
 		{
-			// Доступы: рут меняет их прямо в строке, поэтому у каждой формы
-			// есть и обычный action, и hx-post — и строка целится в себя.
-			name: "users/строка доступов",
+			// Доступы — только список: все настройки на странице человека.
+			// Ник и кнопка «Изменить» ведут туда, в строке форм больше нет.
+			name: "users/список",
 			page: "users",
 			user: root,
 			data: map[string]any{
 				"Users": []*domain.User{
 					{ID: 1, Nickname: "root", Role: domain.RoleRoot, IsActive: true,
 						Plan: domain.PlanUltra},
-					{ID: 9, Nickname: "tester", Role: domain.RoleUser, IsActive: true,
+					{ID: 9, Nickname: "tester", Role: domain.RoleUser, IsActive: false,
 						GamesAccess: true, MapChecks: 5, Plan: domain.PlanExtended},
 				},
 				"Error": "", "FormEmail": "", "FormNickname": "", "FormRole": "user",
@@ -147,48 +147,56 @@ func TestPagesRender(t *testing.T) {
 				"Subnets": map[int64]int{9: 4},
 			},
 			want: []string{
-				`hx-post="/users/9/checks"`, `hx-target="closest tr"`, `hx-swap="outerHTML"`,
+				`class="user-link" href="/users/9/edit"`, `href="/users/1/edit"`, "Изменить",
 				// Число подсетей ведёт в журнал входов этого человека,
 				// и сверх порога оно выделено.
 				`href="/logins?user=9"`, `<span class="badge count">4</span>`,
-				`hx-post="/users/9/games"`, `hx-post="/users/9/role"`,
-				`hx-post="/users/9/active"`, `hx-post="/users/9/password"`,
-				// Удаление спрашивает через htmx: обычный onsubmit спорил бы
-				// с перехваченным submit.
-				`hx-confirm=`,
-				// Число проверок — из базы, поле подставляет именно его.
-				`value="5"`,
-				// Руту проверки не считают и доступ не снимают.
-				"всегда",
-				// Пакет правится у всех, включая строку самого рута:
-				// им, в отличие от роли, вход себе не закроешь.
-				`hx-post="/users/9/plan"`, `hx-post="/users/1/plan"`,
-				`<option value="extended" selected>`, `<option value="ultra" selected>`,
-				// 422 в ответе — не повод оставить строку прежней.
-				"htmx:beforeSwap",
+				"Расширенный", "открыт", "всегда", "заблокирован",
 			},
-			// В обычной строке страницы говорить не о чем: сообщения
-			// приезжают только с ответом на нажатие.
-			deny: []string{"row-said"},
+			deny: []string{"hx-post", `action="/users/9/`},
 		},
 		{
-			// Страница аккаунта у рута: форма с тем, что набрали, кнопка
-			// блокировки и последние входы со ссылкой на весь журнал.
+			// Страница аккаунта у рута: данные формой, пакет, «Игры»,
+			// проверки, блокировка, пароль, последние входы и удаление.
+			name: "user_edit/рут",
 			page: "user_edit",
 			user: root,
 			data: map[string]any{
 				"Account": player,
 				"Form": repo.AccountFields{Nickname: "Dau7er", Email: "dau@example.com",
 					GameID: "101408369"},
-				"Error": "", "Notice": "сохранено", "CanBlock": true,
+				"Error": "", "Notice": "сохранено", "Root": true, "CanManage": true,
+				"Checks": "900", "MaxChecks": 500, "Subnets": 4,
 				"Logins": []repo.LoginEvent{{ID: 1, UserID: &playerID, Login: "dau@example.com",
 					IP: "203.0.113.9", Subnet: "203.0.113.0/24", OK: false, CreatedAt: banSeen}},
 			},
 			want: []string{`action="/users/2/edit"`, `value="dau@example.com"`,
-				`name="back" value="/users/2/edit"`,
+				`action="/users/2/plan"`, `action="/users/2/games"`, `action="/users/2/role"`,
+				// Набранное в поле проверок остаётся, даже если его отвергли.
+				`action="/users/2/checks"`, `value="900"`,
 				// У player вход закрыт: кнопка предлагает открыть его.
 				`name="active" value="true"`, "Разблокировать",
-				`href="/logins?user=2"`, "203.0.113.9"},
+				`action="/users/2/password"`, `action="/users/2/delete"`, "confirm(",
+				`href="/logins?user=2"`, "203.0.113.9", "подсетей за месяц: 4",
+				`class="notice">сохранено`},
+		},
+		{
+			// Админ видит страницу аккаунта, но данные, пакет, «Игры»,
+			// входы и удаление — только рутовые: у него роль, блокировка
+			// и пароль.
+			name: "user_edit/админ",
+			page: "user_edit",
+			user: admin,
+			data: map[string]any{
+				"Account": player, "Form": repo.AccountFields{Nickname: "Dau7er"},
+				"Error": "", "Notice": "", "Root": false, "CanManage": true,
+				"Checks": "5", "MaxChecks": 500, "Subnets": 0,
+				"Logins": []repo.LoginEvent(nil),
+			},
+			want: []string{`action="/users/2/role"`, `action="/users/2/active"`,
+				`action="/users/2/password"`, "101408369"},
+			deny: []string{`action="/users/2/edit"`, `action="/users/2/plan"`,
+				`action="/users/2/games"`, `action="/users/2/delete"`, "/logins?user=2"},
 		},
 		{
 			// Неделя: трое сейчас против двоих раньше — рост на половину.
@@ -1597,53 +1605,5 @@ func TestPlayerFormRequiresGameID(t *testing.T) {
 				t.Error("подсказка о необязательности ID устарела")
 			}
 		})
-	}
-}
-
-// Ответ на изменение настройки — это та же строка таблицы, но уже с тем,
-// что легло в базу, и со словом о том, что произошло. Проверяем оба конца:
-// удавшееся изменение и отказ, при котором набранное должно остаться в поле.
-func TestUserRowPartial(t *testing.T) {
-	pages, err := parseTemplates(i18n.RU)
-	if err != nil {
-		t.Fatalf("разбор шаблонов: %v", err)
-	}
-	user := &domain.User{ID: 9, Nickname: "tester", Role: domain.RoleUser,
-		IsActive: true, GamesAccess: true, MapChecks: 5}
-	row := func(extra map[string]any) string {
-		data := map[string]any{
-			"User": user, "Root": true, "Me": int64(1), "CSRFToken": "csrf", "Field": "",
-		}
-		for k, v := range extra {
-			data[k] = v
-		}
-		var buf bytes.Buffer
-		if err := pages["users"].ExecuteTemplate(&buf, "user-row", data); err != nil {
-			t.Fatalf("отрисовка: %v", err)
-		}
-		return buf.String()
-	}
-
-	// Обычная строка страницы: сказать не о чем, пока ничего не меняли.
-	if got := row(nil); strings.Contains(got, "row-said") || !strings.Contains(got, `value="5"`) {
-		t.Errorf("строка страницы = %s", got)
-	}
-
-	// Удалось: подтверждение стоит у того поля, которое меняли.
-	done := row(map[string]any{"Field": "checks", "Note": "сохранено"})
-	if !strings.Contains(done, `row-said done">сохранено`) {
-		t.Errorf("подтверждение = %s", done)
-	}
-
-	// Отказ: в поле остаётся набранное, а не сохранённое — иначе опечатка
-	// пропадает с глаз вместе с причиной отказа.
-	bad := row(map[string]any{
-		"Field": "checks", "Error": "так нельзя", "ChecksInput": "900",
-	})
-	if !strings.Contains(bad, `value="900"`) || !strings.Contains(bad, `row-said bad">так нельзя`) {
-		t.Errorf("отказ = %s", bad)
-	}
-	if strings.Contains(bad, `value="5"`) {
-		t.Errorf("набранное подменили сохранённым: %s", bad)
 	}
 }

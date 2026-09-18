@@ -15,19 +15,47 @@ import (
 // Полный журнал по человеку — по ссылке в «Входы».
 const editLogins = 10
 
-// userEditForm — страница аккаунта у рута: данные человека, блокировка
-// и последние входы. Правит только рут: ник и почта — это то, по чему
-// человека находят и по чему он входит.
+// accountView — что сказать на странице аккаунта сверх самих данных.
+// Form — набранное в форме данных: при отказе оно остаётся в полях.
+// ChecksInput — набранное в поле проверок, по той же причине.
+type accountView struct {
+	Form        *repo.AccountFields
+	Error       string
+	Notice      string
+	ChecksInput string
+}
+
+// userEditForm — страница аккаунта: все настройки человека в одном месте.
+// Список в «Доступах» только перечисляет людей, а меняется всё здесь —
+// в строку таблицы столько настроек не помещалось.
+//
+// Открыта админам, как и сам список, но каждый раздел показывается по
+// своему праву: данные, пакет, «Игры», проверки и удаление — руту, роль,
+// блокировка и пароль — тому, кто вправе управлять этим человеком.
 func (s *Server) userEditForm(w http.ResponseWriter, r *http.Request) {
 	target, ok := s.userTarget(w, r)
 	if !ok {
 		return
 	}
-	notice := ""
-	if r.URL.Query().Get("saved") != "" {
-		notice = langOf(r).T("users.saved")
+	var v accountView
+	switch r.URL.Query().Get("saved") {
+	case "":
+	case "password":
+		v.Notice = langOf(r).T("users.password.done")
+	default:
+		v.Notice = langOf(r).T("users.saved")
 	}
-	s.renderUserEdit(w, r, http.StatusOK, target, accountOf(target), "", notice)
+	s.renderAccount(w, r, http.StatusOK, target, v)
+}
+
+// accountDone — правка удалась: обратно на страницу аккаунта со словом
+// о ней. Переходом, а не отрисовкой: обновление страницы не должно
+// отправлять форму второй раз.
+func accountDone(w http.ResponseWriter, r *http.Request, id int64, what string) {
+	if what == "" {
+		what = "1"
+	}
+	http.Redirect(w, r, editPath(id)+"?saved="+what, http.StatusSeeOther)
 }
 
 func (s *Server) userEditSave(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +72,7 @@ func (s *Server) userEditSave(w http.ResponseWriter, r *http.Request) {
 	}
 	// Набранное возвращаем в форму: перенабирать из-за одной ошибки обидно.
 	fail := func(status int, msg string) {
-		s.renderUserEdit(w, r, status, target, f, msg, "")
+		s.renderAccount(w, r, status, target, accountView{Form: &f, Error: msg})
 	}
 
 	if err := domain.ValidateNickname(f.Nickname); err != nil {
@@ -104,14 +132,25 @@ func (s *Server) userEditSave(w http.ResponseWriter, r *http.Request) {
 	if len(changes) > 1 {
 		s.logAudit(r, "user.update", target.ID, changes)
 	}
-	http.Redirect(w, r, editPath(target.ID)+"?saved=1", http.StatusSeeOther)
+	accountDone(w, r, target.ID, "")
 }
 
-func (s *Server) renderUserEdit(w http.ResponseWriter, r *http.Request, status int,
-	target *domain.User, form repo.AccountFields, errMsg, notice string) {
+func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, status int,
+	target *domain.User, v accountView) {
 
+	me := currentUser(r)
+	form := accountOf(target)
+	if v.Form != nil {
+		form = *v.Form
+	}
+	checks := strconv.Itoa(target.MapChecks)
+	if v.ChecksInput != "" {
+		checks = v.ChecksInput
+	}
+
+	// Входы и подсети — рутовые сведения, как и сама страница «Входы».
 	var logins []repo.LoginEvent
-	if s.logins != nil {
+	if me.IsRoot() && s.logins != nil {
 		all, err := s.logins.Recent(r.Context(), repo.LoginFilter{UserID: &target.ID})
 		if err != nil {
 			s.serverError(w, r, err)
@@ -120,10 +159,13 @@ func (s *Server) renderUserEdit(w http.ResponseWriter, r *http.Request, status i
 		logins = all[:min(len(all), editLogins)]
 	}
 	s.render(w, r, status, "user_edit", map[string]any{
-		"Account": target, "Form": form, "Error": errMsg, "Notice": notice,
-		"Logins": logins,
-		// Блокировать можно тех же, кого и в «Доступах»: не себя и не рута.
-		"CanBlock": domain.CanManage(currentUser(r), target),
+		"Account": target, "Form": form, "Error": v.Error, "Notice": v.Notice,
+		"Checks": checks, "MaxChecks": maxMapChecks,
+		"Logins": logins, "Subnets": s.subnetsByUser(r)[target.ID],
+		"Root": me.IsRoot(),
+		// Роль, блокировка, пароль, «Игры», проверки и удаление — тем же
+		// правом, что и прежде в строке списка: не себя и не рута.
+		"CanManage": domain.CanManage(me, target),
 	})
 }
 

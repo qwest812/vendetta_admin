@@ -1,10 +1,10 @@
 {{define "title"}}{{.Account.Nickname}} — {{t "useredit.title"}}{{end}}
 
 {{define "content"}}
-{{$a := .Account}}{{$f := .Form}}
+{{$a := .Account}}{{$f := .Form}}{{$root := .Root}}{{$manage := .CanManage}}
 <div class="card">
     <div class="card-head">
-        <h1>{{$a.Nickname}}</h1>
+        <h1>{{$a.Nickname}}{{if eq $a.ID .CurrentUser.ID}} <span class="muted">{{t "users.you"}}</span>{{end}}</h1>
         <div class="head-actions">
             <span class="badge role-{{$a.Role}}">{{role $a.Role}}</span>
             {{if $a.IsActive}}<span class="badge done">{{t "users.active"}}</span>
@@ -14,60 +14,170 @@
     <p class="muted"><a href="/users">← {{t "useredit.back"}}</a></p>
 
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
-    {{if .Notice}}<p class="muted">{{.Notice}}</p>{{end}}
+    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
 
-    <form method="post" action="/users/{{$a.ID}}/edit">
-        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <div class="row-form">
-            <label>
-                {{t "profile.nick"}}
-                <input type="text" name="nickname" value="{{$f.Nickname}}" required minlength="3" maxlength="32" autocomplete="off">
-            </label>
-            <label>
-                {{t "users.email"}}
-                <input type="email" name="email" value="{{$f.Email}}" {{if $a.IsRoot}}required{{end}} autocomplete="off">
-            </label>
-            <label>
-                {{t "profile.gameid"}}
-                <input type="text" name="game_id" value="{{$f.GameID}}" maxlength="32" autocomplete="off">
-            </label>
+    <h2>{{t "useredit.data"}}</h2>
+    {{if $root}}
+        <form method="post" action="/users/{{$a.ID}}/edit">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <div class="row-form">
+                <label>
+                    {{t "profile.nick"}}
+                    <input type="text" name="nickname" value="{{$f.Nickname}}" required minlength="3" maxlength="32" autocomplete="off">
+                </label>
+                <label>
+                    {{t "users.email"}}
+                    <input type="email" name="email" value="{{$f.Email}}" {{if $a.IsRoot}}required{{end}} autocomplete="off">
+                </label>
+                <label>
+                    {{t "profile.gameid"}}
+                    <input type="text" name="game_id" value="{{$f.GameID}}" maxlength="32" autocomplete="off">
+                </label>
+            </div>
+            <div class="row-form">
+                <label>
+                    {{t "profile.fullname"}}
+                    <input type="text" name="full_name" value="{{$f.FullName}}" maxlength="100" autocomplete="off">
+                </label>
+                <label>
+                    {{t "profile.city"}}
+                    <input type="text" name="city" value="{{$f.City}}" maxlength="100" autocomplete="off">
+                </label>
+                <button type="submit">{{t "common.save"}}</button>
+            </div>
+        </form>
+        <p class="muted">{{t "useredit.note"}}</p>
+    {{else}}
+        {{/* Данные правит только рут; админу — как есть, для справки. */}}
+        <dl class="facts">
+            <dt>{{t "users.email"}}</dt><dd>{{if $a.Email}}{{$a.Email}}{{else}}—{{end}}</dd>
+            <dt>{{t "profile.gameid"}}</dt><dd>{{if $a.GameID}}{{$a.GameID}}{{else}}—{{end}}</dd>
+            <dt>{{t "profile.fullname"}}</dt><dd>{{if $a.FullName}}{{$a.FullName}}{{else}}—{{end}}</dd>
+            <dt>{{t "profile.city"}}</dt><dd>{{if $a.City}}{{$a.City}}{{else}}—{{end}}</dd>
+        </dl>
+    {{end}}
+</div>
+
+{{/* Права и доступ: роль, пакет, «Игры», проверки карты. Каждая строка —
+     своя маленькая форма: меняют их по одной, и ответ о каждой свой. */}}
+<div class="card">
+    <h1>{{t "useredit.rights"}}</h1>
+    <div class="settings">
+        <div class="setting">
+            <div class="setting-name">{{t "users.role"}}</div>
+            <div class="setting-value">
+                <span class="badge role-{{$a.Role}}">{{role $a.Role}}</span>
+                {{if $manage}}
+                    <form method="post" action="/users/{{$a.ID}}/role" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                        {{if eq $a.Role "admin"}}
+                            <input type="hidden" name="role" value="user">
+                            <button type="submit" class="ghost">{{t "users.demote"}}</button>
+                        {{else}}
+                            <input type="hidden" name="role" value="admin">
+                            <button type="submit" class="ghost">{{t "users.promote"}}</button>
+                        {{end}}
+                    </form>
+                {{end}}
+            </div>
         </div>
-        <div class="row-form">
-            <label>
-                {{t "profile.fullname"}}
-                <input type="text" name="full_name" value="{{$f.FullName}}" maxlength="100" autocomplete="off">
-            </label>
-            <label>
-                {{t "profile.city"}}
-                <input type="text" name="city" value="{{$f.City}}" maxlength="100" autocomplete="off">
-            </label>
-            <button type="submit">{{t "common.save"}}</button>
-        </div>
-    </form>
-    <p class="muted">{{t "useredit.note"}}</p>
+
+        {{if $root}}
+            {{/* Пакет правится у всех, включая рута и себя: им, в отличие от
+                 роли, вход себе не закроешь. */}}
+            <div class="setting">
+                <div class="setting-name">{{t "users.plan"}}</div>
+                <div class="setting-value">
+                    <form method="post" action="/users/{{$a.ID}}/plan" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                        <select name="plan">
+                            {{range plans}}
+                                <option value="{{.}}" {{if eq . $a.Plan}}selected{{end}}>{{plan .}}</option>
+                            {{end}}
+                        </select>
+                        <button type="submit">{{t "users.plan.save"}}</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="setting">
+                <div class="setting-name">{{t "nav.games"}}</div>
+                <div class="setting-value">
+                    {{if $a.IsRoot}}
+                        {{/* Рут ходит в игры по роли, и проверки ему не считают. */}}
+                        <span class="muted">{{t "users.always"}}</span>
+                    {{else if $manage}}
+                        <span>{{if $a.GamesAccess}}{{t "users.games.on"}}{{else}}{{t "users.games.off"}}{{end}}</span>
+                        <form method="post" action="/users/{{$a.ID}}/games" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                            <input type="hidden" name="access" value="{{if $a.GamesAccess}}false{{else}}true{{end}}">
+                            <button type="submit" class="ghost">{{if $a.GamesAccess}}{{t "users.close"}}{{else}}{{t "users.open"}}{{end}}</button>
+                        </form>
+                    {{end}}
+                </div>
+            </div>
+
+            <div class="setting">
+                <div class="setting-name">{{t "users.checks"}}</div>
+                <div class="setting-value">
+                    {{if $a.IsRoot}}
+                        <span class="muted">{{t "users.always"}}</span>
+                    {{else if $manage}}
+                        <form method="post" action="/users/{{$a.ID}}/checks" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                            <input type="number" name="checks" value="{{.Checks}}" min="0" max="{{.MaxChecks}}" required>
+                            <button type="submit">{{t "users.checks.save"}}</button>
+                        </form>
+                    {{end}}
+                </div>
+            </div>
+        {{end}}
+    </div>
+    {{if $root}}
+        <p class="muted">{{t "users.plan.note"}}</p>
+        <p class="muted">{{t "users.checks.note"}}</p>
+    {{end}}
 </div>
 
 <div class="card">
     <h1>{{t "useredit.access"}}</h1>
-    {{if .CanBlock}}
+    {{if $manage}}
         <p class="muted">{{if $a.IsActive}}{{t "useredit.block.note"}}{{else}}{{t "useredit.unblock.note"}}{{end}}</p>
-        <form method="post" action="/users/{{$a.ID}}/active">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <input type="hidden" name="back" value="/users/{{$a.ID}}/edit">
-            <input type="hidden" name="active" value="{{if $a.IsActive}}false{{else}}true{{end}}">
-            <button type="submit" {{if $a.IsActive}}class="danger"{{end}}>{{if $a.IsActive}}{{t "users.block"}}{{else}}{{t "users.unblock"}}{{end}}</button>
-        </form>
+        <div class="settings">
+            <div class="setting">
+                <div class="setting-name">{{t "common.status"}}</div>
+                <div class="setting-value">
+                    <form method="post" action="/users/{{$a.ID}}/active" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                        <input type="hidden" name="active" value="{{if $a.IsActive}}false{{else}}true{{end}}">
+                        <button type="submit" {{if $a.IsActive}}class="danger"{{end}}>{{if $a.IsActive}}{{t "users.block"}}{{else}}{{t "users.unblock"}}{{end}}</button>
+                    </form>
+                </div>
+            </div>
+            <div class="setting">
+                <div class="setting-name">{{t "login.password"}}</div>
+                <div class="setting-value">
+                    <form method="post" action="/users/{{$a.ID}}/password" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                        <input type="password" name="password" placeholder="{{t "users.newpassword"}}" minlength="12" required autocomplete="new-password">
+                        <button type="submit">{{t "users.change"}}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     {{else}}
         {{/* Себя и рута не блокируют: вход в админку закрылся бы насовсем. */}}
         <p class="muted">{{t "useredit.block.self"}}</p>
     {{end}}
 </div>
 
+{{if $root}}
 <div class="card">
     <div class="card-head">
         <h1>{{t "useredit.logins"}}</h1>
         <a class="button ghost" href="/logins?user={{$a.ID}}">{{t "useredit.logins.all"}}</a>
     </div>
+    {{if .Subnets}}<p class="muted">{{t "useredit.subnets" .Subnets}}</p>{{end}}
     <div class="table-wrap">
         <table class="stack">
             <thead>
@@ -99,4 +209,17 @@
         </table>
     </div>
 </div>
+
+{{if $manage}}
+<div class="card">
+    <h1>{{t "useredit.delete"}}</h1>
+    <p class="muted">{{t "useredit.delete.note"}}</p>
+    <form method="post" action="/users/{{$a.ID}}/delete"
+          onsubmit="return confirm('{{t "users.delete.confirm" $a.Nickname}}')">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button type="submit" class="danger">{{t "common.delete"}}</button>
+    </form>
+</div>
+{{end}}
+{{end}}
 {{end}}

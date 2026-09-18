@@ -36,44 +36,9 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, status int,
 	s.render(w, r, status, "users", data)
 }
 
-// hx — пришёл ли запрос от htmx. Без него обработчики отвечают как раньше,
-// переходом на /users: подменять строку в странице некому.
+// hx — пришёл ли запрос от htmx. Без него обработчики отвечают переходом:
+// подменять кусок страницы некому.
 func hx(r *http.Request) bool { return r.Header.Get("HX-Request") != "" }
-
-// userRow отдаёт одну строку таблицы доступов заново — уже с тем, что легло
-// в базу. Пользователь перечитывается, а не берётся из того, что было до
-// изменения: строка должна показывать состояние, а не намерение.
-//
-// field говорит, около чего показать сообщение: у поля проверок или в конце
-// строки. Пустой field — обычная строка без сообщений.
-func (s *Server) userRow(w http.ResponseWriter, r *http.Request, id int64, status int,
-	field string, said map[string]any) {
-
-	u, err := s.users.ByID(r.Context(), id)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	data := map[string]any{
-		"User": u, "Root": currentUser(r).IsRoot(), "Me": currentUser(r).ID,
-		"CSRFToken": csrfToken(r), "Field": field,
-		// Строка возвращается и в ответ на правку, и число подсетей в ней
-		// должно остаться: без него колонка после нажатия опустела бы.
-		"Subnets": s.subnetsByUser(r)[id],
-	}
-	for k, v := range said {
-		data[k] = v
-	}
-	s.renderPartialStatus(w, r, status, "users", "user-row", data)
-}
-
-// rowDone — ответ на удавшееся изменение: свежая строка и слово о том,
-// что оно применилось. Без слова htmx-ответ читался бы как «ничего
-// не произошло»: половина настроек меняет строку незаметно.
-func (s *Server) rowDone(w http.ResponseWriter, r *http.Request, id int64, field string) {
-	s.userRow(w, r, id, http.StatusOK, field,
-		map[string]any{"Note": langOf(r).T("users.saved")})
-}
 
 func (s *Server) usersCreate(w http.ResponseWriter, r *http.Request) {
 	actor := currentUser(r)
@@ -154,11 +119,7 @@ func (s *Server) usersSetRole(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logAudit(r, "user.set_role", target.ID,
 		map[string]any{"user": target.Display(), "from": string(target.Role), "to": string(role)})
-	if !hx(r) {
-		http.Redirect(w, r, "/users", http.StatusSeeOther)
-		return
-	}
-	s.rowDone(w, r, target.ID, "role")
+	accountDone(w, r, target.ID, "")
 }
 
 func (s *Server) usersSetActive(w http.ResponseWriter, r *http.Request) {
@@ -178,18 +139,7 @@ func (s *Server) usersSetActive(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.logAudit(r, "user.set_active", target.ID, map[string]any{"user": target.Display(), "active": active})
-	if !hx(r) {
-		// Со страницы аккаунта возвращаемся на неё же. Адрес сверяем
-		// с собственным, а не берём какой прислали: иначе форма уводила
-		// бы куда угодно.
-		back := "/users"
-		if r.PostFormValue("back") == editPath(target.ID) {
-			back = editPath(target.ID)
-		}
-		http.Redirect(w, r, back, http.StatusSeeOther)
-		return
-	}
-	s.rowDone(w, r, target.ID, "active")
+	accountDone(w, r, target.ID, "")
 }
 
 // usersSetGamesAccess выдаёт и снимает доступ к разделу «Игры». Роут стоит
@@ -209,11 +159,7 @@ func (s *Server) usersSetGamesAccess(w http.ResponseWriter, r *http.Request) {
 	// так что снятый доступ действует со следующей же страницы.
 	s.logAudit(r, "user.set_games_access", target.ID,
 		map[string]any{"user": target.Display(), "access": allowed})
-	if !hx(r) {
-		http.Redirect(w, r, "/users", http.StatusSeeOther)
-		return
-	}
-	s.rowDone(w, r, target.ID, "games")
+	accountDone(w, r, target.ID, "")
 }
 
 // usersSetPlan меняет пакет доступа. Право рутовое, как и всё в этом ряду:
@@ -246,11 +192,7 @@ func (s *Server) usersSetPlan(w http.ResponseWriter, r *http.Request) {
 	// так что новый пакет действует со следующей же страницы.
 	s.logAudit(r, "user.set_plan", target.ID,
 		map[string]any{"user": target.Display(), "from": string(target.Plan), "to": string(plan)})
-	if !hx(r) {
-		http.Redirect(w, r, "/users", http.StatusSeeOther)
-		return
-	}
-	s.rowDone(w, r, target.ID, "plan")
+	accountDone(w, r, target.ID, "")
 }
 
 // usersSetMapChecks меняет дневное число проверок карты. Право рутовое
@@ -266,15 +208,10 @@ func (s *Server) usersSetMapChecks(w http.ResponseWriter, r *http.Request) {
 	// Ноль — это запрет смотреть карты, и он осмысленный. А вот отрицательное
 	// число и мусор в поле означают опечатку, а не намерение.
 	if err != nil || checks < 0 || checks > maxMapChecks {
-		msg := langOf(r).T("err.checks.bad", maxMapChecks)
-		if !hx(r) {
-			s.renderUsers(w, r, http.StatusUnprocessableEntity, map[string]any{"Error": msg})
-			return
-		}
 		// Набранное возвращаем в поле: молча подменить его сохранённым
 		// значило бы спрятать опечатку, а не показать её.
-		s.userRow(w, r, target.ID, http.StatusUnprocessableEntity, "checks",
-			map[string]any{"Error": msg, "ChecksInput": typed})
+		s.renderAccount(w, r, http.StatusUnprocessableEntity, target, accountView{
+			Error: langOf(r).T("err.checks.bad", maxMapChecks), ChecksInput: typed})
 		return
 	}
 	if err := s.users.SetMapChecks(r.Context(), target.ID, checks); err != nil {
@@ -285,11 +222,7 @@ func (s *Server) usersSetMapChecks(w http.ResponseWriter, r *http.Request) {
 	// по дню, а новое число действует с этого мгновения.
 	s.logAudit(r, "user.set_map_checks", target.ID,
 		map[string]any{"user": target.Display(), "checks": checks})
-	if !hx(r) {
-		http.Redirect(w, r, "/users", http.StatusSeeOther)
-		return
-	}
-	s.rowDone(w, r, target.ID, "checks")
+	accountDone(w, r, target.ID, "")
 }
 
 // maxMapChecks — потолок для поля: не запрет, а защита от лишнего нуля
@@ -303,13 +236,7 @@ func (s *Server) usersResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	password := r.PostFormValue("password")
 	if err := auth.ValidatePassword(password); err != nil {
-		if !hx(r) {
-			s.renderUsers(w, r, http.StatusUnprocessableEntity,
-				map[string]any{"Error": errText(r, err)})
-			return
-		}
-		s.userRow(w, r, target.ID, http.StatusUnprocessableEntity, "password",
-			map[string]any{"Error": errText(r, err)})
+		s.renderAccount(w, r, http.StatusUnprocessableEntity, target, accountView{Error: errText(r, err)})
 		return
 	}
 	hash, err := auth.HashPassword(password)
@@ -326,14 +253,9 @@ func (s *Server) usersResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logAudit(r, "user.reset_password", target.ID, map[string]any{"user": target.Display()})
-	if !hx(r) {
-		http.Redirect(w, r, "/users", http.StatusSeeOther)
-		return
-	}
 	// Своё слово: «сохранено» о пароле звучало бы как о настройке, а сброс
 	// пароля ещё и выкидывает человека из всех сессий.
-	s.userRow(w, r, target.ID, http.StatusOK, "password",
-		map[string]any{"Note": langOf(r).T("users.password.done")})
+	accountDone(w, r, target.ID, "password")
 }
 
 func (s *Server) usersDelete(w http.ResponseWriter, r *http.Request) {
@@ -347,13 +269,8 @@ func (s *Server) usersDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logAudit(r, "user.delete", target.ID,
 		map[string]any{"user": target.Display(), "role": string(target.Role)})
-	if !hx(r) {
-		http.Redirect(w, r, "/users", http.StatusSeeOther)
-		return
-	}
-	// Пустой ответ на месте строки — она и пропадает. Показывать нечего:
-	// пользователя больше нет.
-	w.WriteHeader(http.StatusOK)
+	// Страницы аккаунта больше нет — возвращаемся к списку.
+	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
 // manageableTarget разбирает id из пути и проверяет право актора им управлять.

@@ -427,6 +427,14 @@ var messages = map[string]entry{
 	"useredit.logins":              {ru: "Последние входы", en: "Recent sign-ins"},
 	"useredit.logins.all":          {ru: "Весь журнал", en: "Full log"},
 	"useredit.logins.empty":        {ru: "Входов ещё не было.", en: "No sign-ins yet."},
+	"useredit.data":                {ru: "Данные", en: "Details"},
+	"useredit.rights":              {ru: "Права и доступ", en: "Rights and access"},
+	"useredit.subnets":             {ru: "Входили из разных подсетей за месяц: %d.", en: "Signed in from different subnets this month: %d."},
+	"useredit.delete":              {ru: "Удаление", en: "Deletion"},
+	"useredit.delete.note":         {ru: "Аккаунт удаляется безвозвратно вместе с его личными списками. Чтобы просто закрыть вход, лучше заблокировать.", en: "The account is deleted permanently together with its personal lists. To just close sign-in, block it instead."},
+	"users.edit":                   {ru: "Изменить", en: "Edit"},
+	"users.games.on":               {ru: "открыт", en: "open"},
+	"users.games.off":              {ru: "закрыт", en: "closed"},
 	"users.delete.confirm":         {ru: "Удалить %s безвозвратно?", en: "Delete %s permanently?"},
 
 	// --- раздел «Игры»: список и проверка по номеру ---
