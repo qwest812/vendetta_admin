@@ -1,4 +1,4 @@
-// Фон расширения: единственное место, откуда оно ходит на сервер админки.
+// Фон расширения: отсюда панель ходит за цветами карты на сервер админки.
 //
 // Скрипт на странице игры сам этого сделать не может — его запросы
 // считаются запросами страницы supremacy1914.com, и браузер не пустил бы их
@@ -7,6 +7,10 @@
 // не показывается.
 
 "use strict";
+
+// Окно расширения — боковая панель: она не закрывается от щелчка по игре,
+// и режимы карты можно переключать, глядя на карту. Открывается по значку.
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // Слушаем только свои скрипты: чужие расширения сюда писать не должны.
@@ -44,6 +48,7 @@ async function map(me, players, teams) {
         if (res.status === 401 || res.status === 403) {
             // Токен погасили или расширение аккаунту закрыли — забываем
             // вход, окно расширения попросит войти и скажет почему.
+            await chrome.storage.local.set({ authError: (body && body.error) || "" });
             await chrome.storage.local.remove(["token", "user"]);
         }
         return { error: (body && body.error) || `Ошибка сервера (${res.status}).`, status: res.status };

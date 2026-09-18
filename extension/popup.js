@@ -1,4 +1,5 @@
-// Окно расширения: вход в админку по почте и паролю.
+// Окно расширения — боковая панель Chrome: вход в админку по почте
+// и паролю, а после входа — раскраска карты партии (panel-map.js).
 //
 // Сервер отдаёт за почту и пароль токен; расширение хранит его
 // в chrome.storage.local и шлёт заголовком Authorization. Пароль нигде
@@ -76,6 +77,7 @@ function showLogin(state, message) {
     show($("busy"), false);
     show($("signed-in"), false);
     show(form, true);
+    mapPanel.stop();
     (form.server.value ? (form.email.value ? form.password : form.email) : form.server).focus();
 }
 
@@ -88,6 +90,7 @@ function showSignedIn(state, warning) {
     show($("busy"), false);
     show($("login"), false);
     show($("signed-in"), true);
+    mapPanel.start();
 }
 
 async function load() {
@@ -166,8 +169,25 @@ $("logout").addEventListener("click", async () => {
     // недоступен, расширение всё равно должно забыть вход. Сам токен тогда
     // доживёт свой срок, а оборвать его можно в профиле.
     api(state.server, "/api/auth/logout", { method: "POST", token: state.token }).catch(() => {});
+    loggingOut = true;
     await chrome.storage.local.remove(["token", "user"]);
     showLogin({ server: state.server, email: state.user && state.user.email });
+    loggingOut = false;
+});
+
+// Вход могут забыть и не здесь: фон стирает токен, когда сервер ответил,
+// что вход закончился или расширение аккаунту закрыто. Панель открыта
+// долго, поэтому следит за этим сама.
+// Причину фон оставляет в authError: «закрыто вашему аккаунту» и «вход
+// закончился» человеку надо различать.
+let loggingOut = false;
+chrome.storage.onChanged.addListener(async (changes, area) => {
+    if (area !== "local" || !changes.token || changes.token.newValue) return;
+    if (loggingOut || $("signed-in").hidden) return;
+    const state = await chrome.storage.local.get(["server", "email", "authError"]);
+    await chrome.storage.local.remove("authError");
+    showLogin({ server: state.server, email: state.email },
+        state.authError || "Вход в расширение закончился — войдите снова.");
 });
 
 start();

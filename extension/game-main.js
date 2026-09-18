@@ -55,15 +55,53 @@
     // provinceCounts — сколько провинций у каждого владельца. Альянсы
     // на карте получают цвета по убыванию владений, а легенды считают
     // только тех, у кого есть земля, — как и в админке.
+    //
+    // Без провинций раскраска всё равно работает — альянсы просто пойдут
+    // в легенде без порядка, — поэтому сбой здесь состав не роняет.
     function provinceCounts() {
         const counts = new Map();
-        const map = window.hup.gameState.getMapState();
-        const provinces = map && typeof map.getProvinceArray === "function" ? map.getProvinceArray() : [];
-        for (const p of provinces) {
-            const owner = p && typeof p.getOwnerID === "function" ? p.getOwnerID() : 0;
-            if (owner > 0) counts.set(owner, (counts.get(owner) || 0) + 1);
+        try {
+            const map = window.hup.gameState.getMapState();
+            const provinces = map && typeof map.getProvinceArray === "function" ? map.getProvinceArray() : [];
+            for (const p of provinces || []) {
+                const owner = p && typeof p.getOwnerID === "function" ? p.getOwnerID() : 0;
+                if (owner > 0) counts.set(owner, (counts.get(owner) || 0) + 1);
+            }
+        } catch (err) {
+            console.warn("[Админка] провинции не прочитались:", err);
         }
         return counts;
+    }
+
+    // teamList — коалиции партии с названием и цветом. Как и провинции,
+    // необязательны: без них серым останется только режим «Коалиции».
+    function teamList() {
+        const teams = [];
+        try {
+            const all = window.hup.gameState.getPlayerState().getTeams() || {};
+            for (const t of Object.values(all)) {
+                if (!t || typeof t.getTeamID !== "function") continue;
+                const id = Number(t.getTeamID());
+                if (!(id > 0)) continue;
+                teams.push({
+                    id,
+                    name: unescape(typeof t.getTeamName === "function" ? t.getTeamName() : ""),
+                    color: typeof t.getPrimaryColor === "function" ? String(t.getPrimaryColor() || "") : "",
+                });
+            }
+        } catch (err) {
+            console.warn("[Админка] коалиции не прочитались:", err);
+        }
+        return teams;
+    }
+
+    // flag читает признак игрока, не падая, если у клиента такого метода нет.
+    function flag(p, method) {
+        try {
+            return typeof p[method] === "function" ? p[method]() : undefined;
+        } catch {
+            return undefined;
+        }
     }
 
     // Клиент отдаёт название коалиции уже экранированным для разметки;
@@ -85,29 +123,17 @@
             list.push({
                 id,
                 site: site > 0 ? String(site) : "",
-                ai: Boolean(p.getComputerPlayer()) || !(site > 0),
-                premium: typeof p.isPremiumUser === "function" && Boolean(p.isPremiumUser()),
-                banned: typeof p.getBanned === "function" && Boolean(p.getBanned()),
-                team: typeof p.getTeamID === "function" ? Number(p.getTeamID()) || 0 : 0,
+                ai: Boolean(flag(p, "getComputerPlayer")) || !(site > 0),
+                premium: Boolean(flag(p, "isPremiumUser")),
+                banned: Boolean(flag(p, "getBanned")),
+                team: Number(flag(p, "getTeamID")) || 0,
                 provinces: counts.get(id) || 0,
-            });
-        }
-        const teams = [];
-        const all = window.hup.gameState.getPlayerState().getTeams() || {};
-        for (const t of Object.values(all)) {
-            if (!t || typeof t.getTeamID !== "function") continue;
-            const id = Number(t.getTeamID());
-            if (!(id > 0)) continue;
-            teams.push({
-                id,
-                name: unescape(typeof t.getTeamName === "function" ? t.getTeamName() : ""),
-                color: typeof t.getPrimaryColor === "function" ? String(t.getPrimaryColor() || "") : "",
             });
         }
         return {
             me: { id: Number(me.playerID), site: String(me.siteUserID || "") },
             players: list,
-            teams,
+            teams: teamList(),
         };
     }
 
@@ -239,6 +265,11 @@
 
         try {
             switch (msg.type) {
+            case "ready":
+                // Лёгкий вопрос для кнопки: загрузилась ли партия. Состав
+                // здесь не читается — он нужен только по нажатию.
+                reply({ type: "ready", ready: gameReady() });
+                break;
             case "roster":
                 reply(gameReady() ? { type: "roster", roster: roster() } : { type: "roster", notReady: true });
                 break;
@@ -263,6 +294,7 @@
         } catch (err) {
             // Клиент игры обновили, и что-то внутри называется иначе: скажем
             // об этом, а не упадём молча.
+            console.warn("[Админка] клиент игры:", err);
             reply({ type: "failed", error: String(err && err.message || err) });
         }
     });

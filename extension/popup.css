@@ -11,8 +11,10 @@
 
 * { box-sizing: border-box; }
 
+/* Окно — боковая панель Chrome: ширину задаёт сам браузер и человек,
+   перетаскивая её край. */
 body {
-    width: 320px;
+    min-width: 280px;
     margin: 0;
     background: var(--bg);
     color: var(--text);
@@ -85,3 +87,18 @@ form .small { margin-top: 8px; }
 }
 
 [hidden] { display: none !important; }
+
+/* --- карта партии --- */
+
+.map { margin: 16px 0; padding-top: 12px; border-top: 1px solid var(--border); }
+.map h2 { margin: 0 0 8px; font-size: 14px; }
+.map-actions { display: flex; gap: 6px; margin-bottom: 10px; }
+.map-actions #map-reset { width: auto; flex: none; }
+.map-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.map-modes button { padding: 6px 8px; font-size: 13px; }
+.map-modes button.active { border-color: var(--accent); color: var(--text); }
+.map-legend { list-style: none; margin: 0; padding: 0; }
+.map-legend li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.map-legend .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.map-legend .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-legend .n { margin-left: auto; color: var(--muted); padding-left: 8px; }

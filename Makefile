@@ -1,4 +1,4 @@
-.PHONY: up down restart logs ps dev build maeve-windows game heroes test tidy clean
+.PHONY: up down restart logs ps dev build maeve-windows extension-zip game heroes test tidy clean
 
 # Поднять всё в docker: postgres и приложение.
 up:
@@ -30,6 +30,15 @@ build:
 # Кладётся в bin/maeve.exe; при первом запуске создаёт maeve.txt рядом.
 maeve-windows:
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/maeve.exe ./cmd/maeve
+
+# Архив расширения Chrome для передачи игрокам: bin/admin-extension-<версия>.zip
+# с папкой extension внутри. Версия берётся из manifest.json.
+extension-zip:
+	@mkdir -p bin
+	@v=$$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' extension/manifest.json); \
+	rm -f bin/admin-extension-$$v.zip; \
+	zip -qr bin/admin-extension-$$v.zip extension -x '*.DS_Store'; \
+	echo "bin/admin-extension-$$v.zip"
 
 # Состав игры: какая страна за кем. make game GAME=10868223
 game:

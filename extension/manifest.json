@@ -1,16 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Админка",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "description": "База игроков прямо в браузере.",
   "action": {
-    "default_title": "Админка",
-    "default_popup": "popup.html"
+    "default_title": "Админка"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage"],
+  "permissions": [
+    "storage",
+    "sidePanel"
+  ],
   "optional_host_permissions": [
     "https://*/*",
     "http://localhost/*",
@@ -20,9 +25,27 @@
     {
       "matches": [
         "https://www.supremacy1914.com/clients/*",
-        "https://supremacy1914.com/clients/*"
+        "https://supremacy1914.com/clients/*",
+        "https://www.supremacy1914.pl/clients/*",
+        "https://supremacy1914.pl/clients/*",
+        "https://www.supremacy1914.de/clients/*",
+        "https://supremacy1914.de/clients/*",
+        "https://www.supremacy1914.fr/clients/*",
+        "https://supremacy1914.fr/clients/*",
+        "https://www.supremacy1914.es/clients/*",
+        "https://supremacy1914.es/clients/*",
+        "https://www.supremacy1914.it/clients/*",
+        "https://supremacy1914.it/clients/*",
+        "https://www.supremacy1914.nl/clients/*",
+        "https://supremacy1914.nl/clients/*",
+        "https://www.supremacy1914.gr/clients/*",
+        "https://supremacy1914.gr/clients/*",
+        "https://www.supremacy1914.at/clients/*",
+        "https://supremacy1914.at/clients/*"
       ],
-      "js": ["game-main.js"],
+      "js": [
+        "game-main.js"
+      ],
       "world": "MAIN",
       "all_frames": true,
       "run_at": "document_idle"
@@ -30,9 +53,27 @@
     {
       "matches": [
         "https://www.supremacy1914.com/clients/*",
-        "https://supremacy1914.com/clients/*"
+        "https://supremacy1914.com/clients/*",
+        "https://www.supremacy1914.pl/clients/*",
+        "https://supremacy1914.pl/clients/*",
+        "https://www.supremacy1914.de/clients/*",
+        "https://supremacy1914.de/clients/*",
+        "https://www.supremacy1914.fr/clients/*",
+        "https://supremacy1914.fr/clients/*",
+        "https://www.supremacy1914.es/clients/*",
+        "https://supremacy1914.es/clients/*",
+        "https://www.supremacy1914.it/clients/*",
+        "https://supremacy1914.it/clients/*",
+        "https://www.supremacy1914.nl/clients/*",
+        "https://supremacy1914.nl/clients/*",
+        "https://www.supremacy1914.gr/clients/*",
+        "https://supremacy1914.gr/clients/*",
+        "https://www.supremacy1914.at/clients/*",
+        "https://supremacy1914.at/clients/*"
       ],
-      "js": ["game-content.js"],
+      "js": [
+        "game-content.js"
+      ],
       "all_frames": true,
       "run_at": "document_idle"
     }

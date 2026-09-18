@@ -37,10 +37,25 @@
         <p>Вы вошли как <b id="nickname"></b> <span id="role" class="badge"></span></p>
         <p class="muted small" id="server-line"></p>
         <p id="me-warning" class="error" hidden></p>
+
+        <!-- Раскраска карты в игре. Панель боковая и сама не закрывается:
+             режимы переключают, глядя на карту. -->
+        <section id="map" class="map">
+            <h2>Карта партии</h2>
+            <p id="map-status" class="muted"></p>
+            <div class="map-actions">
+                <button id="map-analyse" type="button" disabled>🔍 Анализировать карту</button>
+                <button id="map-reset" type="button" class="ghost" title="Вернуть цвета игры" hidden>↺</button>
+            </div>
+            <div id="map-modes" class="map-modes"></div>
+            <ul id="map-legend" class="map-legend"></ul>
+        </section>
+
         <button id="logout" type="button" class="ghost">Выйти</button>
     </section>
 </main>
 
+<script src="panel-map.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>
