@@ -200,6 +200,35 @@
 </details>
 {{end}}
 
+{{/* Личные заметки: «во врагах» и «в друзьях» со своим текстом. Стоят
+     выше общих комментариев и отделены от них словами — это единственное
+     место карточки, которого не видит больше никто. */}}
+<div class="card">
+    <h1>{{t "rel.notes.title"}}</h1>
+    <p class="muted">{{t "rel.notes.hint"}}</p>
+    {{$csrf := .CSRFToken}}
+    {{$max := .NoteMax}}
+    {{range .MyNotes}}
+        {{$w := .Words}}
+        {{/* Форма одна на оба случая: она и добавляет в список, и правит
+             заметку у того, кто в нём уже есть. Разница только в подписи
+             кнопки и в том, куда ведёт ссылка рядом. */}}
+        <form class="note-form" method="post" action="/{{$w.Path}}/{{$p.ID}}/mark">
+            <input type="hidden" name="csrf_token" value="{{$csrf}}">
+            <input type="hidden" name="back" value="/players/{{$p.ID}}">
+            <label class="block">
+                {{t $w.Title}}{{if .Listed}} <span class="badge {{$w.Class}}">{{t $w.MarkDone}}</span>{{end}}
+                <textarea name="comment" rows="2" maxlength="{{$max}}"
+                          placeholder="{{t "rel.comment.placeholder"}}">{{.Comment}}</textarea>
+            </label>
+            <div class="mark-actions">
+                <button type="submit">{{if .Listed}}{{t "common.save"}}{{else}}{{t $w.NoteAdd}}{{end}}</button>
+                {{if .Listed}}<a class="link" href="/{{$w.Path}}">{{t "rel.notes.open"}}</a>{{end}}
+            </div>
+        </form>
+    {{end}}
+</div>
+
 <div class="card">
     <h1>{{t "player.comments"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}

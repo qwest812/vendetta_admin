@@ -81,8 +81,11 @@ func TestPagesRender(t *testing.T) {
 			want: []string{
 				`name="q" value="КСГ"`, `clan clan-enemy`, "КСГ",
 				// Из строки поиска игрок помечается в оба личных списка.
-				`action="/enemies/3/mark"`, ">во враги<",
-				`action="/friends/3/mark"`, ">в друзья<",
+				// Нажатие не записывает, а раскрывает форму заметки; без
+				// htmx та же ссылка ведёт на карточку.
+				`hx-get="/enemies/3/mark/form"`, ">во враги<",
+				`hx-get="/friends/3/mark/form"`, ">в друзья<",
+				`href="/players/3"`,
 			},
 			deny: []string{`name="status"`, "Только союзные"},
 		},
@@ -337,6 +340,28 @@ func TestPagesRender(t *testing.T) {
 			// Про игру мы ничего не знаем — и молчим об этом. Шкал больше
 			// нет вовсе: искать стали по признакам, а не по проценту.
 			deny: []string{"В игре", "забанен", "История банов", "Риск", "Лояльность"},
+		},
+		{
+			// Личные заметки на карточке: одна уже написана, вторая ещё нет.
+			// Обе формы шлют в ту же пометку, что и строка поиска, и просят
+			// вернуть на карточку. Сказано прямо, что заметку видит только
+			// хозяин: рядом живут общие комментарии, и перепутать их легко.
+			name: "player/личные заметки",
+			page: "player",
+			user: player,
+			data: map[string]any{"Player": enemy, "Comments": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": enemy.MarkedTraits(), "Body": "",
+				"CommentMax": domain.CommentMaxLen, "NoteMax": domain.MaxCommentLen,
+				"MyNotes": []relationNote{
+					{Words: enemyWords, Listed: true, Comment: "кинул в коалиции"},
+					{Words: friendWords},
+				}},
+			want: []string{
+				"Ваши заметки", "их видите только вы",
+				`action="/enemies/3/mark"`, `name="back" value="/players/3"`,
+				"кинул в коалиции", "badge enemy", ">Сохранить<",
+				`action="/friends/3/mark"`, "Добавить в друзья",
+			},
 		},
 		{
 			// Про неспрошенного молчим совсем: нули соврали бы про
@@ -1202,8 +1227,9 @@ func TestEnemyCandidates(t *testing.T) {
 	}
 }
 
-// Кнопка «во враги» в строке поиска. Уже помеченному кнопки не место: нажать
-// второй раз нечего, зато нужен путь к списку, где пишется комментарий.
+// Пометка «во враги» в строке поиска. Нажатие ничего не записывает: оно
+// раскрывает форму заметки, и только «Сохранить» доходит до базы. Без htmx
+// та же ссылка ведёт на карточку игрока, где заметка правится обычной формой.
 func TestSearchRowMark(t *testing.T) {
 	pages, err := parseTemplates(i18n.RU)
 	if err != nil {
@@ -1212,7 +1238,7 @@ func TestSearchRowMark(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		marked  bool
+		data    map[string]any
 		words   relationWords
 		want    []string
 		notWant []string
@@ -1220,39 +1246,71 @@ func TestSearchRowMark(t *testing.T) {
 		{
 			name:    "ещё не помечен",
 			words:   enemyWords,
-			want:    []string{`action="/enemies/3/mark"`, `name="csrf_token"`, ">во враги<"},
-			notWant: []string{"во врагах"},
+			want:    []string{`hx-get="/enemies/3/mark/form"`, `href="/players/3"`, ">во враги<"},
+			notWant: []string{"во врагах", "<form"},
 		},
 		{
+			// Уже помеченному кнопка нужна: ею правят заметку, не бросая поиск.
 			name:    "уже помечен",
 			words:   enemyWords,
-			marked:  true,
-			want:    []string{">во врагах<", `href="/enemies"`},
-			notWant: []string{"<form", "/enemies/3/mark"},
+			data:    map[string]any{"Marked": true},
+			want:    []string{">во врагах<", "mark done enemy", `hx-get="/enemies/3/mark/form"`},
+			notWant: []string{"<form"},
+		},
+		{
+			// Раскрытая форма: поле заметки, слово о том, что она личная,
+			// и отмена, возвращающая пометку в прежний вид.
+			name:  "раскрытая форма",
+			words: enemyWords,
+			data:  map[string]any{"Form": true, "Comment": "кинул в коалиции", "CommentMax": 4000},
+			want: []string{
+				`action="/enemies/3/mark"`, `name="csrf_token"`,
+				`name="comment"`, "кинул в коалиции", "Видите только вы",
+				`hx-get="/enemies/3/mark"`, "Отмена",
+			},
+		},
+		{
+			// Открытая форма помеченного сохраняет правку, а не добавляет
+			// заново: подпись кнопки об этом и говорит.
+			name:  "форма помеченного",
+			words: enemyWords,
+			data:  map[string]any{"Form": true, "Marked": true, "CommentMax": 4000},
+			want:  []string{">Сохранить<"},
+		},
+		{
+			// Места в списках нет: кнопка гаснет, а причина — в подсказке.
+			name:    "запас кончился",
+			words:   enemyWords,
+			data:    map[string]any{"Full": true},
+			want:    []string{"disabled", "Места в личных списках кончились"},
+			notWant: []string{"hx-get", "<form"},
 		},
 		{
 			// Та же пометка с другими словами ведёт в другой раздел.
 			name:    "друзья: ещё не помечен",
 			words:   friendWords,
-			want:    []string{`action="/friends/3/mark"`, ">в друзья<", "mark friend"},
+			want:    []string{`hx-get="/friends/3/mark/form"`, ">в друзья<", "mark friend"},
 			notWant: []string{"/enemies/"},
 		},
 		{
 			name:    "друзья: уже помечен",
 			words:   friendWords,
-			marked:  true,
-			want:    []string{">в друзьях<", `href="/friends"`},
-			notWant: []string{"<form", "/enemies/"},
+			data:    map[string]any{"Marked": true},
+			want:    []string{">в друзьях<", "mark done friend"},
+			notWant: []string{"/enemies/"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			data := map[string]any{
+				"ID": int64(3), "CSRFToken": "csrf", "Words": tt.words,
+			}
+			for k, v := range tt.data {
+				data[k] = v
+			}
 			var buf bytes.Buffer
-			err := pages["home"].ExecuteTemplate(&buf, "mark", map[string]any{
-				"ID": int64(3), "Marked": tt.marked, "CSRFToken": "csrf", "Words": tt.words,
-			})
-			if err != nil {
+			if err := pages["home"].ExecuteTemplate(&buf, "mark", data); err != nil {
 				t.Fatalf("отрисовка: %v", err)
 			}
 			for _, want := range tt.want {

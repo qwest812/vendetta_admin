@@ -395,6 +395,23 @@ button.mark.friend:hover { border-color: rgba(76, 175, 122, .5); color: #8fd4a8;
 a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, .5); color: #8fd4a8; }
 /* Две пометки в строке стоят рядом: сначала дружба, потом вражда. */
 .marks { display: flex; align-items: center; gap: 6px; }
+/* Раскрытая заметка встаёт на место своей пометки — столбиком, чтобы поле
+   было шире подписи. Ширина ограничена: строка поиска не должна превращаться
+   в форму во весь экран из-за одного нажатия. */
+.mark-form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 260px;
+    max-width: 100%;
+}
+.mark-form textarea { margin: 0; }
+.mark-form .muted, .mark-form .error { margin: 0; font-size: 12px; }
+.mark-actions { display: flex; align-items: center; gap: 10px; }
+/* Значок «во врагах» и «в друзьях» на карточке: те же цвета, что у пометок
+   в строке поиска. */
+.badge.enemy { border-color: rgba(217, 72, 59, .5); color: #e88b81; }
+.badge.friend { border-color: rgba(63, 166, 106, .5); color: #7fd3a1; }
 .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .enemies .note-head { margin-bottom: 6px; }
 .enemies .note-head .nick { color: var(--text); }
@@ -711,6 +728,10 @@ td.plan { min-width: 18rem; }
     /* Строка поиска: ник, клан и пометки в три колонки требуют ширины,
        которой уже нет. Ник с кланом остаются вместе, пометки уходят вниз. */
     .player-link { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    /* Раскрытая заметка на узком экране занимает отдельную строку: рядом
+       с ником ей остаётся полоска в пару слов. */
+    .player-row:has(.mark-form) { flex-wrap: wrap; }
+    .player-row .mark-form { width: 100%; }
     .filters { flex-wrap: wrap; }
     /* Узкое поле формы («Знак», «Порядок», «Статус») на широком экране
        экономит место, а здесь только режет подписи. */

@@ -212,8 +212,18 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		stats = known[player.GameID]
 	}
 
+	// Личные заметки об этом человеке — свои во врагах и в друзьях. На
+	// карточке они стоят отдельно от общих комментариев: те пишут для всех,
+	// а заметку не видит никто, кроме хозяина списка.
+	notes, err := s.relationNotes(r, player.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
 	s.render(w, r, status, "player", map[string]any{
 		"Player": player, "Comments": comments, "MyComment": myComment,
+		"MyNotes": notes, "NoteMax": domain.MaxCommentLen,
 		"Error": errMsg, "Seen": seen, "Bans": bans, "Traits": traits,
 		"Marks": marks, "Stats": stats, "Marked": marked, "Body": body,
 		"Heroes": heroRows, "HeroesMarked": heroesMarked,

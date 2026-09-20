@@ -2,8 +2,10 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"Vendetta_admin/internal/domain"
@@ -103,6 +105,23 @@ func (r *Relations) Marked(ctx context.Context, userID int64, playerIDs []int64)
 		marked[id] = true
 	}
 	return marked, rows.Err()
+}
+
+// Comment — своя заметка об игроке: текст и есть ли вообще запись. Пустой
+// текст и отсутствие записи — разные вещи: первое значит «добавлен молча»,
+// второе — «не добавлен вовсе», и форма показывает разные кнопки.
+func (r *Relations) Comment(ctx context.Context, userID, playerID int64) (string, bool, error) {
+	var comment string
+	err := r.pool.QueryRow(ctx,
+		`SELECT comment FROM `+r.table+` WHERE user_id = $1 AND player_id = $2`,
+		userID, playerID).Scan(&comment)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return comment, true, nil
 }
 
 // UsedTotal — сколько карточек человек уже занял. Считает оба списка вместе,

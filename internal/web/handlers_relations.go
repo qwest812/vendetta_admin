@@ -36,6 +36,9 @@ type relationWords struct {
 	MarkDone  string
 	AddTitle  string
 	DoneTitle string
+	// NoteAdd — кнопка той же заметки на карточке игрока. Там она стоит
+	// не в тесной строке поиска, а в форме, и слова ей нужны полные.
+	NoteAdd string
 	// Class — цвет пометки и обводки: "enemy" или "friend".
 	Class string
 }
@@ -54,6 +57,7 @@ var enemyWords = relationWords{
 	MarkDone:  "rel.enemies.markdone",
 	AddTitle:  "rel.enemies.addtitle",
 	DoneTitle: "rel.enemies.donetitle",
+	NoteAdd:   "rel.enemies.noteadd",
 	Class:     "enemy",
 }
 
@@ -71,6 +75,7 @@ var friendWords = relationWords{
 	MarkDone:  "rel.friends.markdone",
 	AddTitle:  "rel.friends.addtitle",
 	DoneTitle: "rel.friends.donetitle",
+	NoteAdd:   "rel.friends.noteadd",
 	Class:     "friend",
 }
 
@@ -196,8 +201,10 @@ func (rs *relationSection) marked(r *http.Request, players []*domain.Player) (ma
 	return rs.repo.Marked(r.Context(), currentUser(r).ID, ids)
 }
 
-// mark — кнопка в строке поиска. Комментарий здесь не спрашивается: пометить
-// надо в один клик, не бросая поиск, а «за что» дописывается в самом разделе.
+// mark — сохранение заметки из строки поиска. Кнопка в строке ничего
+// не записывает: она открывает форму (markForm), и только «Сохранить»
+// доходит сюда. Поэтому один и тот же обработчик и добавляет впервые,
+// и правит заметку у того, кто в списке уже есть.
 func (rs *relationSection) mark(w http.ResponseWriter, r *http.Request) {
 	playerID, ok := relationPlayerID(w, r)
 	if !ok {
@@ -211,23 +218,51 @@ func (rs *relationSection) mark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Повтор не ошибка: выдача поиска могла устареть, а нужное состояние
-	// то же самое. Чужой комментарий при этом не трогается — Add его не пишет.
-	err := rs.repo.Add(r.Context(), currentUser(r).ID, playerID, "", currentUser(r).RelationLimit())
-	full := errors.Is(err, domain.ErrPlanLimit)
-	if err != nil && !full && !errors.Is(err, domain.ErrAlreadyListed) {
+	me := currentUser(r)
+	hx := r.Header.Get("HX-Request") != ""
+	comment := strings.TrimSpace(r.PostFormValue("comment"))
+	if len([]rune(comment)) > domain.MaxCommentLen {
+		msg := langOf(r).T("err.rel.comment", domain.MaxCommentLen)
+		// Набранное возвращается на место: терять длинную заметку из-за
+		// того, что она длинная, — худшее, что тут можно сделать.
+		if !hx {
+			rs.render(w, r, http.StatusUnprocessableEntity, msg)
+			return
+		}
+		data := rs.markData(playerID, false, false, csrfToken(r))
+		data["Form"], data["Comment"], data["Error"] = true, comment, msg
+		rs.srv.renderPartialStatus(w, r, http.StatusUnprocessableEntity, "home", "mark", data)
+		return
+	}
+
+	full := false
+	err := rs.repo.Add(r.Context(), me.ID, playerID, comment, me.RelationLimit())
+	switch {
+	case errors.Is(err, domain.ErrAlreadyListed):
+		// Повтор — это правка: форму открыли с прежним текстом, значит
+		// новый его и заменяет. Запись успели убрать в другой вкладке —
+		// тоже не беда: править нечего, и это не ошибка.
+		if err := rs.repo.SetComment(r.Context(), me.ID, playerID, comment); err != nil &&
+			!errors.Is(err, domain.ErrNotFound) {
+			rs.srv.serverError(w, r, err)
+			return
+		}
+	case errors.Is(err, domain.ErrPlanLimit):
+		full = true
+	case err != nil:
 		rs.srv.serverError(w, r, err)
 		return
 	}
 
-	// Без HTMX подменять в странице некому, и кусок разметки показывать
-	// нечестно — отправляем в сам раздел, там видно, что получилось.
-	if r.Header.Get("HX-Request") == "" {
-		http.Redirect(w, r, "/"+rs.words.Path, http.StatusSeeOther)
+	// Без HTMX подменять в странице некому: форму показывала карточка
+	// игрока, туда и возвращаемся. Поля back нет — значит форму отправили
+	// из раздела, и место ответа там.
+	if !hx {
+		http.Redirect(w, r, formBack(r, "/"+rs.words.Path), http.StatusSeeOther)
 		return
 	}
-	// Отказ по пределу возвращает ту же кнопку, но погашенной и с причиной
-	// в подсказке. Код при этом честный: нажатие не сработало.
+	// Отказ по пределу возвращает кнопку погашенной и с причиной в подсказке.
+	// Код при этом честный: нажатие не сработало.
 	status := http.StatusOK
 	if full {
 		status = http.StatusUnprocessableEntity
@@ -245,7 +280,104 @@ func (rs *relationSection) markData(playerID int64, marked, full bool, csrf stri
 	return map[string]any{
 		"ID": playerID, "Marked": marked, "Full": full,
 		"CSRFToken": csrf, "Words": rs.words,
+		"CommentMax": domain.MaxCommentLen,
 	}
+}
+
+// markForm раскрывает в строке поиска форму заметки вместо кнопки. Открывают
+// её и на «во враги», и на «во врагах»: в первом случае поле пустое, во
+// втором — с тем, что уже написано, и «Сохранить» текст заменит.
+func (rs *relationSection) markForm(w http.ResponseWriter, r *http.Request) {
+	playerID, ok := relationPlayerID(w, r)
+	if !ok {
+		return
+	}
+	comment, listed, full, err := rs.markState(r, playerID)
+	if err != nil {
+		rs.srv.serverError(w, r, err)
+		return
+	}
+	// Места нет — форму открывать незачем: сохранить её всё равно не выйдет.
+	if full {
+		rs.srv.renderPartial(w, r, "home", "mark", rs.markData(playerID, false, true, csrfToken(r)))
+		return
+	}
+	data := rs.markData(playerID, listed, false, csrfToken(r))
+	data["Form"], data["Comment"] = true, comment
+	rs.srv.renderPartial(w, r, "home", "mark", data)
+}
+
+// markBack сворачивает форму обратно в кнопку — это «Отмена». Состояние
+// перечитывается, а не помнится страницей: пока форма была открыта, игрока
+// могли добавить или убрать в другой вкладке.
+func (rs *relationSection) markBack(w http.ResponseWriter, r *http.Request) {
+	playerID, ok := relationPlayerID(w, r)
+	if !ok {
+		return
+	}
+	_, listed, full, err := rs.markState(r, playerID)
+	if err != nil {
+		rs.srv.serverError(w, r, err)
+		return
+	}
+	rs.srv.renderPartial(w, r, "home", "mark", rs.markData(playerID, listed, full, csrfToken(r)))
+}
+
+// markState — всё, что нужно знать про пометку одного игрока: своя заметка,
+// есть ли запись и не кончился ли запас. Запас спрашивается только у того,
+// кого ещё не добавили: добавленному он уже не помеха.
+func (rs *relationSection) markState(r *http.Request, playerID int64) (comment string, listed, full bool, err error) {
+	comment, listed, err = rs.repo.Comment(r.Context(), currentUser(r).ID, playerID)
+	if err != nil || listed {
+		return comment, listed, false, err
+	}
+	used, limit, err := rs.quota(r)
+	if err != nil {
+		return "", false, false, err
+	}
+	return "", false, limit > 0 && used >= limit, nil
+}
+
+// note — своя заметка об игроке для его карточки. Там обе они стоят рядом,
+// врагов и друзей, поэтому раздел отдаёт свою вместе со своими словами.
+func (rs *relationSection) note(r *http.Request, playerID int64) (relationNote, error) {
+	comment, listed, err := rs.repo.Comment(r.Context(), currentUser(r).ID, playerID)
+	return relationNote{Words: rs.words, Listed: listed, Comment: comment}, err
+}
+
+// relationNotes — обе личные заметки об игроке для его карточки: и во
+// врагах, и в друзьях. Порядок тот же, что у пометок в строке поиска.
+func (s *Server) relationNotes(r *http.Request, playerID int64) ([]relationNote, error) {
+	out := make([]relationNote, 0, 2)
+	for _, sec := range []*relationSection{s.enemies, s.friends} {
+		note, err := sec.note(r, playerID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, note)
+	}
+	return out, nil
+}
+
+// relationNote — личная заметка об игроке в одном из списков: есть ли запись
+// и что в ней написано. Видит её только хозяин списка — ни другой человек,
+// ни админ, ни рут за чужими списками в базу не ходят.
+type relationNote struct {
+	Words   relationWords
+	Listed  bool
+	Comment string
+}
+
+// formBack — куда вернуться после отправки формы без HTMX. Ту же заметку правят
+// и в разделе, и на карточке игрока, и возвращать всегда в раздел значило бы
+// уводить человека со страницы, на которой он работал. Чужие адреса сюда
+// не пускаем: принимается только путь карточки.
+func formBack(r *http.Request, def string) string {
+	back := r.PostFormValue("back")
+	if id, ok := strings.CutPrefix(back, "/players/"); ok && digitsOnly(id) {
+		return back
+	}
+	return def
 }
 
 // add записывает в список карточку из базы. Игрока без карточки записать

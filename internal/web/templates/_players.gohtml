@@ -55,22 +55,42 @@
 {{end}}
 
 {{/* Пометка одной строки — «во враги» или «в друзья», смотря какие слова
-     пришли. Отдаётся и вместе со списком, и отдельно — в ответ на нажатие,
-     чтобы поиск не перезагружался и не сбрасывался. */}}
+     пришли. Живёт в трёх видах: кнопка, раскрытая форма заметки и погашенная
+     кнопка, когда места в списках нет. Отдаётся и вместе со списком, и
+     отдельно — в ответ на нажатие, чтобы поиск не перезагружался. */}}
 {{define "mark"}}
 {{$w := .Words}}
-{{if .Marked}}
-    <a class="mark done {{$w.Class}}" href="/{{$w.Path}}" title="{{t $w.DoneTitle}}">{{t $w.MarkDone}}</a>
+{{if .Form}}
+    {{/* Пока форма открыта, в списке ничего не изменилось: запись делает
+         только «Сохранить». Пустую заметку сохранить можно — иногда нужна
+         сама пометка. */}}
+    <form class="mark-form" method="post" action="/{{$w.Path}}/{{.ID}}/mark"
+          hx-post="/{{$w.Path}}/{{.ID}}/mark" hx-target="this" hx-swap="outerHTML">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+        <textarea name="comment" rows="2" maxlength="{{.CommentMax}}"
+                  placeholder="{{t "rel.comment.placeholder"}}">{{.Comment}}</textarea>
+        <p class="muted">{{t "rel.comment.private"}}</p>
+        <div class="mark-actions">
+            <button type="submit">{{if .Marked}}{{t "common.save"}}{{else}}{{t $w.MarkAdd}}{{end}}</button>
+            {{/* Отмена перечитывает пометку с сервера, а не прячет форму:
+                 состояние могло измениться в другой вкладке. */}}
+            <button class="link" type="button"
+                    hx-get="/{{$w.Path}}/{{.ID}}/mark" hx-target="closest .mark-form"
+                    hx-swap="outerHTML">{{t "common.cancel"}}</button>
+        </div>
+    </form>
 {{else if .Full}}
     {{/* Запас карточек кончился. Кнопку гасим, а не прячем: исчезнувшая
          кнопка читается как поломка, а погашенная — как «нельзя»,
          и причина написана в подсказке. */}}
     <button class="mark {{$w.Class}}" type="button" disabled title="{{t "rel.full.title"}}">{{t $w.MarkAdd}}</button>
 {{else}}
-    <form method="post" action="/{{$w.Path}}/{{.ID}}/mark"
-          hx-post="/{{$w.Path}}/{{.ID}}/mark" hx-target="this" hx-swap="outerHTML">
-        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <button class="mark {{$w.Class}}" type="submit" title="{{t $w.AddTitle}}">{{t $w.MarkAdd}}</button>
-    </form>
+    {{/* Ссылка, а не кнопка: с htmx она раскрывает форму на месте, а без
+         него ведёт на карточку игрока — там та же заметка правится обычной
+         формой, и без скриптов пометка не пропадает. */}}
+    <a class="mark {{if .Marked}}done {{end}}{{$w.Class}}" href="/players/{{.ID}}"
+       hx-get="/{{$w.Path}}/{{.ID}}/mark/form" hx-target="this" hx-swap="outerHTML"
+       title="{{if .Marked}}{{t $w.DoneTitle}}{{else}}{{t $w.AddTitle}}{{end}}">{{if .Marked}}{{t $w.MarkDone}}{{else}}{{t $w.MarkAdd}}{{end}}</a>
 {{end}}
 {{end}}

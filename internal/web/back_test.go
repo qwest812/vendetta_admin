@@ -1,7 +1,10 @@
 package web
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -23,6 +26,30 @@ func TestBackTo(t *testing.T) {
 		}
 		if got := backTo(u); got != tt.want {
 			t.Errorf("из %q вышло %q, ожидалось %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+// Заметку из личного списка правят и в разделе, и на карточке игрока,
+// поэтому форма говорит, куда вернуться. Чужие адреса в это поле пускать
+// нельзя: иначе наша же форма уводила бы человека на сторонний сайт.
+func TestFormBack(t *testing.T) {
+	const def = "/enemies"
+	tests := []struct{ back, want string }{
+		{"/players/12", "/players/12"},
+		{"", def},
+		{"/enemies", def},
+		{"https://evil.example/players/12", def},
+		{"//evil.example", def},
+		{"/players/12/delete", def},
+		{"/players/", def},
+	}
+	for _, tt := range tests {
+		r := httptest.NewRequest(http.MethodPost, "/enemies/12/mark",
+			strings.NewReader(url.Values{"back": {tt.back}}.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if got := formBack(r, def); got != tt.want {
+			t.Errorf("из %q вышло %q, ожидалось %q", tt.back, got, tt.want)
 		}
 	}
 }

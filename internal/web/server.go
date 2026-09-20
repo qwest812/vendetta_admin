@@ -205,6 +205,10 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("GET "+path+"/search", user(http.HandlerFunc(sec.search)))
 		mux.Handle("POST "+path, user(auth.VerifyCSRF(http.HandlerFunc(sec.add))))
 		mux.Handle("POST "+path+"/{playerID}", user(auth.VerifyCSRF(http.HandlerFunc(sec.update))))
+		// Пометка в строке поиска сама ничего не записывает: сперва
+		// раскрывается форма заметки, и запись делает только её отправка.
+		mux.Handle("GET "+path+"/{playerID}/mark", user(http.HandlerFunc(sec.markBack)))
+		mux.Handle("GET "+path+"/{playerID}/mark/form", user(http.HandlerFunc(sec.markForm)))
 		mux.Handle("POST "+path+"/{playerID}/mark", user(auth.VerifyCSRF(http.HandlerFunc(sec.mark))))
 		mux.Handle("POST "+path+"/{playerID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(sec.remove))))
 	}

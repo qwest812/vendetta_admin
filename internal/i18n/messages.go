@@ -344,8 +344,9 @@ var messages = map[string]entry{
 	"rel.enemies.confirm":   {ru: "Убрать %s из списка врагов?", en: "Remove %s from the enemies list?"},
 	"rel.enemies.markadd":   {ru: "во враги", en: "to enemies"},
 	"rel.enemies.markdone":  {ru: "во врагах", en: "in enemies"},
-	"rel.enemies.addtitle":  {ru: "В личный список врагов, без комментария — «за что» допишете в разделе «Враги»", en: "To your personal enemies list, without a comment — add the “what for” in the Enemies section"},
-	"rel.enemies.donetitle": {ru: "Уже в вашем списке врагов — комментарий пишется там", en: "Already in your enemies list — the comment is written there"},
+	"rel.enemies.addtitle":  {ru: "В личный список врагов: откроется поле «за что» — заметку видите только вы", en: "To your personal enemies list: a “what for” field will open — only you see the note"},
+	"rel.enemies.donetitle": {ru: "Уже в вашем списке врагов — нажмите, чтобы поправить заметку", en: "Already in your enemies list — click to edit your note"},
+	"rel.enemies.noteadd":   {ru: "Добавить во враги", en: "Add to enemies"},
 
 	"rel.friends.title":     {ru: "Мои друзья", en: "My friends"},
 	"rel.friends.intro":     {ru: "Список личный: его видите только вы, у каждого он свой. Это пометка о конкретном человеке.", en: "The list is personal: only you see it, and everyone has their own. It is a note about one person."},
@@ -357,11 +358,19 @@ var messages = map[string]entry{
 	"rel.friends.confirm":   {ru: "Убрать %s из списка друзей?", en: "Remove %s from the friends list?"},
 	"rel.friends.markadd":   {ru: "в друзья", en: "to friends"},
 	"rel.friends.markdone":  {ru: "в друзьях", en: "in friends"},
-	"rel.friends.addtitle":  {ru: "В личный список друзей, без комментария — его допишете в разделе «Друзья»", en: "To your personal friends list, without a comment — add it in the Friends section"},
-	"rel.friends.donetitle": {ru: "Уже в вашем списке друзей — комментарий пишется там", en: "Already in your friends list — the comment is written there"},
+	"rel.friends.addtitle":  {ru: "В личный список друзей: откроется поле для заметки — её видите только вы", en: "To your personal friends list: a note field will open — only you see it"},
+	"rel.friends.donetitle": {ru: "Уже в вашем списке друзей — нажмите, чтобы поправить заметку", en: "Already in your friends list — click to edit your note"},
+	"rel.friends.noteadd":   {ru: "Добавить в друзья", en: "Add to friends"},
 
-	"rel.search.placeholder":  {ru: "Найти по игровому ID или нику", en: "Search by game ID or nickname"},
-	"rel.comment":             {ru: "Комментарий", en: "Comment"},
+	"rel.search.placeholder": {ru: "Найти по игровому ID или нику", en: "Search by game ID or nickname"},
+	"rel.comment":            {ru: "Комментарий", en: "Comment"},
+	// Заметку из личного списка не видит никто, кроме хозяина, — ни другой
+	// человек, ни админ, ни рут. Сказать об этом надо прямо у поля: рядом
+	// на карточке живут общие комментарии, и перепутать их легко.
+	"rel.comment.private":     {ru: "Видите только вы", en: "Only you can see this"},
+	"rel.notes.title":         {ru: "Ваши заметки", en: "Your notes"},
+	"rel.notes.hint":          {ru: "Заметки личные: их видите только вы. Общие комментарии для всех — ниже.", en: "These notes are personal: only you can see them. Comments for everyone are below."},
+	"rel.notes.open":          {ru: "открыть список", en: "open the list"},
 	"rel.comment.placeholder": {ru: "За что", en: "What for"},
 	"rel.list":                {ru: "Список", en: "List"},
 	// Запас общий на врагов и друзей, поэтому и подпись говорит «в списках»
