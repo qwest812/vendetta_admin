@@ -22,12 +22,16 @@ func (r *GameTasks) Get(ctx context.Context, gameID string) (*domain.GameTask, e
 	var (
 		t         domain.GameTask
 		lastRun   *time.Time
+		buildNext *time.Time
+		buildRun  *time.Time
 		updatedBy *int64
 	)
 	err := r.pool.QueryRow(ctx,
-		`SELECT game_id, title, hero_deploy, updated_by, updated_at, last_run_at, last_result
+		`SELECT game_id, title, hero_deploy, updated_by, updated_at, last_run_at, last_result,
+		        build_next_at, build_run_at, build_result
 		   FROM supremacy_game_tasks WHERE game_id = $1`, gameID).
-		Scan(&t.GameID, &t.Title, &t.HeroDeploy, &updatedBy, &t.UpdatedAt, &lastRun, &t.LastResult)
+		Scan(&t.GameID, &t.Title, &t.HeroDeploy, &updatedBy, &t.UpdatedAt, &lastRun, &t.LastResult,
+			&buildNext, &buildRun, &t.BuildResult)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return &domain.GameTask{GameID: gameID}, nil
 	}
@@ -37,6 +41,12 @@ func (r *GameTasks) Get(ctx context.Context, gameID string) (*domain.GameTask, e
 	t.UpdatedBy = updatedBy
 	if lastRun != nil {
 		t.LastRunAt = *lastRun
+	}
+	if buildNext != nil {
+		t.BuildNextAt = *buildNext
+	}
+	if buildRun != nil {
+		t.BuildRunAt = *buildRun
 	}
 	return &t, nil
 }

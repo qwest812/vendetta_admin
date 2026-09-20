@@ -56,6 +56,9 @@ type Server struct {
 	// означает «живём вшитым в образ», см. heroSnapshot.
 	heroes *repo.Heroes
 	tasks  *repo.GameTasks
+	// builds — очередь строительства: страница партии её показывает и правит,
+	// а ставит здания воркер.
+	builds *repo.BuildQueue
 	// heroEveryMax — верхняя граница той же паузы: она случайна, и на
 	// странице партии написан диапазон, а не одно число.
 	heroEveryMax time.Duration
@@ -111,6 +114,9 @@ type Deps struct {
 	Tasks        *repo.GameTasks
 	HeroEvery    time.Duration
 	HeroEveryMax time.Duration
+	// BuildQueue — очередь строительства партий: её ведёт рут на странице
+	// партии, а ставит здания воркер.
+	BuildQueue *repo.BuildQueue
 	// Coalitions — архив коалиций, Settings — общие переключатели админки.
 	Coalitions *repo.Coalitions
 	Settings   *repo.Settings
@@ -142,6 +148,7 @@ func NewServer(d Deps) (*Server, error) {
 		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
 		checked: d.Checked, checks: d.Checks, mapTickets: newMapTickets(),
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
+		builds: d.BuildQueue,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
@@ -297,6 +304,11 @@ func (s *Server) Handler() http.Handler {
 	// у него рутовый. Роут стоит раньше /games/{id}: он точнее.
 	mux.Handle("POST /games/{id}/hero", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroToggle))))
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
+	// Очередь строительства: её ведёт рут, а здания ставит воркер. Правка
+	// очереди в партию не ходит — это записи в нашей базе.
+	mux.Handle("POST /games/{id}/build", root(auth.VerifyCSRF(http.HandlerFunc(s.gameBuildAdd))))
+	mux.Handle("POST /games/{id}/build/{entryID}/move", root(auth.VerifyCSRF(http.HandlerFunc(s.gameBuildMove))))
+	mux.Handle("POST /games/{id}/build/{entryID}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.gameBuildRemove))))
 	mux.Handle("POST /users/{id}/games", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetGamesAccess))))
 	mux.Handle("POST /users/{id}/checks", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetMapChecks))))
 	mux.Handle("POST /users/{id}/plan", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetPlan))))

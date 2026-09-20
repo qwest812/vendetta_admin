@@ -16,4 +16,24 @@ type GameTask struct {
 	// Нулевое время означает «ни разу не ходили».
 	LastRunAt  time.Time
 	LastResult string
+	// BuildNextAt, BuildRunAt и BuildResult — то же самое про очередь
+	// строительства. Время следующего захода считает сама партия: к концу
+	// стройки или к накоплению ресурсов, см. supremacy.PlanBuilds.
+	BuildNextAt time.Time
+	BuildRunAt  time.Time
+	BuildResult string
+}
+
+// BuildEntry — запись очереди строительства: какое здание и в какой
+// провинции ставить. Названия хранятся рядом с номерами, чтобы показывать
+// очередь, не заходя в партию.
+type BuildEntry struct {
+	ID         int64
+	GameID     string
+	ProvinceID int
+	Province   string
+	UpgradeID  int
+	Upgrade    string
+	Position   int
+	AddedAt    time.Time
 }

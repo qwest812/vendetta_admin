@@ -422,6 +422,14 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
    до базовой линии ввода. */
 .filters .htmx-indicator { align-self: center; }
 
+/* Очередь строительства: провинция заголовком, под ней пронумерованный
+   список зданий. Стрелки и крестик стоят справа от названия — это формы,
+   поэтому строка и выкладывается флексом. */
+.build-province { margin: 14px 0 4px; font-size: 15px; }
+.build-list { margin: 0; padding-left: 22px; }
+.build-list li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.build-list .label { flex: 1; }
+
 /* Карта партии: широкая и мелкая в деталях, поэтому во всю ширину карточки
    и с фоном под цвет моря — море отдельными фигурами не рисуется. */
 .game-map {

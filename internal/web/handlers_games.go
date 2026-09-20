@@ -1663,6 +1663,15 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		return
 	}
 
+	// Очередь строительства лежит в нашей базе и показывается без всякого
+	// захода в партию. Провинции и справочник зданий к ней добавит fillLive,
+	// если до состояния партии дело дойдёт.
+	builds, err := s.buildData(r, gameID, nil)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
 	data := map[string]any{
 		"GameID": gameID, "Task": task, "Error": errMsg,
 		"Interval": s.heroEvery, "IntervalMax": s.heroEveryMax,
@@ -1699,6 +1708,7 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		// попросит его отдельным запросом. См. gameRoster.
 		"RosterLater": false,
 	}
+	merge(data, builds)
 
 	ctx, cancel := context.WithTimeout(r.Context(), s.gameBudget(gameID))
 	defer cancel()
@@ -2179,6 +2189,15 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 		return err
 	}
 	data["Pairs"] = pairs
+
+	// Очередь строительства: сама очередь уже в данных страницы, а здесь
+	// к ней добавляются свои провинции и справочник зданий — их знает
+	// только состояние партии.
+	if builds, err := s.buildData(r, state.GameID, state); err == nil {
+		merge(data, builds)
+	} else {
+		return err
+	}
 
 	// Карту рисуем, если получилось: очертания лежат отдельным файлом
 	// на static-сервере игры, и его недоступность не повод прятать

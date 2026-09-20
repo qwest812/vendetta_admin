@@ -1327,6 +1327,51 @@ func TestSearchRowMark(t *testing.T) {
 	}
 }
 
+// Очередь строительства на странице партии: сама очередь видна всегда,
+// а выбор провинции и здания — только вместе с картой, потому что берётся
+// он из состояния партии. Стрелки и крестик подменяют только список.
+func TestGameBuildQueue(t *testing.T) {
+	pages, err := parseTemplates(i18n.RU)
+	if err != nil {
+		t.Fatalf("разбор шаблонов: %v", err)
+	}
+
+	var buf bytes.Buffer
+	err = pages["game"].ExecuteTemplate(&buf, "buildqueue", map[string]any{
+		"GameID": "10900334", "CSRFToken": "csrf",
+		"BuildQueue": []buildGroup{{
+			ProvinceID: 7, Province: "Берлин",
+			Entries: []domain.BuildEntry{{ID: 3, Upgrade: "Крепость"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("отрисовка: %v", err)
+	}
+	for _, want := range []string{
+		"Берлин", "Крепость",
+		`action="/games/10900334/build/3/move"`,
+		`action="/games/10900334/build/3/delete"`,
+		`hx-target="#build-queue"`,
+		`name="dir" value="down"`,
+	} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("в очереди нет %q: %s", want, buf.String())
+		}
+	}
+
+	// Пустая очередь говорит о себе сама: молчание читалось бы как поломка.
+	buf.Reset()
+	err = pages["game"].ExecuteTemplate(&buf, "buildqueue", map[string]any{
+		"GameID": "10900334", "CSRFToken": "csrf", "BuildQueue": nil,
+	})
+	if err != nil {
+		t.Fatalf("отрисовка пустой очереди: %v", err)
+	}
+	if !strings.Contains(buf.String(), "Очередь пуста") {
+		t.Errorf("пустая очередь должна объясниться: %s", buf.String())
+	}
+}
+
 // Состав клана — тот же список строк, но без пометок: список врагов личный,
 // а состав клана смотрят как справку. Данных для кнопки там нет, и шаблон
 // не должен на этом падать.

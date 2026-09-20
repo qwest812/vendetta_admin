@@ -495,6 +495,25 @@ var messages = map[string]entry{
 	"game.hero.off.note": {ru: "Выключено. Если включить, воркер будет заходить в партию каждые %s и жать у Мейв «призвать пехоту».", en: "Off. Once on, the worker will enter the game every %s and press Maeve’s “deploy infantry”."},
 	"game.hero.last":     {ru: "Последний заход:", en: "Last run:"},
 
+	// Очередь строительства. Выключателя у неё нет: пустая очередь и есть
+	// выключенная, и об этом сказано прямо в подписи.
+	"game.build.title":    {ru: "Очередь строительства", en: "Building queue"},
+	"game.build.note":     {ru: "Воркер ставит следующее здание, как только в провинции освобождается слот. Ходит он не по часам, а к событию: к концу стройки или к тому мигу, когда накопятся ресурсы. Пустая очередь — то же, что выключенная: в такую партию он не заходит.", en: "The worker starts the next building as soon as a slot in the province frees up. It does not run on a clock but on events: the end of a construction, or the moment the resources add up. An empty queue is the same as a disabled one: the worker does not enter such a game."},
+	"game.build.last":     {ru: "Последний заход:", en: "Last run:"},
+	"game.build.next":     {ru: "Следующий — %s.", en: "Next one at %s."},
+	"game.build.province": {ru: "Провинция", en: "Province"},
+	"game.build.upgrade":  {ru: "Здание", en: "Building"},
+	"game.build.add":      {ru: "В очередь", en: "Add to queue"},
+	"game.build.busy":     {ru: "строится «%s» до %s", en: "building “%s” until %s"},
+	"game.build.queued":   {ru: "в очереди: %d", en: "queued: %d"},
+	"game.build.needmap":  {ru: "Чтобы добавить здание, откройте карту партии: список своих провинций и справочник зданий берутся из самой игры. Уже собранная очередь видна и без карты.", en: "To add a building, open the game map: the list of your provinces and the building catalogue come from the game itself. A queue you have already built is visible without the map."},
+	"game.build.empty":    {ru: "Очередь пуста — в эту партию воркер не ходит.", en: "The queue is empty — the worker does not enter this game."},
+	"game.build.bad":      {ru: "Не разобрали, что добавить в очередь.", en: "Could not tell what to add to the queue."},
+	"game.build.tier":     {ru: "%s (ур. %d)", en: "%s (tier %d)"},
+	"game.build.up":       {ru: "Выше", en: "Up"},
+	"game.build.down":     {ru: "Ниже", en: "Down"},
+	"game.build.remove":   {ru: "Убрать из очереди", en: "Remove from the queue"},
+
 	"game.inside":         {ru: "Что в партии", en: "Inside the game"},
 	"game.inside.ours":    {ru: "Что у нас в партии", en: "What we have in this game"},
 	"game.enter":          {ru: "Заглянуть в партию", en: "Look inside"},

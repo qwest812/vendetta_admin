@@ -78,6 +78,89 @@ type Province struct {
 	Owner   int
 	Morale  float64
 	Capital bool
+	// Built — что в провинции уже построено, номерами из справочника
+	// зданий. Уровень здания игра держит отдельно, и нам он не нужен:
+	// повторная постройка того же здания и есть следующий уровень.
+	Built []int
+	// Building — стройки, идущие сейчас. Обычно не больше одной: второй
+	// слот даёт премиум, и тогда их бывает две.
+	Building []Construction
+	// Slots — сколько строек в провинции можно вести разом. Ноль означает
+	// «игра не сказала»; считаем такую провинцию односложной.
+	Slots int
+}
+
+// Free — свободен ли слот под стройку.
+func (p Province) Free() bool {
+	slots := p.Slots
+	if slots < 1 {
+		slots = 1
+	}
+	return len(p.Building) < slots
+}
+
+// BuildsUntil — когда закончится самая ранняя из идущих строек. Нулевое
+// время означает, что в провинции не строят ничего.
+func (p Province) BuildsUntil() time.Time {
+	var first time.Time
+	for _, c := range p.Building {
+		if first.IsZero() || c.Ends.Before(first) {
+			first = c.Ends
+		}
+	}
+	return first
+}
+
+// Construction — стройка, идущая в провинции: что строят и когда кончат.
+// Время окончания называет сама игра, считать его самим не нужно.
+type Construction struct {
+	UpgradeID int
+	Ends      time.Time
+}
+
+// Upgrade — здание из справочника партии. Справочник приходит вместе
+// с состоянием, поэтому названия в нём уже на языке аккаунта, а цены —
+// те, что действуют в этой партии.
+// Уровни здания игра держит отдельными записями: «Крепость» второго уровня
+// — своё здание, заменяющее собой первое. Replaces говорит, какое именно,
+// а Tier считается по этой цепочке: у первого уровня он единица. Без него
+// в списке стояло бы пять одинаковых «Крепостей».
+type Upgrade struct {
+	ID       int
+	Name     string
+	Build    time.Duration   // сколько строится по справочнику
+	Cost     map[int]float64 // ресурс → сколько стоит
+	Replaces int
+	Tier     int
+}
+
+// Resource — запас ресурса и скорость его прихода. Игра отдаёт запас
+// на момент Measured и прирост в секунду — уже за вычетом расхода,
+// поэтому он бывает и отрицательным.
+type Resource struct {
+	ID       int
+	Name     string
+	Amount   float64
+	Measured time.Time
+	Rate     float64
+}
+
+// AmountAt — сколько ресурса будет к этому времени.
+func (r Resource) AmountAt(t time.Time) float64 {
+	return r.Amount + r.Rate*t.Sub(r.Measured).Seconds()
+}
+
+// Enough — когда запаса хватит на need. Второе значение ложно, если
+// не хватит никогда: запас не растёт или тает.
+func (r Resource) Enough(need float64, now time.Time) (time.Time, bool) {
+	if r.AmountAt(now) >= need {
+		return now, true
+	}
+	if r.Rate <= 0 {
+		return time.Time{}, false
+	}
+	secs := (need - r.Amount) / r.Rate
+	return r.Measured.Add(time.Duration(secs * float64(time.Second))), true
 }
 
 // ArmyUnit — одна пачка юнитов одного типа в армии.
@@ -159,6 +242,21 @@ type GameState struct {
 	// HeroTypes — типы юнитов, умеющих призывать пехоту (роль
 	// DEPLOY_INFANTRY), и их имена: по ним ищется армия с героиней.
 	HeroTypes map[int]string
+	// Upgrades — справочник зданий этой партии по номеру.
+	Upgrades map[int]Upgrade
+	// Resources — наши запасы по номеру ресурса. У наблюдателя пусто:
+	// чужие запасы игра не рассказывает.
+	Resources map[int]Resource
+}
+
+// Province возвращает провинцию по номеру.
+func (g *GameState) Province(id int) (Province, bool) {
+	for _, p := range g.Provinces {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return Province{}, false
 }
 
 // DeployArmy — наша армия с героиней, умеющей призыв пехоты. Пусто, если
@@ -460,6 +558,16 @@ type gameStateResponse struct {
 					Name   string   `json:"n"`
 					Owner  *int     `json:"o"`
 					Morale *float64 `json:"m"`
+					// us — построенные здания, cos — список идущих строек,
+					// bi — первая из них же. Читаем список: со вторым
+					// слотом (премиум) строек бывает две, и в bi лежит
+					// только одна.
+					Built []struct {
+						ID int `json:"id"`
+					} `json:"us"`
+					Constructions json.RawMessage `json:"cos"`
+					Building      *buildWire      `json:"bi"`
+					Slots         int             `json:"cs"`
 				} `json:"locations"`
 			} `json:"map"`
 		} `json:"3"`
@@ -490,7 +598,33 @@ type gameStateResponse struct {
 					UnitRoles []string `json:"unitRoles"`
 				} `json:"ratingConfig"`
 			} `json:"allUnitTypes"`
+			// upgrades — здания партии: название на языке аккаунта (upn),
+			// время стройки в секундах (bt) и цена по ресурсам (c).
+			Upgrades map[string]struct {
+				ID        int                `json:"id"`
+				Name      string             `json:"upn"`
+				BuildTime int                `json:"bt"`
+				Cost      map[string]float64 `json:"c"`
+				// ru — здание, которое это заменяет собой: так игра
+				// связывает уровни одного и того же здания.
+				Replaces flexInt `json:"ru"`
+			} `json:"upgrades"`
 		} `json:"11"`
+		// Ресурсы: запас на момент time0 и прирост в секунду. Лежат они
+		// по игрокам, но чужие профили игра не наполняет — берём свой.
+		Resources struct {
+			Profiles map[string]struct {
+				Categories map[string]struct {
+					Entries map[string]struct {
+						ID       int     `json:"resourceID"`
+						Name     string  `json:"name"`
+						Amount   float64 `json:"amount0"`
+						Measured int64   `json:"time0"`
+						Rate     float64 `json:"rate"`
+					} `json:"resourceEntries"`
+				} `json:"categories"`
+			} `json:"resourceProfs"`
+		} `json:"4"`
 		Info struct {
 			DayOfGame int `json:"dayOfGame"`
 			// Свойства партии: клиент игры узнаёт анонимный раунд именно
@@ -579,12 +713,20 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		if l.Class != provinceLand {
 			continue
 		}
-		pr := Province{ID: l.ID, Name: l.Name, Capital: capitals[l.ID]}
+		pr := Province{ID: l.ID, Name: l.Name, Capital: capitals[l.ID], Slots: l.Slots}
 		if l.Owner != nil {
 			pr.Owner = *l.Owner
 		}
 		if l.Morale != nil {
 			pr.Morale = *l.Morale
+		}
+		for _, b := range l.Built {
+			if b.ID > 0 {
+				pr.Built = append(pr.Built, b.ID)
+			}
+		}
+		for _, c := range buildList(l.Constructions, l.Building) {
+			pr.Building = append(pr.Building, c)
 		}
 		g.Provinces = append(g.Provinces, pr)
 	}
@@ -592,6 +734,45 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	// Часы сервера приходят строкой; без них остаток размещения не посчитать,
 	// но и повода отказываться от всего состояния в этом нет.
 	serverNow, _ := strconv.ParseInt(r.TimeStamp, 10, 64)
+
+	g.Upgrades = make(map[int]Upgrade, len(r.States.Mod.Upgrades))
+	for _, u := range r.States.Mod.Upgrades {
+		if u.ID <= 0 {
+			continue
+		}
+		up := Upgrade{ID: u.ID, Name: u.Name, Replaces: int(u.Replaces),
+			Build: time.Duration(u.BuildTime) * time.Second}
+		if len(u.Cost) > 0 {
+			up.Cost = make(map[int]float64, len(u.Cost))
+			for id, amount := range u.Cost {
+				if n, err := strconv.Atoi(id); err == nil {
+					up.Cost[n] = amount
+				}
+			}
+		}
+		g.Upgrades[u.ID] = up
+	}
+
+	// Уровни считаются после того, как собран весь справочник: цепочка
+	// «второй заменяет первый» ведёт к зданию, которого в списке могло
+	// ещё не быть.
+	for id, u := range g.Upgrades {
+		u.Tier = upgradeTier(g.Upgrades, id, 0)
+		g.Upgrades[id] = u
+	}
+
+	// Запасы — только свои: в чужих профилях игра ресурсы не присылает.
+	if profile, ok := r.States.Resources.Profiles[strconv.Itoa(me)]; ok && me > 0 {
+		g.Resources = make(map[int]Resource)
+		for _, category := range profile.Categories {
+			for _, e := range category.Entries {
+				g.Resources[e.ID] = Resource{
+					ID: e.ID, Name: e.Name, Amount: e.Amount,
+					Measured: time.UnixMilli(e.Measured), Rate: e.Rate,
+				}
+			}
+		}
+	}
 
 	g.HeroTypes = make(map[int]string)
 	for _, u := range r.States.Mod.AllUnitTypes {
@@ -622,6 +803,30 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		g.Armies = append(g.Armies, army)
 	}
 	return g, nil
+}
+
+// upgradeTier — какой это уровень здания: первый, если оно ничего
+// не заменяет, иначе на единицу выше заменяемого. depth страхует от
+// кольца в данных: справочник приходит от игры, и проверять его нам нечем.
+func upgradeTier(all map[int]Upgrade, id, depth int) int {
+	u, ok := all[id]
+	if !ok || u.Replaces == 0 || depth > 10 {
+		return 1
+	}
+	return upgradeTier(all, u.Replaces, depth+1) + 1
+}
+
+// flexInt — число, которое игра шлёт то числом, то строкой. Чужой формат
+// молча считаем нулём: из-за одного поля терять всё состояние партии
+// нельзя, а без уровня здания список лишь станет менее внятным.
+type flexInt int
+
+func (f *flexInt) UnmarshalJSON(b []byte) error {
+	text := strings.Trim(string(b), `"`)
+	if n, err := strconv.Atoi(text); err == nil {
+		*f = flexInt(n)
+	}
+	return nil
 }
 
 // CSSColor — то же, что cssColor, для цветов, которые приходят не с игрового

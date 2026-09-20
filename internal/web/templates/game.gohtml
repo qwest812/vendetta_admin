@@ -73,6 +73,51 @@
         <p class="muted">{{t "game.hero.last"}} {{datetime $t.LastRunAt}} — {{$t.LastResult}}</p>
     {{end}}
 </div>
+
+{{/* Очередь строительства. Сама очередь лежит в нашей базе и видна всегда,
+     а выбор провинции и здания собирается из состояния партии — то есть
+     появляется вместе с картой. Правка очереди в партию не ходит, поэтому
+     она htmx-ом подменяет только список: карта и форма остаются на месте. */}}
+<div class="card">
+    <h1>{{t "game.build.title"}}</h1>
+    <p class="muted">{{t "game.build.note"}}</p>
+
+    {{if and $t (not $t.BuildRunAt.IsZero)}}
+        <p class="muted">
+            {{t "game.build.last"}} {{datetime $t.BuildRunAt}} — {{$t.BuildResult}}
+            {{if not $t.BuildNextAt.IsZero}}{{t "game.build.next" (datetime $t.BuildNextAt)}}{{end}}
+        </p>
+    {{end}}
+
+    {{if .BuildProvinces}}
+        <form class="row-form" method="post" action="/games/{{.GameID}}/build"
+              hx-post="/games/{{.GameID}}/build" hx-target="#build-queue" hx-swap="outerHTML">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <label>
+                {{t "game.build.province"}}
+                {{/* Номер и название идут одним полем: страница обновляет
+                     после добавления только очередь, а названия нужны ей
+                     и без захода в партию. */}}
+                <select name="province">
+                    {{range .BuildProvinces}}
+                        <option value="{{.ID}}|{{.Name}}">{{.Name}}{{if .Now}} — {{t "game.build.busy" .Now (datetime .Ends)}}{{end}}{{if .Queue}} · {{t "game.build.queued" .Queue}}{{end}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <label>
+                {{t "game.build.upgrade"}}
+                <select name="upgrade">
+                    {{range .BuildUpgrades}}<option value="{{.ID}}|{{.Label}}">{{.Label}}</option>{{end}}
+                </select>
+            </label>
+            <button type="submit">{{t "game.build.add"}}</button>
+        </form>
+    {{else}}
+        <p class="muted">{{t "game.build.needmap"}}</p>
+    {{end}}
+
+    {{template "buildqueue" .}}
+</div>
 {{end}}
 
 {{/* Карта и состав приезжают с игрового сервера, и для своей партии это
@@ -364,6 +409,50 @@
 {{/* Блок карты со всеми режимами и составом. Отдельным блоком, потому что
      его отдаёт и страница, и запрос состава — тот заменяет карту целиком,
      когда сайт наконец назовёт состав большой партии. */}}
+{{/* Список очереди — отдельным блоком: его же отдают в ответ на стрелки
+     и крестик, и заменяется он целиком. */}}
+{{define "buildqueue"}}
+<div id="build-queue">
+    {{if .BuildError}}<p class="error">{{.BuildError}}</p>{{end}}
+    {{$csrf := .CSRFToken}}
+    {{$game := .GameID}}
+    {{range .BuildQueue}}
+        <h2 class="build-province">{{.Province}}</h2>
+        <ol class="build-list">
+            {{range .Entries}}
+                <li>
+                    <span class="label">{{.Upgrade}}</span>
+                    {{/* Стрелки и крестик — обычные формы: без htmx они
+                         вернут на страницу партии, с ним подменят список. */}}
+                    <form method="post" action="/games/{{$game}}/build/{{.ID}}/move"
+                          hx-post="/games/{{$game}}/build/{{.ID}}/move"
+                          hx-target="#build-queue" hx-swap="outerHTML">
+                        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                        <input type="hidden" name="dir" value="up">
+                        <button class="link" type="submit" title="{{t "game.build.up"}}">↑</button>
+                    </form>
+                    <form method="post" action="/games/{{$game}}/build/{{.ID}}/move"
+                          hx-post="/games/{{$game}}/build/{{.ID}}/move"
+                          hx-target="#build-queue" hx-swap="outerHTML">
+                        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                        <input type="hidden" name="dir" value="down">
+                        <button class="link" type="submit" title="{{t "game.build.down"}}">↓</button>
+                    </form>
+                    <form method="post" action="/games/{{$game}}/build/{{.ID}}/delete"
+                          hx-post="/games/{{$game}}/build/{{.ID}}/delete"
+                          hx-target="#build-queue" hx-swap="outerHTML">
+                        <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                        <button class="link" type="submit" title="{{t "game.build.remove"}}">×</button>
+                    </form>
+                </li>
+            {{end}}
+        </ol>
+    {{else}}
+        <p class="muted">{{t "game.build.empty"}}</p>
+    {{end}}
+</div>
+{{end}}
+
 {{define "gamemap"}}
     {{/* Карта одна, режимов два: в каждом заливка говорит об одном
          и только одном, поэтому альянсы и личные списки не спорят

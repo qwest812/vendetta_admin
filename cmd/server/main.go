@@ -57,6 +57,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	enemies := repo.NewEnemies(pool)
 	friends := repo.NewFriends(pool)
 	tasks := repo.NewGameTasks(pool)
+	buildQueue := repo.NewBuildQueue(pool)
 	alliances := repo.NewAlliances(pool)
 	gamePlayers := repo.NewGamePlayers(pool)
 	coalitions := repo.NewCoalitions(pool)
@@ -90,6 +91,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Audit: audit, Logins: logins, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Feedback: feedback, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery, HeroEveryMax: cfg.S1914HeroEveryMax,
+		BuildQueue: buildQueue,
 		Coalitions: coalitions, Settings: settings, Heroes: heroes,
 		Checked: checked, Checks: mapChecks,
 		TopAlliances: topAlliances, UserStats: userStats,
@@ -151,6 +153,13 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// поэтому запускается всегда: без включённых партий он молчит.
 		autopilot := supremacy.NewAutopilot(s1914, tasks, cfg.S1914HeroEvery, cfg.S1914HeroEveryMax, log)
 		startAfter(ctx, 2*workerStagger, autopilot.Run)
+
+		// Очередь строительства ходит не по расписанию, а к событию:
+		// партия сама говорит, когда в ней освободится слот или накопятся
+		// ресурсы. Без очередей воркер только просыпается раз в минуту
+		// и смотрит в свою базу.
+		builder := supremacy.NewBuilder(s1914, buildQueue, log)
+		startAfter(ctx, 5*workerStagger, builder.Run)
 
 		// Кланы игроков спрашивает воркер, а не страница карты: сайт игры
 		// отвечает про одного игрока за раз. Очередь ему наполняют сами
