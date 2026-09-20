@@ -51,6 +51,18 @@
             <ul id="map-legend" class="map-legend"></ul>
         </section>
 
+        <!-- Отношения с компьютерными странами: одно отношение всем сразу.
+             Живых игроков кнопка не трогает — с ними договариваются. -->
+        <section id="diplomacy" class="map">
+            <h2>Отношения с ботами</h2>
+            <p id="diplomacy-status" class="muted"></p>
+            <div class="map-actions">
+                <select id="diplomacy-relation" aria-label="Какое отношение выдать ботам" disabled></select>
+            </div>
+            <button id="diplomacy-apply" type="button" disabled>Выдать всем ботам</button>
+            <p class="muted small">Отношение выдаётся односторонне: согласия ботов не нужно, и тем же списком его возвращают обратно на мир.</p>
+        </section>
+
         <button id="logout" type="button" class="ghost">Выйти</button>
     </section>
 </main>

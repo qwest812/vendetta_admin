@@ -1,6 +1,6 @@
-// Раскраска карты партии из боковой панели. Панель не закрывается, пока
-// человек играет, поэтому все кнопки здесь: анализ, режимы, возврат цветов
-// игры и легенда.
+// Всё, что расширение делает в открытой партии, из боковой панели. Панель
+// не закрывается, пока человек играет, поэтому все кнопки здесь: анализ
+// карты, режимы, возврат цветов игры, легенда и отношения с ботами.
 //
 // Работает с той вкладкой, что открыта в окне сейчас. Скрипт расширения
 // на странице игры (game-content.js) отдаёт состав партии и красит карту;
@@ -29,12 +29,26 @@ const mapPanel = (() => {
 
     const $ = (id) => document.getElementById(id);
 
+    // Мирная часть шкалы отношений игры: значение, которое уходит
+    // в действие, и как оно называется. Война и перемирие пачкой отсюда
+    // не раздаются — такую кнопку легко нажать не подумав.
+    const RELATIONS = [
+        [1, "Мир"],
+        [2, "Пакт о ненападении"],
+        [3, "Право прохода"],
+        [4, "Общая карта"],
+        [5, "Взаимная защита"],
+        [6, "Общая разведка"],
+    ];
+
     let running = false;
     let mode = "clans";
     let tabId = null;
     let ready = false;
     let busy = false;
     let timer = null;
+    let relation = 3;      // что выдаём ботам
+    let relating = false;  // идёт выдача
     // Анализ на вкладку: у каждой открытой партии свои цвета.
     const analysed = new Map(); // номер вкладки → режимы от админки
 
@@ -110,6 +124,10 @@ const mapPanel = (() => {
         $("map-analyse").textContent = analysed.has(tabId) ? "🔍 Обновить анализ" : "🔍 Анализировать карту";
         $("map-reset").hidden = !(ready && pong.painted);
         renderModes();
+        // Отношения перечитываем только когда состояние партии
+        // изменилось: пока панель просто висит открытой, дёргать клиент
+        // игры незачем.
+        if (changed || ready !== wasReady) showBots();
 
         if (!ready) {
             renderLegend(null);
@@ -191,6 +209,101 @@ const mapPanel = (() => {
         status("Цвета игры возвращены. Выберите режим, чтобы перекрасить снова.");
     }
 
+    // --- отношения с ботами ---
+
+    function relationName(value) {
+        const row = RELATIONS.find(([v]) => v === value);
+        return row ? row[1] : `отношение ${value}`;
+    }
+
+    function fillRelations() {
+        const select = $("diplomacy-relation");
+        select.textContent = "";
+        for (const [value, title] of RELATIONS) {
+            const option = document.createElement("option");
+            option.value = String(value);
+            option.textContent = title;
+            option.selected = value === relation;
+            select.append(option);
+        }
+    }
+
+    function diploStatus(text, isError) {
+        const el = $("diplomacy-status");
+        el.textContent = text || "";
+        el.classList.toggle("error", Boolean(isError));
+        el.classList.toggle("muted", !isError);
+    }
+
+    // botLine — сколько в партии ботов и как с ними сейчас. Считается
+    // по нынешним отношениям: по этой же строке потом и видно, что игра
+    // выдачу приняла.
+    function botLine(bots) {
+        const counts = new Map();
+        for (const b of bots) counts.set(b.relation, (counts.get(b.relation) || 0) + 1);
+        const parts = [...counts.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([value, n]) => `${relationName(value).toLowerCase()} — ${n}`);
+        return `Ботов в партии: ${bots.length} (${parts.join(", ")})`;
+    }
+
+    // showBots перечитывает отношения у клиента игры и приводит блок
+    // в соответствие. Без партии кнопка гаснет: выдавать некому.
+    async function showBots() {
+        const select = $("diplomacy-relation");
+        const apply = $("diplomacy-apply");
+        select.disabled = !ready || relating;
+        apply.disabled = !ready || relating;
+        if (!ready) {
+            diploStatus("Партия не открыта.");
+            return;
+        }
+        if (relating) return;
+
+        const res = await send({ type: "bots" });
+        if (!res || res.error) {
+            apply.disabled = true;
+            diploStatus(res ? res.error : "Вкладка с игрой не ответила — перезагрузите её.", true);
+            return;
+        }
+        if (res.bots.length === 0) {
+            apply.disabled = true;
+            diploStatus("Ботов в этой партии нет.");
+            return;
+        }
+        diploStatus(botLine(res.bots));
+    }
+
+    async function applyRelation() {
+        if (relating || !ready) return;
+        relating = true;
+        $("diplomacy-apply").disabled = true;
+        $("diplomacy-relation").disabled = true;
+        diploStatus("Отправляем в игру…");
+        try {
+            const res = await send({ type: "relate", relation });
+            if (!res || res.error) {
+                diploStatus(res ? res.error : "Вкладка с игрой не ответила — перезагрузите её.", true);
+                return;
+            }
+            if (res.sent === 0) {
+                diploStatus(`У всех ботов уже «${relationName(relation).toLowerCase()}» — отправлять нечего.`);
+                return;
+            }
+            diploStatus(`Отправлено ботам: ${res.sent} из ${res.total}. Игра применит за пару секунд.`);
+        } finally {
+            // Кнопку оживляем в любом случае: после отказа нажать ещё раз
+            // должно быть можно, а строку с причиной мы не трогаем.
+            relating = false;
+            $("diplomacy-apply").disabled = !ready;
+            $("diplomacy-relation").disabled = !ready;
+        }
+        // Игра отвечает не сразу, поэтому перечитываем дважды: первый раз
+        // на случай быстрого ответа, второй — когда он задержался.
+        setTimeout(showBots, 1500);
+        setTimeout(showBots, 5000);
+    }
+
     // Перезагруженная вкладка — это новая партия или та же с родными
     // цветами: прежний анализ к ней уже не относится.
     function onUpdated(id, info) {
@@ -200,13 +313,20 @@ const mapPanel = (() => {
 
     $("map-analyse").addEventListener("click", analyse);
     $("map-reset").addEventListener("click", reset);
+    $("diplomacy-apply").addEventListener("click", applyRelation);
+    $("diplomacy-relation").addEventListener("change", async (event) => {
+        relation = Number(event.currentTarget.value);
+        await chrome.storage.local.set({ botRelation: relation });
+    });
 
     return {
         async start() {
             if (running) return;
             running = true;
-            const saved = await chrome.storage.local.get("paintMode");
+            const saved = await chrome.storage.local.get(["paintMode", "botRelation"]);
             if (MODES.some(([key]) => key === saved.paintMode)) mode = saved.paintMode;
+            if (RELATIONS.some(([value]) => value === saved.botRelation)) relation = saved.botRelation;
+            fillRelations();
             chrome.tabs.onActivated.addListener(check);
             chrome.tabs.onUpdated.addListener(onUpdated);
             await check();

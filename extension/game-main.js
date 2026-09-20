@@ -9,6 +9,10 @@
 // (PlayerState.publishUpdate): на это событие карта сама пересчитывает
 // цвета провинций. Выключение — пустая подмена и то же обновление.
 //
+// Отсюда же уходят в игру отношения с ботами: клиент держит очередь
+// действий (hup.userActionController), и мы кладём в неё то же действие,
+// что кладёт окно дипломатии, — см. relate ниже.
+//
 // Сеть отсюда не трогаем и токен сюда не попадает: состав партии уходит
 // соседнему скрипту расширения (game-content.js), цвета приходят от него.
 
@@ -135,6 +139,85 @@
             players: list,
             teams: teamList(),
         };
+    }
+
+    // --- отношения с ботами ---
+    //
+    // Отношение в игре одностороннее: клиент держит его как
+    // neighborRelations[кто][кому], и выдаёт его тот, кто выдаёт, —
+    // согласия второй стороны не нужно. Шкала клиента: −10 бунт, −2 война,
+    // −1 перемирие, 0 торговое эмбарго, 1 мир, 2 пакт о ненападении,
+    // 3 право прохода, 4 общая карта, 5 взаимная защита, 6 общая разведка,
+    // 7 командование армиями. Ботам игра позволяет всё до общей разведки.
+    //
+    // Отсюда раздаётся только мирная часть шкалы: война и перемирие
+    // пачкой — это другое дело, и кнопка «всем сразу» для них опасна.
+    const RELATIONS = new Set([1, 2, 3, 4, 5, 6]);
+
+    function relations() {
+        const state = window.hup.gameState;
+        const affairs = typeof state.getForeignAffairsState === "function"
+            ? state.getForeignAffairsState() : null;
+        const rel = affairs && typeof affairs.getRelations === "function"
+            ? affairs.getRelations() : null;
+        if (!rel || typeof rel.getRelation !== "function") {
+            throw new Error("клиент игры не отдал отношения");
+        }
+        return rel;
+    }
+
+    // bots — живые компьютерные страны партии и наше нынешнее отношение
+    // к каждой. Побеждённых и ушедших пропускаем: менять отношение к ним
+    // не с кем.
+    function bots() {
+        const rel = relations();
+        const me = Number(window.hup.config.userData.playerID);
+        const list = [];
+        for (const p of players()) {
+            const id = Number(p.getPlayerID());
+            if (!(id > 0) || id === me) continue;
+            if (!flag(p, "getComputerPlayer")) continue;
+            if (flag(p, "getDefeated") || flag(p, "getRetired")) continue;
+            list.push({ id, relation: Number(rel.getRelation(me, id)) });
+        }
+        return { me, bots: list };
+    }
+
+    // relationAction — то же действие, что шлёт окно дипломатии клиента:
+    // номера игроков списком и одно отношение одним байтом в base64.
+    // Методы повторяют базовое действие клиента — очередь спрашивает их,
+    // а в запрос уходят только поля: методы JSON не переживают.
+    function relationAction(ids, relation) {
+        return {
+            "@c": "ultshared.action.UltChangeRelationAction",
+            playerB: ids,
+            relationType: btoa(String.fromCharCode(relation & 0xff)),
+            requestID: "",
+            setRequestID(id) { this.requestID = id; },
+            getRequestID() { return this.requestID; },
+            isRequestGameStateUpdate() { return true; },
+            isUseRealSiteUserInGuestMode() { return false; },
+            getClassNameForLogging() { return "UltChangeRelationAction"; },
+        };
+    }
+
+    // relate выдаёт отношение всем ботам, у кого оно сейчас другое. Каждому
+    // боту — своё действие: игра складывает их в один запрос сама, той же
+    // очередью, через которую идут нажатия в самой игре. Одним действием
+    // на всех было бы короче, но поле с отношением в нём одно на список,
+    // и как сервер разберёт такой список — не проверить, не разослав.
+    function relate(relation) {
+        if (!RELATIONS.has(relation)) {
+            throw new Error("такое отношение расширение не раздаёт");
+        }
+        const control = window.hup.userActionController;
+        if (!control || typeof control.triggerAction !== "function") {
+            throw new Error("клиент игры не даёт отправлять действия");
+        }
+        const list = bots().bots;
+        const ids = list.filter((b) => b.relation !== relation).map((b) => b.id);
+        for (const id of ids) control.triggerAction(relationAction([id], relation));
+        return { total: list.length, sent: ids.length };
     }
 
     // --- чистый цвет на карте ---
@@ -281,6 +364,14 @@
                 colors = new Map(Object.entries(msg.colors).map(([id, c]) => [Number(id), c]));
                 reply({ type: "painted", ok: true, clean: setClean(true) });
                 repaint();
+                break;
+            case "bots":
+                reply(gameReady() ? { type: "bots", ...bots() } : { type: "bots", notReady: true });
+                break;
+            case "relate":
+                reply(gameReady()
+                    ? { type: "related", ok: true, ...relate(Number(msg.relation)) }
+                    : { type: "related", notReady: true });
                 break;
             case "clear":
                 colors = null;

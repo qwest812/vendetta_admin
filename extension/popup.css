@@ -37,7 +37,7 @@ label {
     font-size: 13px;
 }
 
-input {
+input, select {
     display: block;
     width: 100%;
     margin-top: 4px;
@@ -49,7 +49,7 @@ input {
     font: inherit;
 }
 
-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 button {
     width: 100%;
@@ -94,6 +94,9 @@ form .small { margin-top: 8px; }
 .map h2 { margin: 0 0 8px; font-size: 14px; }
 .map-actions { display: flex; gap: 6px; margin-bottom: 10px; }
 .map-actions #map-reset { width: auto; flex: none; }
+/* Список отношений стоит в той же строке, что и кнопки карты, и поле
+   в ней не должно отбивать себе верхний отступ формы. */
+.map-actions select { margin-top: 0; }
 .map-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
 .map-modes button { padding: 6px 8px; font-size: 13px; }
 .map-modes button.active { border-color: var(--accent); color: var(--text); }
