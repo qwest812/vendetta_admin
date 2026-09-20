@@ -42,8 +42,42 @@ func TestPlanBuildsStarts(t *testing.T) {
 	if plan.Start[0].UpgradeID != 16 || plan.Start[0].Province != "Берлин" {
 		t.Errorf("поставили не то: %+v", plan.Start[0])
 	}
-	if want := now.Add(buildRecheck); !plan.Next.Equal(want) {
-		t.Errorf("следующий заход %v, ожидался %v", plan.Next, want)
+	// План считает только события самой партии; ждать ли перепроверки,
+	// решает заход — он один знает, встало здание или игра отказала.
+	if !plan.Next.IsZero() {
+		t.Errorf("плану ждать нечего, а он назначил заход на %v", plan.Next)
+	}
+}
+
+// Срок следующего захода после самого захода. Встало здание — вернёмся
+// скоро, за настоящим временем окончания; отказали — не раньше чем через
+// час, иначе в партию пришлось бы ходить каждые две минуты; а событие
+// самой партии важнее обоих.
+func TestNextVisit(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	var never time.Time
+
+	tests := []struct {
+		name            string
+		events          time.Time
+		started, failed int
+		want            time.Time
+	}{
+		{"поставили", never, 1, 0, now.Add(buildRecheck)},
+		{"отказали", never, 0, 1, now.Add(buildRefused)},
+		{"нечего делать", never, 0, 0, never},
+		{"событие раньше перепроверки", now.Add(time.Minute), 1, 0, now.Add(time.Minute)},
+		{"событие позже отказа", now.Add(3 * time.Hour), 0, 1, now.Add(buildRefused)},
+		{"событие раньше отказа", now.Add(10 * time.Minute), 0, 1, now.Add(10 * time.Minute)},
+		{"слишком далёкое событие", now.Add(48 * time.Hour), 0, 0, now.Add(buildLatest)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := nextVisit(tt.events, tt.started, tt.failed, now)
+			if !got.Equal(tt.want) {
+				t.Errorf("вышло %v, ожидалось %v", got, tt.want)
+			}
+		})
 	}
 }
 

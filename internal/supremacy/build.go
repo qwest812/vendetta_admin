@@ -43,6 +43,11 @@ const (
 	// дух провинции, поэтому не гадаем, а переспрашиваем.
 	buildRecheck = 2 * time.Minute
 
+	// buildRefused — через сколько пробовать здание, которое игра
+	// не приняла. Чаще незачем: чаще всего это здание, которому ещё
+	// не пришёл срок, и ждать его приходится днями.
+	buildRefused = time.Hour
+
 	// buildSoonest и buildLatest — границы паузы до следующего захода.
 	// Нижняя бережёт партию от частых входов, верхняя не даёт воркеру
 	// заснуть навсегда, если считать оказалось нечего.
@@ -183,19 +188,56 @@ func PlanBuilds(g *GameState, queue map[int][]int, now time.Time) BuildPlan {
 		})
 	}
 
-	// Поставили — вернёмся за настоящим временем окончания.
-	if len(plan.Start) > 0 {
-		wake(now.Add(buildRecheck))
-	}
-	if !plan.Next.IsZero() {
-		if soonest := now.Add(buildSoonest); plan.Next.Before(soonest) {
-			plan.Next = soonest
-		}
-		if latest := now.Add(buildLatest); plan.Next.After(latest) {
-			plan.Next = latest
-		}
-	}
+	plan.Next = clampVisit(plan.Next, now)
 	return plan
+}
+
+// clampVisit зажимает срок захода с обеих сторон: слишком скоро
+// возвращаться в партию нельзя — заход игра засчитывает как вход, —
+// а заснуть навсегда тем более. Нулевой срок означает «приходить незачем»
+// и таким и остаётся.
+func clampVisit(at, now time.Time) time.Time {
+	if at.IsZero() {
+		return at
+	}
+	if soonest := now.Add(buildSoonest); at.Before(soonest) {
+		return soonest
+	}
+	if latest := now.Add(buildLatest); at.After(latest) {
+		return latest
+	}
+	return at
+}
+
+// nextVisit — когда возвращаться после захода. events — ближайшее событие
+// самой партии (конец стройки, накопление ресурсов); к нему добавляется
+// то, что стало известно по ходу захода:
+//
+//   - что-то встало в стройку — надо вернуться за настоящим временем
+//     окончания, его называет только игра;
+//   - всё отказано — возвращаться через две минуты незачем: отказ так
+//     быстро не меняется. Так бывает у здания, которому ещё не пришёл
+//     срок: железная дорога откроется на третий день, и до тех пор игра
+//     будет отказывать. Ходить ради этого каждые две минуты нельзя.
+//
+// Событие партии всегда важнее: если в соседней провинции через десять
+// минут кончается стройка, мы всё равно придём туда — и заодно попробуем
+// отказанное ещё раз.
+func nextVisit(events time.Time, started, failed int, now time.Time) time.Time {
+	extra := time.Time{}
+	switch {
+	case started > 0:
+		extra = now.Add(buildRecheck)
+	case failed > 0:
+		extra = now.Add(buildRefused)
+	}
+	switch {
+	case events.IsZero():
+		events = extra
+	case !extra.IsZero() && extra.Before(events):
+		events = extra
+	}
+	return clampVisit(events, now)
 }
 
 // affordable — когда на здание хватит ресурсов. Возвращает время (now,
@@ -277,10 +319,6 @@ func (c *Client) RunBuildQueue(ctx context.Context, gameID string, queue map[int
 			"провинция", order.Province, "здание", order.Upgrade)
 	}
 
-	// Не поставилось ничего, а ждать нечего — придём на общих основаниях,
-	// вдруг к тому времени всё изменится.
-	if run.Next.IsZero() && len(run.Failed) > 0 {
-		run.Next = time.Now().Add(buildLatest)
-	}
+	run.Next = nextVisit(plan.Next, len(run.Started), len(run.Failed), time.Now())
 	return run, nil
 }
