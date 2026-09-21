@@ -79,10 +79,15 @@ type Province struct {
 	Owner   int
 	Morale  float64
 	Capital bool
-	// Built — что в провинции уже построено, номерами из справочника
+	// Built — какие здания в провинции есть, номерами из справочника,
+	// в том числе недостроенные и повреждённые: готово ли здание, говорит
+	// Condition (см. GameState.Finished).
 	// зданий. Уровень здания игра держит отдельно, и нам он не нужен:
 	// повторная постройка того же здания и есть следующий уровень.
 	Built []int
+	// Condition — состояние каждого здания из Built («c» у игры). Здание
+	// готово, когда оно кратно BuildCondition своего типа.
+	Condition map[int]int
 	// Building — стройки, идущие сейчас. Обычно не больше одной: второй
 	// слот даёт премиум, и тогда их бывает две.
 	Building []Construction
@@ -133,6 +138,10 @@ type Upgrade struct {
 	Cost     map[int]float64 // ресурс → сколько стоит
 	Replaces int
 	Tier     int
+	// BuildCondition — сколько состояния даёт один уровень («bc»).
+	// Состояние здания, не кратное ему, — недостроенный или повреждённый
+	// уровень: игра показывает на нём «Ремонт».
+	BuildCondition int
 }
 
 // Resource — запас ресурса и скорость его прихода. Игра отдаёт запас
@@ -248,6 +257,21 @@ type GameState struct {
 	// Resources — наши запасы по номеру ресурса. У наблюдателя пусто:
 	// чужие запасы игра не рассказывает.
 	Resources map[int]Resource
+}
+
+// Finished — стоит ли здание в провинции полностью: есть и его состояние
+// кратно уровню. Недостроенное или повреждённое (у клиента — «Ремонт»)
+// готовым не считается: его ставят в стройку тем же действием.
+func (g *GameState) Finished(p Province, upgradeID int) bool {
+	c, ok := p.Condition[upgradeID]
+	if !ok || c <= 0 {
+		return false
+	}
+	bc := g.Upgrades[upgradeID].BuildCondition
+	if bc <= 0 {
+		bc = 2
+	}
+	return c%bc == 0
 }
 
 // Province возвращает провинцию по номеру.
@@ -569,7 +593,8 @@ type gameStateResponse struct {
 					// слотом (премиум) строек бывает две, и в bi лежит
 					// только одна.
 					Built []struct {
-						ID int `json:"id"`
+						ID        int `json:"id"`
+						Condition int `json:"c"`
 					} `json:"us"`
 					Constructions json.RawMessage `json:"cos"`
 					Building      *buildWire      `json:"bi"`
@@ -610,6 +635,7 @@ type gameStateResponse struct {
 				ID        int                `json:"id"`
 				Name      string             `json:"upn"`
 				BuildTime int                `json:"bt"`
+				BuildCond int                `json:"bc"`
 				Cost      map[string]float64 `json:"c"`
 				// ru — здание, которое это заменяет собой: так игра
 				// связывает уровни одного и того же здания.
@@ -737,6 +763,10 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		for _, b := range l.Built {
 			if b.ID > 0 {
 				pr.Built = append(pr.Built, b.ID)
+				if pr.Condition == nil {
+					pr.Condition = make(map[int]int, len(l.Built))
+				}
+				pr.Condition[b.ID] = b.Condition
 			}
 		}
 		for _, c := range buildList(l.Constructions, l.Building, clock) {
@@ -751,7 +781,12 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			continue
 		}
 		up := Upgrade{ID: u.ID, Name: u.Name, Replaces: int(u.Replaces),
-			Build: clock.duration(time.Duration(u.BuildTime) * time.Second)}
+			Build:          clock.duration(time.Duration(u.BuildTime) * time.Second),
+			BuildCondition: u.BuildCond}
+		// Так же, как клиент игры: без «bc» уровень стоит 2.
+		if up.BuildCondition <= 0 {
+			up.BuildCondition = 2
+		}
 		if len(u.Cost) > 0 {
 			up.Cost = make(map[int]float64, len(u.Cost))
 			for id, amount := range u.Cost {

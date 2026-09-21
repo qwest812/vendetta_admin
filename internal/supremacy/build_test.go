@@ -229,12 +229,15 @@ func TestResourceEnough(t *testing.T) {
 	}
 }
 
-// Здание уже стоит — второй раз его не ставим и заход ради него
-// не назначаем, а просим убрать запись. Так было с железной дорогой
-// в Сурселе: без проверки воркер ходил бы за отказом каждый час.
-func TestPlanBuildsSkipsBuilt(t *testing.T) {
+// Здание стоит целиком — второй раз его не ставим и заход ради него
+// не назначаем, а просим убрать запись.
+func TestPlanBuildsSkipsFinished(t *testing.T) {
 	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
-	g := buildState([]Province{{ID: 7, Name: "Сурселе", Owner: 1, Slots: 1, Built: []int{16}}}, plenty(now))
+	g := buildState([]Province{{ID: 7, Name: "Сурселе", Owner: 1, Slots: 1,
+		Built: []int{16}, Condition: map[int]int{16: 60}}}, plenty(now))
+	u := g.Upgrades[16]
+	u.BuildCondition = 60
+	g.Upgrades[16] = u
 
 	plan := PlanBuilds(g, map[int][]int{7: {16}}, now)
 	if len(plan.Start) != 0 || !plan.Next.IsZero() {
@@ -242,6 +245,33 @@ func TestPlanBuildsSkipsBuilt(t *testing.T) {
 	}
 	if len(plan.Notes) != 1 {
 		t.Fatalf("ждали одну заметку, вышло %v", plan.Notes)
+	}
+}
+
+// Недостроенное (так было с дорогой в Сурселе: 16 из 60) лежит в том же
+// списке построенного, но его надо ставить снова — и с нынешним
+// состоянием, как шлёт клиент игры.
+func TestPlanBuildsRepairsUnfinished(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	g := buildState([]Province{{ID: 484, Name: "Сурселе", Owner: 1, Slots: 1,
+		Built: []int{16}, Condition: map[int]int{16: 16}}}, plenty(now))
+	u := g.Upgrades[16]
+	u.BuildCondition = 60
+	g.Upgrades[16] = u
+
+	plan := PlanBuilds(g, map[int][]int{484: {16}}, now)
+	if len(plan.Start) != 1 {
+		t.Fatalf("недостроенное не поставлено: %+v", plan)
+	}
+	wire := upgradeWire(g, plan.Start[0])
+	if wire["id"] != 16 || wire["c"] != 16 || wire["e"] != true {
+		t.Fatalf("здание в действии: %v", wire)
+	}
+
+	// Новое здание уходит одним уровнем.
+	g.Provinces[0].Built, g.Provinces[0].Condition = nil, nil
+	if wire := upgradeWire(g, plan.Start[0]); wire["c"] != 60 {
+		t.Fatalf("новое здание: %v", wire)
 	}
 }
 

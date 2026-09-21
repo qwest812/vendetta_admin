@@ -6,15 +6,15 @@ package supremacy
 // Стройка в игре — то же действие, каким клиент ставит здание руками:
 //
 //	{"@c":"ultshared.action.UltUpdateProvinceAction","mode":1,
-//	 "provinceIDs":[51],"upgrade":{"@c":"mu","id":16},"slot":0}
+//	 "provinceIDs":[484],"upgrade":{"@c":"mu","id":18,"c":16,"e":true},"slot":0}
 //
 // mode = 1 (UPGRADE) означает «построить здание»; провинции игра принимает
 // списком, но мы ставим по одной — так понятнее, что именно не получилось.
-//
-// Живого запроса на начало стройки в перехвате не было: поля собраны по
-// классу действия в клиенте (UltUpdateProvinceAction) и по тому, как здание
-// выглядит в состоянии партии («mu» с номером). Если игра откажет, править
-// надо здесь — больше это действие нигде не собирается.
+// upgrade — запись здания так, как её сериализует клиент (toJSON у «mu»):
+// с состоянием c. Проверено вживую 21.09 на 10909474: недостроенную
+// железную дорогу (c = 16 из bc = 60) игра приняла и достраивает.
+// Если игра откажет, править надо здесь — больше это действие нигде
+// не собирается.
 //
 // Когда приходить снова, партия рассказывает сама: у идущей стройки есть
 // время окончания, у ресурсов — запас и прирост в секунду. Поэтому заход
@@ -24,7 +24,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"sort"
 	"time"
 )
@@ -91,6 +90,20 @@ func buildList(raw json.RawMessage, single *buildWire, clock gameClock) []Constr
 	}
 	add(single)
 	return out
+}
+
+// upgradeWire — здание в действии постройки, как его шлёт клиент игры:
+// у недостроенного — его нынешнее состояние, у нового — один уровень.
+// Одного номера игре мало: недостроенную дорогу в Сурселе (16 из 60)
+// она приняла только в таком виде.
+func upgradeWire(g *GameState, order BuildOrder) map[string]any {
+	condition := g.Upgrades[order.UpgradeID].BuildCondition
+	if p, ok := g.Province(order.ProvinceID); ok {
+		if c, ok := p.Condition[order.UpgradeID]; ok {
+			condition = c
+		}
+	}
+	return map[string]any{"@c": "mu", "id": order.UpgradeID, "c": condition, "e": true}
 }
 
 // BuildOrder — что поставить в стройку в этот заход.
@@ -173,9 +186,10 @@ func PlanBuilds(g *GameState, queue map[int][]int, now time.Time) BuildPlan {
 			note("%s: игра не знает здание %d — уберите его из очереди", name, want[0])
 			continue
 		}
-		// Уже стоит — второй раз его не поставить: следующий уровень
-		// у игры другое здание. Заход ради него не назначаем.
-		if slices.Contains(province.Built, upgrade.ID) {
+		// Стоит целиком — второй раз его не поставить: следующий уровень
+		// у игры другое здание. Недостроенное или повреждённое, напротив,
+		// ставится снова: так игра его и достраивает.
+		if g.Finished(province, upgrade.ID) {
 			note("%s: «%s» уже построено — уберите из очереди", name, upgrade.Name)
 			continue
 		}
@@ -306,7 +320,7 @@ func (c *Client) RunBuildQueue(ctx context.Context, gameID string, queue map[int
 					"@c":          "ultshared.action.UltUpdateProvinceAction",
 					"mode":        modeUpgrade,
 					"provinceIDs": []int{order.ProvinceID},
-					"upgrade":     map[string]any{"@c": "mu", "id": order.UpgradeID},
+					"upgrade":     upgradeWire(state, order),
 					"slot":        0,
 				}},
 				"lastCallDuration": 0,
