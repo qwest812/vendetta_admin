@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 )
@@ -69,13 +70,13 @@ type buildWire struct {
 // видом — ["ultshared.UltProductionList",[запись, null, …]], — и пустые
 // места в нём означают свободные слоты. Нет списка — берём одиночную
 // запись bi: в ней лежит та же первая стройка.
-func buildList(raw json.RawMessage, single *buildWire) []Construction {
+func buildList(raw json.RawMessage, single *buildWire, clock gameClock) []Construction {
 	var out []Construction
 	add := func(w *buildWire) {
 		if w == nil || w.Upgrade.ID <= 0 {
 			return
 		}
-		out = append(out, Construction{UpgradeID: w.Upgrade.ID, Ends: time.UnixMilli(w.Ends)})
+		out = append(out, Construction{UpgradeID: w.Upgrade.ID, Ends: clock.real(w.Ends)})
 	}
 
 	var wrapper []json.RawMessage
@@ -170,6 +171,12 @@ func PlanBuilds(g *GameState, queue map[int][]int, now time.Time) BuildPlan {
 		upgrade, known := g.Upgrades[want[0]]
 		if !known {
 			note("%s: игра не знает здание %d — уберите его из очереди", name, want[0])
+			continue
+		}
+		// Уже стоит — второй раз его не поставить: следующий уровень
+		// у игры другое здание. Заход ради него не назначаем.
+		if slices.Contains(province.Built, upgrade.ID) {
+			note("%s: «%s» уже построено — уберите из очереди", name, upgrade.Name)
 			continue
 		}
 		at, lack, ok := affordable(g, upgrade, now)

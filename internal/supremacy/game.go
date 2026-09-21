@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -128,7 +129,7 @@ type Construction struct {
 type Upgrade struct {
 	ID       int
 	Name     string
-	Build    time.Duration   // сколько строится по справочнику
+	Build    time.Duration   // сколько строится по справочнику, настоящими часами
 	Cost     map[int]float64 // ресурс → сколько стоит
 	Replaces int
 	Tier     int
@@ -379,6 +380,7 @@ func (c *Client) gameState(ctx context.Context, acc *gameAccess, gameID string,
 	}, &state); err != nil {
 		return nil, err
 	}
+	state.received = time.Now()
 
 	built, err := state.build(gameID, playerID)
 	if err != nil {
@@ -524,7 +526,11 @@ type gameStateResponse struct {
 	// остаток размещения: сравнивать с нашими часами нельзя, игровое время
 	// идёт быстрее.
 	TimeStamp string `json:"timeStamp"`
-	States    struct {
+	// received — наши часы в миг ответа. Вместе с TimeStamp и началом
+	// партии по ним узнаётся её скорость (см. gameClock). Ноль — часы
+	// не известны, и время партии берётся как есть.
+	received time.Time
+	States   struct {
 		Players struct {
 			Players map[string]struct {
 				PlayerID   int    `json:"playerID"`
@@ -627,6 +633,9 @@ type gameStateResponse struct {
 		} `json:"4"`
 		Info struct {
 			DayOfGame int `json:"dayOfGame"`
+			// StartOfGame — начало партии, в секундах. Это настоящее время:
+			// от него игровые часы и начинают бежать быстрее.
+			StartOfGame int64 `json:"startOfGame"`
 			// Свойства партии: клиент игры узнаёт анонимный раунд именно
 			// отсюда, по включённой фиче с номером featureAnonymous.
 			GameFeatures struct {
@@ -662,6 +671,11 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	if len(locations) == 0 {
 		return nil, fmt.Errorf("партия %s: игра не прислала карту", gameID)
 	}
+
+	// Часы сервера приходят строкой; без них остаток размещения не посчитать,
+	// но и повода отказываться от всего состояния в этом нет.
+	serverNow, _ := strconv.ParseInt(r.TimeStamp, 10, 64)
+	clock := newGameClock(r.States.Info.StartOfGame, serverNow, r.received)
 
 	g := &GameState{
 		GameID: gameID,
@@ -725,15 +739,11 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 				pr.Built = append(pr.Built, b.ID)
 			}
 		}
-		for _, c := range buildList(l.Constructions, l.Building) {
+		for _, c := range buildList(l.Constructions, l.Building, clock) {
 			pr.Building = append(pr.Building, c)
 		}
 		g.Provinces = append(g.Provinces, pr)
 	}
-
-	// Часы сервера приходят строкой; без них остаток размещения не посчитать,
-	// но и повода отказываться от всего состояния в этом нет.
-	serverNow, _ := strconv.ParseInt(r.TimeStamp, 10, 64)
 
 	g.Upgrades = make(map[int]Upgrade, len(r.States.Mod.Upgrades))
 	for _, u := range r.States.Mod.Upgrades {
@@ -741,7 +751,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			continue
 		}
 		up := Upgrade{ID: u.ID, Name: u.Name, Replaces: int(u.Replaces),
-			Build: time.Duration(u.BuildTime) * time.Second}
+			Build: clock.duration(time.Duration(u.BuildTime) * time.Second)}
 		if len(u.Cost) > 0 {
 			up.Cost = make(map[int]float64, len(u.Cost))
 			for id, amount := range u.Cost {
@@ -768,7 +778,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			for _, e := range category.Entries {
 				g.Resources[e.ID] = Resource{
 					ID: e.ID, Name: e.Name, Amount: e.Amount,
-					Measured: time.UnixMilli(e.Measured), Rate: e.Rate,
+					Measured: clock.real(e.Measured), Rate: e.Rate / clock.scale,
 				}
 			}
 		}
@@ -797,7 +807,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			}
 			army.Deploying = true
 			if left := cmd.ExecTime - serverNow; serverNow > 0 && left > 0 {
-				army.DeployLeft = time.Duration(left) * time.Millisecond
+				army.DeployLeft = clock.duration(time.Duration(left) * time.Millisecond)
 			}
 		}
 		g.Armies = append(g.Armies, army)
@@ -861,4 +871,49 @@ func cssColor(c string) string {
 func numeric(s string) int64 {
 	n, _ := strconv.ParseInt(s, 10, 64)
 	return n
+}
+
+// gameClock переводит время партии в настоящее. В ускоренной партии
+// (×2, ×4, …) игра отдаёт все сроки — конец стройки, замер запасов —
+// по своим часам, которые от начала партии бегут во столько же раз
+// быстрее. Клиент игры считает так же (getRealTime):
+// настоящее = начало + (игровое − начало) · scale.
+//
+// Сам масштаб в состоянии не приходит, но выводится из него: игровые
+// часы в миг ответа ушли от начала во столько раз дальше наших. Скорости
+// у партий целые, поэтому отношение округляется — неточность наших часов
+// на несколько секунд его не сбивает уже через минуту после старта.
+type gameClock struct {
+	start time.Time // начало партии
+	scale float64   // сколько настоящих секунд в игровой; 1 — обычная партия
+}
+
+func newGameClock(startSec, serverNowMs int64, received time.Time) gameClock {
+	c := gameClock{start: time.Unix(startSec, 0), scale: 1}
+	if startSec <= 0 || serverNowMs <= 0 || received.IsZero() {
+		return c
+	}
+	real := received.Sub(c.start)
+	game := time.UnixMilli(serverNowMs).Sub(c.start)
+	if real < time.Minute || game <= 0 {
+		return c
+	}
+	if speed := math.Round(float64(game) / float64(real)); speed > 1 {
+		c.scale = 1 / speed
+	}
+	return c
+}
+
+// real — настоящее время для игровых миллисекунд.
+func (c gameClock) real(ms int64) time.Time {
+	t := time.UnixMilli(ms)
+	if c.scale == 1 {
+		return t
+	}
+	return c.start.Add(time.Duration(float64(t.Sub(c.start)) * c.scale))
+}
+
+// duration — сколько длится игровой отрезок по настоящим часам.
+func (c gameClock) duration(d time.Duration) time.Duration {
+	return time.Duration(float64(d) * c.scale)
 }

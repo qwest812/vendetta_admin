@@ -192,7 +192,7 @@ func TestPlanBuildsClampsNext(t *testing.T) {
 // слоты. Разобрать надо и его, и одиночную запись bi.
 func TestBuildList(t *testing.T) {
 	raw := json.RawMessage(`["ultshared.UltProductionList",[{"u":{"id":20},"t":1786534022728},null]]`)
-	got := buildList(raw, nil)
+	got := buildList(raw, nil, gameClock{scale: 1})
 	if len(got) != 1 || got[0].UpgradeID != 20 {
 		t.Fatalf("список строек разобрался неверно: %+v", got)
 	}
@@ -202,10 +202,10 @@ func TestBuildList(t *testing.T) {
 
 	single := &buildWire{Ends: 100}
 	single.Upgrade.ID = 16
-	if got := buildList(nil, single); len(got) != 1 || got[0].UpgradeID != 16 {
+	if got := buildList(nil, single, gameClock{scale: 1}); len(got) != 1 || got[0].UpgradeID != 16 {
 		t.Errorf("одиночная стройка разобралась неверно: %+v", got)
 	}
-	if got := buildList(nil, nil); len(got) != 0 {
+	if got := buildList(nil, nil, gameClock{scale: 1}); len(got) != 0 {
 		t.Errorf("без строек список должен быть пуст: %+v", got)
 	}
 }
@@ -226,5 +226,56 @@ func TestResourceEnough(t *testing.T) {
 	}
 	if _, ok := (Resource{Amount: 1, Rate: 0}).Enough(5, now); ok {
 		t.Error("без прироста запас не накопится")
+	}
+}
+
+// Здание уже стоит — второй раз его не ставим и заход ради него
+// не назначаем, а просим убрать запись. Так было с железной дорогой
+// в Сурселе: без проверки воркер ходил бы за отказом каждый час.
+func TestPlanBuildsSkipsBuilt(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	g := buildState([]Province{{ID: 7, Name: "Сурселе", Owner: 1, Slots: 1, Built: []int{16}}}, plenty(now))
+
+	plan := PlanBuilds(g, map[int][]int{7: {16}}, now)
+	if len(plan.Start) != 0 || !plan.Next.IsZero() {
+		t.Fatalf("построенное снова в плане: %+v", plan)
+	}
+	if len(plan.Notes) != 1 {
+		t.Fatalf("ждали одну заметку, вышло %v", plan.Notes)
+	}
+}
+
+// Числа — из настоящей партии 10909474 (×4): начало 20.09 15:45:37,
+// ответ пришёл через 21 ч 52 мин 39 с, а игровые часы ушли вчетверо дальше.
+func TestGameClockSpeedGame(t *testing.T) {
+	const start = 1789911937
+	received := time.Unix(start, 0).Add(78759 * time.Second)
+	c := newGameClock(start, 1790226968768, received)
+	if c.scale != 0.25 {
+		t.Fatalf("масштаб %v, ждали 0.25", c.scale)
+	}
+	// Игровое «сейчас» — это наше «сейчас».
+	if got := c.real(1790226968768); got.Sub(received).Abs() > 2*time.Second {
+		t.Fatalf("игровое сейчас стало %s, ждали %s", got, received)
+	}
+	// 72 игровых часа железной дороги — 18 настоящих.
+	if got := c.duration(72 * time.Hour); got != 18*time.Hour {
+		t.Fatalf("72 игровых часа стали %s", got)
+	}
+}
+
+func TestGameClockNormalGame(t *testing.T) {
+	const start = 1789911937
+	received := time.Unix(start, 0).Add(10 * time.Hour)
+	c := newGameClock(start, received.Add(3*time.Second).UnixMilli(), received)
+	if c.scale != 1 {
+		t.Fatalf("масштаб %v, ждали 1", c.scale)
+	}
+	if got := c.real(1790000000000); !got.Equal(time.UnixMilli(1790000000000)) {
+		t.Fatalf("в обычной партии время поменялось: %s", got)
+	}
+	// Без наших часов не гадаем.
+	if c := newGameClock(start, 1790226968768, time.Time{}); c.scale != 1 {
+		t.Fatal("без часов ответа масштаб не 1")
 	}
 }
