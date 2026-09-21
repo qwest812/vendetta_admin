@@ -65,11 +65,11 @@ const (
 	// игра объявляет только при смене дня, поэтому конец партии всегда
 	// приходится на смену дня, и время ближайшей известно заранее.
 	//
-	// В эндшпиле заходим дважды за игровой день: за endgameLead до смены —
-	// застать собранные к ней коалиции — и через afterDayChange после,
-	// чтобы узнать, не кончилась ли партия.
-	endgameLead    = 10 * time.Minute
-	afterDayChange = 3 * time.Minute
+	// В эндшпиле заходим раз за игровой день — за endgameLead до смены,
+	// застать собранные к ней коалиции. Отдельного захода после смены нет:
+	// что партия кончилась, скажет следующий такой же заход, а состав
+	// победившей коалиции игра показывает и после конца.
+	endgameLead = 10 * time.Minute
 
 	// Эндшпиль — когда кто-то подошёл к порогу на endgameShare или когда
 	// endgameTop сильнейших игроков вместе уже набирают порог коалиции,
@@ -163,11 +163,13 @@ func planNext(g domain.WatchedGame, st *GameState, now time.Time) (next time.Tim
 		if st.NextDay.IsZero() || !st.NextDay.After(now) {
 			return now.Add(gameDay / 4), false, true
 		}
-		if lead := st.NextDay.Add(-endgameLead); lead.After(now.Add(time.Minute)) {
-			return lead, false, true
+		lead := st.NextDay.Add(-endgameLead)
+		// Мы уже перед самой сменой — следующий раз перед следующей:
+		// игровой день спустя.
+		if !lead.After(now.Add(time.Minute)) {
+			lead = lead.Add(gameDay)
 		}
-		// Мы уже перед самой сменой — следующий раз сразу после неё.
-		return st.NextDay.Add(afterDayChange), false, true
+		return lead, false, true
 	}
 	return now.Add(midgameDays * gameDay), false, false
 }

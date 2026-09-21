@@ -30,7 +30,6 @@ func TestCoalitionSchedule(t *testing.T) {
 				tt.speed, got.Sub(start), tt.first)
 		}
 	}
-
 }
 
 // raceState — партия ×4 с порогами 1000 и 1500 и заданными очками.
@@ -61,7 +60,8 @@ func TestPlanNextMidgame(t *testing.T) {
 	}
 }
 
-// Эндшпиль: приходим за 12 минут до смены дня, а оттуда — сразу после неё.
+// Эндшпиль: приходим за 10 минут до смены дня, а оттуда — за 10 минут
+// до следующей, без захода после смены.
 func TestPlanNextEndgame(t *testing.T) {
 	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
 	day := now.Add(2 * time.Hour)
@@ -72,10 +72,11 @@ func TestPlanNextEndgame(t *testing.T) {
 		t.Fatalf("эндшпиль: next=%s done=%v urgent=%v", next, done, urgent)
 	}
 
-	// Мы уже перед сменой — следующий раз через три минуты после неё.
-	before := day.Add(-10 * time.Minute)
+	// Мы уже перед сменой — следующий раз перед следующей: игровой день
+	// ×4 — шесть часов.
+	before := day.Add(-endgameLead)
 	next, _, urgent = planNext(domain.WatchedGame{Speed: 4}, st, before)
-	if !urgent || !next.Equal(day.Add(afterDayChange)) {
+	if !urgent || !next.Equal(day.Add(6*time.Hour-endgameLead)) {
 		t.Fatalf("перед сменой: next=%s urgent=%v", next, urgent)
 	}
 }
