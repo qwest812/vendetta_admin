@@ -24,16 +24,37 @@ type GameTask struct {
 	BuildResult string
 }
 
-// BuildEntry — запись очереди строительства: какое здание и в какой
-// провинции ставить. Названия хранятся рядом с номерами, чтобы показывать
-// очередь, не заходя в партию.
+// Виды очереди. Здания и войска — два списка на провинцию: у игры у них
+// разные слоты (стройка и производство), и одно другого не ждёт.
+const (
+	QueueBuilding = "building"
+	QueueUnit     = "unit"
+)
+
+// BuildEntry — запись очереди: какое здание или войско и в какой провинции
+// ставить. Названия и ключ картинки хранятся рядом с номерами, чтобы
+// показывать очередь, не заходя в партию.
 type BuildEntry struct {
 	ID         int64
 	GameID     string
+	Kind       string // QueueBuilding или QueueUnit
 	ProvinceID int
 	Province   string
-	UpgradeID  int
-	Upgrade    string
-	Position   int
-	AddedAt    time.Time
+	// UpgradeID — номер здания, а у войска — номер типа юнита.
+	UpgradeID int
+	Upgrade   string
+	// Image — имя картинки у игры: «railway» у здания, «car» у войска.
+	Image    string
+	Position int
+	AddedAt  time.Time
 }
+
+// BuildQueues — очередь партии в том виде, в котором её читает воркер:
+// номера по порядку на каждую провинцию, отдельно здания и войска.
+type BuildQueues struct {
+	Buildings map[int][]int
+	Units     map[int][]int
+}
+
+// Empty — нечего делать ни в одной провинции.
+func (q BuildQueues) Empty() bool { return len(q.Buildings) == 0 && len(q.Units) == 0 }

@@ -94,6 +94,54 @@ type Province struct {
 	// Slots — сколько строек в провинции можно вести разом. Ноль означает
 	// «игра не сказала»; считаем такую провинцию односложной.
 	Slots int
+	// Producing — войска, которые производятся сейчас, и ProdSlots —
+	// сколько их можно производить разом (обычно одно).
+	Producing []Production
+	ProdSlots int
+	// CanProduce — какие войска провинция может заказать прямо сейчас:
+	// номер типа → запись «su» в том виде, в каком её шлёт клиент игры.
+	// Решает это сама игра (нужное здание, исследование); у чужих
+	// провинций пусто.
+	CanProduce map[int]json.RawMessage
+}
+
+// ProdFree — свободен ли слот под производство войск.
+func (p Province) ProdFree() bool {
+	slots := p.ProdSlots
+	if slots < 1 {
+		slots = 1
+	}
+	return len(p.Producing) < slots
+}
+
+// ProducesUntil — когда закончится самое раннее из идущих производств.
+// Нулевое время — ничего не производится.
+func (p Province) ProducesUntil() time.Time {
+	var first time.Time
+	for _, c := range p.Producing {
+		if first.IsZero() || c.Ends.Before(first) {
+			first = c.Ends
+		}
+	}
+	return first
+}
+
+// Production — войско, которое производится в провинции, и когда будет готово.
+type Production struct {
+	UnitTypeID int
+	Ends       time.Time
+}
+
+// UnitType — тип войск из справочника партии. В нём только то, что
+// можно заказать: пехоту игра даёт призывом, героев — отдельно.
+type UnitType struct {
+	ID   int
+	Name string
+	// Image — имя картинки у игры («car»).
+	Image string
+	Cost  map[int]float64
+	// Set — род войск: 1 суша, 2 воздух, 3 море.
+	Set int
 }
 
 // Free — свободен ли слот под стройку.
@@ -138,6 +186,9 @@ type Upgrade struct {
 	Cost     map[int]float64 // ресурс → сколько стоит
 	Replaces int
 	Tier     int
+	// Image — имя картинки у игры («railway»); уровни одного здания
+	// делят одну картинку.
+	Image string
 	// BuildCondition — сколько состояния даёт один уровень («bc»).
 	// Состояние здания, не кратное ему, — недостроенный или повреждённый
 	// уровень: игра показывает на нём «Ремонт».
@@ -257,6 +308,8 @@ type GameState struct {
 	// Resources — наши запасы по номеру ресурса. У наблюдателя пусто:
 	// чужие запасы игра не рассказывает.
 	Resources map[int]Resource
+	// Units — войска, которые вообще можно заказать, по номеру типа.
+	Units map[int]UnitType
 }
 
 // Finished — стоит ли здание в провинции полностью: есть и его состояние
@@ -599,8 +652,22 @@ type gameStateResponse struct {
 					Constructions json.RawMessage `json:"cos"`
 					Building      *buildWire      `json:"bi"`
 					Slots         int             `json:"cs"`
+					// prs — идущее производство войск тем же особым
+					// списком, что и стройки; ps — слотов под него.
+					Productions json.RawMessage `json:"prs"`
+					ProdSlots   int             `json:"ps"`
 				} `json:"locations"`
 			} `json:"map"`
+			// properties — что можно делать в своих провинциях. Решает это
+			// игра, а не мы: possibleProductions — войска, которые можно
+			// начать прямо сейчас, в том самом виде («su»), в каком клиент
+			// отправляет их в заказ. Пока производство занято, этот список
+			// пуст, а те же войска лежат в queueableProductions (проверено
+			// на 10909474: у Сурселе с идущим бронеавтомобилем так и было).
+			Properties map[string]struct {
+				Productions []json.RawMessage `json:"possibleProductions"`
+				Queueable   []json.RawMessage `json:"queueableProductions"`
+			} `json:"properties"`
 		} `json:"3"`
 		Armies struct {
 			Armies map[string]struct {
@@ -623,8 +690,15 @@ type gameStateResponse struct {
 			// allUnitTypes — полный справочник; unitTypes в партии урезан
 			// и героини в нём может не быть.
 			AllUnitTypes map[string]struct {
-				UnitTypeID   int    `json:"unitTypeId"`
-				UnitName     string `json:"unitName"`
+				UnitTypeID int    `json:"unitTypeId"`
+				UnitName   string `json:"unitName"`
+				// identifier — имя типа у игры («Car»); по нему же названа
+				// картинка, только строчными буквами.
+				Identifier string             `json:"identifier"`
+				Costs      map[string]float64 `json:"costs"`
+				Producible bool               `json:"producible"`
+				// set — род войск: 1 суша, 2 воздух, 3 море, 4 герои.
+				Set          int `json:"set"`
 				RatingConfig struct {
 					UnitRoles []string `json:"unitRoles"`
 				} `json:"ratingConfig"`
@@ -640,6 +714,8 @@ type gameStateResponse struct {
 				// ru — здание, которое это заменяет собой: так игра
 				// связывает уровни одного и того же здания.
 				Replaces flexInt `json:"ru"`
+				// ap — имя здания у игры («railway»); по нему названа картинка.
+				Image string `json:"ap"`
 			} `json:"upgrades"`
 		} `json:"11"`
 		// Ресурсы: запас на момент time0 и прирост в секунду. Лежат они
@@ -684,6 +760,9 @@ const (
 	// commandDeployWait — команда «идёт размещение»: игра ставит её армии
 	// на всё время призыва.
 	commandDeployWait = "dwc"
+
+	// unitSetHero — род войск «герои» в справочнике юнитов.
+	unitSetHero = 4
 
 	// featureAnonymous — номер фичи «анонимный раунд» в свойствах партии
 	// (FEATURE_ANONYMOUS в клиенте игры).
@@ -772,6 +851,13 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		for _, c := range buildList(l.Constructions, l.Building, clock) {
 			pr.Building = append(pr.Building, c)
 		}
+		pr.Producing = productionList(l.Productions, clock)
+		pr.ProdSlots = l.ProdSlots
+		if props, ok := r.States.Map.Properties[strconv.Itoa(l.ID)]; ok {
+			// Сначала «можно поставить в очередь», поверх — «можно начать»:
+			// в заказ уходит запись из второго списка, когда он есть.
+			pr.CanProduce = possibleUnits(append(append([]json.RawMessage{}, props.Queueable...), props.Productions...))
+		}
 		g.Provinces = append(g.Provinces, pr)
 	}
 
@@ -780,7 +866,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		if u.ID <= 0 {
 			continue
 		}
-		up := Upgrade{ID: u.ID, Name: u.Name, Replaces: int(u.Replaces),
+		up := Upgrade{ID: u.ID, Name: u.Name, Replaces: int(u.Replaces), Image: strings.ToLower(u.Image),
 			Build:          clock.duration(time.Duration(u.BuildTime) * time.Second),
 			BuildCondition: u.BuildCond}
 		// Так же, как клиент игры: без «bc» уровень стоит 2.
@@ -820,7 +906,20 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	}
 
 	g.HeroTypes = make(map[int]string)
+	g.Units = make(map[int]UnitType)
 	for _, u := range r.States.Mod.AllUnitTypes {
+		// Заказать можно только то, что игра называет производимым;
+		// героев (set 4) она даёт отдельно, даже если флаг стоит.
+		if u.Producible && u.Set != unitSetHero && u.UnitTypeID > 0 {
+			unit := UnitType{ID: u.UnitTypeID, Name: u.UnitName,
+				Image: strings.ToLower(u.Identifier), Set: u.Set, Cost: map[int]float64{}}
+			for id, amount := range u.Costs {
+				if n, err := strconv.Atoi(id); err == nil {
+					unit.Cost[n] = amount
+				}
+			}
+			g.Units[unit.ID] = unit
+		}
 		for _, role := range u.RatingConfig.UnitRoles {
 			if role == roleDeployInfantry {
 				g.HeroTypes[u.UnitTypeID] = u.UnitName

@@ -1372,6 +1372,67 @@ func TestGameBuildQueue(t *testing.T) {
 	}
 }
 
+// Очередь войск рисуется тем же списком, что и очередь зданий, но со своим
+// местом на странице, с картинкой войска и с видом в каждой форме: иначе
+// стрелка в ней вернула бы список зданий.
+func TestGameUnitQueue(t *testing.T) {
+	pages, err := parseTemplates(i18n.RU)
+	if err != nil {
+		t.Fatalf("разбор шаблонов: %v", err)
+	}
+
+	var buf bytes.Buffer
+	err = pages["game"].ExecuteTemplate(&buf, "unitqueue", map[string]any{
+		"GameID": "10909474", "CSRFToken": "csrf",
+		"UnitQueue": []buildGroup{{
+			ProvinceID: 484, Province: "Сурселе",
+			Entries: []domain.BuildEntry{{ID: 9, Kind: domain.QueueUnit, Upgrade: "Бронеавтомобиль", Image: "car"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("отрисовка: %v", err)
+	}
+	for _, want := range []string{
+		`id="unit-queue"`, "Сурселе", "Бронеавтомобиль",
+		`hx-target="#unit-queue"`,
+		`name="kind" value="unit"`,
+		`/images/units/car_s3.png`,
+	} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("в очереди войск нет %q: %s", want, buf.String())
+		}
+	}
+
+	buf.Reset()
+	err = pages["game"].ExecuteTemplate(&buf, "unitqueue", map[string]any{
+		"GameID": "10909474", "CSRFToken": "csrf", "UnitQueue": nil,
+	})
+	if err != nil {
+		t.Fatalf("отрисовка пустой очереди: %v", err)
+	}
+	if !strings.Contains(buf.String(), "Очередь войск пуста") {
+		t.Errorf("пустая очередь войск должна объясниться: %s", buf.String())
+	}
+}
+
+// Поле формы несёт номер, название и имя картинки; негодная картинка
+// отбрасывается, а запись всё равно принимается.
+func TestIDAndName(t *testing.T) {
+	id, name, image, ok := idAndName("18|Железная дорога|railway")
+	if !ok || id != 18 || name != "Железная дорога" || image != "railway" {
+		t.Fatalf("разбор: %d %q %q %v", id, name, image, ok)
+	}
+	if _, _, image, ok := idAndName(`198|Бронеавтомобиль|"><script>`); !ok || image != "" {
+		t.Fatalf("негодная картинка: %q %v", image, ok)
+	}
+	if _, _, _, ok := idAndName("16|Крепость"); !ok {
+		t.Fatal("старый вид без картинки должен приниматься")
+	}
+	if _, _, _, ok := idAndName("x|Крепость"); ok {
+		t.Fatal("номер не числом принят")
+	}
+}
+
 // Состав клана — тот же список строк, но без пометок: список врагов личный,
 // а состав клана смотрят как справку. Данных для кнопки там нет, и шаблон
 // не должен на этом падать.

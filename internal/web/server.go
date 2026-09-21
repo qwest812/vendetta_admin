@@ -308,6 +308,7 @@ func (s *Server) Handler() http.Handler {
 	// очереди в партию не ходит — это записи в нашей базе.
 	mux.Handle("POST /games/{id}/build", root(auth.VerifyCSRF(http.HandlerFunc(s.gameBuildAdd))))
 	mux.Handle("POST /games/{id}/build/now", root(auth.VerifyCSRF(http.HandlerFunc(s.gameBuildNow))))
+	mux.Handle("POST /games/{id}/units", root(auth.VerifyCSRF(http.HandlerFunc(s.gameUnitAdd))))
 	mux.Handle("POST /games/{id}/build/{entryID}/move", root(auth.VerifyCSRF(http.HandlerFunc(s.gameBuildMove))))
 	mux.Handle("POST /games/{id}/build/{entryID}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.gameBuildRemove))))
 	mux.Handle("POST /users/{id}/games", root(auth.VerifyCSRF(http.HandlerFunc(s.usersSetGamesAccess))))

@@ -37,14 +37,14 @@ const (
 // репозиторий, в тестах — заглушка.
 type BuildStore interface {
 	Due(ctx context.Context, now time.Time) ([]domain.GameTask, error)
-	Plan(ctx context.Context, gameID string) (map[int][]int, error)
-	Started(ctx context.Context, gameID string, provinceID, upgradeID int) error
+	Plan(ctx context.Context, gameID string) (domain.BuildQueues, error)
+	Started(ctx context.Context, gameID, kind string, provinceID, upgradeID int) error
 	MarkRun(ctx context.Context, gameID string, at, next time.Time, result string) error
 }
 
 // buildRunner — тот, кто умеет сходить в партию. Интерфейс ради тестов.
 type buildRunner interface {
-	RunBuildQueue(ctx context.Context, gameID string, queue map[int][]int) (*BuildRun, error)
+	RunBuildQueue(ctx context.Context, gameID string, queue domain.BuildQueues) (*BuildRun, error)
 }
 
 // Builder обходит партии, у которых настал срок.
@@ -109,7 +109,7 @@ func (b *Builder) visit(ctx context.Context, g domain.GameTask) {
 		b.log.Error("очередь строительства из базы", "gameID", g.GameID, "err", err)
 		return
 	}
-	if len(queue) == 0 {
+	if queue.Empty() {
 		return
 	}
 
@@ -123,7 +123,7 @@ func (b *Builder) visit(ctx context.Context, g domain.GameTask) {
 
 	// Поставленное уходит из очереди: следующим станет то, что за ним.
 	for _, order := range run.Started {
-		if err := b.store.Started(ctx, g.GameID, order.ProvinceID, order.UpgradeID); err != nil {
+		if err := b.store.Started(ctx, g.GameID, order.Kind, order.ProvinceID, order.UpgradeID); err != nil {
 			b.log.Error("запись поставленного здания", "gameID", g.GameID, "err", err)
 		}
 	}
@@ -154,12 +154,19 @@ func (b *Builder) mark(ctx context.Context, gameID string, at, next time.Time, r
 // и к нему нужна причина.
 func buildSummary(run *BuildRun) string {
 	var parts []string
-	if len(run.Started) > 0 {
-		var started []string
-		for _, o := range run.Started {
-			started = append(started, o.Province+" — "+o.Upgrade)
+	var built, ordered []string
+	for _, o := range run.Started {
+		if o.Kind == domain.QueueUnit {
+			ordered = append(ordered, o.Province+" — "+o.Upgrade)
+		} else {
+			built = append(built, o.Province+" — "+o.Upgrade)
 		}
-		parts = append(parts, "поставили: "+strings.Join(started, ", "))
+	}
+	if len(built) > 0 {
+		parts = append(parts, "поставили: "+strings.Join(built, ", "))
+	}
+	if len(ordered) > 0 {
+		parts = append(parts, "заказали: "+strings.Join(ordered, ", "))
 	}
 	parts = append(parts, run.Failed...)
 	parts = append(parts, run.Notes...)

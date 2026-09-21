@@ -16,12 +16,13 @@ type BuildQueue struct{ pool *pgxpool.Pool }
 
 func NewBuildQueue(pool *pgxpool.Pool) *BuildQueue { return &BuildQueue{pool: pool} }
 
-// List — вся очередь партии: по провинциям, внутри провинции по порядку.
-func (r *BuildQueue) List(ctx context.Context, gameID string) ([]domain.BuildEntry, error) {
+// List — очередь партии одного вида (domain.QueueBuilding или QueueUnit):
+// по провинциям, внутри провинции по порядку.
+func (r *BuildQueue) List(ctx context.Context, gameID, kind string) ([]domain.BuildEntry, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, game_id, province_id, province, upgrade_id, upgrade, position, added_at
-		   FROM supremacy_build_queue WHERE game_id = $1
-		  ORDER BY province, province_id, position`, gameID)
+		`SELECT id, game_id, kind, province_id, province, upgrade_id, upgrade, image, position, added_at
+		   FROM supremacy_build_queue WHERE game_id = $1 AND kind = $2
+		  ORDER BY province, province_id, position`, gameID, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +31,8 @@ func (r *BuildQueue) List(ctx context.Context, gameID string) ([]domain.BuildEnt
 	var out []domain.BuildEntry
 	for rows.Next() {
 		var e domain.BuildEntry
-		if err := rows.Scan(&e.ID, &e.GameID, &e.ProvinceID, &e.Province,
-			&e.UpgradeID, &e.Upgrade, &e.Position, &e.AddedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.GameID, &e.Kind, &e.ProvinceID, &e.Province,
+			&e.UpgradeID, &e.Upgrade, &e.Image, &e.Position, &e.AddedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
@@ -39,37 +40,42 @@ func (r *BuildQueue) List(ctx context.Context, gameID string) ([]domain.BuildEnt
 	return out, rows.Err()
 }
 
-// Plan — та же очередь в виде, в котором её читает воркер: номера зданий
-// по порядку на каждую провинцию.
-func (r *BuildQueue) Plan(ctx context.Context, gameID string) (map[int][]int, error) {
+// Plan — обе очереди партии в том виде, в котором их читает воркер:
+// номера по порядку на каждую провинцию, здания и войска порознь.
+func (r *BuildQueue) Plan(ctx context.Context, gameID string) (domain.BuildQueues, error) {
+	plan := domain.BuildQueues{Buildings: map[int][]int{}, Units: map[int][]int{}}
 	rows, err := r.pool.Query(ctx,
-		`SELECT province_id, upgrade_id FROM supremacy_build_queue
+		`SELECT kind, province_id, upgrade_id FROM supremacy_build_queue
 		  WHERE game_id = $1 ORDER BY province_id, position`, gameID)
 	if err != nil {
-		return nil, err
+		return plan, err
 	}
 	defer rows.Close()
 
-	plan := map[int][]int{}
 	for rows.Next() {
+		var kind string
 		var province, upgrade int
-		if err := rows.Scan(&province, &upgrade); err != nil {
-			return nil, err
+		if err := rows.Scan(&kind, &province, &upgrade); err != nil {
+			return plan, err
 		}
-		plan[province] = append(plan[province], upgrade)
+		target := plan.Buildings
+		if kind == domain.QueueUnit {
+			target = plan.Units
+		}
+		target[province] = append(target[province], upgrade)
 	}
 	return plan, rows.Err()
 }
 
-// Add дописывает здание в конец очереди провинции.
+// Add дописывает здание или войско в конец очереди провинции того же вида.
 func (r *BuildQueue) Add(ctx context.Context, e domain.BuildEntry, actorID int64) error {
 	_, err := r.pool.Exec(ctx,
 		`INSERT INTO supremacy_build_queue
-		        (game_id, province_id, province, upgrade_id, upgrade, position, added_by)
-		 SELECT $1, $2, $3, $4, $5,
-		        coalesce(max(position), 0) + 1, $6
-		   FROM supremacy_build_queue WHERE game_id = $1 AND province_id = $2`,
-		e.GameID, e.ProvinceID, e.Province, e.UpgradeID, e.Upgrade, actorID)
+		        (game_id, kind, province_id, province, upgrade_id, upgrade, image, position, added_by)
+		 SELECT $1, $2, $3, $4, $5, $6, $7,
+		        coalesce(max(position), 0) + 1, $8
+		   FROM supremacy_build_queue WHERE game_id = $1 AND kind = $2 AND province_id = $3`,
+		e.GameID, e.Kind, e.ProvinceID, e.Province, e.UpgradeID, e.Upgrade, e.Image, actorID)
 	return err
 }
 
@@ -97,10 +103,11 @@ func (r *BuildQueue) Move(ctx context.Context, gameID string, id int64, up bool)
 	}
 	defer tx.Rollback(ctx)
 
+	var kind string
 	var province, position int
 	err = tx.QueryRow(ctx,
-		`SELECT province_id, position FROM supremacy_build_queue
-		  WHERE id = $1 AND game_id = $2 FOR UPDATE`, id, gameID).Scan(&province, &position)
+		`SELECT kind, province_id, position FROM supremacy_build_queue
+		  WHERE id = $1 AND game_id = $2 FOR UPDATE`, id, gameID).Scan(&kind, &province, &position)
 	if err != nil {
 		return domain.ErrNotFound
 	}
@@ -115,9 +122,9 @@ func (r *BuildQueue) Move(ctx context.Context, gameID string, id int64, up bool)
 	var otherPos int
 	err = tx.QueryRow(ctx,
 		`SELECT id, position FROM supremacy_build_queue
-		  WHERE game_id = $1 AND province_id = $2 AND position `+compare+` $3
+		  WHERE game_id = $1 AND kind = $4 AND province_id = $2 AND position `+compare+` $3
 		  ORDER BY position `+order+` LIMIT 1 FOR UPDATE`,
-		gameID, province, position).Scan(&otherID, &otherPos)
+		gameID, province, position, kind).Scan(&otherID, &otherPos)
 	if err != nil {
 		// Крайнюю запись двигать некуда.
 		return nil
@@ -134,15 +141,15 @@ func (r *BuildQueue) Move(ctx context.Context, gameID string, id int64, up bool)
 	return tx.Commit(ctx)
 }
 
-// Started убирает из очереди то, что воркер только что поставил в стройку:
-// первую запись провинции с этим зданием. Не нашлось — значит, её успели
-// убрать руками, и это не ошибка.
-func (r *BuildQueue) Started(ctx context.Context, gameID string, provinceID, upgradeID int) error {
+// Started убирает из очереди то, что воркер только что поставил в стройку
+// или заказал: первую запись провинции с этим номером того же вида. Не
+// нашлось — значит, её успели убрать руками, и это не ошибка.
+func (r *BuildQueue) Started(ctx context.Context, gameID, kind string, provinceID, upgradeID int) error {
 	_, err := r.pool.Exec(ctx,
 		`DELETE FROM supremacy_build_queue WHERE id = (
 		     SELECT id FROM supremacy_build_queue
-		      WHERE game_id = $1 AND province_id = $2 AND upgrade_id = $3
-		      ORDER BY position LIMIT 1)`, gameID, provinceID, upgradeID)
+		      WHERE game_id = $1 AND kind = $2 AND province_id = $3 AND upgrade_id = $4
+		      ORDER BY position LIMIT 1)`, gameID, kind, provinceID, upgradeID)
 	return err
 }
 
