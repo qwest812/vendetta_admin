@@ -68,6 +68,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	topAlliances := repo.NewTopAlliances(pool)
 	userStats := repo.NewUserStats(pool)
 	feedback := repo.NewFeedback(pool)
+	teammates := repo.NewTeammates(pool)
 	hunts := repo.NewHunts(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
@@ -95,7 +96,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		BuildQueue: buildQueue,
 		Coalitions: coalitions, Settings: settings, Heroes: heroes,
 		Checked: checked, Checks: mapChecks,
-		TopAlliances: topAlliances, UserStats: userStats, Hunts: hunts,
+		TopAlliances: topAlliances, UserStats: userStats, Teammates: teammates, Hunts: hunts,
 		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе

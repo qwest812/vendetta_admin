@@ -1697,6 +1697,8 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 		"AlliancesPending": 0,
 		// Pairs — кто из игроков этой партии уже союзничал раньше.
 		"Pairs": nil,
+		// ManualPairs — пары «играют вместе», отмеченные админами.
+		"ManualPairs": nil,
 		// Ours — играет ли общий аккаунт в этой партии. От этого зависит,
 		// как мы смотрим на неё: в свою заходим игроком по кнопке, в чужую
 		// — наблюдателем и сразу, потому что входом в партию это не считается.
@@ -2201,6 +2203,13 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 		return err
 	}
 	data["Pairs"] = pairs
+
+	// То же, но отмеченное руками: «играют вместе» из карточек.
+	manual, err := s.teammatePairs(r, state, sides)
+	if err != nil {
+		return err
+	}
+	data["ManualPairs"] = manual
 
 	// Очередь строительства: сама очередь уже в данных страницы, а здесь
 	// к ней добавляются свои провинции и справочник зданий — их знает

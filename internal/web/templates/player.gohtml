@@ -239,6 +239,47 @@
     {{end}}
 </div>
 
+{{/* «Играют вместе» — отмечено админами руками: из чата, по наблюдениям.
+     Связь взаимная и видна в карточках обоих. Пары из архива коалиций
+     сюда не попадают — те видны на странице партии. */}}
+<div class="card" id="teammates">
+    <h1>{{t "teammates.title"}}</h1>
+    {{if .Teammates}}
+        <ul class="teammate-list">
+            {{range .Teammates}}
+                <li>
+                    <a class="nick" href="/players/{{.PlayerID}}">{{.Nickname}}</a>
+                    {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
+                    {{if .Note}}<span class="muted">— {{.Note}}</span>{{end}}
+                    <span class="muted small">{{if .AddedBy}}{{.AddedBy}}, {{end}}{{date .AddedAt}}</span>
+                    {{if $.CanEditTeammates}}
+                        <form method="post" action="/players/{{$p.ID}}/teammates/{{.PlayerID}}/delete">
+                            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                            <button class="link" type="submit" title="{{t "teammates.remove"}}">×</button>
+                        </form>
+                    {{end}}
+                </li>
+            {{end}}
+        </ul>
+    {{else}}
+        <p class="muted">{{t "teammates.empty"}}</p>
+    {{end}}
+    {{if .CanEditTeammates}}
+        <form class="row-form" method="post" action="/players/{{$p.ID}}/teammates">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <label>
+                {{t "teammates.partner"}}
+                <input type="text" name="partner" required autocomplete="off" placeholder="{{t "teammates.partner.hint"}}">
+            </label>
+            <label>
+                {{t "teammates.note"}}
+                <input type="text" name="note" maxlength="{{.TeammateNoteMax}}" autocomplete="off">
+            </label>
+            <button type="submit">{{t "teammates.add"}}</button>
+        </form>
+    {{end}}
+</div>
+
 <div class="card">
     <h1>{{t "player.comments"}}</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}

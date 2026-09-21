@@ -420,6 +420,26 @@
     {{else}}
         <p class="muted">{{t "pairs.empty"}}</p>
     {{end}}
+    {{/* Пары, отмеченные админами руками: «играют вместе» из карточек. */}}
+    {{if .ManualPairs}}
+        <h2>{{t "teammates.game.title"}}</h2>
+        <div class="table-wrap">
+            <table>
+                <tbody>
+                {{range .ManualPairs}}
+                    <tr>
+                        <td>
+                            {{template "pairside" .A}}
+                            <span class="muted">—</span>
+                            {{template "pairside" .B}}
+                        </td>
+                        <td class="muted">{{.Note}}</td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
+    {{end}}
 </div>
 {{end}}
 

@@ -1091,3 +1091,8 @@ button.ghost:hover { border-color: var(--accent); }
 /* Поиск игроков в лобби: искомые строкой, крестик справа. */
 .hunt-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .hunt-list li { display: flex; align-items: center; gap: 6px; }
+
+/* «Играют вместе» на карточке: связь строкой, крестик справа. */
+.teammate-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.teammate-list li { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 3px 0; }
+.teammate-list .small { font-size: 12px; }

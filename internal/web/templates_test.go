@@ -374,6 +374,36 @@ func TestPagesRender(t *testing.T) {
 			deny: []string{"По данным сайта игры", "кд"},
 		},
 		{
+			// «Играют вместе»: связь с заметкой и автором, форма и крестик —
+			// тем, кто может править.
+			name: "player/играют вместе, правит",
+			page: "player",
+			user: root,
+			data: map[string]any{"Player": enemy, "Comments": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": enemy.MarkedTraits(), "Body": "",
+				"CommentMax": domain.CommentMaxLen, "CanEditTeammates": true,
+				"TeammateNoteMax": domain.TeammateNoteMax,
+				"Teammates": []domain.Teammate{{PlayerID: 8, Nickname: "Vahagn__", GameID: "90265291",
+					Note: "из чата альянса", AddedBy: "root"}}},
+			want: []string{
+				`id="teammates"`, "Играет вместе с", `href="/players/8"`, "Vahagn__",
+				"из чата альянса", `action="/players/3/teammates/8/delete"`,
+				`action="/players/3/teammates"`, `name="partner"`,
+			},
+		},
+		{
+			// Обычный пользователь связь видит, а менять не может.
+			name: "player/играют вместе, смотрит",
+			page: "player",
+			user: player,
+			data: map[string]any{"Player": enemy, "Comments": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": enemy.MarkedTraits(), "Body": "",
+				"CommentMax": domain.CommentMaxLen,
+				"Teammates": []domain.Teammate{{PlayerID: 8, Nickname: "Vahagn__"}}},
+			want: []string{"Vahagn__"},
+			deny: []string{`/teammates/8/delete`, `name="partner"`},
+		},
+		{
 			// Признаки отмечаются вместе с комментарием и доступны любому,
 			// у кого есть вход: галочки стоят в форме заметки, отмеченные —
 			// отмеченными. Текст при этом необязателен.

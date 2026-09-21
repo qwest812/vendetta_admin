@@ -233,8 +233,21 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		hunting = id != 0
 	}
 
+	// С кем, как отметили админы, он играет. Видят все, кому открыта
+	// карточка; менять — админам.
+	var teammates []domain.Teammate
+	if s.teammates != nil {
+		teammates, err = s.teammates.Of(r.Context(), player.ID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+
 	s.render(w, r, status, "player", map[string]any{
-		"Hunting": hunting, "CanHunt": me.IsRoot() && s.hunts != nil && player.GameID != "",
+		"Teammates": teammates, "TeammateNoteMax": domain.TeammateNoteMax,
+		"CanEditTeammates": me.IsAdmin() && s.teammates != nil,
+		"Hunting":          hunting, "CanHunt": me.IsRoot() && s.hunts != nil && player.GameID != "",
 		"Player": player, "Comments": comments, "MyComment": myComment,
 		"MyNotes": notes, "NoteMax": domain.MaxCommentLen,
 		"Error": errMsg, "Seen": seen, "Bans": bans, "Traits": traits,

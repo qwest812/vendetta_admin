@@ -44,6 +44,7 @@ type Server struct {
 	// userStats — боевой счёт игроков с сайта игры: уровень и кд. По ним
 	// карта сравнивает участников партии со смотрящим.
 	userStats *repo.UserStats
+	teammates *repo.Teammates
 	hunts     *repo.Hunts
 	// gamePlayers — что игра рассказала про игроков при заходе в партию:
 	// ник и бан. Пишется на каждом заходе, читается в карточке игрока.
@@ -110,6 +111,8 @@ type Deps struct {
 	GamePlayers *repo.GamePlayers
 	// UserStats — боевой счёт игроков: уровень и кд для сравнения на карте.
 	UserStats *repo.UserStats
+	// Teammates — «играют вместе», отмеченное руками.
+	Teammates *repo.Teammates
 	// Hunts — поиск игроков в лобби: кого ищем и где нашли. Только руту.
 	Hunts *repo.Hunts
 	// Tasks — что админка делает в партиях сама, HeroEvery и HeroEveryMax —
@@ -147,7 +150,7 @@ func NewServer(d Deps) (*Server, error) {
 		feedback: d.Feedback,
 		games:    d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
 		nicks: d.Nicks, signups: newSignupLimiter(),
-		gamePlayers: d.GamePlayers, userStats: d.UserStats, hunts: d.Hunts,
+		gamePlayers: d.GamePlayers, userStats: d.UserStats, teammates: d.Teammates, hunts: d.Hunts,
 		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
 		checked: d.Checked, checks: d.Checks, mapTickets: newMapTickets(),
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
@@ -262,6 +265,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /players/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerUpdate))))
 
 	mux.Handle("POST /players/{id}/traits/{traitID}/dropall", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitDropAll))))
+	// «Играют вместе» отмечают админы; видят все, кому открыта карточка.
+	mux.Handle("POST /players/{id}/teammates", admin(auth.VerifyCSRF(http.HandlerFunc(s.teammateAdd))))
+	mux.Handle("POST /players/{id}/teammates/{other}/delete", admin(auth.VerifyCSRF(http.HandlerFunc(s.teammateRemove))))
 
 	mux.Handle("POST /clans", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanCreate))))
 	mux.Handle("POST /clans/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanUpdate))))

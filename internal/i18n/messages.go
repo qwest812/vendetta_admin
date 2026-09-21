@@ -854,6 +854,20 @@ var messages = map[string]entry{
 	// --- архив коалиций: рубильник и сводка (только руту) ---
 	"coalitions.title": {ru: "Сбор коалиций", en: "Coalition archive"},
 	"coalitions.note":  {ru: "Обход заглядывает в партии из лобби и запоминает, кто с кем состоял в коалиции. Заходит наблюдателем, так что входом в партию это не считается. Коалиции собирают под конец, чтобы сложить очки и перешагнуть порог победы, а победу игра объявляет только при смене дня. Поэтому обход следит за счётом: пока до порога далеко, заглядывает раз в два игровых дня, а в эндшпиле — за 10 минут до каждой смены дня, пока партия не кончится.", en: "The scan looks into lobby games and remembers who was in a coalition with whom. It looks as an observer, so it never counts as entering a game. Coalitions are formed near the end, to add up points and cross the victory threshold, and the game declares victory only at day change. So the scan follows the score: while the threshold is far, it looks every two game days, and in the endgame 10 minutes before every day change, until the game ends."},
+	// «Играют вместе» — отмечают админы руками.
+	"teammates.title":        {ru: "Играет вместе с", en: "Plays together with"},
+	"teammates.empty":        {ru: "Никто не отмечен.", en: "Nobody marked."},
+	"teammates.partner":      {ru: "Игрок", en: "Player"},
+	"teammates.partner.hint": {ru: "ник или ID из игры", en: "nickname or game ID"},
+	"teammates.note":         {ru: "Откуда известно (необязательно)", en: "How we know (optional)"},
+	"teammates.add":          {ru: "Отметить", en: "Mark"},
+	"teammates.remove":       {ru: "Убрать связь", en: "Remove the link"},
+	"teammates.game.title":   {ru: "Отмечено вручную: играют вместе", en: "Marked by hand: play together"},
+	"teammates.err.empty":    {ru: "Укажите ник или ID из игры.", en: "Enter a nickname or game ID."},
+	"teammates.err.notfound": {ru: "Игрока «%s» в базе нет. Заведите его карточку или укажите ID из игры.", en: "There is no player “%s”. Create their card or enter the game ID."},
+	"teammates.err.many":     {ru: "С ником «%s» несколько игроков — укажите ID из игры.", en: "Several players are named “%s” — enter the game ID."},
+	"teammates.err.self":     {ru: "Игрок не может играть вместе сам с собой.", en: "A player cannot play together with themselves."},
+
 	// Поиск игроков в лобби — рутовый.
 	"hunt.title":       {ru: "Поиск игроков в лобби", en: "Players in the lobby"},
 	"hunt.note":        {ru: "Раз в десять минут воркер смотрит составы открытых партий лобби. Как только кто-то из этого списка окажется в одной из них, в телеграм уходит сообщение: кто, в какой партии и за какую страну. О каждой партии — один раз. Добавить игрока можно и с его карточки.", en: "Every ten minutes the worker looks at the rosters of open lobby games. As soon as someone from this list shows up in one of them, a message goes to Telegram: who, which game and which country. Once per game. A player can also be added from their card."},
