@@ -134,7 +134,13 @@ func (b *Builder) visit(ctx context.Context, g domain.GameTask) {
 		// провинции могут вернуться, а ресурсы начать копиться.
 		next = now.Add(buildLatest)
 	}
-	b.mark(ctx, g.GameID, now, next.Add(b.jitter()), buildSummary(run))
+	next = next.Add(b.jitter())
+	summary := buildSummary(run)
+	// Итог и в лог: отказ игры или нехватка сырья иначе видны только
+	// на странице партии, а в логе заход выглядел бы как тишина.
+	b.log.Info("итог захода за стройкой", "gameID", g.GameID, "партия", g.Title,
+		"итог", summary, "следующий", next.Format(time.DateTime))
+	b.mark(ctx, g.GameID, now, next, summary)
 }
 
 func (b *Builder) mark(ctx context.Context, gameID string, at, next time.Time, result string) {
