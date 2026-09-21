@@ -33,15 +33,17 @@ func (r *Coalitions) Enqueue(ctx context.Context, g domain.WatchedGame) error {
 	return err
 }
 
-// Due отдаёт партии, которым пора, самые просроченные первыми.
-func (r *Coalitions) Due(ctx context.Context, at time.Time, limit int) ([]domain.WatchedGame, error) {
+// Due отдаёт партии, которым пора, самые просроченные первыми. urgent —
+// только срочные: заходы перед сменой дня в эндшпиле, их обход берёт
+// вне общей очереди.
+func (r *Coalitions) Due(ctx context.Context, at time.Time, limit int, urgent bool) ([]domain.WatchedGame, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT game_id, title, language, speed, started_at, state, day_of_game,
-		        next_check_at, checks
+		        next_check_at, checks, urgent, fails
 		   FROM supremacy_watched_games
-		  WHERE NOT done AND next_check_at <= $1
+		  WHERE NOT done AND next_check_at <= $1 AND (urgent OR NOT $3)
 		  ORDER BY next_check_at
-		  LIMIT $2`, at, limit)
+		  LIMIT $2`, at, limit, urgent)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +56,7 @@ func (r *Coalitions) Due(ctx context.Context, at time.Time, limit int) ([]domain
 			started *time.Time
 		)
 		if err := rows.Scan(&g.GameID, &g.Title, &g.Language, &g.Speed, &started,
-			&g.State, &g.Day, &g.NextCheckAt, &g.Checks); err != nil {
+			&g.State, &g.Day, &g.NextCheckAt, &g.Checks, &g.Urgent, &g.Fails); err != nil {
 			return nil, err
 		}
 		if started != nil {
@@ -73,7 +75,7 @@ func (r *Coalitions) Due(ctx context.Context, at time.Time, limit int) ([]domain
 // last_seen. Ушедших из коалиции не удаляем, у них так и остаётся прежний
 // last_seen: «состояли вместе тогда-то» — это и есть то, что мы знаем.
 func (r *Coalitions) Save(ctx context.Context, gameID string, day int,
-	teams []domain.Coalition, at, next time.Time, done bool) error {
+	teams []domain.Coalition, at, next time.Time, done, urgent bool) error {
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -88,9 +90,10 @@ func (r *Coalitions) Save(ctx context.Context, gameID string, day int,
 	if _, err := tx.Exec(ctx,
 		`UPDATE supremacy_watched_games
 		    SET day_of_game = $2, checked_at = $3, next_check_at = $4,
-		        checks = checks + 1, done = $5, last_error = ''
+		        checks = checks + 1, done = $5, last_error = '',
+		        urgent = $6, fails = 0
 		  WHERE game_id = $1`,
-		gameID, day, at, next, done); err != nil {
+		gameID, day, at, next, done, urgent); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -102,7 +105,7 @@ func (r *Coalitions) Fail(ctx context.Context, gameID, reason string, at, next t
 	_, err := r.pool.Exec(ctx,
 		`UPDATE supremacy_watched_games
 		    SET checked_at = $2, next_check_at = $3, checks = checks + 1,
-		        last_error = $4, done = $5
+		        last_error = $4, done = $5, fails = fails + 1
 		  WHERE game_id = $1`,
 		gameID, at, next, reason, done)
 	return err
@@ -257,9 +260,10 @@ func (r *Coalitions) Stats(ctx context.Context) (domain.CoalitionStats, error) {
 		`SELECT count(*),
 		        count(*) FILTER (WHERE NOT done),
 		        count(*) FILTER (WHERE done),
+		        count(*) FILTER (WHERE urgent AND NOT done),
 		        max(checked_at)
 		   FROM supremacy_watched_games`).
-		Scan(&s.Watched, &s.Pending, &s.Done, &last)
+		Scan(&s.Watched, &s.Pending, &s.Done, &s.Endgame, &last)
 	if err != nil {
 		return s, err
 	}

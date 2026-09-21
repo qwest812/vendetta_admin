@@ -310,6 +310,22 @@ type GameState struct {
 	Resources map[int]Resource
 	// Units — войска, которые вообще можно заказать, по номеру типа.
 	Units map[int]UnitType
+	// NextDay — следующая смена дня, настоящими часами. Только в неё игра
+	// пересчитывает очки и объявляет победителя, поэтому конец партии
+	// может прийтись лишь на неё. Нулевое — игра не сказала.
+	NextDay time.Time
+	// Ended — партия кончилась: игра так и сказала или назвала победителя.
+	Ended bool
+	// Race — счёт партии: сколько очков у кого и сколько нужно для победы.
+	Race Race
+}
+
+// Race — гонка за победными очками. Счёт обновляется при смене дня.
+type Race struct {
+	WinPoints     int         // порог победы одиночки
+	TeamWinPoints int         // порог победы коалиции
+	Points        map[int]int // номер игрока → очки
+	TeamPoints    map[int]int // номер коалиции → очки
 }
 
 // Finished — стоит ли здание в провинции полностью: есть и его состояние
@@ -738,6 +754,13 @@ type gameStateResponse struct {
 			// StartOfGame — начало партии, в секундах. Это настоящее время:
 			// от него игровые часы и начинают бежать быстрее.
 			StartOfGame int64 `json:"startOfGame"`
+			// nextDayTime — следующая смена дня по игровым часам. Только
+			// в неё игра пересчитывает очки и объявляет победу.
+			NextDayTime int64 `json:"nextDayTime"`
+			EndOfGame   bool  `json:"endOfGame"`
+			// Пороги победы: одиночке и коалиции.
+			VictoryPoints     int `json:"victoryPoints"`
+			TeamVictoryPoints int `json:"teamVictoryPoints"`
 			// Свойства партии: клиент игры узнаёт анонимный раунд именно
 			// отсюда, по включённой фиче с номером featureAnonymous.
 			GameFeatures struct {
@@ -746,6 +769,17 @@ type gameStateResponse struct {
 				} `json:"idFeatures"`
 			} `json:"gameFeatures"`
 		} `json:"12"`
+		// Газета: в ней же счёт партии — очки каждого игрока (номер игрока —
+		// индекс в ranking) и каждой коалиции, и победитель, если он есть.
+		// Наблюдателю она приходит так же, как игроку.
+		Newspaper struct {
+			Ranking struct {
+				Ranking     []int          `json:"ranking"`
+				TeamRanking map[string]int `json:"teamRanking"`
+				Winner      int            `json:"winner"`
+				WinnerTeam  int            `json:"winnerTeam"`
+			} `json:"ranking"`
+		} `json:"2"`
 	} `json:"states"`
 }
 
@@ -945,6 +979,25 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			}
 		}
 		g.Armies = append(g.Armies, army)
+	}
+	info, paper := r.States.Info, r.States.Newspaper.Ranking
+	if info.NextDayTime > 0 {
+		g.NextDay = clock.real(info.NextDayTime)
+	}
+	g.Ended = info.EndOfGame || paper.Winner > 0 || paper.WinnerTeam > 0
+	g.Race = Race{
+		WinPoints: info.VictoryPoints, TeamWinPoints: info.TeamVictoryPoints,
+		Points: map[int]int{}, TeamPoints: map[int]int{},
+	}
+	for id, points := range paper.Ranking {
+		if id > 0 && points > 0 {
+			g.Race.Points[id] = points
+		}
+	}
+	for id, points := range paper.TeamRanking {
+		if n, err := strconv.Atoi(id); err == nil && n > 0 && points > 0 {
+			g.Race.TeamPoints[n] = points
+		}
 	}
 	return g, nil
 }

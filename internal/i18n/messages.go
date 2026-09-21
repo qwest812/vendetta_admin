@@ -852,10 +852,11 @@ var messages = map[string]entry{
 	"err.checks.bad":       {ru: "Проверок в сутки — целое число от 0 до %d", en: "Checks a day must be a whole number from 0 to %d"},
 
 	// --- архив коалиций: рубильник и сводка (только руту) ---
-	"coalitions.title": {ru: "Сбор коалиций", en: "Coalition archive"},
-	"coalitions.note":  {ru: "Обход раз за разом заглядывает в партии из лобби и запоминает, кто с кем состоял в коалиции. Заходит наблюдателем, так что входом в партию это не считается, и не в конце партии, а посреди неё: к финалу коалиции распускают, и состав пропадает вместе с ними. Скоростную партию хватает посмотреть один раз, обычную — раз в месяц.", en: "The scan looks into lobby games one by one and remembers who was in a coalition with whom. It looks as an observer, so it never counts as entering a game, and it looks mid-game rather than at the end: coalitions get dissolved by the finish, and the membership disappears with them. A fast game needs one look, a normal one a look a month."},
-	"coalitions.on":    {ru: "Идёт.", en: "Running."},
-	"coalitions.off":   {ru: "Остановлен.", en: "Stopped."},
+	"coalitions.title":   {ru: "Сбор коалиций", en: "Coalition archive"},
+	"coalitions.note":    {ru: "Обход заглядывает в партии из лобби и запоминает, кто с кем состоял в коалиции. Заходит наблюдателем, так что входом в партию это не считается. Коалиции собирают под конец, чтобы сложить очки и перешагнуть порог победы, а победу игра объявляет только при смене дня. Поэтому обход следит за счётом: пока до порога далеко, заглядывает раз в два игровых дня, а в эндшпиле — за 12 минут до каждой смены дня и сразу после неё, пока партия не кончится.", en: "The scan looks into lobby games and remembers who was in a coalition with whom. It looks as an observer, so it never counts as entering a game. Coalitions are formed near the end, to add up points and cross the victory threshold, and the game declares victory only at day change. So the scan follows the score: while the threshold is far, it looks every two game days, and in the endgame 12 minutes before every day change and right after it, until the game ends."},
+	"coalitions.endgame": {ru: "В эндшпиле %d — за ними ходим к каждой смене дня.", en: "%d in the endgame — checked at every day change."},
+	"coalitions.on":      {ru: "Идёт.", en: "Running."},
+	"coalitions.off":     {ru: "Остановлен.", en: "Stopped."},
 	// Рубильник и счётчики теперь на разных страницах, и каждая говорит,
 	// где искать вторую половину.
 	"coalitions.switch.at": {ru: "Включается и останавливается в «Настройках».", en: "It is started and stopped in Settings."},

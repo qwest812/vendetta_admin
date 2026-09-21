@@ -31,21 +31,82 @@ func TestCoalitionSchedule(t *testing.T) {
 		}
 	}
 
-	// Быстрой партии хватает одного захода: второй пришёлся бы уже
-	// на завершённую партию, где коалиций может не остаться вовсе.
-	if _, done := nextCheck(4, 1, start); !done {
-		t.Error("после первой проверки скоростную партию надо отпускать")
+}
+
+// raceState — партия ×4 с порогами 1000 и 1500 и заданными очками.
+func raceState(nextDay time.Time, points map[int]int, teams map[int]int) *GameState {
+	g := &GameState{
+		NextDay: nextDay,
+		Players: map[int]Player{},
+		Race:    Race{WinPoints: 1000, TeamWinPoints: 1500, Points: points, TeamPoints: teams},
 	}
-	// Обычную смотрим несколько раз: союзы в ней складываются неспешно.
-	next, done := nextCheck(1, 1, start)
-	if done {
-		t.Error("обычную партию рано отпускать после первой проверки")
+	for id := range points {
+		g.Players[id] = Player{ID: id, SiteUserID: "x"}
 	}
-	if want := start.Add(30 * 24 * time.Hour); !next.Equal(want) {
-		t.Errorf("следующая проверка обычной партии %v, ожидалось %v", next, want)
+	return g
+}
+
+// До эндшпиля — раз в два игровых дня, без спешки.
+func TestPlanNextMidgame(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	st := raceState(now.Add(3*time.Hour), map[int]int{1: 200, 2: 150}, map[int]int{1: 300})
+
+	next, done, urgent := planNext(domain.WatchedGame{Speed: 4}, st, now)
+	if done || urgent {
+		t.Fatalf("середина партии: done=%v urgent=%v", done, urgent)
 	}
-	if _, done := nextCheck(1, 4, start); !done {
-		t.Error("после четвёртой проверки обычную партию надо отпускать")
+	// Игровой день ×4 — шесть часов, два дня — двенадцать.
+	if want := now.Add(12 * time.Hour); !next.Equal(want) {
+		t.Errorf("следующий заход %s, ждали %s", next, want)
+	}
+}
+
+// Эндшпиль: приходим за 12 минут до смены дня, а оттуда — сразу после неё.
+func TestPlanNextEndgame(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	day := now.Add(2 * time.Hour)
+	st := raceState(day, map[int]int{1: 300}, map[int]int{1: 1000})
+
+	next, done, urgent := planNext(domain.WatchedGame{Speed: 4}, st, now)
+	if done || !urgent || !next.Equal(day.Add(-endgameLead)) {
+		t.Fatalf("эндшпиль: next=%s done=%v urgent=%v", next, done, urgent)
+	}
+
+	// Мы уже перед сменой — следующий раз через три минуты после неё.
+	before := day.Add(-10 * time.Minute)
+	next, _, urgent = planNext(domain.WatchedGame{Speed: 4}, st, before)
+	if !urgent || !next.Equal(day.Add(afterDayChange)) {
+		t.Fatalf("перед сменой: next=%s urgent=%v", next, urgent)
+	}
+}
+
+// Кончилась — отпускаем.
+func TestPlanNextEnded(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	st := raceState(now.Add(time.Hour), map[int]int{1: 900}, nil)
+	st.Ended = true
+	if _, done, _ := planNext(domain.WatchedGame{Speed: 4}, st, now); !done {
+		t.Fatal("кончившуюся партию надо отпускать")
+	}
+}
+
+// Эндшпиль узнаётся и по сильнейшим вместе: коалиции ещё нет, но пятеро
+// лучших уже могут объединиться и взять порог. Боты в эту пятёрку
+// не входят — с ними в коалицию не сходятся.
+func TestEndgameBySum(t *testing.T) {
+	st := raceState(time.Time{}, map[int]int{1: 400, 2: 350, 3: 300, 4: 250, 5: 200, 6: 500}, nil)
+	st.Players[6] = Player{ID: 6, IsAI: true}
+	if !Endgame(st) {
+		t.Error("пятеро живых набирают 1500 — это эндшпиль")
+	}
+	st.Race.Points[5] = 100
+	if Endgame(st) {
+		t.Error("пятеро живых набирают 1400 — ещё не эндшпиль")
+	}
+	// Одиночка на 60% своего порога — тоже эндшпиль.
+	st.Race.Points[1] = 600
+	if !Endgame(st) {
+		t.Error("одиночка на 600 из 1000 — эндшпиль")
 	}
 }
 
@@ -116,15 +177,21 @@ func newFakeStore(due ...domain.WatchedGame) *fakeCoalitionStore {
 
 func (f *fakeCoalitionStore) Enqueue(context.Context, domain.WatchedGame) error { return nil }
 
-func (f *fakeCoalitionStore) Due(_ context.Context, _ time.Time, limit int) ([]domain.WatchedGame, error) {
-	if len(f.due) > limit {
-		return f.due[:limit], nil
+func (f *fakeCoalitionStore) Due(_ context.Context, _ time.Time, limit int, urgent bool) ([]domain.WatchedGame, error) {
+	var out []domain.WatchedGame
+	for _, g := range f.due {
+		if !urgent || g.Urgent {
+			out = append(out, g)
+		}
 	}
-	return f.due, nil
+	if len(out) > limit {
+		return out[:limit], nil
+	}
+	return out, nil
 }
 
 func (f *fakeCoalitionStore) Save(_ context.Context, gameID string, _ int,
-	teams []domain.Coalition, _, next time.Time, done bool) error {
+	teams []domain.Coalition, _, next time.Time, done, _ bool) error {
 
 	f.saved[gameID] = teams
 	f.next[gameID] = next
@@ -181,7 +248,9 @@ func TestScannerSavesAndCloses(t *testing.T) {
 	}}
 	store := newFakeStore(domain.WatchedGame{GameID: "10894611", Speed: 4})
 
-	s := NewCoalitionScanner(obs, store, fakeSwitch(true), time.Minute, quietLog())
+	// every = 0: обычная выборка на каждой проверке, иначе второй tick
+	// подряд обычные партии не взял бы — и правильно бы сделал.
+	s := NewCoalitionScanner(obs, store, fakeSwitch(true), 0, quietLog())
 	s.pause = 0
 	s.tick(context.Background())
 
@@ -191,9 +260,29 @@ func TestScannerSavesAndCloses(t *testing.T) {
 	if teams := store.saved["10894611"]; len(teams) != 1 || len(teams[0].Members) != 2 {
 		t.Errorf("записано %+v", teams)
 	}
-	// Скоростная партия своё отдала: возвращаться в неё незачем.
+	// Партия идёт — возвращаемся: коалиции соберут под конец.
+	if store.done["10894611"] {
+		t.Error("идущую партию отпустили после первой проверки")
+	}
+
+	// Кончилась — отпускаем.
+	obs.state.Ended = true
+	s.tick(context.Background())
 	if !store.done["10894611"] {
-		t.Error("скоростную партию не отпустили после первой проверки")
+		t.Error("кончившуюся партию не отпустили")
+	}
+}
+
+// Одна партия в обеих выборках (срочной и обычной) — один заход.
+func TestScannerUrgentOnce(t *testing.T) {
+	obs := &fakeObserver{state: &GameState{GameID: "1"}}
+	store := newFakeStore(domain.WatchedGame{GameID: "1", Speed: 4, Urgent: true})
+
+	s := NewCoalitionScanner(obs, store, fakeSwitch(true), time.Minute, quietLog())
+	s.pause = 0
+	s.tick(context.Background())
+	if obs.calls != 1 {
+		t.Fatalf("заходов %d, ожидался один", obs.calls)
 	}
 }
 
@@ -201,15 +290,15 @@ func TestScannerSavesAndCloses(t *testing.T) {
 // Но и вечно тянуть её нельзя.
 func TestScannerRetriesThenGivesUp(t *testing.T) {
 	obs := &fakeObserver{err: errors.New("игра не отвечает")}
-	store := newFakeStore(domain.WatchedGame{GameID: "7", Speed: 4, Checks: 0})
+	store := newFakeStore(domain.WatchedGame{GameID: "7", Speed: 4, Fails: 0})
 
-	s := NewCoalitionScanner(obs, store, fakeSwitch(true), time.Minute, quietLog())
+	s := NewCoalitionScanner(obs, store, fakeSwitch(true), 0, quietLog())
 	s.tick(context.Background())
 	if store.done["7"] {
 		t.Error("партию бросили с первой неудачи")
 	}
 
-	store.due = []domain.WatchedGame{{GameID: "7", Speed: 4, Checks: 2}}
+	store.due = []domain.WatchedGame{{GameID: "7", Speed: 4, Fails: 2}}
 	s.tick(context.Background())
 	if !store.done["7"] {
 		t.Error("после трёх неудач партию пора бросать")

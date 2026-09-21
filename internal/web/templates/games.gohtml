@@ -149,7 +149,7 @@
     </div>
     <p class="muted">
         {{if $c.On}}{{t "coalitions.on"}}{{else}}{{t "coalitions.off"}}{{end}}
-        {{t "coalitions.stats" $c.Watched $c.Pending $c.Games $c.Members}}
+        {{t "coalitions.stats" $c.Watched $c.Pending $c.Games $c.Members}}{{if $c.Endgame}} {{t "coalitions.endgame" $c.Endgame}}{{end}}
         {{if not $c.LastCheck.IsZero}}{{t "coalitions.last"}} {{datetime $c.LastCheck}}.{{end}}
     </p>
     <p class="muted">{{t "coalitions.switch.at"}}</p>

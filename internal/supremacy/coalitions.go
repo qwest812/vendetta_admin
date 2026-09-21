@@ -13,6 +13,7 @@ package supremacy
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"time"
 
 	"Vendetta_admin/internal/domain"
@@ -21,8 +22,9 @@ import (
 // CoalitionStore — где живёт очередь обхода и то, что в ней нашлось.
 type CoalitionStore interface {
 	Enqueue(ctx context.Context, g domain.WatchedGame) error
-	Due(ctx context.Context, at time.Time, limit int) ([]domain.WatchedGame, error)
-	Save(ctx context.Context, gameID string, day int, teams []domain.Coalition, at, next time.Time, done bool) error
+	// Due — кому пора; urgent — только срочным (эндшпиль), иначе всем.
+	Due(ctx context.Context, at time.Time, limit int, urgent bool) ([]domain.WatchedGame, error)
+	Save(ctx context.Context, gameID string, day int, teams []domain.Coalition, at, next time.Time, done, urgent bool) error
 	Fail(ctx context.Context, gameID, reason string, at, next time.Time, done bool) error
 }
 
@@ -39,34 +41,60 @@ type gameObserver interface {
 	ObserveGame(ctx context.Context, gameID string) (*GameState, error)
 }
 
-// coalitionPlan — расписание обхода для партий не медленнее minSpeed.
-// Списком, а не формулой: сроки взяты из наблюдений за живыми партиями,
-// а не выведены из чего-то, и править их будут тоже по наблюдениям.
+// coalitionPlan — когда впервые заглянуть в партию той или иной скорости.
+// Списком, а не формулой: сроки взяты из наблюдений за живыми партиями.
+// Первый заход не ради состава — коалиции собирают под конец, — а чтобы
+// узнать счёт и дальше идти по нему (см. planNext).
 type coalitionPlan struct {
-	minSpeed  float64
-	first     time.Duration
-	repeat    time.Duration
-	maxChecks int
+	minSpeed float64
+	first    time.Duration
 }
 
 // Замеренная жизнь партий: x10 — около 34 часов, x4 — около четырёх суток,
-// x1 — два-три месяца. Заходим примерно на середине.
+// x1 — два-три месяца. Первый раз заходим примерно на середине.
 var coalitionPlans = []coalitionPlan{
-	{minSpeed: 8, first: 16 * time.Hour, maxChecks: 1},
-	{minSpeed: 3, first: 48 * time.Hour, maxChecks: 1},
-	{minSpeed: 1.5, first: 5 * 24 * time.Hour, maxChecks: 1},
-	// Обычная партия живёт достаточно, чтобы взглянуть несколько раз:
-	// союзы в ней складываются и распадаются неспешно.
-	{minSpeed: 0, first: 30 * 24 * time.Hour, repeat: 30 * 24 * time.Hour, maxChecks: 4},
+	{minSpeed: 8, first: 16 * time.Hour},
+	{minSpeed: 3, first: 48 * time.Hour},
+	{minSpeed: 1.5, first: 5 * 24 * time.Hour},
+	{minSpeed: 0, first: 30 * 24 * time.Hour},
 }
 
-// coalitionRetry — через сколько повторить заход, если игра не ответила.
-// Она лежит минутами, а не сутками, но и торопиться нам некуда.
-const coalitionRetry = 2 * time.Hour
+const (
+	// Коалиции игроки собирают под конец: очки коалиции — сумма очков её
+	// участников, и объединяются, чтобы вместе перешагнуть порог. Победу
+	// игра объявляет только при смене дня, поэтому конец партии всегда
+	// приходится на смену дня, и время ближайшей известно заранее.
+	//
+	// В эндшпиле заходим дважды за игровой день: за endgameLead до смены —
+	// застать собранные к ней коалиции — и через afterDayChange после,
+	// чтобы узнать, не кончилась ли партия.
+	endgameLead    = 12 * time.Minute
+	afterDayChange = 3 * time.Minute
 
-// coalitionRetries — сколько неудач терпим сверх плана, прежде чем бросить
-// партию. Без этого потолка мёртвая партия висела бы в очереди вечно.
-const coalitionRetries = 2
+	// Эндшпиль — когда кто-то подошёл к порогу на endgameShare или когда
+	// endgameTop сильнейших игроков вместе уже набирают порог коалиции,
+	// то есть могут объединиться и выиграть. Оба числа — оценка, а не
+	// правило игры: сколько человек бывает в коалиции, игра не говорит.
+	endgameShare = 0.6
+	endgameTop   = 5
+
+	// midgameDays — сколько игровых дней между заходами до эндшпиля:
+	// следим за счётом, но нечасто.
+	midgameDays = 2
+
+	// coalitionRetry — через сколько повторить заход, если игра не ответила.
+	// В эндшпиле ждать нельзя: смена дня не подождёт.
+	coalitionRetry        = 2 * time.Hour
+	coalitionRetryEndgame = 3 * time.Minute
+
+	// coalitionRetries — сколько неудач подряд терпим, прежде чем бросить
+	// партию. Без этого потолка мёртвая партия висела бы в очереди вечно.
+	coalitionRetries = 2
+
+	// coalitionMaxChecks — страховка от партии, которая почему-то не
+	// кончается: обычной хватает с запасом.
+	coalitionMaxChecks = 120
+)
 
 func planFor(speed float64) coalitionPlan {
 	for _, p := range coalitionPlans {
@@ -82,17 +110,74 @@ func FirstCheck(speed float64, from time.Time) time.Time {
 	return from.Add(planFor(speed).first)
 }
 
-// nextCheck — когда возвращаться после удачного захода и стоит ли вообще.
-func nextCheck(speed float64, checks int, from time.Time) (time.Time, bool) {
-	p := planFor(speed)
-	if checks >= p.maxChecks || p.repeat == 0 {
-		return from, true
+// Endgame — подошла ли партия к концу: кто-то близок к порогу или
+// сильнейшие вместе уже могут его взять.
+func Endgame(g *GameState) bool {
+	r := g.Race
+	near := func(points, limit int) bool {
+		return limit > 0 && float64(points) >= endgameShare*float64(limit)
 	}
-	return from.Add(p.repeat), false
+	for _, p := range r.TeamPoints {
+		if near(p, r.TeamWinPoints) {
+			return true
+		}
+	}
+	var human []int
+	for id, p := range r.Points {
+		if near(p, r.WinPoints) {
+			return true
+		}
+		if pl, ok := g.Players[id]; ok && !pl.IsAI {
+			human = append(human, p)
+		}
+	}
+	if r.TeamWinPoints <= 0 {
+		return false
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(human)))
+	sum := 0
+	for i, p := range human {
+		if i == endgameTop {
+			break
+		}
+		sum += p
+	}
+	return sum >= r.TeamWinPoints
 }
 
-// CoalitionScanner раз в every берёт партии, которым пора, и записывает
-// их коалиции.
+// planNext — когда возвращаться после удачного захода, срочно ли это
+// и не пора ли отпустить партию.
+func planNext(g domain.WatchedGame, st *GameState, now time.Time) (next time.Time, done, urgent bool) {
+	if st.Ended || g.Checks+1 >= coalitionMaxChecks {
+		return now, true, false
+	}
+	speed := g.Speed
+	if speed < 1 {
+		speed = 1
+	}
+	gameDay := time.Duration(float64(24*time.Hour) / speed)
+
+	if Endgame(st) {
+		// Смена дня неизвестна или уже прошла (состояние отстало) —
+		// заглянем через четверть игрового дня.
+		if st.NextDay.IsZero() || !st.NextDay.After(now) {
+			return now.Add(gameDay / 4), false, true
+		}
+		if lead := st.NextDay.Add(-endgameLead); lead.After(now.Add(time.Minute)) {
+			return lead, false, true
+		}
+		// Мы уже перед самой сменой — следующий раз сразу после неё.
+		return st.NextDay.Add(afterDayChange), false, true
+	}
+	return now.Add(midgameDays * gameDay), false, false
+}
+
+// CoalitionScanner берёт партии, которым пора, и записывает их коалиции.
+//
+// Проверяет очередь раз в минуту, но обычные партии берёт не чаще раза
+// в every: им спешить некуда. Срочные — заходы перед сменой дня в эндшпиле —
+// берутся на каждой проверке и вне очереди: опоздание на десять минут
+// там означает опоздание к концу партии.
 type CoalitionScanner struct {
 	client   gameObserver
 	store    CoalitionStore
@@ -100,21 +185,28 @@ type CoalitionScanner struct {
 	log      *slog.Logger
 
 	every time.Duration
-	// batch — сколько партий берём за тик. Обход намеренно неспешный:
-	// состояние партии весит полтора мегабайта, и торопиться нам некуда.
+	// batch — сколько обычных партий берём за раз. Обход намеренно
+	// неспешный: состояние партии весит полтора мегабайта.
 	batch int
-	// pause — сколько ждём между партиями внутри тика.
+	// urgentBatch — сколько срочных за одну проверку.
+	urgentBatch int
+	// pause — сколько ждём между партиями внутри одной проверки.
 	pause time.Duration
 
-	now func() time.Time
+	lastRegular time.Time
+	now         func() time.Time
 }
+
+// scanTick — как часто проверять очередь. Это запрос к своей базе,
+// а не заход в игру.
+const scanTick = time.Minute
 
 func NewCoalitionScanner(c gameObserver, store CoalitionStore, settings CoalitionSwitch,
 	every time.Duration, log *slog.Logger) *CoalitionScanner {
 
 	return &CoalitionScanner{
 		client: c, store: store, settings: settings, log: log,
-		every: every, batch: 5, pause: 3 * time.Second, now: time.Now,
+		every: every, batch: 5, urgentBatch: 10, pause: 3 * time.Second, now: time.Now,
 	}
 }
 
@@ -143,7 +235,7 @@ func (s *CoalitionScanner) Enqueue(ctx context.Context, games []Game) {
 func (s *CoalitionScanner) Run(ctx context.Context) {
 	s.log.Info("сбор коалиций запущен", "interval", s.every, "за раз", s.batch)
 
-	ticker := time.NewTicker(s.every)
+	ticker := time.NewTicker(scanTick)
 	defer ticker.Stop()
 
 	for {
@@ -167,17 +259,34 @@ func (s *CoalitionScanner) tick(ctx context.Context) {
 		return
 	}
 
-	due, err := s.store.Due(ctx, s.now(), s.batch)
+	now := s.now()
+	due, err := s.store.Due(ctx, now, s.urgentBatch, true)
 	if err != nil {
 		s.log.Error("очередь коалиций", "err", err)
 		return
 	}
+	if s.lastRegular.IsZero() || now.Sub(s.lastRegular) >= s.every {
+		s.lastRegular = now
+		regular, err := s.store.Due(ctx, now, s.batch, false)
+		if err != nil {
+			s.log.Error("очередь коалиций", "err", err)
+			return
+		}
+		due = append(due, regular...)
+	}
+
+	seen := map[string]bool{}
 	for i, g := range due {
 		if ctx.Err() != nil {
 			return
 		}
-		// Пауза между партиями, а не перед первой: тик и так редкий.
-		if i > 0 {
+		// Срочная партия могла попасть и в обычную выборку.
+		if seen[g.GameID] {
+			continue
+		}
+		seen[g.GameID] = true
+		// Пауза между партиями, а не перед первой.
+		if i > 0 && s.pause > 0 {
 			select {
 			case <-ctx.Done():
 				return
@@ -195,19 +304,23 @@ func (s *CoalitionScanner) check(ctx context.Context, g domain.WatchedGame) {
 	state, err := s.client.ObserveGame(ctx, g.GameID)
 	if err != nil {
 		// Партию не бросаем сразу: игра могла лежать. Но и вечно её
-		// не тянем — после нескольких неудач считаем безнадёжной.
-		done := g.Checks+1 >= planFor(g.Speed).maxChecks+coalitionRetries
+		// не тянем — после нескольких неудач подряд считаем безнадёжной.
+		done := g.Fails+1 > coalitionRetries
+		retry := coalitionRetry
+		if g.Urgent {
+			retry = coalitionRetryEndgame
+		}
 		s.log.Warn("сбор коалиций: партия не ответила",
-			"gameID", g.GameID, "попыток", g.Checks+1, "бросаем", done, "err", err)
-		if err := s.store.Fail(ctx, g.GameID, err.Error(), now, now.Add(coalitionRetry), done); err != nil {
+			"gameID", g.GameID, "неудач подряд", g.Fails+1, "бросаем", done, "err", err)
+		if err := s.store.Fail(ctx, g.GameID, err.Error(), now, now.Add(retry), done); err != nil {
 			s.log.Error("отметка неудачи", "gameID", g.GameID, "err", err)
 		}
 		return
 	}
 
 	teams := CoalitionsOf(state)
-	next, done := nextCheck(g.Speed, g.Checks+1, now)
-	if err := s.store.Save(ctx, g.GameID, state.Day, teams, now, next, done); err != nil {
+	next, done, urgent := planNext(g, state, now)
+	if err := s.store.Save(ctx, g.GameID, state.Day, teams, now, next, done, urgent); err != nil {
 		s.log.Error("запись коалиций", "gameID", g.GameID, "err", err)
 		return
 	}
@@ -218,7 +331,8 @@ func (s *CoalitionScanner) check(ctx context.Context, g domain.WatchedGame) {
 	}
 	s.log.Info("коалиции собраны", "gameID", g.GameID, "партия", g.Title,
 		"скорость", g.Speed, "день", state.Day,
-		"коалиций", len(teams), "человек", people, "ещё зайдём", !done)
+		"коалиций", len(teams), "человек", people,
+		"эндшпиль", urgent, "кончилась", state.Ended, "следующий", next.Format(time.DateTime))
 }
 
 // CoalitionsOf выбирает из состояния партии то, ради чего мы туда ходили.

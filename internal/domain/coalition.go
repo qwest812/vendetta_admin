@@ -27,6 +27,11 @@ type WatchedGame struct {
 	Checks      int
 	LastError   string
 	Done        bool
+	// Urgent — следующий заход срочный: партия в эндшпиле, и он приходится
+	// на смену дня. Такие обход берёт вне очереди.
+	Urgent bool
+	// Fails — сколько неудач подряд; удачный заход обнуляет.
+	Fails int
 }
 
 // Coalition — коалиция вместе с составом на момент, когда мы её застали.
@@ -65,6 +70,9 @@ type CoalitionStats struct {
 	Watched int
 	Pending int
 	Done    int
+	// Endgame — сколько из ждущих уже в эндшпиле: за ними обход ходит
+	// к каждой смене дня.
+	Endgame int
 	// Games — в скольких партиях коалиции нашлись, Members — сколько
 	// всего записей об участии.
 	Games     int
