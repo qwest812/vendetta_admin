@@ -235,16 +235,18 @@ const mapPanel = (() => {
         el.classList.toggle("muted", !isError);
     }
 
-    // botLine — сколько в партии ботов и как с ними сейчас. Считается
-    // по нынешним отношениям: по этой же строке потом и видно, что игра
-    // выдачу приняла.
+    // botLine — сколько в партии ботов, как с ними сейчас и кто они.
+    // Считается по нынешним отношениям: по этой же строке потом и видно,
+    // что игра выдачу приняла. Названия — чтобы до нажатия было видно,
+    // кого кнопка заденет.
     function botLine(bots) {
         const counts = new Map();
         for (const b of bots) counts.set(b.relation, (counts.get(b.relation) || 0) + 1);
         const parts = [...counts.entries()]
             .sort((a, b) => a[0] - b[0])
             .map(([value, n]) => `${relationName(value).toLowerCase()} — ${n}`);
-        return `Ботов в партии: ${bots.length} (${parts.join(", ")})`;
+        const names = bots.map((b) => b.name || b.id).join(", ");
+        return `Ботов в партии: ${bots.length} (${parts.join(", ")}). Это: ${names}.`;
     }
 
     // showBots перечитывает отношения у клиента игры и приводит блок

@@ -154,10 +154,14 @@
     // пачкой — это другое дело, и кнопка «всем сразу» для них опасна.
     const RELATIONS = new Set([1, 2, 3, 4, 5, 6]);
 
-    function relations() {
+    function foreignAffairs() {
         const state = window.hup.gameState;
-        const affairs = typeof state.getForeignAffairsState === "function"
+        return typeof state.getForeignAffairsState === "function"
             ? state.getForeignAffairsState() : null;
+    }
+
+    function relations() {
+        const affairs = foreignAffairs();
         const rel = affairs && typeof affairs.getRelations === "function"
             ? affairs.getRelations() : null;
         if (!rel || typeof rel.getRelation !== "function") {
@@ -166,9 +170,24 @@
         return rel;
     }
 
+    // isNativeBot — страна, которая с начала партии принадлежит компьютеру.
+    //
+    // Одного computerPlayer мало: его же игра ставит стране, которую
+    // бросил живой игрок, — клиент зовёт такую isPlayableComputer, и её
+    // может занять новый человек. У настоящего бота вдобавок стоит
+    // nativeComputer и нет номера на сайте (siteUserID −1). Требуем все три:
+    // промахнуться мимо бота не страшно, задеть человека — страшно. Если
+    // у клиента нет какого-то признака, это тоже «не бот».
+    function isNativeBot(p) {
+        if (flag(p, "getComputerPlayer") !== true) return false;
+        if (flag(p, "isNativeComputer") !== true) return false;
+        const site = Number(flag(p, "getSiteUserID"));
+        return Number.isFinite(site) && site <= 0;
+    }
+
     // bots — живые компьютерные страны партии и наше нынешнее отношение
     // к каждой. Побеждённых и ушедших пропускаем: менять отношение к ним
-    // не с кем.
+    // не с кем. Название нужно панели: кнопка показывает, кого заденет.
     function bots() {
         const rel = relations();
         const me = Number(window.hup.config.userData.playerID);
@@ -176,9 +195,10 @@
         for (const p of players()) {
             const id = Number(p.getPlayerID());
             if (!(id > 0) || id === me) continue;
-            if (!flag(p, "getComputerPlayer")) continue;
+            if (!isNativeBot(p)) continue;
             if (flag(p, "getDefeated") || flag(p, "getRetired")) continue;
-            list.push({ id, relation: Number(rel.getRelation(me, id)) });
+            const name = String(flag(p, "getNationName") || flag(p, "getName") || id);
+            list.push({ id, name, relation: Number(rel.getRelation(me, id)) });
         }
         return { me, bots: list };
     }
@@ -214,8 +234,15 @@
         if (!control || typeof control.triggerAction !== "function") {
             throw new Error("клиент игры не даёт отправлять действия");
         }
-        const list = bots().bots;
-        const ids = list.filter((b) => b.relation !== relation).map((b) => b.id);
+        const { me, bots: list } = bots();
+        // Вторая защита: то же правило, по которому окно дипломатии самого
+        // клиента решает, можно ли выдать отношение (командные ограничения,
+        // «общая разведка» только с премиумом). Чего клиент не разрешил бы
+        // руками, не шлём и мы.
+        const affairs = foreignAffairs();
+        const allowed = (id) => typeof affairs.isRelationSelectable !== "function"
+            || affairs.isRelationSelectable(me, id, relation);
+        const ids = list.filter((b) => b.relation !== relation && allowed(b.id)).map((b) => b.id);
         for (const id of ids) control.triggerAction(relationAction([id], relation));
         return { total: list.length, sent: ids.length };
     }
