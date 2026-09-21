@@ -135,6 +135,62 @@
 {{with .Coalitions}}
     {{template "coalitions-card" .}}
 {{end}}
+
+{{/* Поиск игроков в лобби: кого ищем и где уже нашли. Список и находки
+     читаются из базы, в игру ради страницы никто не ходит. */}}
+{{with .Hunts}}
+<div class="card" id="hunts">
+    <h1>{{t "hunt.title"}}</h1>
+    <p class="muted">{{t "hunt.note"}}</p>
+    <form class="row-form" method="post" action="/hunts">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <label class="narrow">
+            {{t "hunt.siteid"}}
+            <input type="text" name="site_user_id" inputmode="numeric" pattern="[0-9]{1,12}" required autocomplete="off">
+        </label>
+        <label>
+            {{t "hunt.nick"}}
+            <input type="text" name="nickname" maxlength="64" autocomplete="off">
+        </label>
+        <button type="submit">{{t "hunt.add"}}</button>
+    </form>
+    {{if .Targets}}
+        <ul class="hunt-list">
+            {{range .Targets}}
+                <li>
+                    <span class="nick">{{if .Nickname}}{{.Nickname}}{{else}}—{{end}}</span>
+                    <span class="game-id">ID {{.SiteUserID}}</span>
+                    <form method="post" action="/hunts/{{.ID}}/delete">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <button class="link" type="submit" title="{{t "hunt.stop"}}">×</button>
+                    </form>
+                </li>
+            {{end}}
+        </ul>
+    {{else}}
+        <p class="muted">{{t "hunt.empty"}}</p>
+    {{end}}
+    {{if .Hits}}
+        <h2>{{t "hunt.hits"}}</h2>
+        <div class="table-wrap">
+            <table class="stack">
+                <tbody>
+                {{range .Hits}}
+                    <tr>
+                        <td data-label="">{{.Nickname}}{{if .Nation}} <span class="muted">· {{.Nation}}</span>{{end}}</td>
+                        <td data-label="{{t "games.col.game"}}">
+                            <a href="/games/{{.GameID}}">{{if .Title}}{{.Title}}{{else}}{{t "game.unnamed" .GameID}}{{end}}</a>
+                            <span class="game-id">ID {{.GameID}}</span>
+                        </td>
+                        <td class="muted nowrap" data-label="{{t "hunt.when"}}">{{datetime .FoundAt}}</td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
+    {{end}}
+</div>
+{{end}}
 {{end}}
 {{end}}
 

@@ -221,7 +221,20 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		return
 	}
 
+	// Ищем ли его в лобби — только руту, и только у кого есть номер на
+	// сайте: искать больше не по чему.
+	hunting := false
+	if me.IsRoot() && s.hunts != nil && player.GameID != "" {
+		id, err := s.hunts.Find(r.Context(), player.GameID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		hunting = id != 0
+	}
+
 	s.render(w, r, status, "player", map[string]any{
+		"Hunting": hunting, "CanHunt": me.IsRoot() && s.hunts != nil && player.GameID != "",
 		"Player": player, "Comments": comments, "MyComment": myComment,
 		"MyNotes": notes, "NoteMax": domain.MaxCommentLen,
 		"Error": errMsg, "Seen": seen, "Bans": bans, "Traits": traits,

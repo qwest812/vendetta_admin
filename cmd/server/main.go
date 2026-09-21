@@ -68,6 +68,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	topAlliances := repo.NewTopAlliances(pool)
 	userStats := repo.NewUserStats(pool)
 	feedback := repo.NewFeedback(pool)
+	hunts := repo.NewHunts(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -94,7 +95,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		BuildQueue: buildQueue,
 		Coalitions: coalitions, Settings: settings, Heroes: heroes,
 		Checked: checked, Checks: mapChecks,
-		TopAlliances: topAlliances, UserStats: userStats,
+		TopAlliances: topAlliances, UserStats: userStats, Hunts: hunts,
 		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
@@ -120,9 +121,13 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// Нулевой notifier воркер понимает как «пиши в лог» — именно это и
 		// нужно, когда телеграм не настроен.
 		var notifier supremacy.Notifier
+		// Поиск игроков пишет в тот же чат, что и о найденных играх. Без
+		// телеграма — только в лог; типизированный nil в интерфейс не кладём.
+		var huntNotifier supremacy.HuntNotifier
 		if cfg.TelegramToken != "" {
-			notifier = supremacy.NewTelegramNotifier(
+			tg := supremacy.NewTelegramNotifier(
 				cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramTopicID, s1914.UserID)
+			notifier, huntNotifier = tg, tg
 			log.Info("о найденных играх пишем в телеграм",
 				"chatID", cfg.TelegramChatID, "topicID", cfg.TelegramTopicID)
 		} else {
@@ -171,6 +176,11 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// он спрашивает рейтинг игры и сам решает, не пора ли обновиться.
 		top := supremacy.NewTopWatcher(s1914, topAlliances, cfg.S1914TopEvery, log)
 		startAfter(ctx, 4*workerStagger, top.Run)
+
+		// Поиск игроков смотрит составы открытых партий лобби. Пока искать
+		// некого, в игру не ходит — только спрашивает свою базу.
+		hunter := supremacy.NewHunter(s1914, hunts, huntNotifier, cfg.S1914HuntEvery, log)
+		startAfter(ctx, 6*workerStagger, hunter.Run)
 	}
 
 	httpSrv := &http.Server{

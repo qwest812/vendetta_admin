@@ -125,6 +125,8 @@ func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
 		// Coalitions — сводка архива и состояние его рубильника. Только
 		// руту: обход ходит в игру от общего аккаунта проекта.
 		"Coalitions": nil,
+		// Hunts — поиск игроков в лобби: кого ищем и где нашли. Только руту.
+		"Hunts": nil,
 		// Checked — партии, которые смотрел тот, кто сейчас на странице,
 		// и через сколько дней они из списка уходят.
 		"Checked": nil, "CheckedDays": int(domain.CheckedGamesTTL.Hours() / 24),
@@ -185,6 +187,16 @@ func (s *Server) gamesList(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data["Coalitions"] = view
+	}
+
+	// Поиск игроков тоже целиком из базы — считается до похода в игру.
+	if s.hunts != nil {
+		view, err := s.huntCard(ctx)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		data["Hunts"] = view
 	}
 
 	games, err := s.games.MyGames(ctx)

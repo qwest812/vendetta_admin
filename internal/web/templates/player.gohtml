@@ -29,6 +29,16 @@
         {{if .CurrentUser.IsAdmin}}
             <div class="head-actions">
                 <a class="button" href="/players/{{$p.ID}}/edit">{{t "common.edit"}}</a>
+                {{/* Поиск в лобби: как только игрок окажется в открытой партии,
+                     воркер напишет об этом в телеграм. */}}
+                {{if .CanHunt}}
+                    <form method="post" action="/players/{{$p.ID}}/hunt">
+                        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                        <input type="hidden" name="on" value="{{if .Hunting}}0{{else}}1{{end}}">
+                        <button class="{{if .Hunting}}ghost{{end}}" type="submit"
+                                title="{{t "hunt.button.note"}}">{{if .Hunting}}{{t "hunt.stop"}}{{else}}{{t "hunt.start"}}{{end}}</button>
+                    </form>
+                {{end}}
                 {{if .CurrentUser.IsRoot}}
                     <form method="post" action="/players/{{$p.ID}}/delete"
                           onsubmit="return confirm('{{t "player.delete.confirm" $p.Nickname}}')">

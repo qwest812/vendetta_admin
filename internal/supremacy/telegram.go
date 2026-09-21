@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"Vendetta_admin/internal/domain"
 )
 
 const telegramAPI = "https://api.telegram.org"
@@ -53,9 +55,19 @@ func NewTelegramNotifier(token, chatID string, topicID int, userID func() string
 }
 
 func (t *TelegramNotifier) Notify(ctx context.Context, g Game) error {
+	return t.send(ctx, telegramText(g, PlayURL(t.userID())))
+}
+
+// NotifyHunt сообщает, что искомый игрок нашёлся в открытой партии.
+func (t *TelegramNotifier) NotifyHunt(ctx context.Context, hit domain.HuntHit, g Game) error {
+	return t.send(ctx, huntText(hit, g, PlayURL(t.userID())))
+}
+
+// send отправляет готовый текст в чат (и тему, если она задана).
+func (t *TelegramNotifier) send(ctx context.Context, text string) error {
 	msg := map[string]any{
 		"chat_id":    t.chatID,
-		"text":       telegramText(g, PlayURL(t.userID())),
+		"text":       text,
 		"parse_mode": "HTML",
 		// Превью ни к чему: по ссылке незалогиненному покажут страницу входа.
 		"link_preview_options": map[string]bool{"is_disabled": true},
@@ -130,6 +142,37 @@ func telegramText(g Game, link string) string {
 
 	// Ссылка ведёт в игру вообще, а не в найденную партию, поэтому id рядом
 	// обязателен: по нему её отыскивают в списке.
+	fmt.Fprintf(&b, `<a href="%s">открыть</a> · id %s`, escapeHTML(link), escapeHTML(g.GameID))
+	return b.String()
+}
+
+// huntText — сообщение о найденном игроке: кто, в какой партии и за какую
+// страну. Строка с цифрами партии та же, что у найденной игры.
+func huntText(hit domain.HuntHit, g Game, link string) string {
+	var b strings.Builder
+	b.WriteString("🔎 <b>")
+	b.WriteString(escapeHTML(hit.Nickname))
+	b.WriteString("</b> в партии <b>")
+	b.WriteString(escapeHTML(g.Title))
+	b.WriteString("</b>\n")
+
+	var parts []string
+	if hit.Nation != "" {
+		parts = append(parts, "за "+escapeHTML(hit.Nation))
+	}
+	if g.OpenSlots != "" {
+		parts = append(parts, "свободно "+escapeHTML(g.OpenSlots))
+	}
+	if g.NrOfPlayers != "" {
+		parts = append(parts, "игроков "+escapeHTML(g.NrOfPlayers))
+	}
+	if g.DayOfGame != "" {
+		parts = append(parts, "день "+escapeHTML(g.DayOfGame))
+	}
+	if len(parts) > 0 {
+		b.WriteString(strings.Join(parts, " · "))
+		b.WriteByte('\n')
+	}
 	fmt.Fprintf(&b, `<a href="%s">открыть</a> · id %s`, escapeHTML(link), escapeHTML(g.GameID))
 	return b.String()
 }

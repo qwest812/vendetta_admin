@@ -1087,3 +1087,7 @@ button.ghost:hover { border-color: var(--accent); }
     .setting, .facts { grid-template-columns: minmax(0, 1fr); gap: 6px; }
     form.inline input[type=password] { width: 100%; }
 }
+
+/* Поиск игроков в лобби: искомые строкой, крестик справа. */
+.hunt-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.hunt-list li { display: flex; align-items: center; gap: 6px; }

@@ -44,6 +44,7 @@ type Server struct {
 	// userStats — боевой счёт игроков с сайта игры: уровень и кд. По ним
 	// карта сравнивает участников партии со смотрящим.
 	userStats *repo.UserStats
+	hunts     *repo.Hunts
 	// gamePlayers — что игра рассказала про игроков при заходе в партию:
 	// ник и бан. Пишется на каждом заходе, читается в карточке игрока.
 	gamePlayers *repo.GamePlayers
@@ -109,6 +110,8 @@ type Deps struct {
 	GamePlayers *repo.GamePlayers
 	// UserStats — боевой счёт игроков: уровень и кд для сравнения на карте.
 	UserStats *repo.UserStats
+	// Hunts — поиск игроков в лобби: кого ищем и где нашли. Только руту.
+	Hunts *repo.Hunts
 	// Tasks — что админка делает в партиях сама, HeroEvery и HeroEveryMax —
 	// границы случайной паузы между заходами.
 	Tasks        *repo.GameTasks
@@ -144,7 +147,7 @@ func NewServer(d Deps) (*Server, error) {
 		feedback: d.Feedback,
 		games:    d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
 		nicks: d.Nicks, signups: newSignupLimiter(),
-		gamePlayers: d.GamePlayers, userStats: d.UserStats,
+		gamePlayers: d.GamePlayers, userStats: d.UserStats, hunts: d.Hunts,
 		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
 		checked: d.Checked, checks: d.Checks, mapTickets: newMapTickets(),
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
@@ -321,6 +324,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /users/{id}/edit", admin(http.HandlerFunc(s.userEditForm)))
 	mux.Handle("POST /users/{id}/edit", root(auth.VerifyCSRF(http.HandlerFunc(s.userEditSave))))
 	mux.Handle("POST /players/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.playerDelete))))
+	// Поиск игроков в лобби: ходит от общего аккаунта проекта — только руту.
+	mux.Handle("POST /players/{id}/hunt", root(auth.VerifyCSRF(http.HandlerFunc(s.playerHunt))))
+	mux.Handle("POST /hunts", root(auth.VerifyCSRF(http.HandlerFunc(s.huntAdd))))
+	mux.Handle("POST /hunts/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.huntRemove))))
 
 	// Порядок слоёв: паника ловится снаружи всего, заголовки безопасности
 	// ставятся и на ответ об ошибке, а чужой адрес отсекается до того, как

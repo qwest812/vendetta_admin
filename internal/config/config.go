@@ -49,6 +49,10 @@ type Config struct {
 	// за коалициями. Не путать со сроком возврата в саму партию: тот
 	// считается от её скорости и живёт в воркере.
 	S1914CoalitionEvery time.Duration
+	// S1914HuntEvery — как часто поиск игроков смотрит составы открытых
+	// партий лобби. Не чаще раза в десять минут: на каждую партию — свой
+	// запрос к сайту.
+	S1914HuntEvery time.Duration
 
 	// Куда воркер пишет о найденных играх. Без токена и чата сообщения
 	// остаются в логе приложения. Тема нужна только для групп-форумов.
@@ -149,6 +153,15 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("S1914_COALITION_INTERVAL: не чаще раза в минуту")
 	}
 	cfg.S1914CoalitionEvery = coalitions
+
+	hunt, err := time.ParseDuration(env("S1914_HUNT_INTERVAL", "10m"))
+	if err != nil {
+		return nil, fmt.Errorf("S1914_HUNT_INTERVAL: %w", err)
+	}
+	if hunt < 10*time.Minute {
+		return nil, fmt.Errorf("S1914_HUNT_INTERVAL: не чаще раза в десять минут")
+	}
+	cfg.S1914HuntEvery = hunt
 
 	for _, t := range strings.Split(env("S1914_WATCH_TITLES", ""), ",") {
 		if t = strings.TrimSpace(t); t != "" {

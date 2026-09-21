@@ -852,8 +852,21 @@ var messages = map[string]entry{
 	"err.checks.bad":       {ru: "Проверок в сутки — целое число от 0 до %d", en: "Checks a day must be a whole number from 0 to %d"},
 
 	// --- архив коалиций: рубильник и сводка (только руту) ---
-	"coalitions.title":   {ru: "Сбор коалиций", en: "Coalition archive"},
-	"coalitions.note":    {ru: "Обход заглядывает в партии из лобби и запоминает, кто с кем состоял в коалиции. Заходит наблюдателем, так что входом в партию это не считается. Коалиции собирают под конец, чтобы сложить очки и перешагнуть порог победы, а победу игра объявляет только при смене дня. Поэтому обход следит за счётом: пока до порога далеко, заглядывает раз в два игровых дня, а в эндшпиле — за 10 минут до каждой смены дня, пока партия не кончится.", en: "The scan looks into lobby games and remembers who was in a coalition with whom. It looks as an observer, so it never counts as entering a game. Coalitions are formed near the end, to add up points and cross the victory threshold, and the game declares victory only at day change. So the scan follows the score: while the threshold is far, it looks every two game days, and in the endgame 10 minutes before every day change, until the game ends."},
+	"coalitions.title": {ru: "Сбор коалиций", en: "Coalition archive"},
+	"coalitions.note":  {ru: "Обход заглядывает в партии из лобби и запоминает, кто с кем состоял в коалиции. Заходит наблюдателем, так что входом в партию это не считается. Коалиции собирают под конец, чтобы сложить очки и перешагнуть порог победы, а победу игра объявляет только при смене дня. Поэтому обход следит за счётом: пока до порога далеко, заглядывает раз в два игровых дня, а в эндшпиле — за 10 минут до каждой смены дня, пока партия не кончится.", en: "The scan looks into lobby games and remembers who was in a coalition with whom. It looks as an observer, so it never counts as entering a game. Coalitions are formed near the end, to add up points and cross the victory threshold, and the game declares victory only at day change. So the scan follows the score: while the threshold is far, it looks every two game days, and in the endgame 10 minutes before every day change, until the game ends."},
+	// Поиск игроков в лобби — рутовый.
+	"hunt.title":       {ru: "Поиск игроков в лобби", en: "Players in the lobby"},
+	"hunt.note":        {ru: "Раз в десять минут воркер смотрит составы открытых партий лобби. Как только кто-то из этого списка окажется в одной из них, в телеграм уходит сообщение: кто, в какой партии и за какую страну. О каждой партии — один раз. Добавить игрока можно и с его карточки.", en: "Every ten minutes the worker looks at the rosters of open lobby games. As soon as someone from this list shows up in one of them, a message goes to Telegram: who, which game and which country. Once per game. A player can also be added from their card."},
+	"hunt.siteid":      {ru: "Номер на сайте", en: "Site ID"},
+	"hunt.nick":        {ru: "Ник (необязательно)", en: "Nickname (optional)"},
+	"hunt.add":         {ru: "Искать", en: "Watch"},
+	"hunt.start":       {ru: "Искать в лобби", en: "Watch the lobby"},
+	"hunt.stop":        {ru: "Не искать", en: "Stop watching"},
+	"hunt.button.note": {ru: "Как только игрок окажется в открытой партии, придёт сообщение в телеграм.", en: "A Telegram message arrives as soon as the player joins an open game."},
+	"hunt.empty":       {ru: "Никого не ищем — воркер в лобби не ходит.", en: "Nobody is watched — the worker does not look at the lobby."},
+	"hunt.hits":        {ru: "Где нашли", en: "Found in"},
+	"hunt.when":        {ru: "Когда", en: "When"},
+
 	"coalitions.endgame": {ru: "В эндшпиле %d — за ними ходим к каждой смене дня.", en: "%d in the endgame — checked at every day change."},
 	"coalitions.on":      {ru: "Идёт.", en: "Running."},
 	"coalitions.off":     {ru: "Остановлен.", en: "Stopped."},
