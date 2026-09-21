@@ -68,7 +68,7 @@ const (
 	// В эндшпиле заходим дважды за игровой день: за endgameLead до смены —
 	// застать собранные к ней коалиции — и через afterDayChange после,
 	// чтобы узнать, не кончилась ли партия.
-	endgameLead    = 12 * time.Minute
+	endgameLead    = 10 * time.Minute
 	afterDayChange = 3 * time.Minute
 
 	// Эндшпиль — когда кто-то подошёл к порогу на endgameShare или когда
