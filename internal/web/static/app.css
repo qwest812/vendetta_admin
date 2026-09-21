@@ -429,6 +429,34 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 .build-list { margin: 0; padding-left: 22px; }
 .build-list li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
 .build-list .label { flex: 1; }
+/* Картинка здания или войска у записи очереди. Размер задан заранее,
+   чтобы строка не прыгала, пока картинка грузится с сайта игры. */
+.build-list .queue-img { width: 32px; height: 28px; object-fit: contain; flex: none; }
+
+/* Выбор здания или войска плитками с картинками. Радиокнопка спрятана:
+   выбранную плитку видно по рамке. Плитки занимают всю ширину формы. */
+.pick-tiles {
+    flex-basis: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.pick-tiles legend { padding: 0; margin-bottom: 6px; }
+.pick-tiles .tile {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    min-width: 0; padding: 6px 4px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 12px; text-align: center; cursor: pointer;
+}
+.pick-tiles .tile input { position: absolute; opacity: 0; pointer-events: none; }
+.pick-tiles .tile img { width: 48px; height: 40px; object-fit: contain; }
+.pick-tiles .tile:has(input:checked) { border-color: var(--accent); }
+.pick-tiles .tile:has(input:focus-visible) { outline: 2px solid var(--accent); }
 
 /* Карта партии: широкая и мелкая в деталях, поэтому во всю ширину карточки
    и с фоном под цвет моря — море отдельными фигурами не рисуется. */

@@ -14,6 +14,7 @@ import (
 
 	"Vendetta_admin/internal/domain"
 	"Vendetta_admin/internal/i18n"
+	"Vendetta_admin/internal/supremacy"
 )
 
 //go:embed templates/*.gohtml
@@ -28,8 +29,12 @@ var staticFS embed.FS
 // и внутри вложенных шаблонов, где «точка» уже не та.
 func funcsFor(l i18n.Lang) template.FuncMap {
 	return template.FuncMap{
-		"t":    l.T,
-		"lang": func() i18n.Lang { return l },
+		"t": l.T,
+		// Картинки зданий и войск лежат у самой игры; адрес собирается
+		// по имени, негодное имя даёт пустой адрес.
+		"upgradeImg": supremacy.UpgradeImageURL,
+		"unitImg":    supremacy.UnitImageURL,
+		"lang":       func() i18n.Lang { return l },
 		// otherLangs — что показать в переключателе: все языки, кроме
 		// текущего. Их пока два, но пусть шаблон не знает и об этом.
 		"otherLangs": func() []i18n.Lang { return otherLangs(l) },
