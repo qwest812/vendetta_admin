@@ -89,6 +89,15 @@
         </p>
     {{end}}
 
+    {{/* Кнопка только при непустой очереди: в пустую воркер не ходит. */}}
+    {{if .BuildQueue}}
+        <form class="row-form" method="post" action="/games/{{.GameID}}/build/now">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button type="submit">{{t "game.build.now"}}</button>
+            <span class="muted">{{t "game.build.now.note"}}</span>
+        </form>
+    {{end}}
+
     {{if .BuildProvinces}}
         <form class="row-form" method="post" action="/games/{{.GameID}}/build"
               hx-post="/games/{{.GameID}}/build" hx-target="#build-queue" hx-swap="outerHTML">

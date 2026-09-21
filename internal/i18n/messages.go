@@ -501,6 +501,8 @@ var messages = map[string]entry{
 	"game.build.note":     {ru: "Воркер ставит следующее здание, как только в провинции освобождается слот. Ходит он не по часам, а к событию: к концу стройки или к тому мигу, когда накопятся ресурсы. Пустая очередь — то же, что выключенная: в такую партию он не заходит.", en: "The worker starts the next building as soon as a slot in the province frees up. It does not run on a clock but on events: the end of a construction, or the moment the resources add up. An empty queue is the same as a disabled one: the worker does not enter such a game."},
 	"game.build.last":     {ru: "Последний заход:", en: "Last run:"},
 	"game.build.next":     {ru: "Следующий — %s.", en: "Next one at %s."},
+	"game.build.now":      {ru: "Зайти сейчас", en: "Run now"},
+	"game.build.now.note": {ru: "Воркер зайдёт в партию в течение минуты; итог появится здесь после обновления страницы.", en: "The worker will enter the game within a minute; reload the page to see the result."},
 	"game.build.province": {ru: "Провинция", en: "Province"},
 	"game.build.upgrade":  {ru: "Здание", en: "Building"},
 	"game.build.add":      {ru: "В очередь", en: "Add to queue"},

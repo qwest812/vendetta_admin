@@ -172,6 +172,16 @@ func (r *BuildQueue) Due(ctx context.Context, now time.Time) ([]domain.GameTask,
 	return out, rows.Err()
 }
 
+// Hurry назначает заход на сейчас: воркер заберёт партию на ближайшей
+// проверке. Итог прошлого захода не трогаем — он виден, пока не придёт новый.
+func (r *BuildQueue) Hurry(ctx context.Context, gameID string, now time.Time) error {
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO supremacy_game_tasks (game_id, build_next_at) VALUES ($1, $2)
+		 ON CONFLICT (game_id) DO UPDATE SET build_next_at = EXCLUDED.build_next_at`,
+		gameID, now)
+	return err
+}
+
 // MarkRun записывает, чем кончился заход и когда идти снова. Строки партии
 // в таблице задач может и не быть: очередь живёт отдельно от кнопки Мейв,
 // и заводить её руками для этого не нужно.

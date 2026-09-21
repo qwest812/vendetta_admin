@@ -204,6 +204,19 @@ func (s *Server) gameBuildMove(w http.ResponseWriter, r *http.Request) {
 	s.buildBack(w, r, gameID, "")
 }
 
+// gameBuildNow зовёт воркер в партию, не дожидаясь срока. Сам заход
+// страница не делает: воркер мог бы в ту же минуту пойти туда же, и два
+// захода подряд игра засчитала бы как два входа. Поэтому срок просто
+// переносится на сейчас, и воркер придёт на ближайшей проверке.
+func (s *Server) gameBuildNow(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	if err := s.builds.Hurry(r.Context(), gameID, time.Now()); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/games/"+gameID, http.StatusSeeOther)
+}
+
 // buildBack отдаёт обновлённую очередь. С HTMX это кусок страницы — карта
 // и форма добавления остаются на месте, а они собраны из состояния партии,
 // и заново его читать было бы дорого. Без HTMX возвращаемся на страницу
