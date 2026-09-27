@@ -193,6 +193,10 @@ type Upgrade struct {
 	// Состояние здания, не кратное ему, — недостроенный или повреждённый
 	// уровень: игра показывает на нём «Ремонт».
 	BuildCondition int
+	// Available — день партии, с которого здание можно строить («doa»):
+	// железная дорога, например, открывается на третий. Раньше игра
+	// стройку не принимает.
+	Available int
 }
 
 // Resource — запас ресурса и скорость его прихода. Игра отдаёт запас
@@ -732,6 +736,8 @@ type gameStateResponse struct {
 				Replaces flexInt `json:"ru"`
 				// ap — имя здания у игры («railway»); по нему названа картинка.
 				Image string `json:"ap"`
+				// doa — день, с которого здание можно строить.
+				Available flexInt `json:"doa"`
 			} `json:"upgrades"`
 		} `json:"11"`
 		// Ресурсы: запас на момент time0 и прирост в секунду. Лежат они
@@ -902,10 +908,14 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		}
 		up := Upgrade{ID: u.ID, Name: u.Name, Replaces: int(u.Replaces), Image: strings.ToLower(u.Image),
 			Build:          clock.duration(time.Duration(u.BuildTime) * time.Second),
-			BuildCondition: u.BuildCond}
-		// Так же, как клиент игры: без «bc» уровень стоит 2.
+			BuildCondition: u.BuildCond, Available: int(u.Available)}
+		// Так же, как клиент игры: без «bc» уровень стоит 2, без «doa»
+		// здание доступно с первого дня.
 		if up.BuildCondition <= 0 {
 			up.BuildCondition = 2
+		}
+		if up.Available <= 0 {
+			up.Available = 1
 		}
 		if len(u.Cost) > 0 {
 			up.Cost = make(map[int]float64, len(u.Cost))
@@ -1022,6 +1032,12 @@ func (f *flexInt) UnmarshalJSON(b []byte) error {
 	text := strings.Trim(string(b), `"`)
 	if n, err := strconv.Atoi(text); err == nil {
 		*f = flexInt(n)
+		return nil
+	}
+	// Бывает и дробной записью: день доступности здания приходит как
+	// «"doa":3.0».
+	if x, err := strconv.ParseFloat(text, 64); err == nil {
+		*f = flexInt(x)
 	}
 	return nil
 }

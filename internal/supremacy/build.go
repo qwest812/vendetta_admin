@@ -255,6 +255,18 @@ func PlanQueues(g *GameState, q domain.BuildQueues, now time.Time) BuildPlan {
 		return p, name, true
 	}
 
+	// До первого дня партии игра не строит и не производит ничего —
+	// клиент так и считает: партия началась, когда день больше нуля.
+	// Ждём смены дня, а не шлём впустую.
+	if g.Day <= 0 {
+		note("партия ещё не началась — стройка откроется в первый день")
+		if !g.NextDay.IsZero() {
+			wake(g.NextDay.Add(buildAfter))
+		}
+		plan.Next = clampVisit(plan.Next, now)
+		return plan
+	}
+
 	for _, id := range sortedIDs(q.Buildings) {
 		want := q.Buildings[id]
 		p, name, ok := province(id)
@@ -267,9 +279,19 @@ func PlanQueues(g *GameState, q domain.BuildQueues, now time.Time) BuildPlan {
 			wake(p.BuildsUntil().Add(buildAfter))
 			continue
 		}
-		upgrade, known := g.Upgrades[want[0]]
+		pick := nextAvailable(g, want, func(u Upgrade) {
+			note("%s: «%s» можно строить с %d-го дня, сейчас %d-й — пока пропускаем", name, u.Name, u.Available, g.Day)
+			// К смене дня: на ней здание откроется или станет на день ближе.
+			if !g.NextDay.IsZero() {
+				wake(g.NextDay.Add(buildAfter))
+			}
+		})
+		if pick == 0 {
+			continue
+		}
+		upgrade, known := g.Upgrades[pick]
 		if !known {
-			note("%s: игра не знает здание %d — уберите его из очереди", name, want[0])
+			note("%s: игра не знает здание %d — уберите его из очереди", name, pick)
 			continue
 		}
 		// Стоит целиком — второй раз его не поставить: следующий уровень
@@ -321,6 +343,28 @@ func PlanQueues(g *GameState, q domain.BuildQueues, now time.Time) BuildPlan {
 
 	plan.Next = clampVisit(plan.Next, now)
 	return plan
+}
+
+// nextAvailable — что ставить в провинции следующим: первое здание
+// очереди, которому уже пришёл срок. Здание, открывающееся позже
+// (железная дорога — на третий день), пропускается, и о каждом таком
+// сообщается через later: отправлять его нельзя — игра не построит, а
+// запись ушла бы из очереди как поставленная. Пропуск не трогает саму
+// очередь: в свой день здание встанет первым из открывшихся.
+//
+// Незнакомое игре здание не пропускается, а возвращается как есть: пусть
+// очередь встанет на нём и человек увидит почему. Ноль — ставить нечего,
+// всё ещё закрыто.
+func nextAvailable(g *GameState, want []int, later func(Upgrade)) int {
+	for _, id := range want {
+		u, known := g.Upgrades[id]
+		if known && u.Available > g.Day {
+			later(u)
+			continue
+		}
+		return id
+	}
+	return 0
 }
 
 // sortedIDs — провинции очереди по номеру: заход должен читаться

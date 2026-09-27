@@ -2,8 +2,11 @@ package supremacy
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
+
+	"Vendetta_admin/internal/domain"
 )
 
 // state собирает партию, в которой мы играем за первого, с одной
@@ -11,6 +14,7 @@ import (
 func buildState(provinces []Province, resources map[int]Resource) *GameState {
 	return &GameState{
 		Me:        1,
+		Day:       1,
 		Provinces: provinces,
 		Upgrades: map[int]Upgrade{
 			16: {ID: 16, Name: "Крепость", Build: 8 * time.Hour,
@@ -307,5 +311,109 @@ func TestGameClockNormalGame(t *testing.T) {
 	// Без наших часов не гадаем.
 	if c := newGameClock(start, 1790226968768, time.Time{}); c.scale != 1 {
 		t.Fatal("без часов ответа масштаб не 1")
+	}
+}
+
+// Здание, которому срок ещё не пришёл, не отправляется: игра его не
+// построит, а запись ушла бы из очереди как поставленная. Прийти надо
+// к смене дня — железная дорога откроется на третий.
+func TestPlanBuildsWaitsForDayOfAvailability(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	nextDay := now.Add(3 * time.Hour)
+	g := buildState([]Province{{ID: 7, Name: "Берлин", Owner: 1, Slots: 1}}, plenty(now))
+	g.Day = 2
+	g.NextDay = nextDay
+	g.Upgrades[33] = Upgrade{ID: 33, Name: "Железная дорога", Available: 3,
+		Cost: map[int]float64{20: 1000}}
+
+	plan := PlanBuilds(g, map[int][]int{7: {33}}, now)
+	if len(plan.Start) != 0 {
+		t.Fatalf("дорогу до третьего дня отправлять нельзя: %+v", plan.Start)
+	}
+	if want := nextDay.Add(buildAfter); !plan.Next.Equal(want) {
+		t.Errorf("следующий заход %v, ожидался к смене дня %v", plan.Next, want)
+	}
+	if len(plan.Notes) != 1 || !strings.Contains(plan.Notes[0], "с 3-го дня") {
+		t.Errorf("в итоге должно быть сказано, с какого дня: %q", plan.Notes)
+	}
+
+	// Наступил третий день — ставим.
+	g.Day = 3
+	plan = PlanBuilds(g, map[int][]int{7: {33}}, now)
+	if len(plan.Start) != 1 || plan.Start[0].UpgradeID != 33 {
+		t.Errorf("на третий день дорога ставится: %+v", plan)
+	}
+}
+
+// Закрытое до своего дня здание не держит провинцию: пока дорога ждёт
+// третьего дня, строится следующее по очереди. А в третий день дорога,
+// стоящая первой, встаёт раньше крепости.
+func TestPlanBuildsSkipsNotYetAvailable(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	nextDay := now.Add(3 * time.Hour)
+	g := buildState([]Province{{ID: 7, Name: "Берлин", Owner: 1, Slots: 1}}, plenty(now))
+	g.Day = 2
+	g.NextDay = nextDay
+	g.Upgrades[33] = Upgrade{ID: 33, Name: "Железная дорога", Available: 3,
+		Cost: map[int]float64{20: 1000}}
+	g.Upgrades[40] = Upgrade{ID: 40, Name: "Аэродром", Available: 5,
+		Cost: map[int]float64{20: 1000}}
+
+	plan := PlanBuilds(g, map[int][]int{7: {33, 40, 16, 19}}, now)
+	if len(plan.Start) != 1 || plan.Start[0].UpgradeID != 16 {
+		t.Fatalf("должна встать крепость, первое открытое: %+v", plan.Start)
+	}
+	if len(plan.Notes) != 2 {
+		t.Errorf("о дороге и аэродроме должно быть сказано: %q", plan.Notes)
+	}
+	if want := nextDay.Add(buildAfter); !plan.Next.Equal(want) {
+		t.Errorf("следующий заход %v, ожидался к смене дня %v", plan.Next, want)
+	}
+
+	g.Day = 3
+	plan = PlanBuilds(g, map[int][]int{7: {33, 40, 16, 19}}, now)
+	if len(plan.Start) != 1 || plan.Start[0].UpgradeID != 33 {
+		t.Errorf("в третий день первой встаёт дорога: %+v", plan.Start)
+	}
+}
+
+// До начала партии не шлём ничего — ни зданий, ни войск — и приходим
+// к первому дню.
+func TestPlanQueuesWaitsForGameStart(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	start := now.Add(5 * time.Hour)
+	g := buildState([]Province{{ID: 7, Name: "Берлин", Owner: 1, Slots: 1}}, plenty(now))
+	g.Day = 0
+	g.NextDay = start
+
+	plan := PlanQueues(g, domain.BuildQueues{Buildings: map[int][]int{7: {16}}}, now)
+	if len(plan.Start) != 0 {
+		t.Fatalf("до начала партии ставить нечего: %+v", plan.Start)
+	}
+	if want := start.Add(buildAfter); !plan.Next.Equal(want) {
+		t.Errorf("следующий заход %v, ожидался к началу партии %v", plan.Next, want)
+	}
+
+	// Игра не сказала, когда начало, — срок не выдумываем, воркер сам
+	// заглянет через несколько часов.
+	g.NextDay = time.Time{}
+	if plan := PlanQueues(g, domain.BuildQueues{Buildings: map[int][]int{7: {16}}}, now); !plan.Next.IsZero() {
+		t.Errorf("без времени начала срок должен быть пустым, вышло %v", plan.Next)
+	}
+}
+
+// Справочник зданий — как его шлёт игра: день доступности дробной
+// записью. Прочитай мы его как ноль, дорога считалась бы доступной
+// с первого дня, и ошибка вернулась бы молча.
+func TestUpgradeDayOfAvailabilityWire(t *testing.T) {
+	var up struct {
+		Available flexInt `json:"doa"`
+		Replaces  flexInt `json:"ru"`
+	}
+	if err := json.Unmarshal([]byte(`{"@c":"ut","id":18,"doa":3.0,"ru":"16","ap":"railway"}`), &up); err != nil {
+		t.Fatal(err)
+	}
+	if up.Available != 3 || up.Replaces != 16 {
+		t.Errorf("doa = %d, ru = %d; ожидались 3 и 16", up.Available, up.Replaces)
 	}
 }
