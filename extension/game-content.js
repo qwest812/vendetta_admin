@@ -1,9 +1,9 @@
 // Часть расширения на странице игры, но в своём, изолированном мире: клиент
 // игры её не видит. Своих кнопок у неё нет — все они в боковой панели
 // расширения. Здесь только мост: панель спрашивает, загрузилась ли партия,
-// просит состав, отдаёт цвета и велит сменить отношения с ботами, а этот
-// скрипт передаёт всё это game-main.js, который живёт в мире клиента игры
-// и один может до него дотянуться.
+// просит состав, стеки, силу для сравнения и здания, отдаёт цвета и велит
+// сменить отношения с ботами, а этот скрипт передаёт всё это game-main.js,
+// который живёт в мире клиента игры и один может до него дотянуться.
 //
 // Игра открывается во фрейме, а скрипт стоит во всех фреймах вкладки.
 // Отвечает панели только тот, в чьём фрейме партия загрузилась: иначе
@@ -105,6 +105,47 @@
                 return { error: "Партия ещё загружается — попробуйте через несколько секунд." };
             }
             return { total: answer.total, sent: answer.sent };
+        }
+        case "army": {
+            const answer = await ask("army", "army");
+            if (answer && answer.type === "failed") {
+                return { error: `Клиент игры не отдал стек — возможно, его обновили. (${answer.error})` };
+            }
+            if (!answer || answer.notReady) {
+                return { error: "Партия ещё загружается — попробуйте через несколько секунд." };
+            }
+            return { army: answer.army };
+        }
+        case "pick": {
+            const answer = await ask("pick", "picked", { side: msg.side });
+            if (answer && answer.type === "failed") {
+                return { error: `Клиент игры не отдал стек — возможно, его обновили. (${answer.error})` };
+            }
+            if (!answer || answer.notReady) {
+                return { error: "Партия ещё загружается — попробуйте через несколько секунд." };
+            }
+            return { picked: answer.picked };
+        }
+        case "compare": {
+            const answer = await ask("compare", "compared");
+            if (answer && answer.type === "failed") {
+                return { error: `Клиент игры не посчитал силу — возможно, его обновили. (${answer.error})` };
+            }
+            if (!answer || answer.notReady) {
+                return { error: "Партия ещё загружается — попробуйте через несколько секунд." };
+            }
+            const { type, channel, from, ...result } = answer;
+            return result;
+        }
+        case "buildings": {
+            const answer = await ask("buildings", "buildings");
+            if (answer && answer.type === "failed") {
+                return { error: `Клиент игры не отдал здания — возможно, его обновили. (${answer.error})` };
+            }
+            if (!answer || !answer.players) {
+                return { error: "Партия ещё загружается — попробуйте через несколько секунд." };
+            }
+            return { players: answer.players };
         }
         case "clear":
             await ask("clear", "cleared");

@@ -105,3 +105,22 @@ form .small { margin-top: 8px; }
 .map-legend .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
 .map-legend .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-legend .n { margin-left: auto; color: var(--muted); padding-left: 8px; }
+
+/* --- таблицы стека и зданий --- */
+
+.tbl { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px; }
+.tbl th, .tbl td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: right; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl th { color: var(--muted); font-weight: 400; }
+.tbl tfoot td { font-weight: 600; border-bottom: 0; }
+.tbl .up { color: #6fcf7f; }
+.tbl .down { color: var(--error); }
+#army-read, #buildings-read { margin-bottom: 8px; }
+#buildings-player { margin: 0 0 4px; }
+
+/* --- сравнение сил --- */
+
+.fight-side { margin: 0 0 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; }
+.fight-side b { display: block; }
+.fight-side .small { display: block; }
+#fight-verdict { margin-top: 4px; }

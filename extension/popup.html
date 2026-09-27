@@ -63,6 +63,54 @@
             <p class="muted small">Отношение выдаётся односторонне: согласия ботов не нужно, и тем же списком его возвращают обратно на мир.</p>
         </section>
 
+        <!-- Здоровье стека, выбранного в игре: сейчас и к следующему дню.
+             Правила восстановления — самого клиента игры. -->
+        <section id="army" class="map">
+            <h2>Здоровье стека</h2>
+            <button id="army-read" type="button" disabled>Показать выбранный стек</button>
+            <p id="army-status" class="muted"></p>
+            <table id="army-table" class="tbl" hidden>
+                <thead><tr><th>Войска</th><th>Сейчас</th><th>Завтра</th></tr></thead>
+                <tbody></tbody>
+                <tfoot></tfoot>
+            </table>
+        </section>
+
+        <!-- Сравнение сил двух стеков по формулам силы клиента игры.
+             Ход боя считает сервер, поэтому исход — только прикидка.
+             Пока скрыто: вернём, когда доведём калькулятор. -->
+        <section id="fight" class="map" hidden>
+            <h2>Сравнение сил</h2>
+            <p class="muted small">Выберите стек в игре и нажмите, за кого он: атака или защита.</p>
+            <div class="map-actions">
+                <button id="fight-attack" type="button" disabled>⚔ Атака</button>
+                <button id="fight-defense" type="button" disabled>🛡 Защита</button>
+            </div>
+            <p id="fight-status" class="muted"></p>
+            <div id="fight-sides"></div>
+            <div id="fight-result" hidden>
+                <p id="fight-verdict"></p>
+                <table id="fight-table" class="tbl">
+                    <thead><tr><th>Сила по целям</th><th>Атака</th><th>Защита</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <p class="muted small">Урон по смешанному стеку делится по его составу. Стеки теряют силу
+                    по ходу боя, а крепость и окопы здесь не учтены, поэтому число раундов — прикидка.</p>
+            </div>
+        </section>
+
+        <!-- Здания по игрокам: что клиент игры видит на карте. -->
+        <section id="buildings" class="map">
+            <h2>Здания</h2>
+            <button id="buildings-read" type="button" disabled>Посчитать здания</button>
+            <p id="buildings-status" class="muted"></p>
+            <select id="buildings-player" aria-label="Чьи здания показать" hidden></select>
+            <table id="buildings-table" class="tbl" hidden>
+                <thead><tr><th>Здание</th><th>Всего</th><th>Не готово</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
         <button id="logout" type="button" class="ghost">Выйти</button>
     </section>
 </main>

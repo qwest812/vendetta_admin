@@ -1,6 +1,7 @@
 // Всё, что расширение делает в открытой партии, из боковой панели. Панель
 // не закрывается, пока человек играет, поэтому все кнопки здесь: анализ
-// карты, режимы, возврат цветов игры, легенда и отношения с ботами.
+// карты, режимы, возврат цветов игры, легенда, отношения с ботами,
+// здоровье выбранного стека, сравнение сил двух стеков и здания игроков.
 //
 // Работает с той вкладкой, что открыта в окне сейчас. Скрипт расширения
 // на странице игры (game-content.js) отдаёт состав партии и красит карту;
@@ -49,6 +50,8 @@ const mapPanel = (() => {
     let timer = null;
     let relation = 3;      // что выдаём ботам
     let relating = false;  // идёт выдача
+    let buildingsList = null; // последний подсчёт зданий: игроки партии
+    let buildingsOf = null;   // чей список показан
     // Анализ на вкладку: у каждой открытой партии свои цвета.
     const analysed = new Map(); // номер вкладки → режимы от админки
 
@@ -128,6 +131,19 @@ const mapPanel = (() => {
         // изменилось: пока панель просто висит открытой, дёргать клиент
         // игры незачем.
         if (changed || ready !== wasReady) showBots();
+        $("army-read").disabled = !ready;
+        $("buildings-read").disabled = !ready;
+        $("fight-attack").disabled = !ready;
+        $("fight-defense").disabled = !ready;
+        // Стек и здания другой вкладки к этой не относятся.
+        if (changed || !ready) {
+            clearArmy();
+            clearBuildings();
+            clearFight();
+        }
+        // Выбранные для сравнения стеки помнит страница игры — вернулись
+        // на её вкладку, показываем их снова.
+        if (ready && (changed || !wasReady) && !$("fight").hidden) showFight();
 
         if (!ready) {
             renderLegend(null);
@@ -306,6 +322,267 @@ const mapPanel = (() => {
         setTimeout(showBots, 5000);
     }
 
+    // --- здоровье стека ---
+
+    const pct = (hp, max) => (max > 0 ? Math.round(hp / max * 100) : 0);
+
+    function clearArmy() {
+        $("army-status").textContent = "";
+        $("army-table").hidden = true;
+    }
+
+    function armyRow(cells, cls) {
+        const tr = document.createElement("tr");
+        cells.forEach((text, i) => {
+            const td = document.createElement("td");
+            td.textContent = text;
+            if (i === 2 && cls) td.className = cls;
+            tr.append(td);
+        });
+        return tr;
+    }
+
+    function trend(now, next) {
+        if (next - now >= 0.5) return "up";
+        if (now - next >= 0.5) return "down";
+        return "";
+    }
+
+    // Здоровье — в процентах от наибольшего: так его показывает и игра.
+    // Стек из разных войск складываем по очкам, а не средним процентов:
+    // танк весит больше пехотинца.
+    async function readArmy() {
+        const table = $("army-table");
+        const st = $("army-status");
+        const res = await send({ type: "army" });
+        if (!res || res.error) {
+            table.hidden = true;
+            st.textContent = res ? res.error : "Вкладка с игрой не ответила — перезагрузите её.";
+            st.className = "error";
+            return;
+        }
+        st.className = "muted";
+        if (!res.army || res.army.units.length === 0) {
+            table.hidden = true;
+            st.textContent = "В игре не выбран стек. Выберите его на карте и нажмите снова.";
+            return;
+        }
+        const a = res.army;
+        st.textContent = [a.name, a.where, a.own ? "" : "чужой стек"].filter(Boolean).join(" · ");
+
+        const body = table.tBodies[0];
+        body.textContent = "";
+        let hp = 0, next = 0, max = 0;
+        for (const u of a.units) {
+            const now = pct(u.hp, u.max), then = pct(u.next, u.max);
+            body.append(armyRow([`${u.name} ×${u.size}`, `${now}%`, `${then}%`], trend(u.hp / u.max * 100, u.next / u.max * 100)));
+            hp += u.hp; next += u.next; max += u.max;
+        }
+        const foot = table.tFoot;
+        foot.textContent = "";
+        if (a.units.length > 1) {
+            foot.append(armyRow(["Весь стек", `${pct(hp, max)}%`, `${pct(next, max)}%`], trend(hp / max * 100, next / max * 100)));
+        }
+        table.hidden = false;
+    }
+
+    // --- сравнение сил ---
+
+    const num = (x) => (x >= 100 ? Math.round(x) : Math.round(x * 10) / 10);
+
+    function clearFight() {
+        $("fight-status").textContent = "";
+        $("fight-sides").textContent = "";
+        $("fight-result").hidden = true;
+    }
+
+    function fightError(text) {
+        const st = $("fight-status");
+        st.textContent = text;
+        st.className = "error";
+    }
+
+    function sideBox(title, s) {
+        const box = document.createElement("div");
+        box.className = "fight-side";
+        const head = document.createElement("b");
+        head.textContent = s
+            ? `${title}: ${[s.name, s.nation].filter(Boolean).join(", ")} — ${pct(s.hp, s.max)}% здоровья`
+            : `${title}: не выбрана`;
+        box.append(head);
+        if (s) {
+            const units = document.createElement("span");
+            units.className = "muted small";
+            units.textContent = s.units.join(", ");
+            box.append(units);
+        }
+        return box;
+    }
+
+    // rounds — за сколько раундов урон damage снимет hp, если бы обе
+    // стороны не слабели. Не пробивает — прочерк.
+    function rounds(hp, damage) {
+        if (!(damage > 0)) return null;
+        return Math.max(1, Math.ceil(hp / damage));
+    }
+
+    function verdict(r) {
+        const kill = rounds(r.defense.hp, r.toDefense); // атаке нужно
+        const die = rounds(r.attack.hp, r.toAttack);    // защите нужно
+        const lines = [
+            `Урон за раунд: атака → защита ${num(r.toDefense)}, защита → атака ${num(r.toAttack)}.`,
+            `Раундов, чтобы стереть: защиту ${kill ?? "—"}, атаку ${die ?? "—"}.`,
+        ];
+        if (kill == null && die == null) lines.push("Стеки не могут навредить друг другу.");
+        else if (die == null || (kill != null && kill < die)) lines.push("Перевес у атаки.");
+        else if (kill == null || die < kill) lines.push("Перевес у защиты.");
+        else lines.push("Силы примерно равны.");
+        if (r.defense.fortress > 1) {
+            lines.push(`У защиты крепость +${Math.round((r.defense.fortress - 1) * 100)}% — в расчёт не входит, на деле защите легче.`);
+        }
+        return lines;
+    }
+
+    function renderFight(r) {
+        $("fight-status").textContent = "";
+        const sides = $("fight-sides");
+        sides.textContent = "";
+        sides.append(sideBox("Атака", r.attack), sideBox("Защита", r.defense));
+        if (!r.types) {
+            $("fight-result").hidden = true;
+            return;
+        }
+        const p = $("fight-verdict");
+        p.textContent = "";
+        for (const line of verdict(r)) {
+            const div = document.createElement("div");
+            div.textContent = line;
+            p.append(div);
+        }
+        const body = $("fight-table").tBodies[0];
+        body.textContent = "";
+        for (const t of r.types) {
+            const tr = document.createElement("tr");
+            for (const text of [t.name, String(num(t.attack)), String(num(t.defense))]) {
+                const td = document.createElement("td");
+                td.textContent = text;
+                tr.append(td);
+            }
+            tr.title = `Доля в составе: атака ${Math.round(t.attackShare * 100)}%, защита ${Math.round(t.defenseShare * 100)}%`;
+            body.append(tr);
+        }
+        $("fight-result").hidden = false;
+    }
+
+    async function showFight() {
+        const res = await send({ type: "compare" });
+        if (!res || res.error) return; // молча: это лишь повтор показа
+        if (!res.attack && !res.defense) {
+            clearFight();
+            return;
+        }
+        renderFight(res);
+    }
+
+    async function pickSide(side) {
+        const res = await send({ type: "pick", side });
+        if (!res || res.error) {
+            fightError(res ? res.error : "Вкладка с игрой не ответила — перезагрузите её.");
+            return;
+        }
+        if (!res.picked) {
+            fightError("В игре не выбран стек. Выберите его на карте и нажмите снова.");
+            return;
+        }
+        const cmp = await send({ type: "compare" });
+        if (!cmp || cmp.error) {
+            fightError(cmp ? cmp.error : "Вкладка с игрой не ответила — перезагрузите её.");
+            return;
+        }
+        renderFight(cmp);
+    }
+
+    // --- здания ---
+
+    function clearBuildings() {
+        buildingsList = null;
+        $("buildings-status").textContent = "";
+        $("buildings-player").hidden = true;
+        $("buildings-table").hidden = true;
+    }
+
+    function playerLabel(p) {
+        const who = p.me ? "вы" : p.ai ? "бот" : p.player;
+        return `${p.name}${who && who !== p.name ? ` (${who})` : ""} — ${p.provinces} пров.`;
+    }
+
+    // Считаем по нажатию, а не следим: пока панель открыта, клиент игры
+    // зря не дёргаем. Выбранный игрок переживает пересчёт.
+    async function readBuildings() {
+        const st = $("buildings-status");
+        const res = await send({ type: "buildings" });
+        if (!res || res.error) {
+            clearBuildings();
+            st.textContent = res ? res.error : "Вкладка с игрой не ответила — перезагрузите её.";
+            st.className = "error";
+            return;
+        }
+        st.className = "muted";
+        buildingsList = res.players;
+        if (buildingsList.length === 0) {
+            st.textContent = "На карте нет ни одной провинции с хозяином.";
+            return;
+        }
+        st.textContent = "Посчитано сейчас. Нажмите снова, чтобы обновить.";
+        if (!buildingsList.some((p) => p.id === buildingsOf)) buildingsOf = buildingsList[0].id;
+
+        const select = $("buildings-player");
+        select.textContent = "";
+        for (const p of buildingsList) {
+            const option = document.createElement("option");
+            option.value = String(p.id);
+            option.textContent = playerLabel(p);
+            option.selected = p.id === buildingsOf;
+            select.append(option);
+        }
+        select.hidden = false;
+        renderBuildings();
+    }
+
+    // Недостроенные и разбитые здания — в «не готово». У чужих провинций
+    // состояние бывает неизвестно: такие идут туда же отдельно, «?N».
+    function renderBuildings() {
+        const table = $("buildings-table");
+        const p = buildingsList && buildingsList.find((x) => x.id === buildingsOf);
+        if (!p) {
+            table.hidden = true;
+            return;
+        }
+        const body = table.tBodies[0];
+        body.textContent = "";
+        if (p.buildings.length === 0) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.colSpan = 3;
+            td.className = "muted";
+            td.textContent = "Зданий нет.";
+            tr.append(td);
+            body.append(tr);
+        }
+        for (const b of p.buildings) {
+            const tr = document.createElement("tr");
+            const unfinished = String(b.unfinished || "") + (b.unknown ? ` ?${b.unknown}` : "");
+            for (const text of [b.name, String(b.count), unfinished.trim()]) {
+                const td = document.createElement("td");
+                td.textContent = text;
+                tr.append(td);
+            }
+            if (b.unknown) tr.title = `Не видно, в каком состоянии: ${b.unknown}`;
+            body.append(tr);
+        }
+        table.hidden = false;
+    }
+
     // Перезагруженная вкладка — это новая партия или та же с родными
     // цветами: прежний анализ к ней уже не относится.
     function onUpdated(id, info) {
@@ -316,6 +593,14 @@ const mapPanel = (() => {
     $("map-analyse").addEventListener("click", analyse);
     $("map-reset").addEventListener("click", reset);
     $("diplomacy-apply").addEventListener("click", applyRelation);
+    $("army-read").addEventListener("click", readArmy);
+    $("fight-attack").addEventListener("click", () => pickSide("attack"));
+    $("fight-defense").addEventListener("click", () => pickSide("defense"));
+    $("buildings-read").addEventListener("click", readBuildings);
+    $("buildings-player").addEventListener("change", (event) => {
+        buildingsOf = Number(event.currentTarget.value);
+        renderBuildings();
+    });
     $("diplomacy-relation").addEventListener("change", async (event) => {
         relation = Number(event.currentTarget.value);
         await chrome.storage.local.set({ botRelation: relation });

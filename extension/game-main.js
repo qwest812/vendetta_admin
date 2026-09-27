@@ -247,6 +247,235 @@
         return { total: list.length, sent: ids.length };
     }
 
+    // --- здоровье выбранного стека ---
+    //
+    // Здоровье юнита в клиенте — это его мораль (0…1), умноженная на
+    // наибольшее здоровье: unit.getHitPoints = morale · getMaxHitPoints.
+    // Сколько мораль изменится к следующему дню, клиент считает сам —
+    // unit.getDailyMoraleGeneration(армия, провинция): на своей земле пехота
+    // тянется к морали провинции, техника и флот чинятся, на чужой и в море
+    // пехота сползает к 50%. Правила берём у клиента, а не пишем свои:
+    // поменяет их игра — прогноз поменяется вместе с ней.
+
+    function selectedArmy() {
+        const sel = window.hup.armySelection;
+        if (!sel || typeof sel.getUnifiedSelectedArmy !== "function") {
+            throw new Error("клиент игры не отдал выбранный стек");
+        }
+        return sel.getUnifiedSelectedArmy() || null;
+    }
+
+    // where — где стоит стек, словами: от этого зависит, лечится ли он.
+    // Только для подписи; сам прогноз считает клиент.
+    function where(army, loc) {
+        if (flag(army, "isOnSea")) return "в море";
+        if (!loc) return "";
+        const name = String(flag(loc, "getName") || "");
+        const owner = Number(flag(loc, "getOwnerID"));
+        if (!(owner > 0)) return name ? `${name}, ничья земля` : "ничья земля";
+        if (owner === Number(flag(army, "getOwnerID"))) {
+            const morale = Number(flag(loc, "getMorale"));
+            const tail = Number.isFinite(morale) ? `, мораль провинции ${Math.round(morale)}%` : "";
+            return `${name}, своя провинция${tail}`;
+        }
+        return `${name}, чужая земля`;
+    }
+
+    // army — выбранный в игре стек: здоровье сейчас и к следующему дню,
+    // по видам войск. null — ничего не выбрано.
+    function army() {
+        const a = selectedArmy();
+        if (!a) return null;
+        const loc = typeof a.getLocation === "function" ? a.getLocation() : null;
+        const terrain = a.getTerrain();
+        const terrainType = a.getTerrainType();
+        const units = typeof a.getVisibleUnits === "function" ? a.getVisibleUnits() : a.getUnits();
+        const byType = new Map();
+        for (const u of units || []) {
+            if (!u) continue;
+            const type = u.getUnitType();
+            const name = String((type && type.getName()) || "?");
+            const max = Number(u.getMaxHitPoints(terrain, terrainType, a)) || 0;
+            const morale = Number(u.getMorale()) || 0;
+            const delta = Number(u.getDailyMoraleGeneration(a, loc)) || 0;
+            const next = Math.max(0, Math.min(1, morale + delta));
+            const row = byType.get(name) || { name, size: 0, hp: 0, next: 0, max: 0 };
+            row.size += Number(u.getSize()) || 0;
+            row.hp += morale * max;
+            row.next += next * max;
+            row.max += max;
+            byType.set(name, row);
+        }
+        return {
+            name: String(flag(a, "getFullNameWithoutNation") || ""),
+            own: Number(flag(a, "getOwnerID")) === Number(window.hup.config.userData.playerID),
+            where: where(a, loc),
+            units: [...byType.values()],
+        };
+    }
+
+    // --- сравнение сил двух стеков ---
+    //
+    // Бой считает сервер игры, и хода боя в клиенте нет. Зато есть сила:
+    // army.getFightStrength(тип цели, 0, защита?, с моралью, со штрафом
+    // перегруза) — этим же вызовом игра заполняет окно подробной силы армии.
+    // Внутри уже учтены урон вида войск по типу цели, мораль, убывающая
+    // отдача от размера стека, перегруз, коренная провинция и модификаторы.
+    //
+    // Типов целей несколько (hup.config.damageTypes: лёгкие, бронированные,
+    // авиация, флот, здания…). Урон по смешанному стеку делим по его
+    // составу: army.getDamageAreaPercentage(тип) — доля стека, приходящаяся
+    // на этот тип, как в столбце «распределение» того же окна игры. Это
+    // уже наше допущение о том, как сервер делит урон.
+    //
+    // Крепость защиты (getFortressValue) показываем, но в урон не вписываем:
+    // как сервер её применяет, по клиенту не видно.
+
+    // Стек берётся снимком в момент выбора: пока человек выбирает второй,
+    // первый может уйти из виду, а считать надо то, что он выбрал. Снимок
+    // клиентский (cloneForSimulation) — так игра сама прикидывает изменения
+    // армии. Выбрано несколько стеков — берётся их общий стек, как в игре.
+    const picked = { attack: null, defense: null };
+
+    // Названия типов целей — у игры на языке аккаунта; не вышло — свои.
+    const DAMAGE_NAMES = {
+        0: "Лёгкие", 1: "Авиация", 2: "Флот", 3: "Здания", 4: "Бронированные",
+        5: "Подлодки", 6: "Взрывной", 7: "Лёгкая техника", 9: "Осадный",
+    };
+
+    function damageName(type) {
+        try {
+            const i18n = window.hup.ModdableI18n;
+            const text = i18n && i18n.MsgId && i18n.getModdedText(i18n.MsgId.DAMAGE_TYPE_NAME, type);
+            if (text) return String(text);
+        } catch {
+            // ниже — своё название
+        }
+        return DAMAGE_NAMES[type] || `Тип ${type}`;
+    }
+
+    function stackInfo(a) {
+        const owner = Number(flag(a, "getOwnerID"));
+        const player = players().find((p) => Number(p.getPlayerID()) === owner);
+        const units = (a.getUnits() || []).filter((u) => u && Number(u.getSize()) > 0);
+        return {
+            name: String(flag(a, "getFullNameWithoutNation") || ""),
+            nation: player ? String(flag(player, "getNationName") || "") : "",
+            units: units.map((u) => `${u.getUnitType().getName()} ×${u.getSize()}`),
+            hp: Number(a.getHitpoints()) || 0,
+            max: Number(a.getMaxHitpoints()) || 0,
+            fortress: Number(flag(a, "getFortressValue")) || 1,
+        };
+    }
+
+    function pick(side) {
+        if (side !== "attack" && side !== "defense") throw new Error("неизвестная сторона боя");
+        const a = selectedArmy();
+        if (!a) return { picked: null };
+        picked[side] = typeof a.cloneForSimulation === "function" ? a.cloneForSimulation() : a;
+        return { picked: stackInfo(picked[side]) };
+    }
+
+    // damageTo — сколько урона за раунд стек from наносит стеку to: сила
+    // from по каждому типу целей, взвешенная долей этого типа в to.
+    function damageTo(from, to, defending) {
+        let total = 0;
+        const rows = [];
+        for (const type of window.hup.config.damageTypes || []) {
+            const strength = Number(from.getFightStrength(type, 0, defending, true, true)) || 0;
+            const share = Number(to.getDamageAreaPercentage(type)) || 0;
+            total += strength * share;
+            rows.push({ type, strength, share });
+        }
+        return { total, rows };
+    }
+
+    function compare() {
+        const { attack, defense } = picked;
+        if (!attack || !defense) {
+            return { attack: attack && stackInfo(attack), defense: defense && stackInfo(defense) };
+        }
+        const toDefense = damageTo(attack, defense, false);
+        const toAttack = damageTo(defense, attack, true);
+        const types = toDefense.rows.map((row, i) => ({
+            name: damageName(row.type),
+            attack: row.strength,
+            defense: toAttack.rows[i].strength,
+            attackShare: toAttack.rows[i].share,
+            defenseShare: row.share,
+        })).filter((t) => t.attack > 0 || t.defense > 0 || t.attackShare > 0 || t.defenseShare > 0);
+        return {
+            attack: stackInfo(attack),
+            defense: stackInfo(defense),
+            toDefense: toDefense.total,
+            toAttack: toAttack.total,
+            types,
+        };
+    }
+
+    // --- здания по игрокам ---
+    //
+    // Здания провинции — province.getUpgrades(): записи с типом из
+    // справочника мода и состоянием (condition). isIntact — здание
+    // достроено и цело; нет — недостроено или разбито. У чужих провинций
+    // состояние бывает неизвестно (condition < 0): здание видно, а в каком
+    // оно виде — нет, такие считаем отдельно. Невидимые служебные записи
+    // (hasInvisibleFeature) пропускаем — в игре их тоже не показывают.
+    //
+    // Уровни у зданий — отдельные записи справочника с одним названием,
+    // поэтому имя берём с уровнем (getNameWithTier), иначе «Крепость»
+    // первого и третьего уровня слились бы в одну строку.
+
+    function buildingName(up) {
+        const withTier = flag(up, "getNameWithTier");
+        return String(withTier || flag(up, "getName") || "?");
+    }
+
+    function buildings() {
+        const map = window.hup.gameState.getMapState();
+        const provinces = map && typeof map.getProvinceArray === "function" ? map.getProvinceArray() : [];
+        const byOwner = new Map();
+        for (const p of provinces || []) {
+            const owner = p && typeof p.getOwnerID === "function" ? Number(p.getOwnerID()) : 0;
+            if (!(owner > 0)) continue;
+            let row = byOwner.get(owner);
+            if (!row) {
+                row = { id: owner, provinces: 0, buildings: new Map() };
+                byOwner.set(owner, row);
+            }
+            row.provinces++;
+            const ups = typeof p.getUpgrades === "function" ? p.getUpgrades() : null;
+            for (const up of Object.values(ups || {})) {
+                if (!up || flag(up, "hasInvisibleFeature")) continue;
+                const name = buildingName(up);
+                const b = row.buildings.get(name) || { name, count: 0, unfinished: 0, unknown: 0 };
+                b.count++;
+                if (flag(up, "isConditionUnknown")) b.unknown++;
+                else if (flag(up, "isIntact") === false) b.unfinished++;
+                row.buildings.set(name, b);
+            }
+        }
+
+        const me = Number(window.hup.config.userData.playerID);
+        const list = [];
+        for (const p of players()) {
+            const id = Number(p.getPlayerID());
+            const row = byOwner.get(id);
+            if (!row) continue;
+            list.push({
+                id,
+                me: id === me,
+                name: String(flag(p, "getNationName") || flag(p, "getName") || id),
+                player: String(flag(p, "getName") || ""),
+                ai: Boolean(flag(p, "getComputerPlayer")),
+                provinces: row.provinces,
+                buildings: [...row.buildings.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+            });
+        }
+        list.sort((a, b) => (b.me - a.me) || (b.provinces - a.provinces));
+        return list;
+    }
+
     // --- чистый цвет на карте ---
     //
     // Карта рисуется в два прохода. Сначала провинции ложатся в отдельную
@@ -399,6 +628,20 @@
                 reply(gameReady()
                     ? { type: "related", ok: true, ...relate(Number(msg.relation)) }
                     : { type: "related", notReady: true });
+                break;
+            case "army":
+                reply(gameReady() ? { type: "army", army: army() } : { type: "army", notReady: true });
+                break;
+            case "pick":
+                reply(gameReady() ? { type: "picked", ...pick(msg.side) } : { type: "picked", notReady: true });
+                break;
+            case "compare":
+                reply(gameReady() ? { type: "compared", ...compare() } : { type: "compared", notReady: true });
+                break;
+            case "buildings":
+                reply(gameReady()
+                    ? { type: "buildings", players: buildings() }
+                    : { type: "buildings", notReady: true });
                 break;
             case "clear":
                 colors = null;
