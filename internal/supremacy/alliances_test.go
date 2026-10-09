@@ -70,7 +70,9 @@ func (f *fakeAllianceStore) MarkAllianceGone(_ context.Context, id string, at ti
 }
 
 type fakeAllianceSource struct {
-	found   map[string]*Alliance
+	found map[string]*Alliance
+	// names — ники, которые сайт называет вместе с кланом.
+	names   map[string]string
 	err     error
 	asked   []string
 	roster  map[string][]AllianceMember
@@ -80,9 +82,13 @@ type fakeAllianceSource struct {
 	rosterErr error
 }
 
-func (f *fakeAllianceSource) UserAlliances(_ context.Context, ids []string) (map[string]*Alliance, error) {
+func (f *fakeAllianceSource) UserAlliances(_ context.Context, ids []string) (map[string]UserDetails, error) {
 	f.asked = append(f.asked, ids...)
-	return f.found, f.err
+	out := make(map[string]UserDetails, len(f.found))
+	for id, a := range f.found {
+		out[id] = UserDetails{Alliance: a, Username: f.names[id]}
+	}
+	return out, f.err
 }
 
 func (f *fakeAllianceSource) AllianceRoster(_ context.Context, id string) (*Alliance, []AllianceMember, error) {
@@ -98,7 +104,7 @@ func (f *fakeAllianceSource) AllianceRoster(_ context.Context, id string) (*Alli
 }
 
 func testWatcher(c allianceSource, store AllianceStore) *AllianceWatcher {
-	w := NewAllianceWatcher(c, store, time.Minute,
+	w := NewAllianceWatcher(c, store, nil, time.Minute,
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return w
 }
@@ -294,5 +300,40 @@ func TestAllianceWatcherTemporaryFailureIsNotGone(t *testing.T) {
 	}
 	if len(store.gone) != 0 {
 		t.Errorf("временный отказ принят за распад: %v", store.gone)
+	}
+}
+
+type fakeNicks struct{ got map[string]string }
+
+func (f *fakeNicks) RenameFromGame(_ context.Context, nicks map[string]string) (int, error) {
+	if f.got == nil {
+		f.got = map[string]string{}
+	}
+	for id, n := range nicks {
+		f.got[id] = n
+	}
+	return len(nicks), nil
+}
+
+// Ники приходят теми же ответами, что и кланы: и с состава клана, и с
+// личного вопроса про одиночку. Оба пути должны донести их до карточек.
+func TestAllianceWatcherPassesNicknames(t *testing.T) {
+	src := &fakeAllianceSource{
+		found: map[string]*Alliance{"1": nil},
+		names: map[string]string{"1": "solo"},
+		roster: map[string][]AllianceMember{
+			"843930": {{SiteUserID: "2", Name: "member"}},
+		},
+	}
+	store := &fakeAllianceStore{queue: []string{"1"}, clanQueue: []string{"843930"}}
+	nicks := &fakeNicks{}
+	w := NewAllianceWatcher(src, store, nicks, time.Minute,
+		slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	if err := w.tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if nicks.got["1"] != "solo" || nicks.got["2"] != "member" {
+		t.Fatalf("ники = %v", nicks.got)
 	}
 }

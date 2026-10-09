@@ -817,19 +817,42 @@ type Alliance struct {
 // сервер. Ответ nil без ошибки означает, что игрок ни в каком альянсе
 // не состоит.
 func (c *Client) UserAlliance(ctx context.Context, siteUserID string) (*Alliance, error) {
+	d, err := c.UserDetails(ctx, siteUserID)
+	if err != nil {
+		return nil, err
+	}
+	return d.Alliance, nil
+}
+
+// UserDetails — то, что сайт рассказывает про игрока одним запросом:
+// альянс и нынешний ник. Ник пуст, если сайт его не назвал.
+type UserDetails struct {
+	Alliance *Alliance
+	Username string
+}
+
+// UserDetails спрашивает у сайта альянс и ник игрока разом: флаги
+// у getUserDetailsFirefly складываются, и второй вопрос лишнего запроса
+// не стоит. Ник нужен карточкам: его меняют, а карточка заводится один раз.
+func (c *Client) UserDetails(ctx context.Context, siteUserID string) (UserDetails, error) {
 	raw, err := c.call(ctx, "getUserDetailsFirefly", []param{
 		{"userID", siteUserID},
 		{"alliance", "1"},
+		{"username", "1"},
 	})
 	if err != nil {
-		return nil, err
+		return UserDetails{}, err
 	}
 
 	alliance, err := parseAlliance(raw)
 	if err != nil {
-		return nil, fmt.Errorf("альянс игрока %s: %w", siteUserID, err)
+		return UserDetails{}, fmt.Errorf("альянс игрока %s: %w", siteUserID, err)
 	}
-	return alliance, nil
+	name, err := parseUsername(raw)
+	if err != nil {
+		return UserDetails{}, fmt.Errorf("ник игрока %s: %w", siteUserID, err)
+	}
+	return UserDetails{Alliance: alliance, Username: name}, nil
 }
 
 // Username спрашивает у сайта ник игрока по его номеру. Нужен регистрации:
@@ -1018,12 +1041,12 @@ func parseRanking(raw json.RawMessage) ([]RankedAlliance, error) {
 // параллельных запросов слать не хочется — это всё-таки чужой сайт.
 const allianceWorkers = 8
 
-// UserAlliances спрашивает альянсы сразу у пачки игроков. Ключ в ответе
-// есть у каждого, кого удалось спросить; nil в значении означает «спросили,
-// альянса нет». Ошибка возвращается первая из случившихся, но ответ при
+// UserAlliances спрашивает альянсы и ники сразу у пачки игроков. Ключ
+// в ответе есть у каждого, кого удалось спросить; nil в Alliance означает
+// «спросили, альянса нет». Ошибка возвращается первая из случившихся, но ответ при
 // этом не пустой: одного упавшего запроса мало, чтобы отказать всей карте.
-func (c *Client) UserAlliances(ctx context.Context, siteUserIDs []string) (map[string]*Alliance, error) {
-	out := make(map[string]*Alliance, len(siteUserIDs))
+func (c *Client) UserAlliances(ctx context.Context, siteUserIDs []string) (map[string]UserDetails, error) {
+	out := make(map[string]UserDetails, len(siteUserIDs))
 	if len(siteUserIDs) == 0 {
 		return out, nil
 	}
@@ -1041,14 +1064,14 @@ func (c *Client) UserAlliances(ctx context.Context, siteUserIDs []string) (map[s
 		go func() {
 			defer wg.Done()
 			for id := range ids {
-				alliance, err := c.UserAlliance(ctx, id)
+				details, err := c.UserDetails(ctx, id)
 				mu.Lock()
 				if err != nil {
 					if firstEr == nil {
 						firstEr = err
 					}
 				} else {
-					out[id] = alliance
+					out[id] = details
 				}
 				mu.Unlock()
 			}

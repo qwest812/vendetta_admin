@@ -141,6 +141,13 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		marked = mine
 	}
 
+	// Бывшие ники: ник карточки следует за игрой, а прежние копятся тут.
+	formerNicks, err := s.players.FormerNicknames(r.Context(), player.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
 	// Свой комментарий нужен форме: она подставляет прежний текст и
 	// предупреждает, что новый его заменит.
 	var myComment *domain.Comment
@@ -237,7 +244,7 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		"Hunting": hunting, "CanHunt": me.IsRoot() && s.hunts != nil && player.GameID != "",
 		"Player": player, "Comments": comments, "MyComment": myComment,
 		"MyNotes": notes, "NoteMax": domain.MaxCommentLen,
-		"Error": errMsg, "Seen": seen, "Bans": bans, "Traits": traits,
+		"Error": errMsg, "Seen": seen, "Bans": bans, "FormerNicks": formerNicks, "Traits": traits,
 		"Marks": marks, "Stats": stats, "Marked": marked, "Body": body,
 		"Heroes": heroRows, "HeroesMarked": heroesMarked,
 		"CommentMax": domain.CommentMaxLen,

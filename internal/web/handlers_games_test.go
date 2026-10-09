@@ -1035,11 +1035,13 @@ func TestSiteWait(t *testing.T) {
 func TestSeenPlayersTakesNicknameFromRoster(t *testing.T) {
 	now := time.Unix(1789229949, 0)
 	state := &supremacy.GameState{
-		GameID: "10903303",
+		GameID:    "10903303",
+		Anonymous: true,
 		Players: map[int]supremacy.Player{
 			1: {ID: 1, SiteUserID: "12245835", Name: "анонимный"},
 			2: {ID: 2, SiteUserID: "16935048", Name: "анонимный", Banned: true},
-			// Сайт про этого молчит — остаётся то, что сказала игра.
+			// Сайт про этого молчит, а имя из анонимной партии подменное:
+			// ник остаётся пустым, и запись известный не затрёт.
 			3: {ID: 3, SiteUserID: "99999999", Name: "анонимный"},
 			// Нация без игрока: номера аккаунта нет, запоминать нечего.
 			4: {ID: 4, SiteUserID: ""},
@@ -1054,7 +1056,7 @@ func TestSeenPlayersTakesNicknameFromRoster(t *testing.T) {
 	}
 
 	got := map[string]domain.GamePlayer{}
-	for _, p := range seenPlayers(state, roster, now) {
+	for _, p := range seenPlayers(state, roster, false, now) {
 		got[p.SiteUserID] = p
 	}
 	if len(got) != 3 {
@@ -1066,9 +1068,9 @@ func TestSeenPlayersTakesNicknameFromRoster(t *testing.T) {
 	if p := got["16935048"]; p.Nickname != "shadowced1" || !p.Banned {
 		t.Errorf("ник = %q, бан = %v", p.Nickname, p.Banned)
 	}
-	// Про кого сайт промолчал — остаётся имя из партии, даже такое.
-	if n := got["99999999"].Nickname; n != "анонимный" {
-		t.Errorf("запасной ник = %q, ожидался из состояния", n)
+	// Про кого сайт промолчал — ника нет: подменное имя не годится.
+	if n := got["99999999"].Nickname; n != "" {
+		t.Errorf("ник = %q, ожидался пустой", n)
 	}
 	if p := got["12245835"]; p.SeenGameID != "10903303" || !p.SeenAt.Equal(now) {
 		t.Errorf("партия = %q, время = %v", p.SeenGameID, p.SeenAt)
@@ -1082,13 +1084,19 @@ func TestSeenPlayersKeepsUsualNames(t *testing.T) {
 		GameID:  "10900334",
 		Players: map[int]supremacy.Player{1: {ID: 1, SiteUserID: "42", Name: "Dau7er"}},
 	}
-	list := seenPlayers(state, []supremacy.GameLogin{{Login: "Dau7er", SiteUserID: "42"}}, time.Now())
+	list := seenPlayers(state, []supremacy.GameLogin{{Login: "Dau7er", SiteUserID: "42"}}, false, time.Now())
 	if len(list) != 1 || list[0].Nickname != "Dau7er" {
 		t.Errorf("получили %v", list)
 	}
 	// И без состава с сайта — тоже: он не единственный источник.
-	list = seenPlayers(state, nil, time.Now())
+	list = seenPlayers(state, nil, false, time.Now())
 	if len(list) != 1 || list[0].Nickname != "Dau7er" {
 		t.Errorf("без состава получили %v", list)
+	}
+	// Партия анонимная по сайту, хотя состояние об этом молчит: имя
+	// из состояния уже не годится.
+	list = seenPlayers(state, nil, true, time.Now())
+	if len(list) != 1 || list[0].Nickname != "" {
+		t.Errorf("анонимная по сайту: %v", list)
 	}
 }

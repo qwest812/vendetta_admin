@@ -53,6 +53,9 @@ func (r *Players) Search(ctx context.Context, query string, limit int) ([]*domai
 
 	rows, err := r.pool.Query(ctx, playerSelect+`
 		WHERE p.nickname ILIKE '%' || $1 || '%' OR p.game_id ILIKE '%' || $1 || '%'
+		   -- Бывшие ники тоже ищутся: человека часто помнят под старым.
+		   OR EXISTS (SELECT 1 FROM player_nicknames h
+		               WHERE h.player_id = p.id AND h.nickname ILIKE '%' || $1 || '%')
 		ORDER BY (lower(coalesce(p.game_id, '')) = lower($1)) DESC,
 		         (lower(p.nickname) = lower($1)) DESC,
 		         (coalesce(p.game_id, '') ILIKE $1 || '%') DESC,
@@ -173,6 +176,86 @@ func (r *Players) ImportSeen(ctx context.Context, list []domain.GamePlayer) (int
 		return 0, err
 	}
 	return int(tag.RowsAffected()), nil
+}
+
+// RenameFromGame ставит карточкам нынешние ники из игры: номер на сайте →
+// ник. Прежний ник уходит в историю (player_nicknames), смена одного
+// регистра историю не пополняет. Пустые ники пропускаются: сайт называет
+// не всех, и молчание — не повод стирать известное. Заодно ник обновляется
+// там, где он лежит рядом с номером: в составах партий и в списке поиска
+// в лобби.
+//
+// Возвращает, скольким карточкам сменили ник.
+func (r *Players) RenameFromGame(ctx context.Context, nicks map[string]string) (int, error) {
+	ids, names := make([]string, 0, len(nicks)), make([]string, 0, len(nicks))
+	for id, name := range nicks {
+		name = strings.TrimSpace(name)
+		if id == "" || name == "" {
+			continue
+		}
+		ids = append(ids, id)
+		names = append(names, name)
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	// Все ветки видят базу такой, какой она была на начало запроса, поэтому
+	// старый ник в историю берётся из changed, а не из обновлённой строки.
+	var renamed int
+	err := r.pool.QueryRow(ctx,
+		`WITH incoming AS (
+		     SELECT * FROM unnest($1::text[], $2::text[]) AS u(game_id, nickname)
+		 ),
+		 changed AS (
+		     SELECT p.id, p.nickname AS old, i.nickname AS new
+		       FROM players p JOIN incoming i ON lower(p.game_id) = lower(i.game_id)
+		      WHERE p.nickname <> i.nickname
+		 ),
+		 history AS (
+		     INSERT INTO player_nicknames (player_id, nickname)
+		     SELECT id, old FROM changed WHERE lower(old) <> lower(new)
+		     ON CONFLICT (player_id, lower(nickname)) DO UPDATE SET replaced_at = now()
+		 ),
+		 seen AS (
+		     UPDATE supremacy_players s SET nickname = i.nickname
+		       FROM incoming i
+		      WHERE s.site_user_id = i.game_id AND s.nickname <> i.nickname
+		 ),
+		 hunts AS (
+		     UPDATE supremacy_hunt_targets h SET nickname = i.nickname
+		       FROM incoming i
+		      WHERE h.site_user_id = i.game_id AND h.nickname <> i.nickname
+		 ),
+		 renamed AS (
+		     UPDATE players p SET nickname = c.new FROM changed c WHERE p.id = c.id
+		     RETURNING 1
+		 )
+		 SELECT count(*) FROM renamed`, ids, names).Scan(&renamed)
+	return renamed, err
+}
+
+// FormerNicknames — бывшие ники карточки, свежие первыми. Нынешний ник
+// в список не попадает, даже если к нему когда-то вернулись.
+func (r *Players) FormerNicknames(ctx context.Context, playerID int64) ([]string, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT h.nickname
+		   FROM player_nicknames h JOIN players p ON p.id = h.player_id
+		  WHERE h.player_id = $1 AND lower(h.nickname) <> lower(p.nickname)
+		  ORDER BY h.replaced_at DESC`, playerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, err
+		}
+		out = append(out, n)
+	}
+	return out, rows.Err()
 }
 
 // ByGameIDs находит карточки по игровым ID — так партия сводится с базой.

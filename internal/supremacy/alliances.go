@@ -44,10 +44,17 @@ type AllianceStore interface {
 	MarkAllianceGone(ctx context.Context, allianceID string, at time.Time) error
 }
 
+// NicknameStore — куда воркер отдаёт нынешние ники игроков: по номеру
+// на сайте → ник. Ники приходят теми же ответами, что и кланы, — лишних
+// запросов к сайту ради них нет.
+type NicknameStore interface {
+	RenameFromGame(ctx context.Context, nicks map[string]string) (int, error)
+}
+
 // allianceSource — тот, кто умеет спросить сайт. Интерфейс ради тестов:
 // в бою сюда приходит *Client.
 type allianceSource interface {
-	UserAlliances(ctx context.Context, siteUserIDs []string) (map[string]*Alliance, error)
+	UserAlliances(ctx context.Context, siteUserIDs []string) (map[string]UserDetails, error)
 	AllianceRoster(ctx context.Context, allianceID string) (*Alliance, []AllianceMember, error)
 }
 
@@ -56,6 +63,7 @@ type allianceSource interface {
 type AllianceWatcher struct {
 	client   allianceSource
 	store    AllianceStore
+	nicks    NicknameStore
 	log      *slog.Logger
 	interval time.Duration
 
@@ -67,11 +75,11 @@ type AllianceWatcher struct {
 	now func() time.Time
 }
 
-func NewAllianceWatcher(c allianceSource, store AllianceStore,
+func NewAllianceWatcher(c allianceSource, store AllianceStore, nicks NicknameStore,
 	interval time.Duration, log *slog.Logger) *AllianceWatcher {
 
 	return &AllianceWatcher{
-		client: c, store: store, log: log, interval: interval,
+		client: c, store: store, nicks: nicks, log: log, interval: interval,
 		ttl: allianceTTL, batch: allianceBatch, rosters: rosterBatch, now: time.Now,
 	}
 }
@@ -156,11 +164,16 @@ func (w *AllianceWatcher) rosterTick(ctx context.Context) error {
 		}
 
 		rows := make([]domain.Alliance, 0, len(members))
+		nicks := make(map[string]string, len(members))
 		for _, m := range members {
 			rows = append(rows, domain.Alliance{SiteUserID: m.SiteUserID})
+			nicks[m.SiteUserID] = m.Name
 		}
 		row := domain.Alliance{ID: alliance.ID, Name: alliance.Name, Tag: alliance.Tag}
 		if err := w.store.SaveRoster(ctx, row, rows, w.now()); err != nil {
+			return err
+		}
+		if err := w.rename(ctx, nicks); err != nil {
 			return err
 		}
 		w.log.Info("состав клана забран",
@@ -184,9 +197,12 @@ func (w *AllianceWatcher) usersTick(ctx context.Context) error {
 	}
 
 	list := make([]domain.Alliance, 0, len(fetched))
+	nicks := make(map[string]string, len(fetched))
 	seen := map[string]bool{}
 	var clans []string
-	for id, a := range fetched {
+	for id, d := range fetched {
+		nicks[id] = d.Username
+		a := d.Alliance
 		row := domain.Alliance{SiteUserID: id}
 		if a != nil {
 			row.ID, row.Name, row.Tag = a.ID, a.Name, a.Tag
@@ -205,7 +221,26 @@ func (w *AllianceWatcher) usersTick(ctx context.Context) error {
 	if err := w.store.EnqueueAlliances(ctx, clans); err != nil {
 		return err
 	}
+	if err := w.rename(ctx, nicks); err != nil {
+		return err
+	}
 	w.log.Info("кланы игроков обновлены",
 		"спрошено", len(ids), "получено", len(fetched), "новых кланов", len(clans))
 	return askErr
+}
+
+// rename отдаёт свежие ники карточкам. Пустые ники пропускает хранилище:
+// сайт называет не всех, и молчание — не повод стирать известное.
+func (w *AllianceWatcher) rename(ctx context.Context, nicks map[string]string) error {
+	if w.nicks == nil || len(nicks) == 0 {
+		return nil
+	}
+	n, err := w.nicks.RenameFromGame(ctx, nicks)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		w.log.Info("ники карточек обновлены", "сменили", n)
+	}
+	return nil
 }

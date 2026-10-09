@@ -75,7 +75,9 @@ func (r *GamePlayers) Save(ctx context.Context, list []domain.GamePlayer) error 
 		            CASE WHEN i.banned THEN $4::timestamptz END, $4, $5
 		       FROM incoming i
 		     ON CONFLICT (site_user_id) DO UPDATE SET
-		         nickname = EXCLUDED.nickname,
+		         -- Пустой ник — «не знаем» (анонимная партия без состава
+		         -- с сайта), и известный им не затирается.
+		         nickname = COALESCE(NULLIF(EXCLUDED.nickname, ''), supremacy_players.nickname),
 		         banned = EXCLUDED.banned,
 		         banned_at = CASE
 		             WHEN NOT EXCLUDED.banned THEN NULL

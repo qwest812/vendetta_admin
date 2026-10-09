@@ -200,6 +200,7 @@ var messages = map[string]entry{
 
 	// --- карточка игрока ---
 	"player.clan.status":     {ru: "%s альянс", en: "%s alliance"},
+	"player.formernicks":     {ru: "Бывшие ники:", en: "Former nicknames:"},
 	"player.noid":            {ru: "ID не указан", en: "no ID set"},
 	"player.banned":          {ru: "забанен в игре", en: "banned in game"},
 	"player.delete.confirm":  {ru: "Удалить карточку %s со всеми комментариями?", en: "Delete %s and all their comments?"},

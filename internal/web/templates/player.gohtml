@@ -6,6 +6,9 @@
     <div class="card-head">
         <div>
             <h1 class="nick-big">{{$p.Nickname}}</h1>
+            {{if .FormerNicks}}
+                <p class="muted">{{t "player.formernicks"}} {{join .FormerNicks}}</p>
+            {{end}}
             {{if $p.ClanName}}
                 <a class="clan clan-{{$p.ClanStatus}}" href="/clans/{{$p.ClanID}}">[{{$p.ClanName}}]</a>
                 {{if $p.ClanStatus.Marked}}

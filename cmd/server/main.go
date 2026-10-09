@@ -169,7 +169,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// Кланы игроков спрашивает воркер, а не страница карты: сайт игры
 		// отвечает про одного игрока за раз. Очередь ему наполняют сами
 		// открытые партии, поэтому без них он молчит.
-		alliancesWatcher := supremacy.NewAllianceWatcher(s1914, alliances, cfg.S1914AllianceEvery, log)
+		alliancesWatcher := supremacy.NewAllianceWatcher(s1914, alliances, players, cfg.S1914AllianceEvery, log)
 		startAfter(ctx, 3*workerStagger, alliancesWatcher.Run)
 
 		// Топ кланов, в отличие от них, ни от каких партий не зависит:

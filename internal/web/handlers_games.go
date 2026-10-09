@@ -1325,8 +1325,12 @@ func premiumViews(l i18n.Lang, state *supremacy.GameState, meID int) []gamePlaye
 // и по нему сайт называет живого человека.
 //
 // Состояние остаётся запасным источником: про чужую партию сайт иногда
-// молчит, и тогда известное игре имя лучше, чем никакого.
-func seenPlayers(state *supremacy.GameState, roster []supremacy.GameLogin, now time.Time) []domain.GamePlayer {
+// молчит, и тогда известное игре имя лучше, чем никакого. Но только
+// в обычной партии: в анонимной имя из состояния подменное, и ник тогда
+// остаётся пустым — запись его не тронет, а карточку без ника не заведёт.
+// anonymous — партия анонимная по сайту или по самому состоянию.
+func seenPlayers(state *supremacy.GameState, roster []supremacy.GameLogin, anonymous bool,
+	now time.Time) []domain.GamePlayer {
 	byID := make(map[string]string, len(roster))
 	for _, l := range roster {
 		if l.Known() && l.Login != "" {
@@ -1340,6 +1344,9 @@ func seenPlayers(state *supremacy.GameState, roster []supremacy.GameLogin, now t
 			continue
 		}
 		nickname := p.Name
+		if anonymous || state.Anonymous {
+			nickname = ""
+		}
 		if login, ok := byID[p.SiteUserID]; ok {
 			nickname = login
 		}
@@ -1382,9 +1389,9 @@ func (s *Server) anonymousClosed(w http.ResponseWriter, r *http.Request, data ma
 // Ошибка записи страницу не отменяет: мы уже в партии, состав перед глазами,
 // и терять его показ из-за базы было бы обидно.
 func (s *Server) rememberPlayers(ctx context.Context, state *supremacy.GameState,
-	roster []supremacy.GameLogin) error {
+	roster []supremacy.GameLogin, anonymous bool) error {
 
-	list := seenPlayers(state, roster, time.Now())
+	list := seenPlayers(state, roster, anonymous, time.Now())
 	if err := s.gamePlayers.Save(ctx, list); err != nil {
 		return err
 	}
@@ -1397,6 +1404,20 @@ func (s *Server) rememberPlayers(ctx context.Context, state *supremacy.GameState
 	}
 	if added > 0 {
 		s.log.Info("заведены карточки из партии", "gameID", state.GameID, "новых", added)
+	}
+
+	// Уже заведённые карточки следуют за игрой: ник в них меняется на
+	// нынешний, прежний уходит в историю.
+	nicks := make(map[string]string, len(list))
+	for _, p := range list {
+		nicks[p.SiteUserID] = p.Nickname
+	}
+	renamed, err := s.players.RenameFromGame(ctx, nicks)
+	if err != nil {
+		return err
+	}
+	if renamed > 0 {
+		s.log.Info("ники карточек обновлены из партии", "gameID", state.GameID, "сменили", renamed)
 	}
 	return nil
 }
@@ -1984,7 +2005,9 @@ func (s *Server) renderGameNotice(w http.ResponseWriter, r *http.Request, gameID
 		// кто здесь уже союзничал. Сведения о партии берём откуда есть —
 		// у своей они из списка своих, у чужой из ответа сайта.
 		if rosterKnown {
-			if err := s.rememberPlayers(ctx, state, roster); err != nil {
+			about := nonNilGame(game, mine)
+			anonymous := about != nil && about.IsAnonymous()
+			if err := s.rememberPlayers(ctx, state, roster, anonymous); err != nil {
 				s.log.Error("запись состава партии", "gameID", gameID, "err", err)
 			}
 		}
@@ -2103,7 +2126,7 @@ func (s *Server) finishAbout(about <-chan gameAbout, who *domain.User, gameID st
 	if state == nil {
 		return
 	}
-	if err := s.rememberPlayers(ctx, state, got.roster); err != nil {
+	if err := s.rememberPlayers(ctx, state, got.roster, anonymous); err != nil {
 		s.log.Error("запись состава партии", "gameID", gameID, "err", err)
 	}
 	if mine == nil {
