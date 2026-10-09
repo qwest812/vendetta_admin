@@ -72,6 +72,17 @@
     {{if and $t (not $t.LastRunAt.IsZero)}}
         <p class="muted">{{t "game.hero.last"}} {{datetime $t.LastRunAt}} — {{$t.LastResult}}</p>
     {{end}}
+
+    {{/* Право прохода ботам: разовое действие без воркера, итог
+         показывается строкой ниже. */}}
+    <div class="row-form">
+        <form method="post" action="/games/{{.GameID}}/relate">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button type="submit">{{t "game.relate.now"}}</button>
+        </form>
+        <p class="muted">{{t "game.relate.note"}}</p>
+    </div>
+    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
 </div>
 
 {{/* Очередь строительства. Сама очередь лежит в нашей базе и видна всегда,

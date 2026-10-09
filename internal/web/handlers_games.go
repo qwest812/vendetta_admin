@@ -72,6 +72,9 @@ type gameSource interface {
 	StateFor(ctx context.Context, gameID string, ours, root bool) (*supremacy.GameState, time.Time, error)
 	StateFresh(gameID string, root bool) time.Duration
 	DeployInfantry(ctx context.Context, gameID string) (string, error)
+	// GrantRightOfWay заходит в партию и выдаёт право прохода всем ботам,
+	// у кого его ещё нет.
+	GrantRightOfWay(ctx context.Context, gameID string) (string, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
 	// UserStatsBatch — боевой счёт игроков с сайта. Сайт отвечает про
 	// одного за раз, поэтому пачка спрашивается в несколько потоков;
@@ -1655,6 +1658,12 @@ func (s *Server) gameCard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID string, withState bool, errMsg string) {
+	s.renderGameNotice(w, r, gameID, withState, errMsg, "")
+}
+
+// renderGameNotice — то же, что renderGame, плюс строка об успехе: её
+// показывает блок «Мы», под кнопками, которые её вызвали.
+func (s *Server) renderGameNotice(w http.ResponseWriter, r *http.Request, gameID string, withState bool, errMsg, notice string) {
 	// Засекаем сразу: «собираем данные» показывается ровно столько, сколько
 	// не хватило странице до обычного времени сбора. См. loaderMs.
 	started := time.Now()
@@ -1685,7 +1694,7 @@ func (s *Server) renderGame(w http.ResponseWriter, r *http.Request, gameID strin
 	}
 
 	data := map[string]any{
-		"GameID": gameID, "Task": task, "Error": errMsg,
+		"GameID": gameID, "Task": task, "Error": errMsg, "Notice": notice,
 		"Interval": s.heroEvery, "IntervalMax": s.heroEveryMax,
 		"Game": nil, "State": nil, "Mine": nil,
 		"Map": nil, "MapError": "", "Enemies": nil, "Friends": nil,
@@ -2288,6 +2297,30 @@ func (s *Server) heroDeploy(r *http.Request, gameID, reason string) string {
 		s.log.Error("запись итога призыва", "gameID", gameID, "err", err)
 	}
 	return msg
+}
+
+// gameRightOfWay выдаёт право прохода всем ботам партии — разово, по
+// нажатию. Итог показывается тут же: воркера у этой кнопки нет, и
+// запоминать его некуда.
+func (s *Server) gameRightOfWay(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	if s.games == nil {
+		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
+	defer cancel()
+
+	result, err := s.games.GrantRightOfWay(ctx, gameID)
+	if err != nil {
+		s.log.Error("право прохода ботам", "gameID", gameID, "err", err)
+		s.renderGame(w, r, gameID, false, err.Error())
+		return
+	}
+	s.log.Info("право прохода ботам", "gameID", gameID,
+		"user_id", currentUser(r).ID, "итог", result)
+	s.renderGameNotice(w, r, gameID, false, "", result)
 }
 
 // joinErrors склеивает предупреждение и ошибку: на странице место одно,

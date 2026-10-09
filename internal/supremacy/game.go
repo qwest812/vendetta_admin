@@ -273,8 +273,12 @@ type Player struct {
 	// Banned — аккаунт игрока забанен. Это свойство аккаунта, а не партии,
 	// поэтому его и стоит запоминать: в следующий раз человек может нам
 	// и не встретиться, а знать о бане будет полезно.
-	Banned   bool
-	IsAI     bool
+	Banned bool
+	IsAI   bool
+	// NativeAI — страна компьютерная с начала партии. Одного IsAI мало:
+	// его игра ставит и стране, брошенной живым игроком, а такую может
+	// занять новый человек. См. nativeBot.
+	NativeAI bool
 	Defeated bool
 	Retired  bool
 }
@@ -304,6 +308,10 @@ type GameState struct {
 	Teams     map[int]Team
 	Provinces []Province
 	Armies    []Army
+	// Relations — наше отношение к каждому игроку партии по его номеру,
+	// по шкале клиента (см. RelationRightOfWay). Отношение одностороннее,
+	// и здесь только то, что выдали мы. Нет записи — игра о нём не сказала.
+	Relations map[int]int
 	// HeroTypes — типы юнитов, умеющих призывать пехоту (роль
 	// DEPLOY_INFANTRY), и их имена: по ним ищется армия с героиней.
 	HeroTypes map[int]string
@@ -640,8 +648,11 @@ type gameStateResponse struct {
 				Premium    bool   `json:"premiumUser"`
 				Banned     bool   `json:"banned"`
 				IsAI       bool   `json:"computerPlayer"`
-				Defeated   bool   `json:"defeated"`
-				Retired    bool   `json:"retired"`
+				// nativeComputer — бот с начала партии, а не брошенная
+				// страна. Указатель: нет поля — не знаем.
+				Native   *bool `json:"nativeComputer"`
+				Defeated bool  `json:"defeated"`
+				Retired  bool  `json:"retired"`
 			} `json:"players"`
 			// Коалиции лежат рядом с игроками: у игрока только номер
 			// коалиции, а название, цвет и роспуск — здесь.
@@ -786,6 +797,14 @@ type gameStateResponse struct {
 				WinnerTeam  int            `json:"winnerTeam"`
 			} `json:"ranking"`
 		} `json:"2"`
+		// Дипломатия (UltForeignAffairsState): neighborRelations[кто][кому].
+		// Обе таблицы — java-мапы со служебным ключом «@c», поэтому
+		// разбираются вручную, см. relationsOf.
+		ForeignAffairs struct {
+			Relations struct {
+				Neighbor map[string]json.RawMessage `json:"neighborRelations"`
+			} `json:"relations"`
+		} `json:"5"`
 	} `json:"states"`
 }
 
@@ -855,6 +874,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			ID: p.PlayerID, Nation: p.NationName, Name: p.UserName,
 			Color: cssColor(p.Color), TeamID: p.TeamID, Premium: p.Premium, Banned: p.Banned,
 			IsAI: p.IsAI, Defeated: p.Defeated, Retired: p.Retired,
+			NativeAI: nativeBot(p.IsAI, p.Native, p.SiteUserID),
 		}
 		// У ботов номера на сайте нет — там ноль, и в базе его искать незачем.
 		if p.SiteUserID > 0 {
@@ -947,6 +967,10 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 				}
 			}
 		}
+	}
+
+	if me > 0 {
+		g.Relations = relationsOf(r.States.ForeignAffairs.Relations.Neighbor[strconv.Itoa(me)])
 	}
 
 	g.HeroTypes = make(map[int]string)

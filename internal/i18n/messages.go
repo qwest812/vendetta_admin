@@ -493,6 +493,8 @@ var messages = map[string]entry{
 	"game.hero.now":      {ru: "Призвать сейчас", en: "Deploy now"},
 	"game.hero.on.note":  {ru: "Включено: воркер заходит в партию каждые %s и жмёт у Мейв «призвать пехоту».", en: "On: the worker enters the game every %s and presses Maeve’s “deploy infantry”."},
 	"game.hero.off.note": {ru: "Выключено. Если включить, воркер будет заходить в партию каждые %s и жать у Мейв «призвать пехоту».", en: "Off. Once on, the worker will enter the game every %s and press Maeve’s “deploy infantry”."},
+	"game.relate.now":    {ru: "Право прохода всем ботам", en: "Right of way to all bots"},
+	"game.relate.note":   {ru: "Разово: заходит в партию и выдаёт право прохода каждому боту, у кого его ещё нет. Общую карту и выше не трогает.", en: "One-off: enters the game and grants right of way to every bot that lacks it. Shared map and above stay as they are."},
 	"game.hero.last":     {ru: "Последний заход:", en: "Last run:"},
 
 	// Очередь строительства. Выключателя у неё нет: пустая очередь и есть

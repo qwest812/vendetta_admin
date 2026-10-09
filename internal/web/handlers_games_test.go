@@ -967,6 +967,9 @@ func (sizeSource) StateFor(context.Context, string, bool, bool) (*supremacy.Game
 }
 func (sizeSource) StateFresh(string, bool) time.Duration                  { return 0 }
 func (sizeSource) DeployInfantry(context.Context, string) (string, error) { return "", nil }
+func (sizeSource) GrantRightOfWay(context.Context, string) (string, error) {
+	return "", nil
+}
 func (sizeSource) MapGeometry(context.Context, string) (*supremacy.MapGeometry, error) {
 	return nil, nil
 }
