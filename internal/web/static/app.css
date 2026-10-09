@@ -944,6 +944,10 @@ details.fold[open] > summary::before { content: "–"; }
 details.fold > summary:hover .fold-title { color: var(--accent); }
 details.fold > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .fold-title { font-size: 18px; font-weight: 700; }
+/* Экономика игроков: отрицательный итог по ресурсу — тем же цветом,
+   что и отрицательные метки. */
+details.economy { margin-top: 16px; }
+.eco-neg { color: #e88b81; }
 /* Первому блоку после заголовка нужен тот же отступ, что был у h1. */
 details.fold[open] > summary { margin-bottom: 14px; }
 

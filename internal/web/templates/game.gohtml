@@ -233,6 +233,49 @@
     {{if .Map}}{{template "gamemap" .}}{{end}}
     {{if .MapError}}<p class="muted">{{.MapError}}</p>{{end}}
 
+    {{/* Экономика и производство: из того же состояния, что и карта.
+         Свёрнуто — на большой партии это сотни строк. */}}
+    {{with .Economy}}
+    <details class="fold economy">
+        <summary><span class="fold-title">{{t "game.eco.title" (len .Rows)}}</span></summary>
+        <p class="muted">{{t "game.eco.note"}}</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{t "game.eco.player"}}</th>
+                        <th>{{t "game.eco.provinces"}}</th>
+                        {{range .Resources}}<th>{{.Name}}</th>{{end}}
+                        <th>{{t "game.eco.units"}}</th>
+                        <th>{{t "game.eco.builds"}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Rows}}
+                    <tr>
+                        <td>
+                            {{.Nation}}{{if .Name}} <span class="muted">({{.Name}})</span>{{end}}
+                            {{if .Mine}} <span class="badge">{{t "game.thatsyou"}}</span>{{end}}
+                            {{if .AI}} <span class="muted">{{t "game.eco.ai"}}</span>{{end}}
+                        </td>
+                        <td>{{.Provinces}}</td>
+                        {{range .Cells}}<td title="{{.Title}}"{{if .Neg}} class="eco-neg"{{end}}>{{.Net}}</td>{{end}}
+                        <td>{{join .Units}}</td>
+                        <td>{{join .Builds}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{if .Check}}
+            <p class="muted">
+                {{t "game.eco.check"}}
+                {{range $i, $c := .Check}}{{if $i}}; {{end}}{{$c.Name}}: {{$c.Calculated}} / {{$c.Actual}}{{end}}.
+            </p>
+        {{end}}
+    </details>
+    {{end}}
+
     {{if .State}}
         {{/* Партию сводим с базой по игровому ID: он у карточки и у игрока
              на сайте игры один и тот же. Оба личных списка — списки того,

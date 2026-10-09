@@ -103,6 +103,13 @@ type Province struct {
 	// Решает это сама игра (нужное здание, исследование); у чужих
 	// провинций пусто.
 	CanProduce map[int]json.RawMessage
+	// Output — суточная добыча провинции по ресурсам («arp»): игра считает
+	// её сама, со всеми бонусами, и присылает про все провинции.
+	Output map[int]float64
+	// Population — население («p»), от него зависит потребление провинции;
+	// StateID — её состояние («pst»): от него — во сколько раз.
+	Population float64
+	StateID    int
 }
 
 // ProdFree — свободен ли слот под производство войск.
@@ -197,6 +204,10 @@ type Upgrade struct {
 	// железная дорога, например, открывается на третий. Раньше игра
 	// стройку не принимает.
 	Available int
+	// DailyCosts — содержание здания в сутки при полном состоянии («dc»),
+	// MaxCondition — полное состояние («mxc»).
+	DailyCosts   map[int]float64
+	MaxCondition int
 }
 
 // Resource — запас ресурса и скорость его прихода. Игра отдаёт запас
@@ -208,6 +219,8 @@ type Resource struct {
 	Amount   float64
 	Measured time.Time
 	Rate     float64
+	// Daily — тот же прирост за игровые сутки, как его показывает игра.
+	Daily float64
 }
 
 // AmountAt — сколько ресурса будет к этому времени.
@@ -322,6 +335,19 @@ type GameState struct {
 	Resources map[int]Resource
 	// Units — войска, которые вообще можно заказать, по номеру типа.
 	Units map[int]UnitType
+	// UnitNames и UnitUpkeep — имя и суточное содержание одного юнита
+	// любого типа, включая героев и непроизводимых: чужие армии бывают
+	// из чего угодно.
+	UnitNames  map[int]string
+	UnitUpkeep map[int]map[int]float64
+	// ResourceNames — названия ресурсов из справочника партии: они есть
+	// и у наблюдателя, в отличие от наших запасов.
+	ResourceNames map[int]string
+	// Consumption — потребление ресурса на душу населения в сутки
+	// («resourceConsumption»), StateFactor — множитель потребления по
+	// состоянию провинции. См. ProvinceUpkeep.
+	Consumption map[int]float64
+	StateFactor map[int]float64
 	// NextDay — следующая смена дня, настоящими часами. Только в неё игра
 	// пересчитывает очки и объявляет победителя, поэтому конец партии
 	// может прийтись лишь на неё. Нулевое — игра не сказала.
@@ -687,6 +713,12 @@ type gameStateResponse struct {
 					// списком, что и стройки; ps — слотов под него.
 					Productions json.RawMessage `json:"prs"`
 					ProdSlots   int             `json:"ps"`
+					// arp — суточная добыча по ресурсам, p — население,
+					// pst — состояние провинции. Сырыми: формат не наш,
+					// и сломанное поле не должно ронять всё состояние.
+					Output     json.RawMessage `json:"arp"`
+					Population *float64        `json:"p"`
+					StateID    int             `json:"pst"`
 				} `json:"locations"`
 			} `json:"map"`
 			// properties — что можно делать в своих провинциях. Решает это
@@ -728,6 +760,8 @@ type gameStateResponse struct {
 				Identifier string             `json:"identifier"`
 				Costs      map[string]float64 `json:"costs"`
 				Producible bool               `json:"producible"`
+				// dailyCosts — содержание одного юнита в сутки.
+				DailyCosts json.RawMessage `json:"dailyCosts"`
 				// set — род войск: 1 суша, 2 воздух, 3 море, 4 герои.
 				Set          int `json:"set"`
 				RatingConfig struct {
@@ -749,7 +783,15 @@ type gameStateResponse struct {
 				Image string `json:"ap"`
 				// doa — день, с которого здание можно строить.
 				Available flexInt `json:"doa"`
+				// dc — содержание в сутки, mxc — полное состояние.
+				DailyCosts   json.RawMessage `json:"dc"`
+				MaxCondition int             `json:"mxc"`
 			} `json:"upgrades"`
+			// Ресурсы партии с названиями, потребление на душу и состояния
+			// провинций: всё сырым, по той же причине, что и arp.
+			ResourceEntries     json.RawMessage `json:"resourceEntries"`
+			ResourceConsumption json.RawMessage `json:"resourceConsumption"`
+			ProvinceStates      json.RawMessage `json:"provinceStates"`
 		} `json:"11"`
 		// Ресурсы: запас на момент time0 и прирост в секунду. Лежат они
 		// по игрокам, но чужие профили игра не наполняет — берём свой.
@@ -913,6 +955,12 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		}
 		pr.Producing = productionList(l.Productions, clock)
 		pr.ProdSlots = l.ProdSlots
+		pr.Output = numMap(l.Output)
+		pr.Population = 1e5 // так же, как клиент игры, если поля нет
+		if l.Population != nil {
+			pr.Population = *l.Population
+		}
+		pr.StateID = l.StateID
 		if props, ok := r.States.Map.Properties[strconv.Itoa(l.ID)]; ok {
 			// Сначала «можно поставить в очередь», поверх — «можно начать»:
 			// в заказ уходит запись из второго списка, когда он есть.
@@ -928,7 +976,8 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		}
 		up := Upgrade{ID: u.ID, Name: u.Name, Replaces: int(u.Replaces), Image: strings.ToLower(u.Image),
 			Build:          clock.duration(time.Duration(u.BuildTime) * time.Second),
-			BuildCondition: u.BuildCond, Available: int(u.Available)}
+			BuildCondition: u.BuildCond, Available: int(u.Available),
+			DailyCosts: numMap(u.DailyCosts), MaxCondition: u.MaxCondition}
 		// Так же, как клиент игры: без «bc» уровень стоит 2, без «doa»
 		// здание доступно с первого дня.
 		if up.BuildCondition <= 0 {
@@ -964,6 +1013,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 				g.Resources[e.ID] = Resource{
 					ID: e.ID, Name: e.Name, Amount: e.Amount,
 					Measured: clock.real(e.Measured), Rate: e.Rate / clock.scale,
+					Daily: e.Rate * 24 * 60 * 60,
 				}
 			}
 		}
@@ -973,9 +1023,22 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		g.Relations = relationsOf(r.States.ForeignAffairs.Relations.Neighbor[strconv.Itoa(me)])
 	}
 
+	mod := r.States.Mod
+	g.ResourceNames = resourceNames(mod.ResourceEntries)
+	g.Consumption = numMap(mod.ResourceConsumption)
+	g.StateFactor = stateFactors(mod.ProvinceStates)
+
 	g.HeroTypes = make(map[int]string)
 	g.Units = make(map[int]UnitType)
+	g.UnitNames = make(map[int]string)
+	g.UnitUpkeep = make(map[int]map[int]float64)
 	for _, u := range r.States.Mod.AllUnitTypes {
+		if u.UnitTypeID > 0 {
+			g.UnitNames[u.UnitTypeID] = u.UnitName
+			if costs := numMap(u.DailyCosts); len(costs) > 0 {
+				g.UnitUpkeep[u.UnitTypeID] = costs
+			}
+		}
 		// Заказать можно только то, что игра называет производимым;
 		// героев (set 4) она даёт отдельно, даже если флаг стоит.
 		if u.Producible && u.Set != unitSetHero && u.UnitTypeID > 0 {
