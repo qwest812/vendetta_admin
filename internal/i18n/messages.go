@@ -563,6 +563,10 @@ var messages = map[string]entry{
 	"game.map.teams":           {ru: "Коалиции", en: "Coalitions"},
 	"game.map.players":         {ru: "Игроки", en: "Players"},
 	"game.map.power":           {ru: "Сила", en: "Strength"},
+	"game.map.together":        {ru: "Играли вместе", en: "Played together"},
+	"game.map.together.games":  {ru: "партий вместе: %d", en: "games together: %d"},
+	"game.map.together.note":   {ru: "Одним цветом — те, кто раньше был в одной коалиции хотя бы в двух партиях, напрямую или через общего напарника. Кто сейчас в одной коалиции, не учитываются. Серые — ни с кем из этой карты не играли или цветов не хватило.", en: "One colour — players who shared a coalition in at least two earlier games, directly or through a common partner. Current coalition mates are not counted. Grey — no such history with anyone on this map, or out of colours."},
+	"game.map.together.none":   {ru: "Никто из тех, кто сейчас на карте, не был вместе в коалиции хотя бы в двух прошлых партиях (нынешние сокомандники не в счёт).", en: "Nobody on this map shared a coalition in at least two earlier games (current coalition mates aside)."},
 	"game.map.top":             {ru: "Топ альянсов", en: "Top alliances"},
 	"game.map.aria":            {ru: "Карта партии: провинции раскрашены по альянсам владельцев, по вашим личным спискам, по коалициям, по роду игрока (обычный, компьютерный, с премиумом, забаненный), по силе игрока рядом с вашей или по месту альянса в рейтинге", en: "Game map: provinces are coloured by their owners’ alliances, by your personal lists, by coalitions, by the kind of player (regular, computer, with premium, banned), by the player’s strength next to yours or by the alliance’s place in the ranking"},
 	"game.map.clans.note":      {ru: "Цвет провинции — альянс её владельца, число в легенде — сколько у альянса провинций. Альянсы берутся из самой Supremacy, а не из наших записей со статусами: важно, кто с кем в игре, а не кого мы как записали. Цвета раздаются на партию по убыванию владений, поэтому в соседней партии тот же альянс будет другого цвета. Серым закрашены ничейные земли и все, кто ни в каком альянсе не состоит.", en: "A province’s colour is its owner’s alliance; the number in the legend is how many provinces that alliance holds. Alliances come from Supremacy itself, not from our records with statuses: what matters is who is with whom in the game, not how we recorded them. Colours are handed out per game by holdings, so the same alliance will be a different colour in the next game. Grey covers neutral land and everyone in no alliance."},
@@ -820,6 +824,7 @@ var messages = map[string]entry{
 	// кусками: клан и коалиция называются, остальное — готовые слова.
 	"tip.clan":       {ru: "альянс %s", en: "alliance %s"},
 	"tip.team":       {ru: "коалиция %s", en: "coalition %s"},
+	"tip.together":   {ru: "играл вместе с: %s", en: "played together with: %s"},
 	"tip.top":        {ru: "%d место в рейтинге альянсов, %s", en: "rank %d in the alliance ranking, %s"},
 	"game.unknown":   {ru: "неизвестно", en: "unknown"},
 	"game.noname":    {ru: "без названия", en: "unnamed"},
@@ -893,7 +898,7 @@ var messages = map[string]entry{
 
 	// --- «кто с кем уже союзничал» на странице партии ---
 	"pairs.title":    {ru: "Кто с кем уже союзничал", en: "Who has allied with whom"},
-	"pairs.note":     {ru: "Эти игроки состояли в одной коалиции в прошлых партиях. Коалиция — не дружба: объединяются и ситуативно, против общего соседа. Один общий союз мало что значит, три-четыре — уже кое-что. Партии разной скорости считаются порознь: союз в четырёхдневной скоростной и в двухмесячной обычной стоят разного.", en: "These players were in the same coalition in past games. A coalition is not friendship: people team up situationally, against a common neighbour. One shared alliance means little, three or four already mean something. Games of different speed are counted apart: an alliance in a four-day fast game and one in a two-month normal game are worth different things."},
+	"pairs.note":     {ru: "Эти игроки состояли в одной коалиции в прошлых партиях. Только те, кто сейчас на карте, и без нынешних сокомандников. Коалиция — не дружба: объединяются и ситуативно, против общего соседа. Один общий союз мало что значит, три-четыре — уже кое-что. Партии разной скорости считаются порознь: союз в четырёхдневной скоростной и в двухмесячной обычной стоят разного.", en: "These players were in the same coalition in past games. Only players currently on the map, current coalition mates left out. A coalition is not friendship: people team up situationally, against a common neighbour. One shared alliance means little, three or four already mean something. Games of different speed are counted apart: an alliance in a four-day fast game and one in a two-month normal game are worth different things."},
 	"pairs.who":      {ru: "Кто", en: "Who"},
 	"pairs.together": {ru: "Вместе", en: "Together"},
 	"pairs.where":    {ru: "В партиях", en: "In games"},

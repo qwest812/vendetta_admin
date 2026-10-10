@@ -515,6 +515,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
    а по месту в рейтинге — первый номер должен быть одного цвета во всех
    партиях. */
 #map-top:checked ~ .game-map polygon.top { fill: var(--top); }
+/* Режим «Играли вместе»: цвет группы, собранной из архива коалиций. */
+#map-together:checked ~ .game-map polygon.together { fill: var(--together); }
 .game-map text {
     font: 600 34px system-ui, -apple-system, "Segoe UI", sans-serif;
     fill: rgba(255, 255, 255, .92);
@@ -561,7 +563,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-teams:checked ~ .map-tabs label[for="map-teams"],
 #map-players:checked ~ .map-tabs label[for="map-players"],
 #map-power:checked ~ .map-tabs label[for="map-power"],
-#map-top:checked ~ .map-tabs label[for="map-top"] {
+#map-top:checked ~ .map-tabs label[for="map-top"],
+#map-together:checked ~ .map-tabs label[for="map-together"] {
     border-color: var(--accent);
     color: var(--text);
 }
@@ -572,7 +575,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-teams:focus-visible ~ .map-tabs label[for="map-teams"],
 #map-players:focus-visible ~ .map-tabs label[for="map-players"],
 #map-power:focus-visible ~ .map-tabs label[for="map-power"],
-#map-top:focus-visible ~ .map-tabs label[for="map-top"] { outline: 2px solid var(--accent); }
+#map-top:focus-visible ~ .map-tabs label[for="map-top"],
+#map-together:focus-visible ~ .map-tabs label[for="map-together"] { outline: 2px solid var(--accent); }
 
 /* Легенда и пояснение — свои у каждого режима, показывается только пара
    выбранного. */
@@ -582,7 +586,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-teams:checked ~ .pane-teams,
 #map-players:checked ~ .pane-players,
 #map-power:checked ~ .pane-power,
-#map-top:checked ~ .pane-top { display: block; }
+#map-top:checked ~ .pane-top,
+#map-together:checked ~ .pane-together { display: block; }
 
 /* Легенда карты: цвет раздаётся кланам на партию, поэтому она идёт сразу
    под картой и читается как её продолжение. Строки в ряд и с переносом —

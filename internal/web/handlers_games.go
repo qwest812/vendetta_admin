@@ -312,7 +312,9 @@ type mapShape struct {
 	ClanColor template.CSS
 	TeamColor template.CSS
 	TopColor  template.CSS
-	Title     string
+	// TogetherColor — цвет группы в режиме «Играли вместе».
+	TogetherColor template.CSS
+	Title         string
 }
 
 // mapLabel — подпись страны на карте: имя пишется один раз, посередине
@@ -353,6 +355,8 @@ type gameMapView struct {
 	// Top — кланы из верхушки рейтинга игры, чьи игроки нашлись в этой
 	// партии. Пусто и когда таких нет, и когда топ ещё не снимали.
 	Top []topLegendView
+	// Together — группы режима «Играли вместе».
+	Together []togetherLegendView
 	// Kinds — счёт владельцев для легенды режима «Игроки».
 	Kinds playerKinds
 	// Power — счёт владельцев по полосам режима «Сила» и счёт самого
@@ -482,6 +486,7 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 
 	view := &gameMapView{
 		Width: geo.Width, Height: geo.Height, Legend: legend, Teams: teams, Top: topLegend,
+		Together: sides.TogetherLegend,
 	}
 	// Середина владений каждой страны — там и будет её имя.
 	centers := map[int]*center{}
@@ -530,6 +535,15 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 				}
 				shape.Title += ", " + l.T("tip.top", top.Rank,
 					nonEmpty(top.Name, l.T("game.noname")))
+			}
+			// Играли вместе: цвет группы в своём режиме, напарники —
+			// в подсказке всегда.
+			if mark, ok := sides.Together[p.Owner]; ok {
+				if mark.Color != "" {
+					classes = append(classes, "together")
+					shape.TogetherColor = template.CSS(mark.Color)
+				}
+				shape.Title += ", " + l.T("tip.together", strings.Join(mark.Partners, ", "))
 			}
 			// Личные списки красят карту в своём режиме, а в подсказке
 			// живут всегда: наводят как раз чтобы понять, чья провинция.
@@ -1213,6 +1227,10 @@ type gameSides struct {
 	// не между собой, а с тем, кто смотрит.
 	Stats map[int]domain.UserStats
 	Me    domain.UserStats
+	// Together и TogetherLegend — режим «Играли вместе»: группа и
+	// напарники каждого игрока, собранные из архива коалиций.
+	Together       map[int]togetherMark
+	TogetherLegend []togetherLegendView
 }
 
 // gameLists сводит игроков партии с базой по игровому ID и раскладывает их
@@ -2233,6 +2251,7 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 		return err
 	}
 	data["Pairs"] = pairs
+	sides.Together, sides.TogetherLegend = togetherGroups(pairs)
 
 	// Экономика и производство всех игроков — из того же состояния,
 	// отдельного захода в партию не нужно.

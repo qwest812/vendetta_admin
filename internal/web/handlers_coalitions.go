@@ -107,6 +107,9 @@ type coalitionPairView struct {
 
 // coalitionSideView — одна сторона пары.
 type coalitionSideView struct {
+	// ID — номер игрока в этой партии: по нему пары собираются в группы
+	// для режима карты «Играли вместе».
+	ID     int
 	Nation string
 	Name   string
 	Card   *domain.Player
@@ -132,10 +135,19 @@ func (s *Server) coalitionPairs(r *http.Request, state *supremacy.GameState,
 
 	// Игрок партии по его номеру на сайте: ответ архива приходит именно
 	// в этих номерах, а показать надо страну и ник.
+	// Только те, кто сейчас на карте: у разбитого и ушедшего провинций
+	// нет, и пара с ним — разговор о прошлом, а не об этой партии.
+	onMap := make(map[int]bool, len(state.Players))
+	for _, pr := range state.Provinces {
+		if pr.Owner > 0 {
+			onMap[pr.Owner] = true
+		}
+	}
+
 	byUser := make(map[string]supremacy.Player, len(state.Players))
 	ids := make([]string, 0, len(state.Players))
 	for _, p := range state.Players {
-		if p.SiteUserID == "" || p.IsAI {
+		if p.SiteUserID == "" || p.IsAI || !onMap[p.ID] {
 			continue
 		}
 		byUser[p.SiteUserID] = p
@@ -156,6 +168,11 @@ func (s *Server) coalitionPairs(r *http.Request, state *supremacy.GameState,
 	merged := map[key]*coalitionPairView{}
 	order := []key{}
 	for _, l := range links {
+		// Кто и сейчас в одной коалиции, тех не показываем: их союз виден
+		// и так, на вкладке коалиций.
+		if a, b := byUser[l.A], byUser[l.B]; a.TeamID > 0 && a.TeamID == b.TeamID {
+			continue
+		}
 		k := key{l.A, l.B}
 		v, ok := merged[k]
 		if !ok {
@@ -197,7 +214,7 @@ func (s *Server) coalitionPairs(r *http.Request, state *supremacy.GameState,
 // coalitionSide подписывает одну сторону пары: страна, ник и карточка,
 // если она у нас есть.
 func (s *Server) coalitionSide(p supremacy.Player, sides *gameSides) coalitionSideView {
-	v := coalitionSideView{Nation: p.Nation, Name: p.Name}
+	v := coalitionSideView{ID: p.ID, Nation: p.Nation, Name: p.Name}
 	if sides == nil {
 		return v
 	}
@@ -218,3 +235,118 @@ type coalitionStatsView struct {
 // Speed печатается в шаблоне как «x4»; число хранится дробным, потому что
 // у игры оно такое, но показывать «x4.0» незачем.
 func (v coalitionSpeedView) Label() string { return "x" + strconv.Itoa(v.Speed) }
+
+// togetherMinGames — со скольких совместных партий двое считаются «играли
+// вместе» на карте. Одна общая коалиция бывает случайной: в большой партии
+// в неё набирают незнакомых людей.
+const togetherMinGames = 2
+
+// togetherMark — что режим «Играли вместе» знает про одного игрока: цвет
+// его группы (пусто, если цветов не хватило) и с кем он играл.
+type togetherMark struct {
+	Color    string
+	Partners []string
+}
+
+// togetherLegendView — группа в легенде: кто в неё входит и сколько
+// совместных партий на всех её парах.
+type togetherLegendView struct {
+	Color   string
+	Members []string
+	Games   int
+}
+
+// togetherGroups собирает пары в группы: если A играл с B, а B с C, все
+// трое — одна группа одного цвета. Цвета раздаются от больших групп
+// к маленьким; кому не хватило палитры, остаются серыми, но в легенде
+// и в подсказке есть.
+func togetherGroups(pairs []coalitionPairView) (map[int]togetherMark, []togetherLegendView) {
+	parent := map[int]int{}
+	var find func(int) int
+	find = func(x int) int {
+		if parent[x] != x {
+			parent[x] = find(parent[x])
+		}
+		return parent[x]
+	}
+	names := map[int]string{}
+	partners := map[int][]string{}
+	var strong []coalitionPairView
+	for _, p := range pairs {
+		if p.Total < togetherMinGames || p.A.ID <= 0 || p.B.ID <= 0 {
+			continue
+		}
+		strong = append(strong, p)
+		for _, side := range []coalitionSideView{p.A, p.B} {
+			if _, ok := parent[side.ID]; !ok {
+				parent[side.ID] = side.ID
+			}
+			names[side.ID] = sideLabel(side)
+		}
+		parent[find(p.A.ID)] = find(p.B.ID)
+		partners[p.A.ID] = append(partners[p.A.ID], sideLabel(p.B))
+		partners[p.B.ID] = append(partners[p.B.ID], sideLabel(p.A))
+	}
+	if len(strong) == 0 {
+		return nil, nil
+	}
+
+	type group struct {
+		members []int
+		games   int
+	}
+	byRoot := map[int]*group{}
+	for id := range parent {
+		r := find(id)
+		if byRoot[r] == nil {
+			byRoot[r] = &group{}
+		}
+		byRoot[r].members = append(byRoot[r].members, id)
+	}
+	for _, p := range strong {
+		byRoot[find(p.A.ID)].games += p.Total
+	}
+	groups := make([]*group, 0, len(byRoot))
+	for _, g := range byRoot {
+		sort.Slice(g.members, func(i, j int) bool { return names[g.members[i]] < names[g.members[j]] })
+		groups = append(groups, g)
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		if len(groups[i].members) != len(groups[j].members) {
+			return len(groups[i].members) > len(groups[j].members)
+		}
+		if groups[i].games != groups[j].games {
+			return groups[i].games > groups[j].games
+		}
+		return names[groups[i].members[0]] < names[groups[j].members[0]]
+	})
+
+	marks := make(map[int]togetherMark, len(parent))
+	legend := make([]togetherLegendView, 0, len(groups))
+	for i, g := range groups {
+		color := ""
+		if i < len(mapPalette) {
+			color = mapPalette[i]
+		}
+		item := togetherLegendView{Color: color, Games: g.games}
+		for _, id := range g.members {
+			item.Members = append(item.Members, names[id])
+			list := partners[id]
+			sort.Strings(list)
+			marks[id] = togetherMark{Color: color, Partners: list}
+		}
+		legend = append(legend, item)
+	}
+	return marks, legend
+}
+
+// sideLabel — «Страна (ник)», как игрок подписан в легенде и подсказке.
+func sideLabel(s coalitionSideView) string {
+	if s.Name == "" {
+		return s.Nation
+	}
+	if s.Nation == "" {
+		return s.Name
+	}
+	return s.Nation + " (" + s.Name + ")"
+}

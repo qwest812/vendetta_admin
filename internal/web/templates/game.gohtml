@@ -591,6 +591,7 @@
         <input class="map-mode" type="radio" name="map-mode" id="map-players">
         <input class="map-mode" type="radio" name="map-mode" id="map-power">
         <input class="map-mode" type="radio" name="map-mode" id="map-top">
+        <input class="map-mode" type="radio" name="map-mode" id="map-together">
         {{/* Карта большой партии нарисована без состава с сайта: строка сама
              просит его, как только страница загрузилась, и ответ заменяет
              весь блок карты — уже с составом и кланами от сайта. Стоит после
@@ -607,6 +608,7 @@
             <label for="map-players">{{t "game.map.players"}}</label>
             <label for="map-power">{{t "game.map.power"}}</label>
             <label for="map-top">{{t "game.map.top"}}</label>
+            <label for="map-together">{{t "game.map.together"}}</label>
         </div>
         {{/* Карта в собственных координатах игры: viewBox их и берёт,
              а размер на странице задаёт css. */}}
@@ -616,7 +618,7 @@
             <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
             {{range .Map.Shapes}}
                 <polygon points="{{.Points}}" class="{{.Class}}"
-                         {{if or .ClanColor .TeamColor .TopColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}; --top: {{.TopColor}}"{{end}}><title>{{.Title}}</title></polygon>
+                         {{if or .ClanColor .TeamColor .TopColor .TogetherColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}; --top: {{.TopColor}}; --together: {{.TogetherColor}}"{{end}}><title>{{.Title}}</title></polygon>
             {{end}}
             {{/* Подписи поверх заливки: страна пишется один раз, посередине
                  своих владений. */}}
@@ -873,6 +875,22 @@
                     {{t "game.map.top.none"}}
                 </p>
             {{end}}
+        </div>
+        {{/* Играли вместе: группы из архива коалиций. Нынешние сокомандники
+             сюда не попадают — их союз виден на вкладке коалиций. */}}
+        <div class="map-pane pane-together">
+            {{if .Map.Together}}
+                <ul class="map-legend">
+                    {{range .Map.Together}}
+                        <li>
+                            <span class="swatch" style="background: {{if .Color}}{{.Color}}{{else}}#4a5b68{{end}}"></span>
+                            {{join .Members}}
+                            <span class="muted">— {{t "game.map.together.games" .Games}}</span>
+                        </li>
+                    {{end}}
+                </ul>
+            {{end}}
+            <p class="muted">{{if .Map.Together}}{{t "game.map.together.note"}}{{else}}{{t "game.map.together.none"}}{{end}}</p>
         </div>
 
         <p class="muted">
