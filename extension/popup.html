@@ -13,12 +13,8 @@
 <main>
     <p id="busy" class="muted" hidden>Проверяем вход…</p>
 
-    <!-- Вход: адрес сервера, почта и пароль от админки. -->
+    <!-- Вход: почта и пароль от админки. Адрес вшит в config.js. -->
     <form id="login" hidden>
-        <label>
-            Адрес админки
-            <input type="text" name="server" placeholder="https://admin.example.com" autocomplete="url" required>
-        </label>
         <label>
             Почта
             <input type="email" name="email" autocomplete="username" required>
@@ -35,7 +31,6 @@
     <!-- Вошли: кто и куда. -->
     <section id="signed-in" hidden>
         <p>Вы вошли как <b id="nickname"></b> <span id="role" class="badge"></span></p>
-        <p class="muted small" id="server-line"></p>
         <p id="me-warning" class="error" hidden></p>
 
         <!-- Раскраска карты в игре. Панель боковая и сама не закрывается:
@@ -115,6 +110,7 @@
     </section>
 </main>
 
+<script src="config.js"></script>
 <script src="panel-map.js"></script>
 <script src="popup.js"></script>
 </body>

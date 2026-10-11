@@ -1,4 +1,4 @@
-.PHONY: up down restart logs ps dev build maeve-windows extension-zip game heroes test tidy clean
+.PHONY: up down restart logs ps dev build maeve-windows extension-zip extension-store game heroes test tidy clean
 
 # Поднять всё в docker: postgres и приложение.
 up:
@@ -39,6 +39,16 @@ extension-zip:
 	rm -f bin/admin-extension-$$v.zip; \
 	zip -qr bin/admin-extension-$$v.zip extension -x '*.DS_Store'; \
 	echo "bin/admin-extension-$$v.zip"
+
+# Архив для Chrome Web Store: bin/admin-extension-<версия>-store.zip.
+# Магазину нужен manifest.json в корне архива, а README ему ни к чему.
+extension-store:
+	@mkdir -p bin
+	@v=$$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' extension/manifest.json); \
+	out=$$(pwd)/bin/admin-extension-$$v-store.zip; \
+	rm -f $$out; \
+	cd extension && zip -qr $$out . -x '*.DS_Store' -x 'README.md'; \
+	echo "bin/admin-extension-$$v-store.zip"
 
 # Состав игры: какая страна за кем. make game GAME=10868223
 game:

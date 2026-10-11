@@ -12,26 +12,8 @@ const roles = { user: "пользователь", admin: "админ", root: "р
 const $ = (id) => document.getElementById(id);
 const show = (el, on) => { el.hidden = !on; };
 
-// Адрес сервера. Без схемы считаем https. Голый http пока разрешён: у боевой
-// админки ещё нет сертификата, и пароль с токеном по нему идут открытым
-// текстом. Когда у админки появится https, http надо снова закрыть —
-// оставив, как и раньше, только свой компьютер.
-function normalizeServer(raw) {
-    let text = raw.trim();
-    if (!/^[a-z]+:\/\//i.test(text)) {
-        text = "https://" + text;
-    }
-    let url;
-    try {
-        url = new URL(text);
-    } catch {
-        throw new Error("Не похоже на адрес сайта.");
-    }
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
-        throw new Error("Нужен адрес, начинающийся с https:// или http://.");
-    }
-    return url.origin;
-}
+// Адрес админки — SERVER из config.js: он вшит в расширение, и человек
+// вводит только почту и пароль.
 
 // api — запрос к серверу. Ответ сервера всегда JSON; текст ошибки в нём
 // готов к показу.
@@ -51,7 +33,7 @@ async function api(server, path, { method = "GET", token, body } = {}) {
             cache: "no-store",
         });
     } catch {
-        const err = new Error("Сервер не отвечает. Проверьте адрес и интернет.");
+        const err = new Error("Админка не отвечает. Проверьте интернет.");
         err.offline = true;
         throw err;
     }
@@ -70,7 +52,6 @@ async function api(server, path, { method = "GET", token, body } = {}) {
 
 function showLogin(state, message) {
     const form = $("login");
-    form.server.value = state.server || "";
     form.email.value = (state.user && state.user.email) || state.email || "";
     form.password.value = "";
     $("login-error").textContent = message || "";
@@ -79,13 +60,12 @@ function showLogin(state, message) {
     show($("signed-in"), false);
     show(form, true);
     mapPanel.stop();
-    (form.server.value ? (form.email.value ? form.password : form.email) : form.server).focus();
+    (form.email.value ? form.password : form.email).focus();
 }
 
 function showSignedIn(state, warning) {
     $("nickname").textContent = state.user.nickname;
     $("role").textContent = roles[state.user.role] || state.user.role;
-    $("server-line").textContent = state.server;
     $("me-warning").textContent = warning || "";
     show($("me-warning"), Boolean(warning));
     show($("busy"), false);
@@ -95,20 +75,20 @@ function showSignedIn(state, warning) {
 }
 
 async function load() {
-    return chrome.storage.local.get(["server", "email", "token", "user"]);
+    return chrome.storage.local.get(["email", "token", "user"]);
 }
 
 // При открытии окна спрашиваем сервер, жив ли токен: его могли отозвать —
 // сменой пароля, блокировкой или кнопкой «Отключить» в профиле.
 async function start() {
     const state = await load();
-    if (!state.token || !state.server || !state.user) {
+    if (!state.token || !state.user) {
         showLogin(state);
         return;
     }
     show($("busy"), true);
     try {
-        const data = await api(state.server, "/api/auth/me", { token: state.token });
+        const data = await api(SERVER, "/api/auth/me", { token: state.token });
         state.user = data.user;
         await chrome.storage.local.set({ user: data.user });
         showSignedIn(state);
@@ -117,7 +97,7 @@ async function start() {
         // а причину показываем у формы.
         if (err.status === 401 || err.status === 403) {
             await chrome.storage.local.remove(["token", "user"]);
-            showLogin({ server: state.server, email: state.user.email }, err.message);
+            showLogin({ email: state.user.email }, err.message);
             return;
         }
         // Сервер недоступен — это не выход: токен, скорее всего, жив.
@@ -130,35 +110,18 @@ $("login").addEventListener("submit", async (event) => {
     const form = event.currentTarget;
     const button = form.querySelector("button");
 
-    let server;
-    try {
-        server = normalizeServer(form.server.value);
-    } catch (err) {
-        showLogin({ server: form.server.value, email: form.email.value }, err.message);
-        return;
-    }
-
-    // Доступ к адресу сервера просим прямо в обработчике нажатия: Chrome
-    // показывает этот вопрос только в ответ на действие человека.
-    const granted = await chrome.permissions.request({ origins: [server + "/*"] });
-    if (!granted) {
-        showLogin({ server, email: form.email.value },
-            "Без разрешения на этот адрес расширение не сможет связаться с админкой.");
-        return;
-    }
-
     button.disabled = true;
     try {
         const email = form.email.value.trim();
-        const data = await api(server, "/api/auth/login", {
+        const data = await api(SERVER, "/api/auth/login", {
             method: "POST",
             body: { email, password: form.password.value },
         });
-        const state = { server, email, token: data.token, user: data.user };
+        const state = { email, token: data.token, user: data.user };
         await chrome.storage.local.set(state);
         showSignedIn(state);
     } catch (err) {
-        showLogin({ server, email: form.email.value }, err.message);
+        showLogin({ email: form.email.value }, err.message);
     } finally {
         button.disabled = false;
     }
@@ -169,10 +132,10 @@ $("logout").addEventListener("click", async () => {
     // Токен гасим и на сервере, но не ждём его ради выхода: если сервер
     // недоступен, расширение всё равно должно забыть вход. Сам токен тогда
     // доживёт свой срок, а оборвать его можно в профиле.
-    api(state.server, "/api/auth/logout", { method: "POST", token: state.token }).catch(() => {});
+    api(SERVER, "/api/auth/logout", { method: "POST", token: state.token }).catch(() => {});
     loggingOut = true;
     await chrome.storage.local.remove(["token", "user"]);
-    showLogin({ server: state.server, email: state.user && state.user.email });
+    showLogin({ email: state.user && state.user.email });
     loggingOut = false;
 });
 
@@ -185,9 +148,9 @@ let loggingOut = false;
 chrome.storage.onChanged.addListener(async (changes, area) => {
     if (area !== "local" || !changes.token || changes.token.newValue) return;
     if (loggingOut || $("signed-in").hidden) return;
-    const state = await chrome.storage.local.get(["server", "email", "authError"]);
+    const state = await chrome.storage.local.get(["email", "authError"]);
     await chrome.storage.local.remove("authError");
-    showLogin({ server: state.server, email: state.email },
+    showLogin({ email: state.email },
         state.authError || "Вход в расширение закончился — войдите снова.");
 });
 

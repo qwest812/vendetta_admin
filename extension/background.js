@@ -2,11 +2,14 @@
 //
 // Скрипт на странице игры сам этого сделать не может — его запросы
 // считаются запросами страницы supremacy1914.com, и браузер не пустил бы их
-// на чужой адрес. Фону же доступ к адресу админки человек выдал при входе.
+// на чужой адрес. Фону же доступ к адресу админки дан манифестом.
 // Токен тоже живёт только здесь и в окне расширения: странице игры он
 // не показывается.
 
 "use strict";
+
+// SERVER — адрес админки, общий с панелью.
+importScripts("config.js");
 
 // Окно расширения — боковая панель: она не закрывается от щелчка по игре,
 // и режимы карты можно переключать, глядя на карту. Открывается по значку.
@@ -25,14 +28,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // Ответ всегда объект: {data} при удаче или {error, status} при отказе —
 // сообщения между частями расширения исключения не переносят.
 async function map(me, players, teams) {
-    const { server, token } = await chrome.storage.local.get(["server", "token"]);
-    if (!server || !token) {
+    const { token } = await chrome.storage.local.get(["token"]);
+    if (!token) {
         return { error: "Войдите в расширении «Админка» — значок справа от адресной строки.", status: 401 };
     }
 
     let res;
     try {
-        res = await fetch(server + "/api/map", {
+        res = await fetch(SERVER + "/api/map", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
             body: JSON.stringify({ me, players, teams }),

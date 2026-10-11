@@ -1,0 +1,102 @@
+{{define "title"}}Политика конфиденциальности · Privacy policy{{end}}
+
+{{define "content"}}
+{{/* Политика конфиденциальности расширения Chrome «Админка». Её требует
+     магазин Chrome: расширение принимает почту и пароль и хранит токен
+     входа. Страница публичная и не переводится через i18n — на ней сразу
+     оба языка: проверяющие в магазине читают по-английски, игроки —
+     по-русски. Меняется то, что расширение собирает или куда отправляет, —
+     меняется и эта страница. */}}
+<div class="card privacy">
+    <h1>Политика конфиденциальности расширения «Админка»</h1>
+    <p class="muted">Обновлено 11 октября 2026 года.</p>
+
+    <p>Расширение Chrome «Админка» — инструмент для участников закрытого сайта
+        админки: оно входит в админку по почте и паролю и показывает её данные
+        поверх карты в игре Supremacy 1914. Расширение работает только
+        с сервером админки <code>http://212.43.155.212:8082</code>
+        и со страницами игры на <code>supremacy1914.*</code>.</p>
+
+    <h2>Что расширение собирает и зачем</h2>
+    <ul>
+        <li><b>Почта и пароль</b> — при входе отправляются на сервер админки,
+            чтобы проверить вход. Расширение пароль не хранит.</li>
+        <li><b>Токен входа</b> — сервер выдаёт его после входа; расширение хранит
+            его в памяти браузера (<code>chrome.storage.local</code>) вместе
+            с почтой, ником и ролью, чтобы не спрашивать пароль каждый раз.</li>
+        <li><b>Журнал входов</b> — при входе сервер записывает время, IP-адрес
+            и браузер (User-Agent). Это нужно для безопасности аккаунта: по журналу
+            видно чужие входы.</li>
+        <li><b>Состав открытой партии</b> — когда вы нажимаете «Анализировать
+            карту», расширение отправляет на сервер админки номера игроков партии
+            на сайте игры, их страны и коалиции, чтобы получить раскраску карты.</li>
+        <li><b>Данные клиента игры</b> — отношения, армии, здания читаются прямо
+            на странице игры и никуда не отправляются. Действия в игре (например,
+            смена отношений с ботами) расширение отправляет на сервер самой игры
+            и только по вашему нажатию.</li>
+    </ul>
+
+    <h2>Кому передаются данные</h2>
+    <p>Только серверу админки. Данные не продаются, не передаются третьим лицам,
+        не используются для рекламы и не попадают в сервисы аналитики.
+        Расширение не загружает и не выполняет код с других адресов.</p>
+
+    <h2>Как управлять данными</h2>
+    <ul>
+        <li>Кнопка «Выйти» в расширении удаляет токен из браузера и гасит его
+            на сервере.</li>
+        <li>Все входы расширения можно отключить в своём профиле на сайте
+            админки.</li>
+        <li>Удаление расширения стирает всё, что оно хранило в браузере.</li>
+        <li>Удалить аккаунт и данные на сервере можно, написав в «Обратную связь»
+            на сайте админки.</li>
+    </ul>
+
+    <hr>
+
+    <h1>“Админка” (Admin) extension privacy policy</h1>
+    <p class="muted">Last updated: October 11, 2026.</p>
+
+    <p>The “Админка” Chrome extension is a tool for members of a private admin
+        website: it signs in to the admin site with an email and password and shows
+        its data on top of the map in the game Supremacy 1914. The extension talks
+        only to the admin server <code>http://212.43.155.212:8082</code> and to the
+        game pages on <code>supremacy1914.*</code>.</p>
+
+    <h2>What the extension collects and why</h2>
+    <ul>
+        <li><b>Email and password</b> — sent to the admin server on sign-in to verify
+            it. The extension does not store the password.</li>
+        <li><b>Sign-in token</b> — issued by the server after sign-in; the extension
+            keeps it in browser storage (<code>chrome.storage.local</code>) together
+            with the email, nickname and role, so you are not asked for the password
+            every time.</li>
+        <li><b>Sign-in log</b> — on sign-in the server records the time, IP address
+            and browser (User-Agent). This protects the account: the log shows
+            sign-ins by someone else.</li>
+        <li><b>Players of the open game</b> — when you press “Analyse map”, the
+            extension sends the game’s player account numbers, their nations and
+            coalitions to the admin server to get the map colouring.</li>
+        <li><b>Game client data</b> — relations, armies and buildings are read on the
+            game page and are not sent anywhere. In-game actions (such as changing
+            relations with bots) are sent to the game’s own server, and only when you
+            press the button.</li>
+    </ul>
+
+    <h2>Who receives the data</h2>
+    <p>Only the admin server. Data is not sold, not shared with third parties, not
+        used for advertising and not sent to analytics services. The extension does
+        not load or run code from other addresses.</p>
+
+    <h2>Your controls</h2>
+    <ul>
+        <li>“Выйти” (Sign out) in the extension deletes the token from the browser and
+            revokes it on the server.</li>
+        <li>All extension sign-ins can be revoked from your profile on the admin
+            site.</li>
+        <li>Removing the extension erases everything it stored in the browser.</li>
+        <li>To delete your account and its data on the server, write via “Обратная
+            связь” (Feedback) on the admin site.</li>
+    </ul>
+</div>
+{{end}}

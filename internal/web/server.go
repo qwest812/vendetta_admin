@@ -178,6 +178,9 @@ func (s *Server) Handler() http.Handler {
 	// базовый пакет. Раздел «Игры» открыт сразу — карта партии и есть то,
 	// ради чего регистрируются; проверок в сутки столько, сколько по
 	// умолчанию. Остальное выдаёт рут, как раньше.
+	// Политика конфиденциальности расширения: её ссылку требует магазин
+	// Chrome, и открываться она должна без входа.
+	mux.HandleFunc("GET /privacy", s.privacy)
 	mux.HandleFunc("GET /register", s.registerForm)
 	mux.Handle("POST /register", http.HandlerFunc(s.registerSubmit))
 	mux.Handle("POST /logout", auth.VerifyCSRF(http.HandlerFunc(s.logout)))
