@@ -33,6 +33,20 @@ type HeroCard struct {
 	// Mobilization — сколько герой собирается после размещения, игровым
 	// временем: в ускоренной партии настоящего уходит меньше.
 	Mobilization time.Duration
+	// Levels — предметы уровней героя: уровень — сколько их лежит
+	// в инвентаре, ноль — герой не открыт. Так считает и клиент игры.
+	Levels []int
+}
+
+// Level — уровень героя при таком инвентаре.
+func (c HeroCard) Level(inventory map[int]int) int {
+	n := 0
+	for _, item := range c.Levels {
+		if inventory[item] > 0 {
+			n++
+		}
+	}
+	return n
 }
 
 // HeroCards — карточки героев по номеру предмета героя.
@@ -86,6 +100,11 @@ func parseHeroCards(raw json.RawMessage) (map[int]HeroCard, error) {
 					Day          int   `json:"dayOfAvailability"`
 					Morale       int   `json:"deploymentMoraleThreshold"`
 					Mobilization int64 `json:"mobilizationTime"`
+					Effects      map[string]struct {
+						Item *struct {
+							ID int `json:"identifier"`
+						} `json:"requiredInventoryItemId"`
+					} `json:"requiredItemEffects"`
 				} `json:"unitCardContent"`
 			} `json:"inventorySystemItem"`
 		}
@@ -97,8 +116,16 @@ func parseHeroCards(raw json.RawMessage) (map[int]HeroCard, error) {
 			continue
 		}
 		card := settings.Item.Card
-		cards[id] = HeroCard{Day: card.Day, Morale: card.Morale,
+		hc := HeroCard{Day: card.Day, Morale: card.Morale,
 			Mobilization: time.Duration(card.Mobilization) * time.Millisecond}
+		seen := map[int]bool{}
+		for _, e := range card.Effects {
+			if e.Item != nil && e.Item.ID > 0 && !seen[e.Item.ID] {
+				seen[e.Item.ID] = true
+				hc.Levels = append(hc.Levels, e.Item.ID)
+			}
+		}
+		cards[id] = hc
 	}
 	if len(cards) == 0 {
 		return nil, fmt.Errorf("справочник предметов: ни одной карточки юнита")

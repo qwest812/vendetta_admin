@@ -100,15 +100,19 @@ func TestParseHeroCards(t *testing.T) {
 	const raw = `[
 	  {"@c": "ultshared.UltMod", "itemID": "1"},
 	  {"itemID": "23047", "name": "Orhan 'Kangal' Demir",
-	   "extraSettings": "{\"inventorySystemItem\":{\"itemType\":\"unit\",\"unitCardContent\":{\"mobilizationTime\":7200000,\"deploymentMoraleThreshold\":70,\"dayOfAvailability\":2}}}"},
+	   "extraSettings": "{\"inventorySystemItem\":{\"itemType\":\"unit\",\"unitCardContent\":{\"mobilizationTime\":7200000,\"deploymentMoraleThreshold\":70,\"dayOfAvailability\":2,\"requiredItemEffects\":{\"lvl1\":{\"requiredInventoryItemId\":{\"identifier\":23061}},\"lvl2\":{\"requiredInventoryItemId\":{\"identifier\":23062}}}}}}"},
 	  {"itemID": "5", "extraSettings": "{\"hidden\":true}"}
 	]`
 	cards, err := parseHeroCards([]byte(raw))
 	if err != nil {
 		t.Fatalf("разбор: %v", err)
 	}
-	want := HeroCard{Day: 2, Morale: 70, Mobilization: 2 * time.Hour}
-	if len(cards) != 1 || cards[23047] != want {
-		t.Errorf("карточки = %+v, ожидалась %+v", cards, want)
+	card, ok := cards[23047]
+	if len(cards) != 1 || !ok || card.Day != 2 || card.Morale != 70 || card.Mobilization != 2*time.Hour {
+		t.Errorf("карточки = %+v", cards)
+	}
+	// Уровень — сколько предметов уровней лежит в инвентаре.
+	if got := card.Level(map[int]int{23061: 1, 99: 1}); got != 1 || len(card.Levels) != 2 {
+		t.Errorf("уровень = %d при предметах %v", got, card.Levels)
 	}
 }

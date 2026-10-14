@@ -90,16 +90,20 @@
     {{if and .DeployHeroes .RallyProvinces}}
         <form class="row-form" method="post" action="/games/{{.GameID}}/hero/order">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <label>
-                {{t "game.herodeploy.hero"}}
-                <select name="hero">
-                    {{range .DeployHeroes}}
-                        {{if not .OnMap}}
-                            <option value="{{.Unit}}|{{.Name}}">{{.Name}}{{if not .Ready}} — {{t "game.herodeploy.fromday" .Day}}{{if not .Opens.IsZero}}, {{datetime .Opens}}{{end}}{{end}}</option>
-                        {{end}}
-                    {{end}}
-                </select>
-            </label>
+            {{/* Герой выбирается портретом, как здание в очереди: в выпадающем
+                 списке картинку не показать. */}}
+            <fieldset class="pick-tiles hero-tiles">
+                <legend>{{t "game.herodeploy.hero"}}</legend>
+                {{range $i, $h := .DeployHeroes}}
+                    <label class="tile">
+                        <input type="radio" name="hero" value="{{$h.Unit}}|{{$h.Name}}"{{if eq $i 0}} required{{end}}>
+                        {{if $h.Image}}<img class="hero-face" src="/heroes/img/{{$h.Image}}" alt="" loading="lazy">{{end}}
+                        <span>{{$h.Name}}</span>
+                        {{if $h.MaxLevel}}<span class="muted">{{t "game.herodeploy.level" $h.Level $h.MaxLevel}}</span>{{end}}
+                        {{if not $h.Ready}}<span class="muted">{{t "game.herodeploy.fromday" $h.Day}}{{if not $h.Opens.IsZero}}, {{datetime $h.Opens}}{{end}}</span>{{end}}
+                    </label>
+                {{end}}
+            </fieldset>
             <label>
                 {{t "game.rally.city.pick"}}
                 <select name="province">

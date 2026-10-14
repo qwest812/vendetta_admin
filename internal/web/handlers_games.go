@@ -902,7 +902,12 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 		// а планировать — только «как наступит» по ответу игры.
 		s.log.Warn("справочник героев с сайта", "err", err)
 	}
-	data["DeployHeroes"] = heroOptions(heroes, cards, state)
+	// Портреты — из справочника героев; без него выбор просто без картинок.
+	faces, _, err := s.heroSnapshot(ctx)
+	if err != nil {
+		s.log.Warn("справочник героев", "err", err)
+	}
+	data["DeployHeroes"] = heroOptions(heroes, cards, state, faces)
 	data["HeroesOnMap"], data["HeroLimit"] = deployed, state.HeroLimit
 
 	// Карту рисуем, если получилось: очертания лежат отдельным файлом

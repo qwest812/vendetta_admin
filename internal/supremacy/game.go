@@ -349,6 +349,9 @@ type GameState struct {
 	// держать на карте разом; ноль — игра не сказала.
 	Heroes    []HeroItem
 	HeroLimit int
+	// Inventory — предметы аккаунта и сколько их: по ним считается
+	// уровень героя, см. HeroCard.Level.
+	Inventory map[int]int
 	// Upgrades — справочник зданий этой партии по номеру.
 	Upgrades map[int]Upgrade
 	// Resources — наши запасы по номеру ресурса. У наблюдателя пусто:
@@ -1122,6 +1125,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	for _, it := range r.States.Inventory.Items {
 		owned[it.ID] = it.Amount
 	}
+	g.Inventory = owned
 	for unit, h := range mod.HeroItems {
 		unitID, err := strconv.Atoi(unit)
 		if err != nil || owned[h.Item] <= 0 {

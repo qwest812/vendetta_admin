@@ -1127,3 +1127,6 @@ button.ghost:hover { border-color: var(--accent); }
    в строке. */
 ul.hero-plans { list-style: none; padding: 0; margin: 8px 0; }
 ul.hero-plans li { padding: 4px 0; border-top: 1px solid var(--border, #ddd); }
+
+/* Плитки героев: портрет выше, чем картинка здания, — он вертикальный. */
+.hero-tiles .tile img { width: 48px; height: 62px; object-fit: cover; }

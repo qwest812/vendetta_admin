@@ -9,6 +9,7 @@ import (
 
 	"Vendetta_admin/internal/domain"
 	"Vendetta_admin/internal/supremacy"
+	"Vendetta_admin/internal/supremacy/heroes"
 )
 
 // gameHeroToggle включает и выключает автопризыв пехоты в партии.
@@ -236,23 +237,46 @@ func (s *Server) rallyTask(w http.ResponseWriter, r *http.Request, gameID string
 	return task, true
 }
 
-// heroOption — герой в выборе для размещения: доступен ли он уже и
-// когда откроется. Opens — начало нужного дня настоящими часами; нулевое,
-// если день уже наступил или его не посчитать.
+// heroOption — герой в выборе для размещения: уровень, портрет, открыт
+// ли уже его день и когда откроется. Opens — начало нужного дня
+// настоящими часами; нулевое, если день уже наступил или его не посчитать.
 type heroOption struct {
 	supremacy.HeroChoice
+	Level    int
+	MaxLevel int
+	// Image — имя файла портрета из справочника героев; пусто — портрета нет.
+	Image string
 	Day   int
 	Opens time.Time
 	Ready bool
 }
 
-// heroOptions — герои аккаунта с днями доступности из справочника сайта.
-// Без справочника день неизвестен, и герой считается доступным: решит игра.
-func heroOptions(heroes []supremacy.HeroChoice, cards map[int]supremacy.HeroCard, state *supremacy.GameState) []heroOption {
+// heroOptions — открытые герои аккаунта, которых нет на карте, с уровнем
+// и днём доступности из справочника сайта. Уровень ноль — герой не открыт,
+// и в выбор он не попадает: так прячет его и клиент игры. Без справочника
+// уровень неизвестен, и показываются все, чей предмет есть в инвентаре.
+func heroOptions(heroes []supremacy.HeroChoice, cards map[int]supremacy.HeroCard,
+	state *supremacy.GameState, faces *heroes.Snapshot) []heroOption {
+
 	out := make([]heroOption, 0, len(heroes))
 	for _, h := range heroes {
-		day := cards[h.Item].Day
-		out = append(out, heroOption{HeroChoice: h, Day: day, Opens: state.DayStart(day), Ready: day <= state.Day})
+		if h.OnMap {
+			continue
+		}
+		card, carded := cards[h.Item]
+		o := heroOption{HeroChoice: h, Day: card.Day, Opens: state.DayStart(card.Day), Ready: card.Day <= state.Day}
+		if carded && len(card.Levels) > 0 {
+			o.Level, o.MaxLevel = card.Level(state.Inventory), len(card.Levels)
+			if o.Level == 0 {
+				continue
+			}
+		}
+		if faces != nil {
+			if face, ok := faces.ByUnitType(h.Unit); ok {
+				o.Image = face.Image
+			}
+		}
+		out = append(out, o)
 	}
 	return out
 }

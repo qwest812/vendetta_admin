@@ -507,6 +507,7 @@ var messages = map[string]entry{
 	"game.relate.note":         {ru: "Разово: заходит в партию и выдаёт право прохода каждому боту, у кого его ещё нет. Общую карту и выше не трогает.", en: "One-off: enters the game and grants right of way to every bot that lacks it. Shared map and above stay as they are."},
 	"game.herodeploy.hero":     {ru: "Герой", en: "Hero"},
 	"game.herodeploy.limit":    {ru: "на карте %d из %d", en: "%d of %d on the map"},
+	"game.herodeploy.level":    {ru: "ур. %d из %d", en: "lvl %d of %d"},
 	"game.herodeploy.fromday":  {ru: "с %d-го дня", en: "from day %d"},
 	"game.heroorder.add":       {ru: "Поставить героя", en: "Deploy hero"},
 	"game.heroorder.note":      {ru: "Админка ставит героя сама, как только можно: наступил его день, есть место в лимите героев, мораль провинции не ниже нужной и в ней нет боя. Пока нельзя — приказ ждёт и проверяется к смене дня или раз в час; ненужный убирается кнопкой.", en: "The panel deploys the hero as soon as it can: its day has come, the hero limit has room, province morale is high enough and there is no fighting. Until then the order waits and is rechecked at the day change or hourly; remove it with the button."},

@@ -155,8 +155,8 @@ func planHeroOrders(state *GameState, cards map[int]HeroCard, orders []domain.He
 		province, known := provinces[o.Province]
 		card, carded := cards[hero.Item]
 		switch {
-		case !owned:
-			step.run.Result = "этого героя нет в инвентаре аккаунта"
+		case !owned || (carded && len(card.Levels) > 0 && card.Level(state.Inventory) == 0):
+			step.run.Result = "этот герой не открыт у аккаунта"
 		case hero.OnMap:
 			step.run.Result = hero.Name + " уже на карте"
 		case !known || province.Owner != state.Me:
