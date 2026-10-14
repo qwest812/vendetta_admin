@@ -92,8 +92,16 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	subnet := loginSubnet(r)
+	if s.loginLimits.blocked(subnet, email, time.Now()) {
+		s.log.Warn("вход из расширения: предел неудачных попыток", "login", email, "subnet", subnet)
+		writeAPIError(w, http.StatusTooManyRequests, lang.T("err.login.toomany"))
+		return
+	}
+
 	user, token, expires, err := s.auth.LoginExtension(r.Context(), r, email, req.Password)
 	if errors.Is(err, domain.ErrInvalidLogin) {
+		s.loginLimits.failed(subnet, email, time.Now())
 		s.log.Warn("неудачный вход из расширения", "login", email, "ip", r.RemoteAddr)
 		writeAPIError(w, http.StatusUnauthorized, lang.T("err.badlogin"))
 		return

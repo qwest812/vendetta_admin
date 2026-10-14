@@ -795,6 +795,7 @@ var messages = map[string]entry{
 	"err.badform":       {ru: "Некорректная форма", en: "Malformed form"},
 	"err.badlogin":      {ru: "Неверная почта или пароль", en: "Wrong email or password"},
 	"err.login.blocked": {ru: "Вам заблокировали вход. Напишите администратору.", en: "Your sign-in has been blocked. Contact an administrator."},
+	"err.login.toomany": {ru: "Слишком много неудачных попыток входа. Подождите и попробуйте снова.", en: "Too many failed sign-in attempts. Wait a while and try again."},
 
 	// --- API расширения ---
 	"api.unauthorized": {ru: "Вход из расширения закончился — войдите снова.", en: "The extension sign-in has ended — please sign in again."},

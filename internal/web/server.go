@@ -30,9 +30,10 @@ type Server struct {
 	friends *relationSection
 	games   gameSource
 	// nicks — откуда регистрация берёт ник по игровому ID; signups —
-	// счёт её попыток по подсетям.
-	nicks   nickSource
-	signups *signupLimiter
+	// счёт её попыток по подсетям; logins — счёт неудачных входов.
+	nicks       nickSource
+	signups     *attemptLimiter
+	loginLimits *loginLimiter
 	// feedback — обращения в админку и переписка по ним.
 	feedback *repo.Feedback
 	// alliances — кеш кланов Supremacy: сайт игры отвечает про одного
@@ -146,7 +147,7 @@ func NewServer(d Deps) (*Server, error) {
 		players: d.Players, clans: d.Clans, traits: d.Traits,
 		feedback: d.Feedback,
 		games:    d.Games, alliances: d.Alliances, topAlliances: d.TopAlliances,
-		nicks: d.Nicks, signups: newSignupLimiter(),
+		nicks: d.Nicks, signups: newSignupLimiter(), loginLimits: newLoginLimiter(),
 		gamePlayers: d.GamePlayers, userStats: d.UserStats, hunts: d.Hunts,
 		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
 		checked: d.Checked, checks: d.Checks, mapTickets: newMapTickets(),
