@@ -28,6 +28,7 @@ import (
 	"math"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -343,6 +344,11 @@ type GameState struct {
 	// HeroTypes — типы юнитов, умеющих призывать пехоту (роль
 	// DEPLOY_INFANTRY), и их имена: по ним ищется армия с героиней.
 	HeroTypes map[int]string
+	// Heroes — герои аккаунта, которых можно поставить на карту: предмет
+	// инвентаря на каждого. HeroLimit — сколько героев сценарий разрешает
+	// держать на карте разом; ноль — игра не сказала.
+	Heroes    []HeroItem
+	HeroLimit int
 	// Upgrades — справочник зданий этой партии по номеру.
 	Upgrades map[int]Upgrade
 	// Resources — наши запасы по номеру ресурса. У наблюдателя пусто:
@@ -823,7 +829,28 @@ type gameStateResponse struct {
 			ResourceEntries     json.RawMessage `json:"resourceEntries"`
 			ResourceConsumption json.RawMessage `json:"resourceConsumption"`
 			ProvinceStates      json.RawMessage `json:"provinceStates"`
+			// Герои как предметы инвентаря: тип юнита героя → предмет,
+			// который его ставит на карту, и названия предметов.
+			HeroItems map[string]struct {
+				Item int `json:"identifier"`
+			} `json:"unitItemIdToPermanentPremiumItemId"`
+			Premiums map[string]struct {
+				Name string `json:"name"`
+			} `json:"premiums"`
 		} `json:"11"`
+		// Инвентарь аккаунта: сколько каких предметов есть.
+		Inventory struct {
+			Items map[string]struct {
+				ID     int `json:"itemID"`
+				Amount int `json:"itemAmount"`
+			} `json:"inventory"`
+		} `json:"16"`
+		// Сценарий: сколько героев можно держать на карте разом.
+		Scenario struct {
+			Heroes struct {
+				Limit int `json:"limit"`
+			} `json:"heroConfig"`
+		} `json:"31"`
 		// Ресурсы: запас на момент time0 и прирост в секунду. Лежат они
 		// по игрокам, но чужие профили игра не наполняет — берём свой.
 		Resources struct {
@@ -1085,6 +1112,23 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	g.ResourceNames = resourceNames(mod.ResourceEntries)
 	g.Consumption = numMap(mod.ResourceConsumption)
 	g.StateFactor = stateFactors(mod.ProvinceStates)
+
+	// Герой есть у аккаунта, когда его предмет лежит в инвентаре. Предмет
+	// постоянный: размещение его не тратит, и на карту герой встаёт один.
+	owned := make(map[int]int, len(r.States.Inventory.Items))
+	for _, it := range r.States.Inventory.Items {
+		owned[it.ID] = it.Amount
+	}
+	for unit, h := range mod.HeroItems {
+		unitID, err := strconv.Atoi(unit)
+		if err != nil || owned[h.Item] <= 0 {
+			continue
+		}
+		g.Heroes = append(g.Heroes, HeroItem{
+			Unit: unitID, Item: h.Item, Name: mod.Premiums[strconv.Itoa(h.Item)].Name})
+	}
+	sort.Slice(g.Heroes, func(i, j int) bool { return g.Heroes[i].Name < g.Heroes[j].Name })
+	g.HeroLimit = r.States.Scenario.Heroes.Limit
 
 	g.HeroTypes = make(map[int]string)
 	g.Units = make(map[int]UnitType)

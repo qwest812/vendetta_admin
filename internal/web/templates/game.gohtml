@@ -83,6 +83,33 @@
         <p class="muted">{{t "game.relate.note"}}</p>
     </div>
 
+    {{/* Размещение героя: герои аккаунта и свои провинции знает только
+         состояние партии, поэтому блок появляется вместе с картой. */}}
+    {{if and .DeployHeroes .RallyProvinces}}
+        <form class="row-form" method="post" action="/games/{{.GameID}}/hero/deploy">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <label>
+                {{t "game.herodeploy.hero"}}
+                <select name="hero">
+                    {{range .DeployHeroes}}
+                        <option value="{{.Unit}}"{{if .OnMap}} disabled{{end}}>{{.Name}}{{if .OnMap}} — {{t "game.herodeploy.onmap"}}{{end}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <label>
+                {{t "game.rally.city.pick"}}
+                <select name="province">
+                    {{range .RallyProvinces}}
+                        <option value="{{.ID}}|{{.Name}}">{{.Name}}{{if .Capital}} ★{{end}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <button type="submit">{{t "game.herodeploy.now"}}</button>
+            <span class="muted">{{if .HeroLimit}}{{t "game.herodeploy.limit" .HeroesOnMap .HeroLimit}}{{end}}</span>
+        </form>
+        <p class="muted">{{t "game.herodeploy.note"}}</p>
+    {{end}}
+
     {{/* Сбор войск в город: город выбирается из своих провинций (они
          есть, только когда загружено состояние партии), а кнопки
          работают и без него — город уже лежит в базе. */}}

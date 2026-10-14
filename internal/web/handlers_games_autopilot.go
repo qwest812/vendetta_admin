@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"Vendetta_admin/internal/domain"
@@ -233,4 +234,32 @@ func (s *Server) rallyTask(w http.ResponseWriter, r *http.Request, gameID string
 		return nil, false
 	}
 	return task, true
+}
+
+// gameHeroPlace ставит выбранного героя аккаунта в выбранную свою
+// провинцию — разово, по нажатию. Итог показывается тут же.
+func (s *Server) gameHeroPlace(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	if s.games == nil {
+		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		return
+	}
+	unit, err := strconv.Atoi(r.PostFormValue("hero"))
+	province, city, _, ok := idAndName(r.PostFormValue("province"))
+	if err != nil || unit <= 0 || !ok {
+		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
+	defer cancel()
+
+	result, err := s.games.DeployHero(ctx, gameID, unit, province, city)
+	if err != nil {
+		s.log.Error("размещение героя", "gameID", gameID, "err", err)
+		s.renderGame(w, r, gameID, false, err.Error())
+		return
+	}
+	s.log.Info("размещение героя", "gameID", gameID, "user_id", currentUser(r).ID, "итог", result)
+	s.renderGameNotice(w, r, gameID, false, "", result)
 }

@@ -976,6 +976,9 @@ func (sizeSource) RallyArmies(context.Context, string, int, string) (*supremacy.
 func (sizeSource) RunAutopilot(context.Context, string, supremacy.AutopilotJob) (*supremacy.AutopilotRun, error) {
 	return nil, nil
 }
+func (sizeSource) DeployHero(context.Context, string, int, int, string) (string, error) {
+	return "", nil
+}
 func (sizeSource) GrantRightOfWay(context.Context, string) (string, error) {
 	return "", nil
 }

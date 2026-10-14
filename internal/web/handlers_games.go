@@ -55,6 +55,8 @@ type gameSource interface {
 	// RunAutopilot — то же, что делает автопилот за один свой заход.
 	RallyArmies(ctx context.Context, gameID string, target int, city string) (*supremacy.RallyRun, error)
 	RunAutopilot(ctx context.Context, gameID string, job supremacy.AutopilotJob) (*supremacy.AutopilotRun, error)
+	// DeployHero ставит героя аккаунта на карту в свою провинцию.
+	DeployHero(ctx context.Context, gameID string, unit, province int, city string) (string, error)
 	// GameLosses — потери в войнах партии по газете, с первого дня по today.
 	GameLosses(ctx context.Context, gameID string, today int) (*supremacy.Losses, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
@@ -880,6 +882,9 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 	// Город для сбора войск выбирается из своих провинций — их знает
 	// только состояние партии.
 	data["RallyProvinces"] = rallyProvinces(state)
+	// Герои аккаунта для размещения: кто есть и кто уже на карте.
+	heroes, deployed := state.HeroChoices()
+	data["DeployHeroes"], data["HeroesOnMap"], data["HeroLimit"] = heroes, deployed, state.HeroLimit
 
 	// Карту рисуем, если получилось: очертания лежат отдельным файлом
 	// на static-сервере игры, и его недоступность не повод прятать
