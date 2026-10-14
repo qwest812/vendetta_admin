@@ -58,6 +58,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	friends := repo.NewFriends(pool)
 	tasks := repo.NewGameTasks(pool)
 	buildQueue := repo.NewBuildQueue(pool)
+	heroPlans := repo.NewHeroPlans(pool)
 	alliances := repo.NewAlliances(pool)
 	gamePlayers := repo.NewGamePlayers(pool)
 	coalitions := repo.NewCoalitions(pool)
@@ -92,7 +93,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Audit: audit, Logins: logins, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Feedback: feedback, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery, HeroEveryMax: cfg.S1914HeroEveryMax,
-		BuildQueue: buildQueue,
+		BuildQueue: buildQueue, HeroPlans: heroPlans,
 		Coalitions: coalitions, Settings: settings, Heroes: heroes,
 		Checked: checked, Checks: mapChecks,
 		TopAlliances: topAlliances, UserStats: userStats, Hunts: hunts,
@@ -184,6 +185,11 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// и смотрит в свою базу.
 		builder := supremacy.NewBuilder(s1914, buildQueue, log)
 		startAfter(ctx, 5*workerStagger, builder.Run)
+
+		// Отложенное размещение героев: как и очередь, ходит к сроку —
+		// к началу нужного дня партии, — а до него спрашивает только базу.
+		heroPlanner := supremacy.NewHeroPlanner(s1914, heroPlans, log)
+		startAfter(ctx, 7*workerStagger, heroPlanner.Run)
 
 		// Кланы игроков спрашивает воркер, а не страница карты: сайт игры
 		// отвечает про одного игрока за раз. Очередь ему наполняют сами

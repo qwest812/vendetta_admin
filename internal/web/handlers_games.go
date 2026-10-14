@@ -57,6 +57,9 @@ type gameSource interface {
 	RunAutopilot(ctx context.Context, gameID string, job supremacy.AutopilotJob) (*supremacy.AutopilotRun, error)
 	// DeployHero ставит героя аккаунта на карту в свою провинцию.
 	DeployHero(ctx context.Context, gameID string, unit, province int, city string) (string, error)
+	// HeroCards — с какого дня партии доступен каждый герой: справочник
+	// предметов сайта, заходом в партию не считается.
+	HeroCards(ctx context.Context) (map[int]supremacy.HeroCard, error)
 	// GameLosses — потери в войнах партии по газете, с первого дня по today.
 	GameLosses(ctx context.Context, gameID string, today int) (*supremacy.Losses, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
@@ -345,9 +348,17 @@ func (s *Server) renderGameNotice(w http.ResponseWriter, r *http.Request, gameID
 		s.serverError(w, r, err)
 		return
 	}
+	// Планы размещения героев тоже лежат в базе и видны без захода.
+	var heroPlans []domain.HeroPlan
+	if s.heroPlans != nil {
+		if heroPlans, err = s.heroPlans.List(r.Context(), gameID); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
 
 	data := map[string]any{
-		"GameID": gameID, "Task": task, "Error": errMsg, "Notice": notice,
+		"GameID": gameID, "Task": task, "Error": errMsg, "Notice": notice, "HeroPlans": heroPlans,
 		"Interval": s.heroEvery, "IntervalMax": s.heroEveryMax,
 		"Game": nil, "State": nil, "Mine": nil,
 		"Map": nil, "MapError": "", "Enemies": nil, "Friends": nil,
@@ -884,7 +895,14 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 	data["RallyProvinces"] = rallyProvinces(state)
 	// Герои аккаунта для размещения: кто есть и кто уже на карте.
 	heroes, deployed := state.HeroChoices()
-	data["DeployHeroes"], data["HeroesOnMap"], data["HeroLimit"] = heroes, deployed, state.HeroLimit
+	cards, err := s.games.HeroCards(ctx)
+	if err != nil {
+		// Без справочника дни доступности неизвестны: размещать можно,
+		// а планировать — только «как наступит» по ответу игры.
+		s.log.Warn("справочник героев с сайта", "err", err)
+	}
+	data["DeployHeroes"] = heroOptions(heroes, cards, state)
+	data["HeroesOnMap"], data["HeroLimit"] = deployed, state.HeroLimit
 
 	// Карту рисуем, если получилось: очертания лежат отдельным файлом
 	// на static-сервере игры, и его недоступность не повод прятать

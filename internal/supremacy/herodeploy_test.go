@@ -3,6 +3,7 @@ package supremacy
 import (
 	"encoding/json"
 	"testing"
+	"time"
 )
 
 // Герои аккаунта собираются из трёх мест состояния, как их снял живой
@@ -42,8 +43,8 @@ func TestHeroDeployCheck(t *testing.T) {
 		Heroes:    []HeroItem{{Unit: 23041, Item: 23047, Name: "Кангал"}, {Unit: 22277, Item: 22286, Name: "Алленби"}},
 		Provinces: []Province{{ID: 481, Name: "Свой", Owner: 6}, {ID: 9, Name: "Чужой", Owner: 2}},
 	}
-	if hero, why := g.heroDeployCheck(23041, 481); why != "" || hero.Item != 23047 {
-		t.Errorf("Кангала в свою провинцию: %q, %+v", why, hero)
+	if hero, why := g.heroDeployCheck(23041, 481); why != nil || hero.Item != 23047 {
+		t.Errorf("Кангала в свою провинцию: %+v, %+v", why, hero)
 	}
 	for _, c := range []struct {
 		unit, province int
@@ -53,20 +54,39 @@ func TestHeroDeployCheck(t *testing.T) {
 		{23041, 9, "чужая провинция"},
 		{23041, 777, "провинции нет"},
 	} {
-		if _, why := g.heroDeployCheck(c.unit, c.province); why == "" {
+		if _, why := g.heroDeployCheck(c.unit, c.province); why == nil {
 			t.Errorf("%s: проверка пропустила", c.name)
 		}
 	}
 
 	g.Armies = []Army{{Owner: 6, Units: []ArmyUnit{{Type: 23041, Size: 1}}}}
-	if _, why := g.heroDeployCheck(23041, 481); why == "" {
+	if _, why := g.heroDeployCheck(23041, 481); why == nil {
 		t.Error("героя на карте разместили второй раз")
 	}
 	if choices, n := g.HeroChoices(); n != 1 || !choices[0].OnMap {
 		t.Errorf("на карте = %d, выбор %+v", n, choices)
 	}
 	g.HeroLimit = 1
-	if _, why := g.heroDeployCheck(22277, 481); why == "" {
+	if _, why := g.heroDeployCheck(22277, 481); why == nil {
 		t.Error("лимит героев на карте не сработал")
+	}
+}
+
+// Справочник предметов сайта: описание предмета — JSON строкой внутри
+// JSON, номер предмета — строкой. Предметы без карточки юнита пропускаем.
+func TestParseHeroCards(t *testing.T) {
+	const raw = `[
+	  {"@c": "ultshared.UltMod", "itemID": "1"},
+	  {"itemID": "23047", "name": "Orhan 'Kangal' Demir",
+	   "extraSettings": "{\"inventorySystemItem\":{\"itemType\":\"unit\",\"unitCardContent\":{\"mobilizationTime\":7200000,\"deploymentMoraleThreshold\":70,\"dayOfAvailability\":2}}}"},
+	  {"itemID": "5", "extraSettings": "{\"hidden\":true}"}
+	]`
+	cards, err := parseHeroCards([]byte(raw))
+	if err != nil {
+		t.Fatalf("разбор: %v", err)
+	}
+	want := HeroCard{Day: 2, Morale: 70, Mobilization: 2 * time.Hour}
+	if len(cards) != 1 || cards[23047] != want {
+		t.Errorf("карточки = %+v, ожидалась %+v", cards, want)
 	}
 }

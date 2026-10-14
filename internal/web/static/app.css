@@ -1122,3 +1122,8 @@ button.ghost:hover { border-color: var(--accent); }
 /* Поиск игроков в лобби: искомые строкой, крестик справа. */
 .hunt-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .hunt-list li { display: flex; align-items: center; gap: 6px; }
+
+/* Список планов размещения героев: строки без маркеров, кнопка «Убрать»
+   в строке. */
+ul.hero-plans { list-style: none; padding: 0; margin: 8px 0; }
+ul.hero-plans li { padding: 4px 0; border-top: 1px solid var(--border, #ddd); }

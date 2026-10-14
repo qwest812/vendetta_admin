@@ -63,6 +63,10 @@ type Client struct {
 	// maps — очертания карт, скачанные с static-сервера. Файл на карту один
 	// и не меняется, так что держим его до перезапуска.
 	maps map[string]*MapGeometry
+
+	// heroCards — карточки героев с сайта и когда их взяли, см. HeroCards.
+	heroCards   map[int]HeroCard
+	heroCardsAt time.Time
 	// games — ответы сайта о партиях: сведения и состав. Живут недолго,
 	// см. rosterTTL.
 	games map[string]*gameEntry

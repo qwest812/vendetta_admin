@@ -2,9 +2,11 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"Vendetta_admin/internal/domain"
@@ -262,4 +264,102 @@ func (s *Server) gameHeroPlace(w http.ResponseWriter, r *http.Request) {
 	}
 	s.log.Info("размещение героя", "gameID", gameID, "user_id", currentUser(r).ID, "итог", result)
 	s.renderGameNotice(w, r, gameID, false, "", result)
+}
+
+// heroOption — герой в выборе для размещения: доступен ли он уже и
+// когда откроется. Opens — начало нужного дня настоящими часами; нулевое,
+// если день уже наступил или его не посчитать.
+type heroOption struct {
+	supremacy.HeroChoice
+	Day   int
+	Opens time.Time
+	Ready bool
+	// PlanValue — значение для формы плана, см. heroPlanValue.
+	PlanValue string
+}
+
+// heroOptions — герои аккаунта с днями доступности из справочника сайта.
+// Без справочника день неизвестен, и герой считается доступным: решит игра.
+func heroOptions(heroes []supremacy.HeroChoice, cards map[int]supremacy.HeroCard, state *supremacy.GameState) []heroOption {
+	out := make([]heroOption, 0, len(heroes))
+	for _, h := range heroes {
+		day := cards[h.Item].Day
+		o := heroOption{HeroChoice: h, Day: day, Opens: state.DayStart(day), Ready: day <= state.Day}
+		o.PlanValue = heroPlanValue(o)
+		out = append(out, o)
+	}
+	return out
+}
+
+// heroPlanValue — выбор героя для плана одним полем: «юнит|день|срок|имя».
+// Срок — начало нужного дня, посчитанное при показе страницы: так план
+// заводится без захода в партию, а воркер придёт к самому сроку.
+func heroPlanValue(o heroOption) string {
+	at := int64(0)
+	if !o.Opens.IsZero() {
+		at = o.Opens.Unix()
+	}
+	return fmt.Sprintf("%d|%d|%d|%s", o.Unit, o.Day, at, o.Name)
+}
+
+func parseHeroPlanValue(v string) (unit, day int, at time.Time, name string, ok bool) {
+	parts := strings.SplitN(v, "|", 4)
+	if len(parts) != 4 {
+		return 0, 0, time.Time{}, "", false
+	}
+	unit, err1 := strconv.Atoi(parts[0])
+	day, err2 := strconv.Atoi(parts[1])
+	sec, err3 := strconv.ParseInt(parts[2], 10, 64)
+	name = strings.TrimSpace(parts[3])
+	if err1 != nil || err2 != nil || err3 != nil || unit <= 0 || day < 0 || len([]rune(name)) > buildNameMax {
+		return 0, 0, time.Time{}, "", false
+	}
+	if sec > 0 {
+		at = time.Unix(sec, 0)
+	}
+	return unit, day, at, name, true
+}
+
+// gameHeroPlan заводит отложенное размещение: героя — в провинцию, когда
+// наступит его день. В партию не ходит: срок посчитан при показе страницы,
+// а если он уже прошёл, воркер придёт на ближайшем своём обходе.
+func (s *Server) gameHeroPlan(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	unit, day, at, hero, okHero := parseHeroPlanValue(r.PostFormValue("hero"))
+	province, city, _, okProvince := idAndName(r.PostFormValue("province"))
+	if !okHero || !okProvince || s.heroPlans == nil {
+		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
+		return
+	}
+	if now := time.Now(); at.Before(now) {
+		at = now
+	} else {
+		// Пара минут после смены дня — запас на часы игры и её пересчёт.
+		at = at.Add(2 * time.Minute)
+	}
+	err := s.heroPlans.Add(r.Context(), domain.HeroPlan{
+		GameID: gameID, Unit: unit, Hero: hero, Province: province, City: city, Day: day, NextAt: at,
+	}, currentUser(r).ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.log.Info("размещение героя запланировано", "gameID", gameID, "герой", hero, "город", city,
+		"день", day, "срок", at, "user_id", currentUser(r).ID)
+	s.renderGameNotice(w, r, gameID, false, "",
+		langOf(r).T("game.heroplan.added", hero, city, at.Local().Format(langOf(r).T("format.datetime"))))
+}
+
+func (s *Server) gameHeroPlanRemove(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	id, err := strconv.ParseInt(r.PathValue("planID"), 10, 64)
+	if err != nil || s.heroPlans == nil {
+		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
+		return
+	}
+	if err := s.heroPlans.Remove(r.Context(), gameID, id); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.renderGame(w, r, gameID, false, "")
 }

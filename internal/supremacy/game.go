@@ -376,6 +376,9 @@ type GameState struct {
 	// пересчитывает очки и объявляет победителя, поэтому конец партии
 	// может прийтись лишь на неё. Нулевое — игра не сказала.
 	NextDay time.Time
+	// DayLength — сколько длится игровой день настоящими часами: сутки
+	// в обычной партии, меньше в ускоренной.
+	DayLength time.Duration
 	// Ended — партия кончилась: игра так и сказала или назвала победителя.
 	Ended bool
 	// Race — счёт партии: сколько очков у кого и сколько нужно для победы.
@@ -1187,6 +1190,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		g.Armies = append(g.Armies, army)
 	}
 	info, paper := r.States.Info, r.States.Newspaper.Ranking
+	g.DayLength = clock.duration(24 * time.Hour)
 	if info.NextDayTime > 0 {
 		g.NextDay = clock.real(info.NextDayTime)
 	}

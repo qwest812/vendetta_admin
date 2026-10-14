@@ -61,6 +61,8 @@ type Server struct {
 	// builds — очередь строительства: страница партии её показывает и правит,
 	// а ставит здания воркер.
 	builds *repo.BuildQueue
+	// heroPlans — отложенные размещения героев, см. supremacy.HeroPlanner.
+	heroPlans *repo.HeroPlans
 	// heroEveryMax — верхняя граница той же паузы: она случайна, и на
 	// странице партии написан диапазон, а не одно число.
 	heroEveryMax time.Duration
@@ -121,6 +123,7 @@ type Deps struct {
 	// BuildQueue — очередь строительства партий: её ведёт рут на странице
 	// партии, а ставит здания воркер.
 	BuildQueue *repo.BuildQueue
+	HeroPlans  *repo.HeroPlans
 	// Coalitions — архив коалиций, Settings — общие переключатели админки.
 	Coalitions *repo.Coalitions
 	Settings   *repo.Settings
@@ -152,7 +155,7 @@ func NewServer(d Deps) (*Server, error) {
 		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
 		checked: d.Checked, checks: d.Checks, mapTickets: newMapTickets(),
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
-		builds: d.BuildQueue,
+		builds: d.BuildQueue, heroPlans: d.HeroPlans,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
@@ -317,6 +320,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
 	mux.Handle("POST /games/{id}/relate", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRightOfWay))))
 	mux.Handle("POST /games/{id}/hero/deploy", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroPlace))))
+	mux.Handle("POST /games/{id}/hero/plan", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroPlan))))
+	mux.Handle("POST /games/{id}/hero/plan/{planID}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroPlanRemove))))
 	mux.Handle("POST /games/{id}/rally", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyCity))))
 	mux.Handle("POST /games/{id}/rally/now", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyNow))))
 	mux.Handle("POST /games/{id}/rally/auto", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyAuto))))

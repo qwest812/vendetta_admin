@@ -74,3 +74,26 @@ type BuildQueues struct {
 
 // Empty — нечего делать ни в одной провинции.
 func (q BuildQueues) Empty() bool { return len(q.Buildings) == 0 && len(q.Units) == 0 }
+
+// HeroPlan — отложенное размещение героя: поставить героя в провинцию,
+// когда наступит день Day. Исполняет его воркер, заходя в партию только
+// к сроку.
+type HeroPlan struct {
+	ID       int64
+	GameID   string
+	Unit     int
+	Hero     string
+	Province int
+	City     string
+	Day      int
+	// NextAt — когда воркеру идти в партию; нулевое — план закрыт:
+	// исполнен или исполнить его нельзя.
+	NextAt   time.Time
+	RunAt    time.Time
+	Result   string
+	Attempts int
+	AddedAt  time.Time
+}
+
+// Open — план ещё ждёт своего захода.
+func (p HeroPlan) Open() bool { return !p.NextAt.IsZero() }
