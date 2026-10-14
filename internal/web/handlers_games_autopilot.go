@@ -2,11 +2,9 @@ package web
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"Vendetta_admin/internal/domain"
@@ -238,34 +236,6 @@ func (s *Server) rallyTask(w http.ResponseWriter, r *http.Request, gameID string
 	return task, true
 }
 
-// gameHeroPlace ставит выбранного героя аккаунта в выбранную свою
-// провинцию — разово, по нажатию. Итог показывается тут же.
-func (s *Server) gameHeroPlace(w http.ResponseWriter, r *http.Request) {
-	gameID := r.PathValue("id")
-	if s.games == nil {
-		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
-		return
-	}
-	unit, err := strconv.Atoi(r.PostFormValue("hero"))
-	province, city, _, ok := idAndName(r.PostFormValue("province"))
-	if err != nil || unit <= 0 || !ok {
-		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
-	defer cancel()
-
-	result, err := s.games.DeployHero(ctx, gameID, unit, province, city)
-	if err != nil {
-		s.log.Error("размещение героя", "gameID", gameID, "err", err)
-		s.renderGame(w, r, gameID, false, err.Error())
-		return
-	}
-	s.log.Info("размещение героя", "gameID", gameID, "user_id", currentUser(r).ID, "итог", result)
-	s.renderGameNotice(w, r, gameID, false, "", result)
-}
-
 // heroOption — герой в выборе для размещения: доступен ли он уже и
 // когда откроется. Opens — начало нужного дня настоящими часами; нулевое,
 // если день уже наступил или его не посчитать.
@@ -274,8 +244,6 @@ type heroOption struct {
 	Day   int
 	Opens time.Time
 	Ready bool
-	// PlanValue — значение для формы плана, см. heroPlanValue.
-	PlanValue string
 }
 
 // heroOptions — герои аккаунта с днями доступности из справочника сайта.
@@ -284,70 +252,62 @@ func heroOptions(heroes []supremacy.HeroChoice, cards map[int]supremacy.HeroCard
 	out := make([]heroOption, 0, len(heroes))
 	for _, h := range heroes {
 		day := cards[h.Item].Day
-		o := heroOption{HeroChoice: h, Day: day, Opens: state.DayStart(day), Ready: day <= state.Day}
-		o.PlanValue = heroPlanValue(o)
-		out = append(out, o)
+		out = append(out, heroOption{HeroChoice: h, Day: day, Opens: state.DayStart(day), Ready: day <= state.Day})
 	}
 	return out
 }
 
-// heroPlanValue — выбор героя для плана одним полем: «юнит|день|срок|имя».
-// Срок — начало нужного дня, посчитанное при показе страницы: так план
-// заводится без захода в партию, а воркер придёт к самому сроку.
-func heroPlanValue(o heroOption) string {
-	at := int64(0)
-	if !o.Opens.IsZero() {
-		at = o.Opens.Unix()
-	}
-	return fmt.Sprintf("%d|%d|%d|%s", o.Unit, o.Day, at, o.Name)
-}
-
-func parseHeroPlanValue(v string) (unit, day int, at time.Time, name string, ok bool) {
-	parts := strings.SplitN(v, "|", 4)
-	if len(parts) != 4 {
-		return 0, 0, time.Time{}, "", false
-	}
-	unit, err1 := strconv.Atoi(parts[0])
-	day, err2 := strconv.Atoi(parts[1])
-	sec, err3 := strconv.ParseInt(parts[2], 10, 64)
-	name = strings.TrimSpace(parts[3])
-	if err1 != nil || err2 != nil || err3 != nil || unit <= 0 || day < 0 || len([]rune(name)) > buildNameMax {
-		return 0, 0, time.Time{}, "", false
-	}
-	if sec > 0 {
-		at = time.Unix(sec, 0)
-	}
-	return unit, day, at, name, true
-}
-
-// gameHeroPlan заводит отложенное размещение: героя — в провинцию, когда
-// наступит его день. В партию не ходит: срок посчитан при показе страницы,
-// а если он уже прошёл, воркер придёт на ближайшем своём обходе.
-func (s *Server) gameHeroPlan(w http.ResponseWriter, r *http.Request) {
+// gameHeroOrder ставит приказ «героя — в провинцию» и сразу его
+// разбирает: если можно — герой встаёт тут же, если нет — страница
+// скажет, чего ждём, а дальше приказ доведёт воркер. Заход один и на все
+// открытые приказы партии: место в лимите достаётся поставленному раньше.
+func (s *Server) gameHeroOrder(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
-	unit, day, at, hero, okHero := parseHeroPlanValue(r.PostFormValue("hero"))
+	unit, hero, _, okHero := idAndName(r.PostFormValue("hero"))
 	province, city, _, okProvince := idAndName(r.PostFormValue("province"))
 	if !okHero || !okProvince || s.heroPlans == nil {
 		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
 		return
 	}
-	if now := time.Now(); at.Before(now) {
-		at = now
-	} else {
-		// Пара минут после смены дня — запас на часы игры и её пересчёт.
-		at = at.Add(2 * time.Minute)
+	if s.games == nil {
+		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		return
 	}
-	err := s.heroPlans.Add(r.Context(), domain.HeroPlan{
-		GameID: gameID, Unit: unit, Hero: hero, Province: province, City: city, Day: day, NextAt: at,
+	now := time.Now()
+	id, err := s.heroPlans.Add(r.Context(), domain.HeroPlan{
+		GameID: gameID, Unit: unit, Hero: hero, Province: province, City: city, NextAt: now,
 	}, currentUser(r).ID)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.log.Info("размещение героя запланировано", "gameID", gameID, "герой", hero, "город", city,
-		"день", day, "срок", at, "user_id", currentUser(r).ID)
-	s.renderGameNotice(w, r, gameID, false, "",
-		langOf(r).T("game.heroplan.added", hero, city, at.Local().Format(langOf(r).T("format.datetime"))))
+	s.log.Info("приказ на размещение героя", "gameID", gameID, "герой", hero, "город", city,
+		"user_id", currentUser(r).ID)
+
+	orders, err := s.heroPlans.Open(r.Context(), gameID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
+	defer cancel()
+	runs, err := s.games.RunHeroOrders(ctx, gameID, orders, now)
+	if err != nil {
+		// Не зашли — приказ стоит и дождётся воркера.
+		s.log.Error("приказы героев", "gameID", gameID, "err", err)
+		s.renderGame(w, r, gameID, false, err.Error())
+		return
+	}
+	notice := ""
+	for _, run := range runs {
+		if err := s.heroPlans.Mark(r.Context(), run.ID, now, run.Result, run.Next); err != nil {
+			s.log.Error("запись итога приказа героя", "gameID", gameID, "err", err)
+		}
+		if run.ID == id {
+			notice = run.Result
+		}
+	}
+	s.renderGameNotice(w, r, gameID, false, "", notice)
 }
 
 func (s *Server) gameHeroPlanRemove(w http.ResponseWriter, r *http.Request) {

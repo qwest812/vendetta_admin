@@ -10,45 +10,60 @@ import (
 )
 
 type fakePlans struct {
-	due   []domain.HeroPlan
-	marks map[int64]time.Time
-	res   map[int64]string
+	due, open []domain.HeroPlan
+	marks     map[int64]time.Time
 }
 
 func (f *fakePlans) Due(context.Context, time.Time) ([]domain.HeroPlan, error) { return f.due, nil }
-func (f *fakePlans) Mark(_ context.Context, id int64, _ time.Time, result string, next time.Time) error {
-	if f.marks == nil {
-		f.marks, f.res = map[int64]time.Time{}, map[int64]string{}
+func (f *fakePlans) Open(_ context.Context, gameID string) ([]domain.HeroPlan, error) {
+	var out []domain.HeroPlan
+	for _, p := range f.open {
+		if p.GameID == gameID {
+			out = append(out, p)
+		}
 	}
-	f.marks[id], f.res[id] = next, result
+	return out, nil
+}
+func (f *fakePlans) Mark(_ context.Context, id int64, _ time.Time, _ string, next time.Time) error {
+	if f.marks == nil {
+		f.marks = map[int64]time.Time{}
+	}
+	f.marks[id] = next
 	return nil
 }
 
-type fakePlanRunner struct {
-	run *HeroPlanRun
-	err error
+type fakeOrderRunner struct {
+	err    error
+	visits []string
 }
 
-func (f fakePlanRunner) RunHeroPlan(context.Context, domain.HeroPlan, time.Time) (*HeroPlanRun, error) {
-	return f.run, f.err
+func (f *fakeOrderRunner) RunHeroOrders(_ context.Context, gameID string, orders []domain.HeroPlan, _ time.Time) ([]HeroOrderRun, error) {
+	f.visits = append(f.visits, gameID)
+	return nil, f.err
 }
 
-// Не зашли в партию — план не теряется, а ждёт часа. Исчерпав попытки,
-// план закрывается со словами, а не висит вечно.
-func TestHeroPlannerRetriesAndGivesUp(t *testing.T) {
+// Заход один на партию, сколько бы её приказов ни подошло, и разбирает
+// он все открытые приказы. Не зашли — приказы ждут часа, а не теряются.
+func TestHeroPlannerOneVisitPerGame(t *testing.T) {
 	now := time.Date(2026, 10, 14, 23, 0, 0, 0, time.UTC)
-	store := &fakePlans{due: []domain.HeroPlan{{ID: 1}, {ID: 2, Attempts: heroPlanAttempts - 1}}}
-	h := NewHeroPlanner(fakePlanRunner{err: errors.New("сервер молчит")}, store, quietLog())
+	store := &fakePlans{
+		due:  []domain.HeroPlan{{ID: 1, GameID: "a"}, {ID: 2, GameID: "a"}},
+		open: []domain.HeroPlan{{ID: 1, GameID: "a"}, {ID: 2, GameID: "a"}, {ID: 3, GameID: "a"}},
+	}
+	runner := &fakeOrderRunner{err: errors.New("сервер молчит")}
+	h := NewHeroPlanner(runner, store, quietLog())
 	h.now = func() time.Time { return now }
 
 	if err := h.tick(context.Background()); err != nil {
 		t.Fatalf("обход: %v", err)
 	}
-	if got := store.marks[1]; !got.Equal(now.Add(heroRetry)) {
-		t.Errorf("следующий заход = %v, ожидался через час", got)
+	if len(runner.visits) != 1 {
+		t.Errorf("заходов = %v, ожидался один", runner.visits)
 	}
-	if !store.marks[2].IsZero() || store.res[2] == "" {
-		t.Errorf("план после всех попыток не закрыт: %v, %q", store.marks[2], store.res[2])
+	for _, id := range []int64{1, 2, 3} {
+		if got := store.marks[id]; !got.Equal(now.Add(heroRetry)) {
+			t.Errorf("приказ %d: следующий заход %v, ожидался через час", id, got)
+		}
 	}
 }
 

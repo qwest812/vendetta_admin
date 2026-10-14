@@ -55,8 +55,9 @@ type gameSource interface {
 	// RunAutopilot — то же, что делает автопилот за один свой заход.
 	RallyArmies(ctx context.Context, gameID string, target int, city string) (*supremacy.RallyRun, error)
 	RunAutopilot(ctx context.Context, gameID string, job supremacy.AutopilotJob) (*supremacy.AutopilotRun, error)
-	// DeployHero ставит героя аккаунта на карту в свою провинцию.
-	DeployHero(ctx context.Context, gameID string, unit, province int, city string) (string, error)
+	// RunHeroOrders заходит в партию и разбирает её приказы на размещение
+	// героев: кого можно — ставит, остальным называет, чего ждут.
+	RunHeroOrders(ctx context.Context, gameID string, orders []domain.HeroPlan, now time.Time) ([]supremacy.HeroOrderRun, error)
 	// HeroCards — с какого дня партии доступен каждый герой: справочник
 	// предметов сайта, заходом в партию не считается.
 	HeroCards(ctx context.Context) (map[int]supremacy.HeroCard, error)

@@ -40,14 +40,15 @@ func scanHeroPlans(rows pgx.Rows) ([]domain.HeroPlan, error) {
 	return out, rows.Err()
 }
 
-// Add заводит план. Срок — первый заход воркера: он сам узнает в партии,
-// наступил ли день, и если нет — назначит заход на его начало.
-func (r *HeroPlans) Add(ctx context.Context, p domain.HeroPlan, actorID int64) error {
-	_, err := r.pool.Exec(ctx,
+// Add ставит приказ и возвращает его номер. Срок — сразу: первый разбор
+// делает сама страница, а воркер дальше идёт к сроку, который тот назначит.
+func (r *HeroPlans) Add(ctx context.Context, p domain.HeroPlan, actorID int64) (int64, error) {
+	var id int64
+	err := r.pool.QueryRow(ctx,
 		`INSERT INTO supremacy_hero_plans (game_id, unit, hero, province, city, day, next_at, added_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		p.GameID, p.Unit, p.Hero, p.Province, p.City, p.Day, p.NextAt, actorID)
-	return err
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+		p.GameID, p.Unit, p.Hero, p.Province, p.City, p.Day, p.NextAt, actorID).Scan(&id)
+	return id, err
 }
 
 // List — планы партии, свежие сверху.
@@ -65,6 +66,18 @@ func (r *HeroPlans) Due(ctx context.Context, now time.Time) ([]domain.HeroPlan, 
 	rows, err := r.pool.Query(ctx,
 		`SELECT `+heroPlanColumns+` FROM supremacy_hero_plans
 		  WHERE next_at IS NOT NULL AND next_at <= $1 ORDER BY next_at`, now)
+	if err != nil {
+		return nil, err
+	}
+	return scanHeroPlans(rows)
+}
+
+// Open — открытые приказы партии в том порядке, в каком их поставили:
+// свободное место в лимите героев достаётся первому.
+func (r *HeroPlans) Open(ctx context.Context, gameID string) ([]domain.HeroPlan, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+heroPlanColumns+` FROM supremacy_hero_plans
+		  WHERE game_id = $1 AND next_at IS NOT NULL ORDER BY id`, gameID)
 	if err != nil {
 		return nil, err
 	}

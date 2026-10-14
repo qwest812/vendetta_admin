@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"Vendetta_admin/internal/domain"
 )
 
 // Герои аккаунта собираются из трёх мест состояния, как их снял живой
@@ -34,41 +36,61 @@ func TestHeroesFromState(t *testing.T) {
 	}
 }
 
-// Перед заходом с действием проверяем то, что видно из состояния: герой
-// есть и не на карте, лимит не выбран, провинция своя.
-func TestHeroDeployCheck(t *testing.T) {
+// Приказы разбираются по порядку и по условиям: день, лимит героев,
+// герой на карте, своя провинция, её мораль и бой в ней. Место в лимите
+// достаётся первому; кого не поставить сейчас — ждут с причиной и сроком.
+func TestPlanHeroOrders(t *testing.T) {
+	now := time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)
 	g := &GameState{
-		Me:        6,
-		HeroLimit: 2,
-		Heroes:    []HeroItem{{Unit: 23041, Item: 23047, Name: "Кангал"}, {Unit: 22277, Item: 22286, Name: "Алленби"}},
-		Provinces: []Province{{ID: 481, Name: "Свой", Owner: 6}, {ID: 9, Name: "Чужой", Owner: 2}},
+		Me: 6, Day: 5, NextDay: now.Add(time.Hour), DayLength: 24 * time.Hour, HeroLimit: 2,
+		Heroes: []HeroItem{
+			{Unit: 1, Item: 11, Name: "Первый"}, {Unit: 2, Item: 12, Name: "Второй"},
+			{Unit: 3, Item: 13, Name: "Третий"}, {Unit: 4, Item: 14, Name: "Поздний"},
+			{Unit: 5, Item: 15, Name: "На карте"},
+		},
+		Provinces: []Province{
+			{ID: 100, Owner: 6, Morale: 90}, {ID: 200, Owner: 6, Morale: 40},
+			{ID: 300, Owner: 6, Morale: 90}, {ID: 400, Owner: 9, Morale: 90},
+		},
+		Armies: []Army{
+			{Owner: 6, Units: []ArmyUnit{{Type: 5}}},
+			{Owner: 9, Location: 300, Fighting: true},
+		},
 	}
-	if hero, why := g.heroDeployCheck(23041, 481); why != nil || hero.Item != 23047 {
-		t.Errorf("Кангала в свою провинцию: %+v, %+v", why, hero)
+	cards := map[int]HeroCard{11: {Day: 1, Morale: 70}, 12: {Day: 1, Morale: 70},
+		13: {Day: 1, Morale: 70}, 14: {Day: 8, Morale: 70}}
+	orders := []domain.HeroPlan{
+		{ID: 1, Unit: 4, Province: 100, City: "Город"},  // ждёт 8-го дня
+		{ID: 2, Unit: 2, Province: 200, City: "Слабый"}, // мораль 40 из 70
+		{ID: 3, Unit: 1, Province: 300, City: "Бой"},    // бой в провинции
+		{ID: 4, Unit: 3, Province: 100, City: "Город"},  // встанет: место одно
+		{ID: 5, Unit: 1, Province: 100, City: "Город"},  // места уже нет
+		{ID: 6, Unit: 5, Province: 100, City: "Город"},  // уже на карте
+		{ID: 7, Unit: 2, Province: 400, City: "Чужой"},  // чужая провинция
+		{ID: 8, Unit: 9, Province: 100, City: "Город"},  // нет в инвентаре
 	}
-	for _, c := range []struct {
-		unit, province int
-		name           string
-	}{
-		{1, 481, "героя нет в инвентаре"},
-		{23041, 9, "чужая провинция"},
-		{23041, 777, "провинции нет"},
-	} {
-		if _, why := g.heroDeployCheck(c.unit, c.province); why == nil {
-			t.Errorf("%s: проверка пропустила", c.name)
+	steps := planHeroOrders(g, cards, orders, now)
+
+	if !steps[3].place || steps[3].hero.Item != 13 {
+		t.Errorf("приказ 4 не ставится: %+v", steps[3])
+	}
+	for i, s := range steps {
+		if i != 3 && s.place {
+			t.Errorf("приказ %d ставится, а не должен: %+v", s.order.ID, s.run)
 		}
 	}
-
-	g.Armies = []Army{{Owner: 6, Units: []ArmyUnit{{Type: 23041, Size: 1}}}}
-	if _, why := g.heroDeployCheck(23041, 481); why == nil {
-		t.Error("героя на карте разместили второй раз")
+	if want := g.DayStart(8).Add(2 * time.Minute); !steps[0].run.Next.Equal(want) {
+		t.Errorf("приказ 1 ждёт до %v, ожидалось начало 8-го дня %v", steps[0].run.Next, want)
 	}
-	if choices, n := g.HeroChoices(); n != 1 || !choices[0].OnMap {
-		t.Errorf("на карте = %d, выбор %+v", n, choices)
+	for _, i := range []int{1, 2, 4} {
+		if !steps[i].run.Next.Equal(now.Add(heroRetry)) {
+			t.Errorf("приказ %d: %q, следующий заход %v — ожидался через час", i+1, steps[i].run.Result, steps[i].run.Next)
+		}
 	}
-	g.HeroLimit = 1
-	if _, why := g.heroDeployCheck(22277, 481); why == nil {
-		t.Error("лимит героев на карте не сработал")
+	for _, i := range []int{5, 6, 7} {
+		if !steps[i].run.Next.IsZero() {
+			t.Errorf("приказ %d не закрыт: %q", i+1, steps[i].run.Result)
+		}
 	}
 }
 

@@ -13,10 +13,8 @@ package supremacy
 // инвентаре. Сервер отвечает в actionResults: 1 — принято. Герой
 // появляется армией в выбранной провинции, а предмет остаётся.
 //
-// Проверки клиента повторяем не все. Свою провинцию, героя не на карте
-// и лимит сценария видно из состояния. Порог морали провинции, перезарядку
-// после отзыва и атаки на провинцию знает только сайт и сервер — их отказ
-// приходит ответом, его и показываем.
+// Размещение идёт приказом: рут ставит «героя — сюда», а админка держит
+// приказ, пока условия не сойдутся, и ставит героя сама, см. planHeroOrders.
 
 import (
 	"context"
@@ -65,84 +63,17 @@ func (g *GameState) HeroChoices() ([]HeroChoice, int) {
 	return out, deployed
 }
 
-// Отказ проверки: later — подождать имеет смысл (лимит героев занят,
-// день ещё не наступил), иначе — нет (героя нет, провинция чужая, герой
-// уже на карте).
-type heroRefusal struct {
-	why   string
-	later bool
-}
-
-// heroDeployCheck — можно ли ставить героя unit в провинцию province.
-// nil — можно.
-func (g *GameState) heroDeployCheck(unit, province int) (HeroItem, *heroRefusal) {
-	choices, deployed := g.HeroChoices()
-	var hero *HeroChoice
-	for i := range choices {
-		if choices[i].Unit == unit {
-			hero = &choices[i]
-		}
-	}
-	switch {
-	case hero == nil:
-		return HeroItem{}, &heroRefusal{why: "этого героя нет в инвентаре аккаунта"}
-	case hero.OnMap:
-		return hero.HeroItem, &heroRefusal{why: hero.Name + " уже на карте"}
-	case g.HeroLimit > 0 && deployed >= g.HeroLimit:
-		return hero.HeroItem, &heroRefusal{
-			why: fmt.Sprintf("на карте уже героев: %d из %d", deployed, g.HeroLimit), later: true}
-	}
-	for _, p := range g.Provinces {
-		if p.ID == province {
-			if p.Owner != g.Me {
-				return hero.HeroItem, &heroRefusal{why: p.Name + " — не наша провинция"}
-			}
-			return hero.HeroItem, nil
-		}
-	}
-	return hero.HeroItem, &heroRefusal{why: fmt.Sprintf("провинции %d в партии нет", province)}
-}
-
 // errHeroRefused — игра не приняла размещение. Почему, она не говорит.
 var errHeroRefused = errors.New("игра не приняла размещение")
 
-// DeployHero ставит героя unit на карту в провинцию province. Возвращает
-// описание сделанного — его показывает страница партии.
-func (c *Client) DeployHero(ctx context.Context, gameID string, unit, province int, city string) (string, error) {
-	acc, state, err := c.enter(ctx, gameID)
-	if err != nil {
-		return "", err
-	}
-	hero, refusal := state.heroDeployCheck(unit, province)
-	if refusal != nil {
-		return "", errors.New(refusal.why)
-	}
-	// Рано ли, знает только справочник сайта; не ответил он — пусть
-	// решает игра.
-	if cards, err := c.HeroCards(ctx); err == nil {
-		if day := cards[hero.Item].Day; day > state.Day {
-			return "", fmt.Errorf("%s доступен с %d-го дня, а идёт %d-й — запланируйте размещение",
-				hero.Name, day, state.Day)
-		}
-	}
-	if err := c.placeHero(ctx, acc, gameID, state, hero, province); err != nil {
-		if errors.Is(err, errHeroRefused) {
-			return "", fmt.Errorf("игра не разместила %s в %s: проверьте мораль провинции, "+
-				"перезарядку героя и нет ли там боя", hero.Name, city)
-		}
-		return "", err
-	}
-	return fmt.Sprintf("%s размещён в %s", hero.Name, city), nil
-}
-
 // placeHero шлёт размещение в партию, куда уже зашли.
 func (c *Client) placeHero(ctx context.Context, acc *gameAccess, gameID string, state *GameState,
-	hero HeroItem, province int) error {
+	reqID int, hero HeroItem, province int) error {
 
 	var res struct {
 		ActionResults map[string]int `json:"actionResults"`
 	}
-	if err := c.gsCall(ctx, acc, gameID, 3, "ultshared.action.UltUpdateGameStateAction", state.Me,
+	if err := c.gsCall(ctx, acc, gameID, reqID, "ultshared.action.UltUpdateGameStateAction", state.Me,
 		map[string]any{
 			"actions": []any{map[string]any{
 				"requestID":  "actionReq-2",
@@ -167,51 +98,129 @@ func (c *Client) placeHero(ctx context.Context, acc *gameAccess, gameID string, 
 	return nil
 }
 
-// heroRetry — через сколько пробовать снова, когда игра отказала или
-// лимит героев занят: мораль растёт, бои кончаются, герои гибнут.
+// heroRetry — через сколько заглянуть снова, когда ждём то, чего
+// не предсказать: свободного места в лимите героев, роста морали, конца
+// боя или ответа игры после отказа.
 const heroRetry = time.Hour
 
-// HeroPlanRun — итог захода по плану размещения. Next — когда прийти
-// снова; нулевое — план исполнен или исполнить его нельзя.
-type HeroPlanRun struct {
+// HeroOrderRun — итог по одному приказу за заход. Next — когда прийти
+// снова; нулевое — приказ закрыт: исполнен или исполнить его нельзя.
+type HeroOrderRun struct {
+	ID     int64
 	Result string
 	Next   time.Time
 }
 
-// RunHeroPlan заходит в партию и ставит героя по плану, если пора.
-// Не пора — называет, когда придёт нужный день; отказ, который может
-// пройти, — повторит через час.
-func (c *Client) RunHeroPlan(ctx context.Context, p domain.HeroPlan, now time.Time) (*HeroPlanRun, error) {
-	acc, state, err := c.enter(ctx, p.GameID)
+// heroStep — что делать с приказом в этот заход.
+type heroStep struct {
+	order domain.HeroPlan
+	hero  HeroItem
+	place bool
+	run   HeroOrderRun
+}
+
+// planHeroOrders решает по каждому приказу партии, ставить ли героя
+// сейчас, ждать или закрыть. Приказы идут по порядку: свободное место
+// в лимите героев достаётся тому, кто поставлен раньше.
+//
+// Проверяем то, что видно из состояния и справочника: день, лимит,
+// героя на карте, свою провинцию, её мораль и бой в ней. Перезарядку
+// после отзыва знает только игра — её отказ приходит ответом.
+func planHeroOrders(state *GameState, cards map[int]HeroCard, orders []domain.HeroPlan, now time.Time) []heroStep {
+	choices, deployed := state.HeroChoices()
+	byUnit := map[int]HeroChoice{}
+	for _, c := range choices {
+		byUnit[c.Unit] = c
+	}
+	provinces := map[int]Province{}
+	for _, p := range state.Provinces {
+		provinces[p.ID] = p
+	}
+	fighting := map[int]bool{}
+	for _, a := range state.Armies {
+		if a.Fighting {
+			fighting[a.Location] = true
+		}
+	}
+	free := -1 // без лимита в состоянии мест не считаем
+	if state.HeroLimit > 0 {
+		free = state.HeroLimit - deployed
+	}
+	later := func(why string) HeroOrderRun { return HeroOrderRun{Result: why, Next: now.Add(heroRetry)} }
+
+	steps := make([]heroStep, 0, len(orders))
+	for _, o := range orders {
+		step := heroStep{order: o, run: HeroOrderRun{ID: o.ID}}
+		hero, owned := byUnit[o.Unit]
+		province, known := provinces[o.Province]
+		card, carded := cards[hero.Item]
+		switch {
+		case !owned:
+			step.run.Result = "этого героя нет в инвентаре аккаунта"
+		case hero.OnMap:
+			step.run.Result = hero.Name + " уже на карте"
+		case !known || province.Owner != state.Me:
+			step.run.Result = o.City + " — не наша провинция"
+		case carded && card.Day > state.Day:
+			next := state.DayStart(card.Day)
+			if next.IsZero() || next.Before(now) {
+				next = now.Add(heroRetry)
+			}
+			// Пара минут после смены дня — запас на часы игры и её пересчёт.
+			step.run.Result = fmt.Sprintf("ждём %d-й день, идёт %d-й", card.Day, state.Day)
+			step.run.Next = next.Add(2 * time.Minute)
+		case free == 0:
+			step.run = later(fmt.Sprintf("на карте героев %d из %d — ждём свободного места", deployed, state.HeroLimit))
+		case carded && province.Morale < float64(card.Morale):
+			step.run = later(fmt.Sprintf("мораль %s %.0f%% из нужных %d%%", o.City, province.Morale, card.Morale))
+		case fighting[o.Province]:
+			step.run = later("в " + o.City + " идёт бой")
+		default:
+			step.place, step.hero = true, hero.HeroItem
+			if free > 0 {
+				free--
+			}
+		}
+		step.run.ID = o.ID
+		steps = append(steps, step)
+	}
+	return steps
+}
+
+// RunHeroOrders заходит в партию один раз и разбирает все её приказы
+// на размещение героев: кого можно — ставит, остальным называет, чего
+// ждут и когда заглянуть снова.
+func (c *Client) RunHeroOrders(ctx context.Context, gameID string, orders []domain.HeroPlan, now time.Time) ([]HeroOrderRun, error) {
+	acc, state, err := c.enter(ctx, gameID)
 	if err != nil {
 		return nil, err
 	}
-	if state.Day < p.Day {
-		next := state.DayStart(p.Day)
-		if next.IsZero() || next.Before(now) {
-			next = now.Add(heroRetry)
-		}
-		// Пара минут после смены дня — запас на часы игры и на её пересчёт.
-		return &HeroPlanRun{Result: fmt.Sprintf("ждём %d-й день, идёт %d-й", p.Day, state.Day),
-			Next: next.Add(2 * time.Minute)}, nil
+	// Без справочника не знаем дней и порогов морали — тогда решает игра.
+	cards, err := c.HeroCards(ctx)
+	if err != nil {
+		c.log.Warn("справочник героев с сайта", "err", err)
 	}
 
-	hero, refusal := state.heroDeployCheck(p.Unit, p.Province)
-	if refusal != nil {
-		run := &HeroPlanRun{Result: refusal.why}
-		if refusal.later {
-			run.Next = now.Add(heroRetry)
+	runs := make([]HeroOrderRun, 0, len(orders))
+	reqID := 3 // вход — 1, состояние — 2, дальше наши действия
+	for _, step := range planHeroOrders(state, cards, orders, now) {
+		if step.place {
+			err := c.placeHero(ctx, acc, gameID, state, reqID, step.hero, step.order.Province)
+			reqID++
+			switch {
+			case errors.Is(err, errHeroRefused):
+				step.run.Result = "игра отказала (скорее всего перезарядка после отзыва) — попробуем через час"
+				step.run.Next = now.Add(heroRetry)
+			case err != nil:
+				step.run.Result = err.Error()
+				step.run.Next = now.Add(heroRetry)
+			default:
+				step.run.Result = fmt.Sprintf("%s поставлен в %s", step.hero.Name, step.order.City)
+			}
 		}
-		return run, nil
+		runs = append(runs, step.run)
 	}
-	if err := c.placeHero(ctx, acc, p.GameID, state, hero, p.Province); err != nil {
-		if errors.Is(err, errHeroRefused) {
-			return &HeroPlanRun{Result: "игра отказала (мораль, перезарядка или бой) — попробуем через час",
-				Next: now.Add(heroRetry)}, nil
-		}
-		return nil, err
-	}
-	return &HeroPlanRun{Result: fmt.Sprintf("%s размещён в %s", hero.Name, p.City)}, nil
+	return runs, nil
 }
 
 // DayStart — когда по настоящим часам начнётся день партии day. Уже

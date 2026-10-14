@@ -85,39 +85,17 @@
 
     {{/* Размещение героя: герои аккаунта и свои провинции знает только
          состояние партии, поэтому блок появляется вместе с картой. */}}
+    {{/* Приказ на размещение героя: админка ставит его сама, как только
+         сойдутся день, место в лимите, мораль провинции и нет боя. */}}
     {{if and .DeployHeroes .RallyProvinces}}
-        <form class="row-form" method="post" action="/games/{{.GameID}}/hero/deploy">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <label>
-                {{t "game.herodeploy.hero"}}
-                <select name="hero">
-                    {{range .DeployHeroes}}
-                        <option value="{{.Unit}}"{{if or .OnMap (not .Ready)}} disabled{{end}}>{{.Name}}{{if .OnMap}} — {{t "game.herodeploy.onmap"}}{{else if not .Ready}} — {{t "game.herodeploy.fromday" .Day}}{{end}}</option>
-                    {{end}}
-                </select>
-            </label>
-            <label>
-                {{t "game.rally.city.pick"}}
-                <select name="province">
-                    {{range .RallyProvinces}}
-                        <option value="{{.ID}}|{{.Name}}">{{.Name}}{{if .Capital}} ★{{end}}</option>
-                    {{end}}
-                </select>
-            </label>
-            <button type="submit">{{t "game.herodeploy.now"}}</button>
-            <span class="muted">{{if .HeroLimit}}{{t "game.herodeploy.limit" .HeroesOnMap .HeroLimit}}{{end}}</span>
-        </form>
-
-        {{/* План: герой встанет сам, когда наступит его день. Срок
-             посчитан здесь, и воркер придёт в партию только к нему. */}}
-        <form class="row-form" method="post" action="/games/{{.GameID}}/hero/plan">
+        <form class="row-form" method="post" action="/games/{{.GameID}}/hero/order">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
             <label>
                 {{t "game.herodeploy.hero"}}
                 <select name="hero">
                     {{range .DeployHeroes}}
                         {{if not .OnMap}}
-                            <option value="{{.PlanValue}}">{{.Name}}{{if not .Ready}} — {{t "game.herodeploy.fromday" .Day}}{{if not .Opens.IsZero}}, {{datetime .Opens}}{{end}}{{end}}</option>
+                            <option value="{{.Unit}}|{{.Name}}">{{.Name}}{{if not .Ready}} — {{t "game.herodeploy.fromday" .Day}}{{if not .Opens.IsZero}}, {{datetime .Opens}}{{end}}{{end}}</option>
                         {{end}}
                     {{end}}
                 </select>
@@ -130,15 +108,16 @@
                     {{end}}
                 </select>
             </label>
-            <button type="submit">{{t "game.heroplan.add"}}</button>
+            <button type="submit">{{t "game.heroorder.add"}}</button>
+            <span class="muted">{{if .HeroLimit}}{{t "game.herodeploy.limit" .HeroesOnMap .HeroLimit}}{{end}}</span>
         </form>
-        <p class="muted">{{t "game.herodeploy.note"}} {{t "game.heroplan.note"}}</p>
+        <p class="muted">{{t "game.heroorder.note"}}</p>
     {{end}}
     {{if .HeroPlans}}
         <ul class="hero-plans">
             {{range .HeroPlans}}
                 <li>
-                    {{.Hero}} → {{.City}}{{if .Day}} · {{t "game.herodeploy.fromday" .Day}}{{end}}
+                    {{.Hero}} → {{.City}}
                     — {{if .Open}}{{t "game.heroplan.next" (datetime .NextAt)}}{{else}}{{t "game.heroplan.closed"}}{{end}}
                     {{if not .RunAt.IsZero}}<span class="muted">· {{datetime .RunAt}}: {{.Result}}</span>{{end}}
                     <form class="inline" method="post" action="/games/{{$.GameID}}/hero/plan/{{.ID}}/delete">
