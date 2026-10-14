@@ -517,6 +517,16 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-top:checked ~ .game-map polygon.top { fill: var(--top); }
 /* Режим «Играли вместе»: цвет группы, собранной из архива коалиций. */
 #map-together:checked ~ .game-map polygon.together { fill: var(--together); }
+/* Режим «Активность»: светофор по последнему входу в партию. Боты и те,
+   про кого игра не сказала, остаются серыми. */
+#map-activity:checked ~ .game-map polygon.act-today { fill: #3f8f5a; }
+#map-activity:checked ~ .game-map polygon.act-recent { fill: #b08a2e; }
+#map-activity:checked ~ .game-map polygon.act-old { fill: #b0523f; }
+#map-activity:checked ~ .game-map polygon.act-gone { fill: #5a2a2a; }
+.map-legend .swatch.act-today { background: #3f8f5a; }
+.map-legend .swatch.act-recent { background: #b08a2e; }
+.map-legend .swatch.act-old { background: #b0523f; }
+.map-legend .swatch.act-gone { background: #5a2a2a; }
 .game-map text {
     font: 600 34px system-ui, -apple-system, "Segoe UI", sans-serif;
     fill: rgba(255, 255, 255, .92);
@@ -565,7 +575,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:checked ~ .map-tabs label[for="map-power"],
 #map-top:checked ~ .map-tabs label[for="map-top"],
 #map-together:checked ~ .map-tabs label[for="map-together"],
-#map-losses:checked ~ .map-tabs label[for="map-losses"] {
+#map-losses:checked ~ .map-tabs label[for="map-losses"],
+#map-activity:checked ~ .map-tabs label[for="map-activity"] {
     border-color: var(--accent);
     color: var(--text);
 }
@@ -578,7 +589,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:focus-visible ~ .map-tabs label[for="map-power"],
 #map-top:focus-visible ~ .map-tabs label[for="map-top"],
 #map-together:focus-visible ~ .map-tabs label[for="map-together"],
-#map-losses:focus-visible ~ .map-tabs label[for="map-losses"] { outline: 2px solid var(--accent); }
+#map-losses:focus-visible ~ .map-tabs label[for="map-losses"],
+#map-activity:focus-visible ~ .map-tabs label[for="map-activity"] { outline: 2px solid var(--accent); }
 
 /* Легенда и пояснение — свои у каждого режима, показывается только пара
    выбранного. */
@@ -590,7 +602,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:checked ~ .pane-power,
 #map-top:checked ~ .pane-top,
 #map-together:checked ~ .pane-together,
-#map-losses:checked ~ .pane-losses { display: block; }
+#map-losses:checked ~ .pane-losses,
+#map-activity:checked ~ .pane-activity { display: block; }
 /* Вкладка «Потери»: строка раскрывается списком противников. Пока идёт
    подсчёт, блок притушен — газета листается по дню за запрос. */
 .losses summary { cursor: pointer; }

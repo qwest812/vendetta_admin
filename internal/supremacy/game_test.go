@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 )
 
 // Формы взяты с живого игрового сервера: у суши «p» есть владелец «o»,
@@ -342,5 +343,61 @@ func TestGameIsAnonymous(t *testing.T) {
 				t.Errorf("анонимная = %v, ожидалось %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// lastLogin — миллисекунды настоящего времени; ноль у живого игрока —
+// «игра признала неактивным», у бота — просто бот.
+func TestPlayerLastLogin(t *testing.T) {
+	body := `{"states":{
+	  "1":{"players":{
+	    "1":{"playerID":1,"nationName":"A","siteUserID":5,"lastLogin":1789000000000},
+	    "2":{"playerID":2,"nationName":"B","siteUserID":6,"lastLogin":0},
+	    "3":{"playerID":3,"nationName":"C","computerPlayer":true,"lastLogin":0},
+	    "4":{"playerID":4,"nationName":"D","siteUserID":7}
+	  }},
+	  "3":{"map":{"locations":[{"@c":"p","id":1,"n":"x","o":1}]}}
+	}}`
+	var resp gameStateResponse
+	if err := json.Unmarshal([]byte(body), &resp); err != nil {
+		t.Fatal(err)
+	}
+	g, err := resp.build("1", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := g.Players[1].LastLogin; !got.Equal(time.UnixMilli(1789000000000)) || g.Players[1].Inactive {
+		t.Errorf("A: %+v", g.Players[1])
+	}
+	if !g.Players[2].Inactive || !g.Players[2].LastLogin.IsZero() {
+		t.Errorf("B должен быть неактивным: %+v", g.Players[2])
+	}
+	if g.Players[3].Inactive {
+		t.Errorf("бот не бывает неактивным: %+v", g.Players[3])
+	}
+	if g.Players[4].Inactive || !g.Players[4].LastLogin.IsZero() {
+		t.Errorf("без поля — не знаем: %+v", g.Players[4])
+	}
+}
+
+// Ноль у всех разом — игра не сказала, а не все бросили партию.
+func TestPlayerLastLoginAllZero(t *testing.T) {
+	body := `{"states":{
+	  "1":{"players":{
+	    "1":{"playerID":1,"siteUserID":5,"lastLogin":0},
+	    "2":{"playerID":2,"siteUserID":6,"lastLogin":0}
+	  }},
+	  "3":{"map":{"locations":[{"@c":"p","id":1,"n":"x","o":1}]}}
+	}}`
+	var resp gameStateResponse
+	if err := json.Unmarshal([]byte(body), &resp); err != nil {
+		t.Fatal(err)
+	}
+	g, err := resp.build("1", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Players[1].Inactive || g.Players[2].Inactive {
+		t.Errorf("никого нельзя помечать неактивным: %+v", g.Players)
 	}
 }

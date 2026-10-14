@@ -364,6 +364,8 @@ type gameMapView struct {
 	Together []togetherLegendView
 	// Kinds — счёт владельцев для легенды режима «Игроки».
 	Kinds playerKinds
+	// Activity — счёт владельцев по полосам режима «Активность».
+	Activity activityLegend
 	// Power — счёт владельцев по полосам режима «Сила» и счёт самого
 	// смотрящего: без него полосы не значат ничего.
 	Power powerLegend
@@ -392,6 +394,52 @@ type powerLegend struct {
 //
 // Роды не пересекаются: каждый владелец попадает ровно в один, тот же,
 // в какой его красит css.
+// activityLegend — сколько владельцев в каждой полосе режима «Активность».
+// Считаются люди, а не провинции; боты — отдельно, у них входов нет.
+type activityLegend struct {
+	Today    int
+	Recent   int
+	Old      int
+	Inactive int
+	Unknown  int
+	AI       int
+}
+
+// Полосы режима «Активность» — по настоящему времени: сутки и трое суток.
+const (
+	activityToday  = 24 * time.Hour
+	activityRecent = 72 * time.Hour
+)
+
+// activityClass — полоса владельца для режима «Активность»: класс
+// провинции. Пусто у ботов и у тех, про чей вход игра не сказала.
+func activityClass(p supremacy.Player, now time.Time) string {
+	switch {
+	case p.IsAI:
+		return ""
+	case p.Inactive:
+		return "act-gone"
+	case p.LastLogin.IsZero():
+		return ""
+	case now.Sub(p.LastLogin) < activityToday:
+		return "act-today"
+	case now.Sub(p.LastLogin) < activityRecent:
+		return "act-recent"
+	}
+	return "act-old"
+}
+
+// agoText — «3 ч назад», «2 дн назад» для подсказки.
+func agoText(l i18n.Lang, d time.Duration) string {
+	switch {
+	case d < time.Hour:
+		return l.T("ago.minutes")
+	case d < activityToday:
+		return l.T("ago.hours", int(d.Hours()))
+	}
+	return l.T("ago.days", int(d.Hours()/24))
+}
+
 type playerKinds struct {
 	Regular int
 	AI      int
@@ -495,6 +543,7 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 	}
 	// Середина владений каждой страны — там и будет её имя.
 	centers := map[int]*center{}
+	now := time.Now()
 
 	for _, p := range state.Provinces {
 		points, ok := geo.Land[p.ID]
@@ -540,6 +589,17 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 				}
 				shape.Title += ", " + l.T("tip.top", top.Rank,
 					nonEmpty(top.Name, l.T("game.noname")))
+			}
+			// Активность: когда владелец последний раз заходил в партию.
+			// Класс — для своего режима, время — в подсказку всегда.
+			if cls := activityClass(owner, now); cls != "" {
+				classes = append(classes, cls)
+			}
+			switch {
+			case owner.Inactive:
+				shape.Title += ", " + l.T("tip.inactive")
+			case !owner.IsAI && !owner.LastLogin.IsZero():
+				shape.Title += ", " + l.T("tip.lastlogin", agoText(l, now.Sub(owner.LastLogin)))
 			}
 			// Играли вместе: цвет группы в своём режиме, напарники —
 			// в подсказке всегда.
@@ -621,6 +681,23 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 	// подписки, подписка — всего остального.
 	for playerID := range centers {
 		owner := state.Players[playerID]
+		switch activityClass(owner, now) {
+		case "act-today":
+			view.Activity.Today++
+		case "act-recent":
+			view.Activity.Recent++
+		case "act-old":
+			view.Activity.Old++
+		case "act-gone":
+			view.Activity.Inactive++
+		default:
+			if owner.IsAI {
+				view.Activity.AI++
+			} else {
+				view.Activity.Unknown++
+			}
+		}
+
 		switch {
 		case owner.Banned:
 			view.Kinds.Banned++

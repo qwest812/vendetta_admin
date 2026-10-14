@@ -294,6 +294,13 @@ type Player struct {
 	NativeAI bool
 	Defeated bool
 	Retired  bool
+	// LastLogin — когда игрок последний раз заходил в партию: то же, что
+	// игра показывает в окне дипломатии. Нулевое — не знаем или игра
+	// сама признала его неактивным (Inactive).
+	LastLogin time.Time
+	// Inactive — живой игрок, которого игра признала неактивным: она
+	// ставит ему lastLogin = 0 (LAST_LOGIN_INACTIVE у клиента).
+	Inactive bool
 }
 
 // Team — коалиция партии. Своё название и свой цвет игра даёт каждой,
@@ -676,9 +683,13 @@ type gameStateResponse struct {
 				IsAI       bool   `json:"computerPlayer"`
 				// nativeComputer — бот с начала партии, а не брошенная
 				// страна. Указатель: нет поля — не знаем.
-				Native   *bool `json:"nativeComputer"`
-				Defeated bool  `json:"defeated"`
-				Retired  bool  `json:"retired"`
+				Native *bool `json:"nativeComputer"`
+				// lastLogin — миллисекунды настоящего времени (клиент
+				// показывает его как new Date(lastLogin)); 0 у ботов и у тех,
+				// кого игра признала неактивным. Указатель: нет поля — не знаем.
+				LastLogin *float64 `json:"lastLogin"`
+				Defeated  bool     `json:"defeated"`
+				Retired   bool     `json:"retired"`
 			} `json:"players"`
 			// Коалиции лежат рядом с игроками: у игрока только номер
 			// коалиции, а название, цвет и роспуск — здесь.
@@ -918,6 +929,13 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			IsAI: p.IsAI, Defeated: p.Defeated, Retired: p.Retired,
 			NativeAI: nativeBot(p.IsAI, p.Native, p.SiteUserID),
 		}
+		if p.LastLogin != nil {
+			if ms := int64(*p.LastLogin); ms > 0 {
+				player.LastLogin = time.UnixMilli(ms)
+			} else if !p.IsAI {
+				player.Inactive = true
+			}
+		}
 		// У ботов номера на сайте нет — там ноль, и в базе его искать незачем.
 		if p.SiteUserID > 0 {
 			player.SiteUserID = strconv.FormatInt(p.SiteUserID, 10)
@@ -925,6 +943,22 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		g.Players[p.PlayerID] = player
 		if p.CapitalID > 0 {
 			capitals[p.CapitalID] = true
+		}
+	}
+
+	// Ноль у всех живых игроков разом — не «все бросили партию», а «игра
+	// времени входа не сказала»: неактивными тогда не помечаем никого.
+	anyLogin := false
+	for _, pl := range g.Players {
+		if !pl.LastLogin.IsZero() {
+			anyLogin = true
+			break
+		}
+	}
+	if !anyLogin {
+		for id, pl := range g.Players {
+			pl.Inactive = false
+			g.Players[id] = pl
 		}
 	}
 
