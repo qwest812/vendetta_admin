@@ -665,9 +665,12 @@ func (s *Server) renderGameNotice(w http.ResponseWriter, r *http.Request, gameID
 		}
 		if data["Map"] != nil {
 			data["LoaderMs"] = loaderMs(time.Since(started))
+			// Пропуск — при любом показе карты: им пользуется не только
+			// дорисовка состава, но и вкладка «Потери», а она нужна и тогда,
+			// когда состав уже был в кэше.
+			s.mapTickets.grant(who.ID, gameID)
 			if later {
 				data["RosterLater"] = true
-				s.mapTickets.grant(who.ID, gameID)
 			}
 		}
 	}

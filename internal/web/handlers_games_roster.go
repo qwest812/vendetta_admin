@@ -17,7 +17,14 @@ import (
 // mapTicketTTL — сколько после показа карты можно дорисовать её составом.
 // С запасом на самое долгое ожидание сайта: страница просит состав сразу,
 // как загрузилась, а сайт отдаёт большую партию до минуты.
-const mapTicketTTL = 5 * time.Minute
+//
+// lossesTicketTTL — то же для вкладки «Потери». Её жмут не сразу, а когда
+// дойдут до неё, разглядывая карту, — пять минут тут мало. Хранится пропуск
+// до большего из сроков; каждый запрос сверяет свой.
+const (
+	mapTicketTTL    = 5 * time.Minute
+	lossesTicketTTL = time.Hour
+)
 
 // mapTickets помнит, кому и какую карту только что показали. Запрос состава
 // рисует карту заново из кэша, и без такой памяти её можно было бы получить
@@ -46,20 +53,21 @@ func (t *mapTickets) grant(userID int64, gameID string) {
 	defer t.mu.Unlock()
 	now := time.Now()
 	for k, at := range t.seen {
-		if now.Sub(at) > mapTicketTTL {
+		if now.Sub(at) > lossesTicketTTL {
 			delete(t.seen, k)
 		}
 	}
 	t.seen[mapTicketKey(userID, gameID)] = now
 }
 
-// has — показывали ли этому человеку эту карту недавно. Пропуск не гасится:
-// сайт может не успеть, и повторить запрос человек вправе, пока срок не вышел.
-func (t *mapTickets) has(userID int64, gameID string) bool {
+// has — показывали ли этому человеку эту карту не дольше ttl назад.
+// Пропуск не гасится: сайт может не успеть, и повторить запрос человек
+// вправе, пока срок не вышел.
+func (t *mapTickets) has(userID int64, gameID string, ttl time.Duration) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	at, ok := t.seen[mapTicketKey(userID, gameID)]
-	return ok && time.Since(at) <= mapTicketTTL
+	return ok && time.Since(at) <= ttl
 }
 
 // gameRoster — вторая половина страницы большой партии. Страница нарисовала
@@ -75,7 +83,7 @@ func (s *Server) gameRoster(w http.ResponseWriter, r *http.Request) {
 	who := currentUser(r)
 	lang := langOf(r)
 
-	if s.games == nil || !s.mapTickets.has(who.ID, gameID) {
+	if s.games == nil || !s.mapTickets.has(who.ID, gameID, mapTicketTTL) {
 		s.rosterFailed(w, r, lang.T("game.roster.expired"))
 		return
 	}

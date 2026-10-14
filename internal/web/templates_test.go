@@ -1673,23 +1673,30 @@ func TestMapTickets(t *testing.T) {
 	tickets := newMapTickets()
 	tickets.grant(7, "10895766")
 
-	if !tickets.has(7, "10895766") {
+	if !tickets.has(7, "10895766", mapTicketTTL) {
 		t.Error("только что выданный пропуск не действует")
 	}
-	if tickets.has(8, "10895766") {
+	if tickets.has(8, "10895766", mapTicketTTL) {
 		t.Error("пропуск достался другому человеку")
 	}
-	if tickets.has(7, "10900334") {
+	if tickets.has(7, "10900334", mapTicketTTL) {
 		t.Error("пропуск подошёл к другой партии")
 	}
 
-	// Срок вышел — пропуска нет, а следующая выдача его и выбрасывает.
-	tickets.seen[mapTicketKey(7, "10895766")] = time.Now().Add(-mapTicketTTL - time.Second)
-	if tickets.has(7, "10895766") {
-		t.Error("протухший пропуск всё ещё действует")
+	// Дорисовке пять минут уже мало, а потерям час ещё не вышел.
+	key := mapTicketKey(7, "10895766")
+	tickets.seen[key] = time.Now().Add(-mapTicketTTL - time.Second)
+	if tickets.has(7, "10895766", mapTicketTTL) {
+		t.Error("протухший пропуск всё ещё действует для дорисовки")
 	}
+	if !tickets.has(7, "10895766", lossesTicketTTL) {
+		t.Error("потери не пускают через шесть минут после показа карты")
+	}
+
+	// Вышел и долгий срок — следующая выдача пропуск выбрасывает.
+	tickets.seen[key] = time.Now().Add(-lossesTicketTTL - time.Second)
 	tickets.grant(9, "10900334")
-	if _, ok := tickets.seen[mapTicketKey(7, "10895766")]; ok {
+	if _, ok := tickets.seen[key]; ok {
 		t.Error("протухший пропуск не выброшен при следующей выдаче")
 	}
 }

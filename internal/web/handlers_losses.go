@@ -60,13 +60,13 @@ func (s *Server) gameLosses(w http.ResponseWriter, r *http.Request) {
 	fail := func(msg string) {
 		s.renderPartial(w, r, "game", "gamelosses", map[string]any{"Error": msg, "GameID": gameID})
 	}
-	if s.games == nil || !s.mapTickets.has(who.ID, gameID) {
-		fail(lang.T("game.roster.expired"))
+	if s.games == nil || !s.mapTickets.has(who.ID, gameID, lossesTicketTTL) {
+		fail(lang.T("game.losses.expired"))
 		return
 	}
 	state, ok := s.games.CachedState(gameID)
 	if !ok {
-		fail(lang.T("game.roster.expired"))
+		fail(lang.T("game.losses.expired"))
 		return
 	}
 	if state.Anonymous && !who.CanSeeAnonymousMaps() {
