@@ -564,7 +564,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-players:checked ~ .map-tabs label[for="map-players"],
 #map-power:checked ~ .map-tabs label[for="map-power"],
 #map-top:checked ~ .map-tabs label[for="map-top"],
-#map-together:checked ~ .map-tabs label[for="map-together"] {
+#map-together:checked ~ .map-tabs label[for="map-together"],
+#map-losses:checked ~ .map-tabs label[for="map-losses"] {
     border-color: var(--accent);
     color: var(--text);
 }
@@ -576,7 +577,8 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-players:focus-visible ~ .map-tabs label[for="map-players"],
 #map-power:focus-visible ~ .map-tabs label[for="map-power"],
 #map-top:focus-visible ~ .map-tabs label[for="map-top"],
-#map-together:focus-visible ~ .map-tabs label[for="map-together"] { outline: 2px solid var(--accent); }
+#map-together:focus-visible ~ .map-tabs label[for="map-together"],
+#map-losses:focus-visible ~ .map-tabs label[for="map-losses"] { outline: 2px solid var(--accent); }
 
 /* Легенда и пояснение — свои у каждого режима, показывается только пара
    выбранного. */
@@ -587,7 +589,14 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-players:checked ~ .pane-players,
 #map-power:checked ~ .pane-power,
 #map-top:checked ~ .pane-top,
-#map-together:checked ~ .pane-together { display: block; }
+#map-together:checked ~ .pane-together,
+#map-losses:checked ~ .pane-losses { display: block; }
+/* Вкладка «Потери»: строка раскрывается списком противников. Пока идёт
+   подсчёт, блок притушен — газета листается по дню за запрос. */
+.losses summary { cursor: pointer; }
+.losses .swatch { display: inline-block; vertical-align: middle; }
+.losses-duels { margin: 6px 0 4px 18px; padding: 0; font-size: 13px; color: var(--muted); }
+#losses-box.htmx-request { opacity: .5; pointer-events: none; }
 
 /* Легенда карты: цвет раздаётся кланам на партию, поэтому она идёт сразу
    под картой и читается как её продолжение. Строки в ряд и с переносом —

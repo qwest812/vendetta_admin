@@ -75,6 +75,8 @@ type gameSource interface {
 	// GrantRightOfWay заходит в партию и выдаёт право прохода всем ботам,
 	// у кого его ещё нет.
 	GrantRightOfWay(ctx context.Context, gameID string) (string, error)
+	// GameLosses — потери в войнах партии по газете, с первого дня по today.
+	GameLosses(ctx context.Context, gameID string, today int) (*supremacy.Losses, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
 	// UserStatsBatch — боевой счёт игроков с сайта. Сайт отвечает про
 	// одного за раз, поэтому пачка спрашивается в несколько потоков;
@@ -307,7 +309,10 @@ func gameState(l i18n.Lang, state string) string {
 // ClanColor, TeamColor и TopColor — цвета клана, коалиции и клана из топа,
 // они же css-переменные --clan, --team и --top; пусто, если красить нечем.
 type mapShape struct {
-	Points    string
+	Points string
+	// Owner — номер владельца в партии; по нему вкладка «Потери»
+	// красит провинции, не перерисовывая карту.
+	Owner     int
 	Class     string
 	ClanColor template.CSS
 	TeamColor template.CSS
@@ -497,7 +502,7 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 			continue
 		}
 
-		shape := mapShape{Points: svgPoints(points), Title: p.Name}
+		shape := mapShape{Points: svgPoints(points), Title: p.Name, Owner: p.Owner}
 		// Ничейная земля своим классом отличается от занятой: в обоих
 		// режимах она серая, но темнее — свободную землю не должно быть
 		// видно как чью-то.

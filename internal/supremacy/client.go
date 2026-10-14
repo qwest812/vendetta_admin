@@ -75,6 +75,9 @@ type Client struct {
 	// states — состояния партий с игрового сервера: копия одна на всех,
 	// кто бы её ни привёз. Подробности в state_cache.go.
 	states map[string]*stateEntry
+	// papers — разобранные дни газеты по партиям: сводки о войнах.
+	// Подробности в losses.go.
+	papers map[string]*paperEntry
 	// speeds — скорость увиденных партий: по ней считается, сколько копия
 	// состояния считается свежей.
 	speeds map[string]float64

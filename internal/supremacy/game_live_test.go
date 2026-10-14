@@ -4,6 +4,7 @@ package supremacy
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"testing"
@@ -51,5 +52,54 @@ func TestGameStateLive(t *testing.T) {
 	for _, p := range g.Players {
 		t.Logf("игрок %3d %-16s %-16s siteUserID=%-12s ии=%v выбыл=%v",
 			p.ID, p.Nation, p.Name, p.SiteUserID, p.IsAI, p.Defeated || p.Retired)
+	}
+}
+
+// Живая проверка газеты: формат сводок о войнах игра не документирует,
+// а переводит его на язык аккаунта. Наблюдателем, входом это не считается.
+//
+//	GAME=10886819 go test -tags live -run TestGameLossesLive -v ./internal/supremacy/
+func TestGameLossesLive(t *testing.T) {
+	gameID := os.Getenv("GAME")
+	if gameID == "" {
+		t.Skip("нужен GAME=<gameID>")
+	}
+	c := NewClient(os.Getenv("S1914_USER"), os.Getenv("S1914_PASSWORD"), os.Getenv("S1914_LANG"),
+		slog.New(slog.NewTextHandler(os.Stderr, nil)))
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	g, err := c.ObserveGame(ctx, gameID)
+	if err != nil {
+		t.Fatalf("состояние партии: %v", err)
+	}
+	acc, err := c.gameAccess(ctx, gameID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Сырой ответ одного дня — чтобы увидеть формат, если разбор промахнётся.
+	var raw json.RawMessage
+	if err := c.gsCall(ctx, acc, gameID, 2, "ultshared.action.UltUpdateGameStateAction", 0,
+		map[string]any{"stateType": 2, "stateID": "", "addStateIDsOnSent": false,
+			"option": max(g.Day-1, 1), "actions": nil, "lastCallDuration": 50}, &raw); err != nil {
+		t.Fatalf("день газеты: %v", err)
+	}
+	articles, err := paperArticles(raw)
+	t.Logf("статей за день %d: %d (err %v)", max(g.Day-1, 1), len(articles), err)
+	for i, a := range articles {
+		if i < 5 {
+			t.Logf("статья %d: %q", i, a)
+		}
+	}
+
+	losses, err := c.GameLosses(ctx, gameID, g.Day)
+	if err != nil {
+		t.Fatalf("потери: %v", err)
+	}
+	t.Logf("дней %d, не отдано %v, игроков с потерями %d", losses.Days, losses.Missing, len(losses.Players))
+	for i, p := range losses.Players {
+		if i < 10 {
+			t.Logf("%s (#%d): потерял %d, убил %d, противников %d", p.Name, p.ID, p.Lost, p.Killed, len(p.Opponent))
+		}
 	}
 }

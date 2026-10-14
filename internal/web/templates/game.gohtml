@@ -507,6 +507,66 @@
     {{end}}
 {{end}}
 
+{{/* Потери по газете: таблица, заливка карты и кнопка пересчёта. */}}
+{{define "gamelosses"}}
+    {{if .Error}}
+        <p class="error">{{.Error}}</p>
+    {{end}}
+    {{with .Losses}}
+        <style>{{.Style}}</style>
+        <p class="muted">
+            {{t "game.losses.days" .Days}}
+            {{if .Missing}} {{t "game.losses.missing" .Missing}}{{end}}
+        </p>
+        {{if .Rows}}
+            <ul class="map-legend">
+                <li><span class="swatch" style="background: #e8c9a8"></span>{{t "game.losses.few"}}</li>
+                <li><span class="swatch" style="background: #6e1f1a"></span>{{t "game.losses.many"}}</li>
+            </ul>
+            <div class="table-wrap">
+                <table class="losses">
+                    <thead>
+                    <tr>
+                        <th>{{t "game.losses.player"}}</th>
+                        <th>{{t "game.losses.lost"}}</th>
+                        <th>{{t "game.losses.killed"}}</th>
+                        <th>{{t "game.losses.kd"}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {{range .Rows}}
+                        <tr>
+                            <td>
+                                <details>
+                                    <summary>
+                                        {{if .Color}}<span class="swatch" style="background: {{.Color}}"></span>{{end}}
+                                        {{.Nation}}{{if .Name}} <span class="muted">({{.Name}})</span>{{end}}
+                                        {{if .Mine}} <span class="badge">{{t "game.thatsyou"}}</span>{{end}}
+                                        {{if not .OnMap}} <span class="muted">{{t "game.losses.gone"}}</span>{{end}}
+                                    </summary>
+                                    <ul class="losses-duels">
+                                        {{range .Opponents}}
+                                            <li>{{t "game.losses.vs" .Nation .Lost .Killed}}</li>
+                                        {{end}}
+                                    </ul>
+                                </details>
+                            </td>
+                            <td class="nowrap">{{.Lost}}</td>
+                            <td class="nowrap">{{.Killed}}</td>
+                            <td class="nowrap">{{.Ratio}}</td>
+                        </tr>
+                    {{end}}
+                    </tbody>
+                </table>
+            </div>
+        {{else}}
+            <p class="muted">{{t "game.losses.none"}}</p>
+        {{end}}
+    {{end}}
+    <button type="button" class="ghost" hx-get="/games/{{.GameID}}/losses"
+            hx-target="#losses-box" hx-swap="innerHTML">{{t "game.losses.again"}}</button>
+{{end}}
+
 {{/* Состав не приехал: объяснение встаёт на место строки «догружаем».
      Повторить можно, пока действует пропуск — кнопка просит тот же блок. */}}
 {{define "rosterfailed"}}
@@ -592,6 +652,7 @@
         <input class="map-mode" type="radio" name="map-mode" id="map-power">
         <input class="map-mode" type="radio" name="map-mode" id="map-top">
         <input class="map-mode" type="radio" name="map-mode" id="map-together">
+        <input class="map-mode" type="radio" name="map-mode" id="map-losses">
         {{/* Карта большой партии нарисована без состава с сайта: строка сама
              просит его, как только страница загрузилась, и ответ заменяет
              весь блок карты — уже с составом и кланами от сайта. Стоит после
@@ -609,6 +670,7 @@
             <label for="map-power">{{t "game.map.power"}}</label>
             <label for="map-top">{{t "game.map.top"}}</label>
             <label for="map-together">{{t "game.map.together"}}</label>
+            <label for="map-losses">{{t "game.map.losses"}}</label>
         </div>
         {{/* Карта в собственных координатах игры: viewBox их и берёт,
              а размер на странице задаёт css. */}}
@@ -617,7 +679,7 @@
              aria-label="{{t "game.map.aria"}}">
             <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
             {{range .Map.Shapes}}
-                <polygon points="{{.Points}}" class="{{.Class}}"
+                <polygon points="{{.Points}}" class="{{.Class}}"{{if .Owner}} data-owner="{{.Owner}}"{{end}}
                          {{if or .ClanColor .TeamColor .TopColor .TogetherColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}; --top: {{.TopColor}}; --together: {{.TogetherColor}}"{{end}}><title>{{.Title}}</title></polygon>
             {{end}}
             {{/* Подписи поверх заливки: страна пишется один раз, посередине
@@ -875,6 +937,17 @@
                     {{t "game.map.top.none"}}
                 </p>
             {{end}}
+        </div>
+        {{/* Потери в войнах по газете. Считаются по нажатию: газета
+             отдаётся по дню за запрос. Ответ заменяет содержимое блока
+             и приносит css заливки к уже нарисованной карте. */}}
+        <div class="map-pane pane-losses">
+            <div id="losses-box">
+                <button type="button" hx-get="/games/{{.GameID}}/losses"
+                        hx-target="#losses-box" hx-swap="innerHTML"
+                        hx-indicator="#losses-box">{{t "game.losses.count"}}</button>
+                <p class="muted">{{t "game.losses.note"}}</p>
+            </div>
         </div>
         {{/* Играли вместе: группы из архива коалиций. Нынешние сокомандники
              сюда не попадают — их союз виден на вкладке коалиций. */}}
