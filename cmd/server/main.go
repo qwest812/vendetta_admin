@@ -110,10 +110,27 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		return err
 	}
 
-	go cleanupSessions(ctx, log, sessions)
-	go cleanupLogins(ctx, log, logins)
-	go cleanupCheckedGames(ctx, log, checked)
-	go cleanupMapChecks(ctx, log, mapChecks)
+	go cleanupHourly(ctx, log, "протухшие сессии", sessions.DeleteExpired)
+	// Журналы входов и действий из интерфейса не чистятся вовсе — кнопка
+	// «очистить» сделала бы их бесполезными: первым делом почистили бы
+	// ровно то, из-за чего в журнал пришли. Записи уходят только по сроку.
+	go cleanupHourly(ctx, log, "давние записи о входах", func(ctx context.Context) (int64, error) {
+		return logins.Forget(ctx, time.Now().Add(-domain.LoginLogTTL))
+	})
+	go cleanupHourly(ctx, log, "давние записи журнала", func(ctx context.Context) (int64, error) {
+		return audit.Forget(ctx, time.Now().Add(-domain.AuditLogTTL))
+	})
+	// Страница проверенных партий и без этого показывает только свежее —
+	// уборка нужна затем, чтобы таблица не росла вечно.
+	go cleanupHourly(ctx, log, "давние проверки партий", func(ctx context.Context) (int64, error) {
+		return checked.Forget(ctx, time.Now().Add(-domain.CheckedGamesTTL))
+	})
+	// Счёту открытий карты хватило бы и сегодняшнего дня, но по этим же
+	// строкам рут смотрит, сколько карт открывают в день, поэтому храним
+	// их, пока это интересно.
+	go cleanupHourly(ctx, log, "счёт открытий карты", func(ctx context.Context) (int64, error) {
+		return mapChecks.Forget(ctx, repo.Day(time.Now().Add(-domain.MapChecksTTL)))
+	})
 
 	if s1914 != nil {
 		seen := repo.NewSupremacyGames(pool)
@@ -233,10 +250,10 @@ func seedRoot(ctx context.Context, log *slog.Logger, users *repo.Users, cfg *con
 	return nil
 }
 
-// cleanupMapChecks раз в час выбрасывает счёт проверок старше срока.
-// Лимиту хватило бы и сегодняшнего дня, но по этим же строкам рут смотрит,
-// сколько карт открывают в день, поэтому храним их, пока это интересно.
-func cleanupMapChecks(ctx context.Context, log *slog.Logger, checks *repo.MapChecks) {
+// cleanupHourly раз в час зовёт уборку и пишет в лог, сколько убрано.
+// Так таблицы, которые растут сами — сессии, журналы, счётчики, — не
+// растут вечно. Ошибка уборки ничего не роняет: через час будет новая.
+func cleanupHourly(ctx context.Context, log *slog.Logger, what string, forget func(context.Context) (int64, error)) {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
@@ -244,81 +261,13 @@ func cleanupMapChecks(ctx context.Context, log *slog.Logger, checks *repo.MapChe
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			n, err := checks.Forget(ctx, repo.Day(time.Now().Add(-domain.MapChecksTTL)))
+			n, err := forget(ctx)
 			if err != nil {
-				log.Error("очистка счёта проверок", "err", err)
+				log.Error("уборка: "+what, "err", err)
 				continue
 			}
 			if n > 0 {
-				log.Info("забыт счёт открытий карты", "count", n)
-			}
-		}
-	}
-}
-
-// cleanupCheckedGames раз в час убирает из личных списков партии, к которым
-// не возвращались дольше срока. Страница и без этого показывает только свежее
-// — уборка нужна затем, чтобы таблица не росла вечно.
-func cleanupCheckedGames(ctx context.Context, log *slog.Logger, checked *repo.CheckedGames) {
-	ticker := time.NewTicker(time.Hour)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			n, err := checked.Forget(ctx, time.Now().Add(-domain.CheckedGamesTTL))
-			if err != nil {
-				log.Error("очистка проверенных партий", "err", err)
-				continue
-			}
-			if n > 0 {
-				log.Info("забыты давние проверки партий", "count", n)
-			}
-		}
-	}
-}
-
-// cleanupLogins раз в час убирает записи о входах старше срока. Это
-// единственный способ что-то стереть из журнала входов: кнопки «очистить»
-// нет намеренно — первым делом почистили бы ровно то, из-за чего в журнал
-// пришли.
-func cleanupLogins(ctx context.Context, log *slog.Logger, logins *repo.Logins) {
-	ticker := time.NewTicker(time.Hour)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			n, err := logins.Forget(ctx, time.Now().Add(-domain.LoginLogTTL))
-			if err != nil {
-				log.Error("очистка журнала входов", "err", err)
-				continue
-			}
-			if n > 0 {
-				log.Info("забыты давние записи о входах", "count", n)
-			}
-		}
-	}
-}
-
-// cleanupSessions раз в час подчищает протухшие сессии.
-func cleanupSessions(ctx context.Context, log *slog.Logger, sessions *repo.Sessions) {
-	ticker := time.NewTicker(time.Hour)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			n, err := sessions.DeleteExpired(ctx)
-			if err != nil {
-				log.Error("очистка сессий", "err", err)
-				continue
-			}
-			if n > 0 {
-				log.Info("удалены протухшие сессии", "count", n)
+				log.Info("уборка: "+what, "count", n)
 			}
 		}
 	}

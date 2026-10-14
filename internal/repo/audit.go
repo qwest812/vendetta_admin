@@ -65,3 +65,10 @@ func (r *Audit) Recent(ctx context.Context, limit int) ([]*AuditEntry, error) {
 	}
 	return out, rows.Err()
 }
+
+// Forget убирает записи старше срока. Других способов стереть что-то
+// из журнала нет.
+func (r *Audit) Forget(ctx context.Context, before time.Time) (int64, error) {
+	tag, err := r.pool.Exec(ctx, `DELETE FROM audit_log WHERE created_at < $1`, before)
+	return tag.RowsAffected(), err
+}
