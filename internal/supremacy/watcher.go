@@ -66,6 +66,7 @@ type Watcher struct {
 	notifier Notifier
 	store    SeenStore
 	queue    gameQueue
+	gate     LobbySwitch
 	titles   []string
 	interval time.Duration
 
@@ -82,6 +83,9 @@ type Watcher struct {
 	// «всё та же ошибка» от новой.
 	failures int
 	lastFail string
+	// paused — рубильник был выключен на прошлом тике: в лог идёт только
+	// смена состояния.
+	paused bool
 }
 
 // pollStats копит то, о чём отчитывается heartbeat. Счётчики опросов и ошибок
@@ -130,6 +134,38 @@ func NewWatcher(c gameLister, titles []string, interval time.Duration, log *slog
 	}
 }
 
+// LobbySwitch — рубильник опроса лобби. В бою это настройки в базе.
+type LobbySwitch interface {
+	LobbyWatchEnabled(ctx context.Context) (bool, error)
+}
+
+// Gate подключает рубильник: выключенный воркер в лобби не ходит, но
+// проверяет рубильник каждый тик и включается без перезапуска.
+func (w *Watcher) Gate(s LobbySwitch) { w.gate = s }
+
+// enabled спрашивает рубильник и пишет в лог только смену состояния.
+// Не прочитался — считаем включённым: лучше лишний опрос, чем молча
+// вставший поиск.
+func (w *Watcher) enabled(ctx context.Context) bool {
+	if w.gate == nil {
+		return true
+	}
+	on, err := w.gate.LobbyWatchEnabled(ctx)
+	if err != nil {
+		w.log.Error("рубильник лобби", "err", err)
+		on = true
+	}
+	if on == w.paused {
+		if on {
+			w.log.Info("поиск новых партий включён")
+		} else {
+			w.log.Info("поиск новых партий выключен рутом")
+		}
+	}
+	w.paused = !on
+	return on
+}
+
 // Feed подключает очередь на разбор. Лобби воркер и так опрашивает раз
 // в минуту — второй такой опрос заводить незачем.
 func (w *Watcher) Feed(q gameQueue) { w.queue = q }
@@ -147,6 +183,14 @@ func (w *Watcher) Run(ctx context.Context) {
 	defer ticker.Stop()
 
 	for {
+		if !w.enabled(ctx) {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+			continue
+		}
 		err := w.poll(ctx)
 		switch {
 		case ctx.Err() != nil:

@@ -1201,3 +1201,28 @@ func TestNoSuchAllianceIsRecognized(t *testing.T) {
 		t.Error("обычный отказ принят за распавшийся клан")
 	}
 }
+
+type stubLobbySwitch struct{ on bool }
+
+func (s *stubLobbySwitch) LobbyWatchEnabled(context.Context) (bool, error) { return s.on, nil }
+
+// Выключенный рубильником воркер в лобби не ходит, но и не останавливается:
+// включили — опрос пошёл без перезапуска.
+func TestWatcherGateStopsPolling(t *testing.T) {
+	lister := &stubLister{} // любой вызов OpenGames упадёт: страниц нет
+	gate := &stubLobbySwitch{on: false}
+	w := NewWatcher(lister, nil, 5*time.Millisecond, discardLogger(), &collectNotifier{}, nil)
+	w.Gate(gate)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+	defer cancel()
+	w.Run(ctx)
+	if lister.calls != 0 {
+		t.Fatalf("выключенный воркер сходил в лобби %d раз", lister.calls)
+	}
+
+	gate.on = true
+	if !w.enabled(context.Background()) || w.paused {
+		t.Fatal("включённый рубильник должен пустить опрос")
+	}
+}

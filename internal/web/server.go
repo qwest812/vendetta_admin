@@ -282,6 +282,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /logins", root(http.HandlerFunc(s.loginsPage)))
 	mux.Handle("GET /signups", root(http.HandlerFunc(s.signupsPage)))
 	mux.Handle("POST /settings/coalitions", root(auth.VerifyCSRF(http.HandlerFunc(s.coalitionScanToggle))))
+	mux.Handle("POST /settings/lobby", root(auth.VerifyCSRF(http.HandlerFunc(s.lobbyWatchToggle))))
 	mux.Handle("POST /settings/traits", root(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
 	mux.Handle("POST /settings/traits/{id}", root(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
 	mux.Handle("POST /settings/traits/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))

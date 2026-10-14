@@ -8,6 +8,10 @@
 
 {{/* Рубильник отдельным блоком: он возвращает эту же карточку заново,
      вместе со строкой состояния. */}}
+{{with .Lobby}}
+    {{template "lobby-switch" (dict "On" .On "CSRFToken" $.CSRFToken)}}
+{{end}}
+
 {{with .Coalitions}}
     {{template "coalitions-switch" (dict "C" . "CSRFToken" $.CSRFToken)}}
 {{end}}
@@ -142,6 +146,27 @@
         </form>
     {{end}}
     <p class="muted">{{t "settings.trait.active.note"}}</p>
+</div>
+{{end}}
+
+{{/* Рубильник поиска новых партий в лобби. Возвращает сам себя. */}}
+{{define "lobby-switch"}}
+<div class="card" id="lobby">
+    <div class="card-head">
+        <h1>{{t "lobby.title"}}</h1>
+        <div class="head-actions">
+            <form method="post" action="/settings/lobby"
+                  hx-post="/settings/lobby" hx-target="#lobby" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="on" value="{{if .On}}0{{else}}1{{end}}">
+                <button type="submit" {{if .On}}class="danger"{{end}}>
+                    {{if .On}}{{t "lobby.stop"}}{{else}}{{t "lobby.start"}}{{end}}
+                </button>
+            </form>
+        </div>
+    </div>
+    <p class="muted">{{t "lobby.note"}}</p>
+    <p class="muted">{{if .On}}{{t "coalitions.on"}}{{else}}{{t "coalitions.off"}}{{end}}</p>
 </div>
 {{end}}
 

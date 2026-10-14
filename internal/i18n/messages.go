@@ -886,6 +886,10 @@ var messages = map[string]entry{
 	"err.checks.bad":       {ru: "Проверок в сутки — целое число от 0 до %d", en: "Checks a day must be a whole number from 0 to %d"},
 
 	// --- архив коалиций: рубильник и сводка (только руту) ---
+	"lobby.title":      {ru: "Поиск новых партий", en: "New game search"},
+	"lobby.note":       {ru: "Воркер смотрит лобби, находит новые партии и пишет о подходящих в телеграм. Из того же опроса сбор коалиций узнаёт о новых партиях: пока поиск выключен, новые партии в архив не попадают, а уже известные обходятся как обычно. Поиск игроков в лобби смотрит лобби сам и от этой кнопки не зависит.", en: "The worker watches the lobby, finds new games and posts matching ones to Telegram. The coalition archive learns about new games from the same poll: while the search is off, no new games enter the archive, while known ones are checked as usual. The lobby player search polls the lobby itself and does not depend on this button."},
+	"lobby.start":      {ru: "Включить поиск", en: "Start the search"},
+	"lobby.stop":       {ru: "Остановить поиск", en: "Stop the search"},
 	"coalitions.title": {ru: "Сбор коалиций", en: "Coalition archive"},
 	"coalitions.note":  {ru: "Обход заглядывает в партии из лобби и запоминает, кто с кем состоял в коалиции. Заходит наблюдателем, так что входом в партию это не считается. Коалиции собирают под конец, чтобы сложить очки и перешагнуть порог победы, а победу игра объявляет только при смене дня. Поэтому обход следит за счётом: пока до порога далеко, заглядывает раз в два игровых дня, а в эндшпиле — за 10 минут до каждой смены дня, пока партия не кончится.", en: "The scan looks into lobby games and remembers who was in a coalition with whom. It looks as an observer, so it never counts as entering a game. Coalitions are formed near the end, to add up points and cross the victory threshold, and the game declares victory only at day change. So the scan follows the score: while the threshold is far, it looks every two game days, and in the endgame 10 minutes before every day change, until the game ends."},
 	// Поиск игроков в лобби — рутовый.

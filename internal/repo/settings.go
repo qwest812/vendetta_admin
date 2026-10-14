@@ -23,6 +23,10 @@ const (
 	// Выключается рутом: обход ходит в игру от общего аккаунта, и повод
 	// остановить его может возникнуть быстрее, чем повод пересобрать образ.
 	SettingCoalitionScan = "coalition_scan"
+	// SettingLobbyWatch — смотрит ли воркер лобби в поисках новых партий.
+	// От него же кормится сбор коалиций, поэтому выключенный опрос лобби
+	// оставляет архив без новых партий.
+	SettingLobbyWatch = "lobby_watch"
 	// SettingS1914Session — подпись, которой админка ходит в Supremacy.
 	// Лежит здесь, а не в отдельной таблице: это одна строка на всю
 	// установку, ровно как переключатели рядом. Руками её никто не правит,
@@ -49,6 +53,12 @@ func (r *Settings) Bool(ctx context.Context, key string, def bool) (bool, error)
 // «никто не вмешивался».
 func (r *Settings) CoalitionScanEnabled(ctx context.Context) (bool, error) {
 	return r.Bool(ctx, SettingCoalitionScan, true)
+}
+
+// LobbyWatchEnabled — идёт ли поиск новых партий в лобби. По умолчанию
+// да, как и у сбора коалиций.
+func (r *Settings) LobbyWatchEnabled(ctx context.Context) (bool, error) {
+	return r.Bool(ctx, SettingLobbyWatch, true)
 }
 
 // SetBool переключает и запоминает, кто это сделал.

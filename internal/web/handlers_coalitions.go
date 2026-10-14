@@ -47,6 +47,32 @@ func (s *Server) coalitionScanToggle(w http.ResponseWriter, r *http.Request) {
 		map[string]any{"C": view, "CSRFToken": csrfToken(r)})
 }
 
+// lobbyWatchToggle — рубильник поиска новых партий в лобби. Тот же, что
+// у сбора коалиций: рутовый, с записью в журнал.
+func (s *Server) lobbyWatchToggle(w http.ResponseWriter, r *http.Request) {
+	on := r.PostFormValue("on") == "1"
+	me := currentUser(r)
+
+	if err := s.settings.SetBool(r.Context(), repo.SettingLobbyWatch, on, me.ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.log.Info("поиск новых партий переключён", "включён", on, "user_id", me.ID)
+	s.logAuditOn(r, "lobby_watch", "settings", 0, map[string]any{"on": on})
+
+	if !hx(r) {
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+		return
+	}
+	on, err := s.settings.LobbyWatchEnabled(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.renderPartial(w, r, "settings", "lobby-switch",
+		map[string]any{"On": on, "CSRFToken": csrfToken(r)})
+}
+
 // coalitionCard собирает состояние архива: включён ли обход и что он уже
 // собрал. Одно место на обе страницы — рубильник в «Настройках» и счётчики
 // в «Играх» — и на ответ самого рубильника, иначе они разошлись бы.

@@ -63,6 +63,17 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 		coalitions = view
 	}
 
+	// Рубильник поиска новых партий: без настроек в базе его некуда писать.
+	var lobby any
+	if s.settings != nil {
+		on, err := s.settings.LobbyWatchEnabled(r.Context())
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		lobby = map[string]any{"On": on}
+	}
+
 	// Открытия карты по дням: сколько их и кем. Читается тот же счётчик,
 	// что держит суточный лимит, — отдельного журнала для этого заводить
 	// незачем.
@@ -85,7 +96,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 
 	s.render(w, r, status, "settings", map[string]any{
 		"Traits": traits, "Usage": usage, "Kinds": domain.TraitKinds,
-		"Coalitions": coalitions, "Heroes": heroes,
+		"Coalitions": coalitions, "Heroes": heroes, "Lobby": lobby,
 		"Maps": maps, "MapDays": int(mapStatsSpan.Hours() / 24),
 		"MapsTotal": mapsTotal(maps), "Error": errMsg,
 	})

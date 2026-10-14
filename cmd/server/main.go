@@ -135,6 +135,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		}
 
 		watcher := supremacy.NewWatcher(s1914, cfg.S1914Titles, cfg.S1914PollEvery, log, notifier, seen)
+		// Рубильник рута в «Настройках»: выключенный воркер в лобби не ходит.
+		watcher.Gate(settings)
 
 		// Архив коалиций кормится тем же опросом лобби: заводить второй
 		// незачем. Фильтр названий на него не распространяется — он про то,
