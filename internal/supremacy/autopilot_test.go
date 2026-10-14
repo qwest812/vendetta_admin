@@ -14,11 +14,21 @@ import (
 type fakeTasks struct {
 	enabled []domain.GameTask
 	runs    map[string]string
+	rallies map[string]string
+	armies  map[string][]int64
 	listErr error
 }
 
-func (f *fakeTasks) HeroDeployEnabled(context.Context) ([]domain.GameTask, error) {
+func (f *fakeTasks) AutopilotTasks(context.Context) ([]domain.GameTask, error) {
 	return f.enabled, f.listErr
+}
+
+func (f *fakeTasks) MarkRallyRun(_ context.Context, gameID string, _ time.Time, result string, armies []int64) error {
+	if f.rallies == nil {
+		f.rallies, f.armies = map[string]string{}, map[string][]int64{}
+	}
+	f.rallies[gameID], f.armies[gameID] = result, armies
+	return nil
 }
 
 func (f *fakeTasks) MarkHeroRun(_ context.Context, gameID string, _ time.Time, result string) error {
@@ -31,13 +41,20 @@ func (f *fakeTasks) MarkHeroRun(_ context.Context, gameID string, _ time.Time, r
 
 type fakeDeployer struct {
 	result  string
+	rally   string
+	armies  []int64
 	err     error
 	visited []string
+	jobs    []AutopilotJob
 }
 
-func (f *fakeDeployer) DeployInfantry(_ context.Context, gameID string) (string, error) {
+func (f *fakeDeployer) RunAutopilot(_ context.Context, gameID string, job AutopilotJob) (*AutopilotRun, error) {
 	f.visited = append(f.visited, gameID)
-	return f.result, f.err
+	f.jobs = append(f.jobs, job)
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &AutopilotRun{Hero: f.result, Rally: f.rally, Armies: f.armies}, nil
 }
 
 func quietLog() *slog.Logger {
@@ -48,7 +65,7 @@ func quietLog() *slog.Logger {
 // оставляет след: страница партии показывает именно его.
 func TestAutopilotVisitsEnabledGames(t *testing.T) {
 	store := &fakeTasks{enabled: []domain.GameTask{
-		{GameID: "1", Title: "первая"}, {GameID: "2", Title: "вторая"},
+		{GameID: "1", Title: "первая", HeroDeploy: true}, {GameID: "2", Title: "вторая", HeroDeploy: true},
 	}}
 	deployer := &fakeDeployer{result: "Мейв призвала пехоту"}
 	a := NewAutopilot(deployer, store, time.Hour, time.Hour, quietLog())
@@ -68,7 +85,7 @@ func TestAutopilotVisitsEnabledGames(t *testing.T) {
 
 // Отказ игры записывается как есть: по нему потом и разбираются.
 func TestAutopilotRecordsGameError(t *testing.T) {
-	store := &fakeTasks{enabled: []domain.GameTask{{GameID: "7"}}}
+	store := &fakeTasks{enabled: []domain.GameTask{{GameID: "7", HeroDeploy: true, RallyAuto: true, RallyProvince: 5}}}
 	deployer := &fakeDeployer{err: errors.New("resultCode=-17 session expired")}
 	a := NewAutopilot(deployer, store, time.Hour, time.Hour, quietLog())
 
@@ -77,6 +94,46 @@ func TestAutopilotRecordsGameError(t *testing.T) {
 	}
 	if got := store.runs["7"]; got != "resultCode=-17 session expired" {
 		t.Errorf("итог = %q", got)
+	}
+	// Не зашли — отказ один на всё включённое, а список армий не трогаем:
+	// мы их не видели.
+	if got := store.rallies["7"]; got != "resultCode=-17 session expired" {
+		t.Errorf("итог сбора = %q", got)
+	}
+	if store.armies["7"] != nil {
+		t.Errorf("список армий затёрт: %v", store.armies["7"])
+	}
+}
+
+// Сбор и Мейв ходят одним заходом: автопилот отдаёт клиенту и то, и другое,
+// а итоги пишет каждый в своё поле. Сбор без города не включается.
+func TestAutopilotRalliesInSameVisit(t *testing.T) {
+	store := &fakeTasks{enabled: []domain.GameTask{
+		{GameID: "1", HeroDeploy: true, RallyAuto: true, RallyProvince: 135, RallyCity: "Город",
+			RallyKnown: []int64{10}},
+		{GameID: "2", HeroDeploy: true, RallyAuto: true},
+	}}
+	deployer := &fakeDeployer{result: "призвала", rally: "отправлено: 1", armies: []int64{10, 11}}
+	a := NewAutopilot(deployer, store, time.Hour, time.Hour, quietLog())
+
+	if err := a.tick(context.Background()); err != nil {
+		t.Fatalf("обход: %v", err)
+	}
+	if len(deployer.visited) != 2 {
+		t.Fatalf("заходов = %v, ожидалось по одному на партию", deployer.visited)
+	}
+	job := deployer.jobs[0]
+	if !job.Hero || job.RallyTo != 135 || job.RallyCity != "Город" || len(job.Known) != 1 {
+		t.Errorf("задание первой партии = %+v", job)
+	}
+	if store.runs["1"] != "призвала" || store.rallies["1"] != "отправлено: 1" || len(store.armies["1"]) != 2 {
+		t.Errorf("итоги первой партии: %q, %q, %v", store.runs["1"], store.rallies["1"], store.armies["1"])
+	}
+	if deployer.jobs[1].RallyTo != 0 {
+		t.Errorf("сбор без города ушёл в игру: %+v", deployer.jobs[1])
+	}
+	if _, ok := store.rallies["2"]; ok {
+		t.Error("итог сбора записан партии, где сбор не шёл")
 	}
 }
 

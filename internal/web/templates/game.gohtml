@@ -82,6 +82,45 @@
         </form>
         <p class="muted">{{t "game.relate.note"}}</p>
     </div>
+
+    {{/* Сбор войск в город: город выбирается из своих провинций (они
+         есть, только когда загружено состояние партии), а кнопки
+         работают и без него — город уже лежит в базе. */}}
+    <p class="muted">{{t "game.rally.note"}}</p>
+    {{if .RallyProvinces}}
+        <form class="row-form" method="post" action="/games/{{.GameID}}/rally">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
+            <label>
+                {{t "game.rally.city.pick"}}
+                <select name="province">
+                    {{range .RallyProvinces}}
+                        <option value="{{.ID}}|{{.Name}}"{{if and $t (eq $t.RallyProvince .ID)}} selected{{end}}>{{.Name}}{{if .Capital}} ★{{end}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <button type="submit">{{t "game.rally.city.save"}}</button>
+        </form>
+    {{end}}
+    {{if and $t (gt $t.RallyProvince 0)}}
+        <div class="row-form">
+            <form method="post" action="/games/{{.GameID}}/rally/now">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <button type="submit">{{t "game.rally.now" $t.RallyCity}}</button>
+            </form>
+            <form method="post" action="/games/{{.GameID}}/rally/auto">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="on" value="{{if $t.RallyAuto}}0{{else}}1{{end}}">
+                <button type="submit">{{if $t.RallyAuto}}{{t "game.rally.auto.off"}}{{else}}{{t "game.rally.auto.on"}}{{end}}</button>
+            </form>
+            <p class="muted">{{if $t.RallyAuto}}{{t "game.rally.auto.on.note" $t.RallyCity}}{{else}}{{t "game.rally.auto.off.note"}}{{end}}</p>
+        </div>
+        {{if not $t.RallyRunAt.IsZero}}
+            <p class="muted">{{t "game.rally.last"}} {{datetime $t.RallyRunAt}} — {{$t.RallyResult}}</p>
+        {{end}}
+    {{else if not .RallyProvinces}}
+        <p class="muted">{{t "game.rally.needmap"}}</p>
+    {{end}}
     {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
 </div>
 

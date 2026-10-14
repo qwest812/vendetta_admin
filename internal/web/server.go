@@ -316,6 +316,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /games/{id}/hero", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroToggle))))
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
 	mux.Handle("POST /games/{id}/relate", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRightOfWay))))
+	mux.Handle("POST /games/{id}/rally", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyCity))))
+	mux.Handle("POST /games/{id}/rally/now", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyNow))))
+	mux.Handle("POST /games/{id}/rally/auto", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyAuto))))
 	// Очередь строительства: её ведёт рут, а здания ставит воркер. Правка
 	// очереди в партию не ходит — это записи в нашей базе.
 	mux.Handle("POST /games/{id}/build", root(auth.VerifyCSRF(http.HandlerFunc(s.gameBuildAdd))))

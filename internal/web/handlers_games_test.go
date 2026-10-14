@@ -970,6 +970,12 @@ func (sizeSource) DeployInfantry(context.Context, string) (string, error) { retu
 func (sizeSource) GameLosses(context.Context, string, int) (*supremacy.Losses, error) {
 	return nil, nil
 }
+func (sizeSource) RallyArmies(context.Context, string, int, string) (*supremacy.RallyRun, error) {
+	return nil, nil
+}
+func (sizeSource) RunAutopilot(context.Context, string, supremacy.AutopilotJob) (*supremacy.AutopilotRun, error) {
+	return nil, nil
+}
 func (sizeSource) GrantRightOfWay(context.Context, string) (string, error) {
 	return "", nil
 }

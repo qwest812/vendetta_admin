@@ -34,10 +34,19 @@ func (c *Client) DeployInfantry(ctx context.Context, gameID string) (string, err
 	if err != nil {
 		return "", err
 	}
+	result, _, err := c.deployInfantry(ctx, acc, gameID, state, 3)
+	return result, err
+}
+
+// deployInfantry жмёт кнопку в партии, куда уже зашли. Второе значение —
+// армия, которая теперь размещается (ноль, если кнопку не жали): марш её
+// размещение отменил бы, и сбор войск должен её обойти.
+func (c *Client) deployInfantry(ctx context.Context, acc *gameAccess, gameID string,
+	state *GameState, reqID int) (string, int64, error) {
 
 	army, hero, ok := state.DeployArmy()
 	if !ok {
-		return "", fmt.Errorf("партия %s: не нашлась наша армия с героем, умеющим призыв пехоты", gameID)
+		return "", 0, fmt.Errorf("партия %s: не нашлась наша армия с героем, умеющим призыв пехоты", gameID)
 	}
 
 	// Повторное нажатие игра принимает молча и таймер не сбрасывает, так что
@@ -45,24 +54,24 @@ func (c *Client) DeployInfantry(ctx context.Context, gameID string) (string, err
 	// сказать, сколько осталось.
 	if army.Deploying {
 		return fmt.Sprintf("%s уже размещается, осталось %s игрового времени",
-			hero, gameMinutes(army.DeployLeft)), nil
+			hero, gameMinutes(army.DeployLeft)), army.ID, nil
 	}
 
 	var res json.RawMessage
-	if err := c.gsCall(ctx, acc, gameID, 3, "ultshared.action.UltUpdateGameStateAction", state.Me,
+	if err := c.gsCall(ctx, acc, gameID, reqID, "ultshared.action.UltUpdateGameStateAction", state.Me,
 		map[string]any{
 			"actions": []any{map[string]any{
 				"requestID": "actionReq-2",
 				"@c":        "ultshared.action.UltArmyAction",
-				"armies":    []any{armyWire(army)},
+				"armies":    []any{armyWire(army, deployCommands())},
 			}},
 			"lastCallDuration": 0,
 		}, &res); err != nil {
-		return "", fmt.Errorf("призыв пехоты в партии %s: %w", gameID, err)
+		return "", 0, fmt.Errorf("призыв пехоты в партии %s: %w", gameID, err)
 	}
 
 	c.log.Info("призвали пехоту", "gameID", gameID, "герой", hero, "армия", army.ID)
-	return fmt.Sprintf("%s призвала пехоту (армия %d)", hero, army.ID), nil
+	return fmt.Sprintf("%s призвала пехоту (армия %d)", hero, army.ID), army.ID, nil
 }
 
 // gameMinutes подписывает остаток по часам игрового сервера. Они идут
@@ -75,9 +84,14 @@ func gameMinutes(d time.Duration) string {
 	return fmt.Sprintf("%d мин", int(d.Minutes()))
 }
 
+// deployCommands — очередь команд армии с одной пустой командой «призвать
+// пехоту»: ни цели, ни координат ей не нужно.
+func deployCommands() []any { return []any{map[string]any{"@c": "duc"}} }
+
 // armyWire собирает армию так, как её присылает клиент игры вместе
-// с командой: только номер, размер, владелец и состав.
-func armyWire(a Army) map[string]any {
+// с командами: только номер, размер, владелец и состав. Команды заменяют
+// собой всю очередь команд армии.
+func armyWire(a Army, commands []any) map[string]any {
 	units := make([]any, 0, len(a.Units))
 	for _, u := range a.Units {
 		unit := map[string]any{"@c": "u", "t": u.Type, "s": u.Size}
@@ -92,7 +106,7 @@ func armyWire(a Army) map[string]any {
 		"s":  a.Size,
 		"o":  a.Owner,
 		"u":  units,
-		"c":  []any{map[string]any{"@c": "duc"}},
+		"c":  commands,
 		"au": 0,
 		"ag": 0,
 		"fm": 0,

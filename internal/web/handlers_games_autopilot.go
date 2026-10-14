@@ -3,7 +3,11 @@ package web
 import (
 	"context"
 	"net/http"
+	"sort"
 	"time"
+
+	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/supremacy"
 )
 
 // gameHeroToggle включает и выключает автопризыв пехоты в партии.
@@ -95,4 +99,138 @@ func (s *Server) gameRightOfWay(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("право прохода ботам", "gameID", gameID,
 		"user_id", currentUser(r).ID, "итог", result)
 	s.renderGameNotice(w, r, gameID, false, "", result)
+}
+
+// rallyProvince — своя провинция в выборе города для сбора войск.
+type rallyProvince struct {
+	ID      int
+	Name    string
+	Capital bool
+}
+
+// rallyProvinces — свои провинции для выбора города: столица первой,
+// остальные по имени. Знает их только состояние партии.
+func rallyProvinces(state *supremacy.GameState) []rallyProvince {
+	if state == nil || state.Me <= 0 {
+		return nil
+	}
+	var out []rallyProvince
+	for _, p := range state.Provinces {
+		if p.Owner == state.Me {
+			out = append(out, rallyProvince{ID: p.ID, Name: p.Name, Capital: p.Capital})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Capital != out[j].Capital {
+			return out[i].Capital
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+// gameRallyCity выбирает город, куда собирать войска. В партию не ходит:
+// номер и название приходят одним полем, как в очереди строительства.
+func (s *Server) gameRallyCity(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	province, city, _, ok := idAndName(r.PostFormValue("province"))
+	if !ok {
+		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
+		return
+	}
+	if err := s.tasks.SetRallyCity(r.Context(), gameID, r.PostFormValue("title"), province, city,
+		currentUser(r).ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.log.Info("город сбора войск выбран", "gameID", gameID, "город", city, "user_id", currentUser(r).ID)
+	s.renderGame(w, r, gameID, false, "")
+}
+
+// gameRallyNow шлёт в город все сухопутные армии — разово, по нажатию.
+//
+// Армии, которые сейчас в партии, запоминаются как виденные: включённый
+// автопилот после этого считает новыми только те, что появятся потом.
+func (s *Server) gameRallyNow(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	task, ok := s.rallyTask(w, r, gameID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
+	defer cancel()
+
+	var armies []int64
+	result, msg := "", ""
+	run, err := s.games.RallyArmies(ctx, gameID, task.RallyProvince, task.RallyCity)
+	if err != nil {
+		s.log.Error("сбор войск", "gameID", gameID, "err", err)
+		result, msg = err.Error(), err.Error()
+	} else {
+		result, armies = run.Result, run.Armies
+		s.log.Info("сбор войск", "gameID", gameID, "user_id", currentUser(r).ID, "итог", result)
+	}
+	if err := s.tasks.MarkRallyRun(r.Context(), gameID, time.Now(), result, armies); err != nil {
+		s.log.Error("запись итога сбора", "gameID", gameID, "err", err)
+	}
+	s.renderGame(w, r, gameID, false, msg)
+}
+
+// gameRallyAuto включает и выключает сбор новых армий автопилотом.
+//
+// Включение сразу идёт в партию, но никого не трогает: заход только
+// запоминает, какие армии уже есть. Новыми автопилот будет считать те,
+// что появятся после включения, — а не те, что застанет через три четверти
+// часа на своём первом обходе.
+func (s *Server) gameRallyAuto(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	on := r.PostFormValue("on") == "1"
+	task, ok := s.rallyTask(w, r, gameID)
+	if !ok {
+		return
+	}
+	if err := s.tasks.SetRallyAuto(r.Context(), gameID, on, currentUser(r).ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.log.Info("сбор новых армий переключён", "gameID", gameID, "включён", on, "user_id", currentUser(r).ID)
+	if !on {
+		s.renderGame(w, r, gameID, false, "")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
+	defer cancel()
+
+	msg := ""
+	run, err := s.games.RunAutopilot(ctx, gameID, supremacy.AutopilotJob{
+		RallyTo: task.RallyProvince, RallyCity: task.RallyCity})
+	if err != nil {
+		s.log.Error("сбор войск при включении", "gameID", gameID, "err", err)
+		run, msg = &supremacy.AutopilotRun{Rally: err.Error()}, err.Error()
+	}
+	if err := s.tasks.MarkRallyRun(r.Context(), gameID, time.Now(), run.Rally, run.Armies); err != nil {
+		s.log.Error("запись итога сбора", "gameID", gameID, "err", err)
+	}
+	s.renderGame(w, r, gameID, false, msg)
+}
+
+// rallyTask — настройки партии для сбора войск. Без выбранного города
+// собирать некуда, и об этом говорится на странице, а не ошибкой.
+func (s *Server) rallyTask(w http.ResponseWriter, r *http.Request, gameID string) (*domain.GameTask, bool) {
+	if s.games == nil {
+		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		return nil, false
+	}
+	task, err := s.tasks.Get(r.Context(), gameID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return nil, false
+	}
+	if task.RallyProvince <= 0 {
+		s.renderGame(w, r, gameID, false, langOf(r).T("game.rally.nocity"))
+		return nil, false
+	}
+	return task, true
 }

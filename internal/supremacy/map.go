@@ -8,6 +8,7 @@ package supremacy
 import (
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,11 +24,27 @@ type Point struct{ X, Y int }
 
 // MapGeometry — контуры провинций одной карты. Море не храним: его проще
 // нарисовать фоном, чем полутысячей многоугольников.
+//
+// Roads и Centers — то, по чему ходят армии: граф дорог суши и центры
+// провинций. Нужны только приказам армиям, рисунку карты они ни к чему.
 type MapGeometry struct {
-	ID     string
-	Width  int
-	Height int
-	Land   map[int][]Point
+	ID      string
+	Width   int
+	Height  int
+	Land    map[int][]Point
+	Roads   []Road
+	Centers map[int]MapPoint
+}
+
+// MapPoint — точка карты с дробной частью: армии стоят и ходят не по
+// целым координатам, и игра ждёт их обратно с той же точностью.
+type MapPoint struct{ X, Y float64 }
+
+// Road — отрезок графа дорог: армия идёт по нему от A к B или обратно.
+// Province — провинция, по которой отрезок проходит.
+type Road struct {
+	Province int
+	A, B     MapPoint
 }
 
 // MapGeometry отдаёт очертания карты, скачивая файл один раз на процесс.
@@ -90,10 +107,12 @@ func parseMapGeometry(mapID string, raw []byte) (*MapGeometry, error) {
 		Height    int    `json:"height"`
 		MapID     string `json:"mapID"`
 		Locations []struct {
-			Class  string `json:"@c"`
-			ID     int    `json:"id"`
-			Border string `json:"b"`
+			Class  string    `json:"@c"`
+			ID     int       `json:"id"`
+			Border string    `json:"b"`
+			Center *MapPoint `json:"c"`
 		} `json:"locations"`
+		Connections string `json:"connections_v2"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return nil, fmt.Errorf("карта %s: разбор: %w", mapID, err)
@@ -102,10 +121,17 @@ func parseMapGeometry(mapID string, raw []byte) (*MapGeometry, error) {
 		return nil, fmt.Errorf("карта %s: не заданы размеры", mapID)
 	}
 
-	geo := &MapGeometry{ID: mapID, Width: doc.Width, Height: doc.Height, Land: map[int][]Point{}}
+	geo := &MapGeometry{ID: mapID, Width: doc.Width, Height: doc.Height,
+		Land: map[int][]Point{}, Centers: map[int]MapPoint{}}
 	for _, l := range doc.Locations {
 		// «p» — суша, «sp» — море: рисуем только сушу.
-		if l.Class != provinceLand || l.Border == "" {
+		if l.Class != provinceLand {
+			continue
+		}
+		if l.Center != nil {
+			geo.Centers[l.ID] = *l.Center
+		}
+		if l.Border == "" {
 			continue
 		}
 		points, err := decodeBorder(l.Border)
@@ -119,7 +145,53 @@ func parseMapGeometry(mapID string, raw []byte) (*MapGeometry, error) {
 	if len(geo.Land) == 0 {
 		return nil, fmt.Errorf("карта %s: не нашлось ни одной провинции", mapID)
 	}
+
+	// Без дорог карта всё равно рисуется: они нужны только приказам армиям,
+	// и пусть лучше откажет приказ, чем пропадёт карта.
+	roads, err := decodeRoads(doc.Connections, geo.Centers)
+	if err != nil {
+		return nil, fmt.Errorf("карта %s: дороги: %w", mapID, err)
+	}
+	geo.Roads = roads
 	return geo, nil
+}
+
+// decodeRoads разбирает граф дорог «connections_v2». Это base64 от записей
+// по 24 байта: шесть int32 (big-endian) — провинция, тип и концы отрезка
+// x1, y1, x2, y2 в сотых долях. Раскладка снята с клиента игры (14.10.2026),
+// он читает поле ровно так.
+//
+// Оставляем только сушу: провинция −1 или морская у клиента означает
+// «на воде», и сухопутная армия пошла бы туда только с посадкой на корабли.
+func decodeRoads(encoded string, land map[int]MapPoint) ([]Road, error) {
+	if encoded == "" {
+		return nil, nil
+	}
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("не разобрались: %w", err)
+	}
+	const record = 24
+	if len(raw)%record != 0 {
+		return nil, fmt.Errorf("%d байт не делятся на записи по %d", len(raw), record)
+	}
+
+	num := func(b []byte) int32 { return int32(binary.BigEndian.Uint32(b)) }
+	coord := func(b []byte) float64 { return float64(num(b)) / 100 }
+
+	roads := make([]Road, 0, len(raw)/record)
+	for i := 0; i < len(raw); i += record {
+		province := int(num(raw[i:]))
+		if _, ok := land[province]; !ok {
+			continue
+		}
+		roads = append(roads, Road{
+			Province: province,
+			A:        MapPoint{X: coord(raw[i+8:]), Y: coord(raw[i+12:])},
+			B:        MapPoint{X: coord(raw[i+16:]), Y: coord(raw[i+20:])},
+		})
+	}
+	return roads, nil
 }
 
 func decodeBorder(border string) ([]Point, error) {

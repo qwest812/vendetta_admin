@@ -270,7 +270,7 @@ func TestArmyWireMatchesClient(t *testing.T) {
 	g, _ := resp.build("10886819", 12)
 	army, _, _ := g.DeployArmy()
 
-	got, err := json.Marshal(armyWire(army))
+	got, err := json.Marshal(armyWire(army, deployCommands()))
 	if err != nil {
 		t.Fatalf("сборка тела: %v", err)
 	}

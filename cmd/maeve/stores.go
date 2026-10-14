@@ -62,7 +62,7 @@ type gameList struct {
 	log   *slog.Logger
 }
 
-func (g gameList) HeroDeployEnabled(context.Context) ([]domain.GameTask, error) {
+func (g gameList) AutopilotTasks(context.Context) ([]domain.GameTask, error) {
 	tasks := make([]domain.GameTask, 0, len(g.games))
 	for _, id := range g.games {
 		tasks = append(tasks, domain.GameTask{GameID: id, HeroDeploy: true})
@@ -72,5 +72,11 @@ func (g gameList) HeroDeployEnabled(context.Context) ([]domain.GameTask, error) 
 
 func (g gameList) MarkHeroRun(_ context.Context, gameID string, _ time.Time, result string) error {
 	g.log.Info("партия обойдена", "партия", gameID, "итог", result)
+	return nil
+}
+
+// MarkRallyRun нужен автопилоту, но программа Мейв войска не собирает:
+// её партии приходят без города, и этот итог сюда не попадает.
+func (g gameList) MarkRallyRun(context.Context, string, time.Time, string, []int64) error {
 	return nil
 }

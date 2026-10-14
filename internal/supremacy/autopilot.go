@@ -1,7 +1,7 @@
 package supremacy
 
-// Autopilot — то, что админка делает в партиях сама: сейчас это одна
-// кнопка Мейв. Заход на игровой сервер игра засчитывает как вход в партию,
+// Autopilot — то, что админка делает в партиях сама: жмёт кнопку Мейв
+// и шлёт в выбранный город каждую новую армию. Заход на игровой сервер игра засчитывает как вход в партию,
 // поэтому ходим редко (по умолчанию раз в 45–50 минут) и только в те партии,
 // где это включено руками.
 
@@ -17,20 +17,21 @@ import (
 // TaskStore — где лежит, в каких партиях что включено, и куда писать итог
 // захода. В бою это репозиторий, в тестах — заглушка.
 type TaskStore interface {
-	HeroDeployEnabled(ctx context.Context) ([]domain.GameTask, error)
+	AutopilotTasks(ctx context.Context) ([]domain.GameTask, error)
 	MarkHeroRun(ctx context.Context, gameID string, at time.Time, result string) error
+	MarkRallyRun(ctx context.Context, gameID string, at time.Time, result string, armies []int64) error
 }
 
-// heroDeployer — тот, кто умеет нажать кнопку. Интерфейс ради тестов:
-// в бою сюда приходит *Client.
-type heroDeployer interface {
-	DeployInfantry(ctx context.Context, gameID string) (string, error)
+// autopilotRunner — тот, кто умеет зайти в партию и сделать там дела.
+// Интерфейс ради тестов: в бою сюда приходит *Client.
+type autopilotRunner interface {
+	RunAutopilot(ctx context.Context, gameID string, job AutopilotJob) (*AutopilotRun, error)
 }
 
 // Autopilot обходит включённые партии, выжидая между обходами случайную
 // паузу от min до max.
 type Autopilot struct {
-	client heroDeployer
+	client autopilotRunner
 	store  TaskStore
 	log    *slog.Logger
 	min    time.Duration
@@ -43,7 +44,7 @@ type Autopilot struct {
 // NewAutopilot: min и max — границы паузы между обходами. Равные значения
 // означают ровный интервал, как было раньше; max меньше min считается
 // опечаткой и выправляется в равенство, лишь бы воркер не встал совсем.
-func NewAutopilot(c heroDeployer, store TaskStore, min, max time.Duration, log *slog.Logger) *Autopilot {
+func NewAutopilot(c autopilotRunner, store TaskStore, min, max time.Duration, log *slog.Logger) *Autopilot {
 	if max < min {
 		max = min
 	}
@@ -86,7 +87,7 @@ func (a *Autopilot) Run(ctx context.Context) {
 }
 
 func (a *Autopilot) tick(ctx context.Context) error {
-	tasks, err := a.store.HeroDeployEnabled(ctx)
+	tasks, err := a.store.AutopilotTasks(ctx)
 	if err != nil {
 		return err
 	}
@@ -94,24 +95,37 @@ func (a *Autopilot) tick(ctx context.Context) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		a.deploy(ctx, t)
+		a.visit(ctx, t)
 	}
 	return nil
 }
 
-// deploy жмёт кнопку в одной партии и записывает, чем это кончилось.
-// Итог виден на странице партии, поэтому он нужен и при удаче, и при отказе.
-func (a *Autopilot) deploy(ctx context.Context, t domain.GameTask) {
-	result, err := a.client.DeployInfantry(ctx, t.GameID)
-	if err != nil {
-		// Отказ игры записываем словами: по нему потом и разбираются.
-		// Чаще всего это «героиня уже размещается» — то есть всё в порядке,
-		// просто рано.
-		result = err.Error()
-		a.log.Error("призыв пехоты", "gameID", t.GameID, "партия", t.Title, "err", err)
+// visit заходит в одну партию, делает там всё включённое и записывает,
+// чем это кончилось. Итог виден на странице партии, поэтому он нужен
+// и при удаче, и при отказе.
+func (a *Autopilot) visit(ctx context.Context, t domain.GameTask) {
+	job := AutopilotJob{Hero: t.HeroDeploy}
+	if t.Rallies() {
+		job.RallyTo, job.RallyCity, job.Known = t.RallyProvince, t.RallyCity, t.RallyKnown
 	}
 
-	if err := a.store.MarkHeroRun(ctx, t.GameID, a.now(), result); err != nil {
-		a.log.Error("запись итога захода", "gameID", t.GameID, "err", err)
+	run, err := a.client.RunAutopilot(ctx, t.GameID, job)
+	if err != nil {
+		// В партию не зашли: отказ один на всё включённое, и записать его
+		// надо каждому — иначе страница показывала бы прошлый, удачный итог.
+		a.log.Error("заход автопилота", "gameID", t.GameID, "партия", t.Title, "err", err)
+		run = &AutopilotRun{Hero: err.Error(), Rally: err.Error()}
+	}
+
+	now := a.now()
+	if job.Hero {
+		if err := a.store.MarkHeroRun(ctx, t.GameID, now, run.Hero); err != nil {
+			a.log.Error("запись итога призыва", "gameID", t.GameID, "err", err)
+		}
+	}
+	if job.RallyTo > 0 {
+		if err := a.store.MarkRallyRun(ctx, t.GameID, now, run.Rally, run.Armies); err != nil {
+			a.log.Error("запись итога сбора", "gameID", t.GameID, "err", err)
+		}
 	}
 }

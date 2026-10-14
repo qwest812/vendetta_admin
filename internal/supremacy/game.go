@@ -264,6 +264,14 @@ type Army struct {
 	// быстрее настоящих ровно во столько раз, во сколько ускорена партия.
 	Deploying  bool
 	DeployLeft time.Duration
+	// Pos — где армия стоит или куда дошла по дороге.
+	Pos MapPoint
+	// Fighting — армия занята боем: сражается, обстреливает, осаждает или
+	// отступает («fs» не ноль), либо на неё кто-то нападает.
+	Fighting bool
+	// MarchTo — куда армия идёт сейчас: конец последнего отрезка марша.
+	// Пусто, если армия стоит.
+	MarchTo *MapPoint
 }
 
 // Player — игрок партии: страна, имя на сайте и что с ним стало.
@@ -342,6 +350,9 @@ type GameState struct {
 	Resources map[int]Resource
 	// Units — войска, которые вообще можно заказать, по номеру типа.
 	Units map[int]UnitType
+	// UnitSets — род войск каждого типа юнита, включая героев: 1 суша,
+	// 2 воздух, 3 море, 4 герои. По нему отличают сухопутную армию.
+	UnitSets map[int]int
 	// UnitNames и UnitUpkeep — имя и суточное содержание одного юнита
 	// любого типа, включая героев и непроизводимых: чужие армии бывают
 	// из чего угодно.
@@ -754,10 +765,19 @@ type gameStateResponse struct {
 					Size  int       `json:"s"`
 					Names *[]string `json:"n"`
 				} `json:"u"`
+				Pos      MapPoint `json:"p"`
 				Commands []struct {
-					Class    string `json:"@c"`
-					ExecTime int64  `json:"execTime"`
+					Class    string    `json:"@c"`
+					ExecTime int64     `json:"execTime"`
+					Target   *MapPoint `json:"tp"`
 				} `json:"c"`
+				// fs — fightStatus клиента: 0 покой, 1 бой, 2 обстрел,
+				// 3 патруль, 4 выход на патруль, 5 осада, 6 отступление.
+				FightStatus int `json:"fs"`
+				// b — бой, в котором армия участвует; a — кто на неё напал.
+				Battle *struct {
+					Attackers []json.RawMessage `json:"a"`
+				} `json:"b"`
 			} `json:"armies"`
 		} `json:"6"`
 		Mod struct {
@@ -872,6 +892,10 @@ const (
 	// commandDeployWait — команда «идёт размещение»: игра ставит её армии
 	// на всё время призыва.
 	commandDeployWait = "dwc"
+
+	// commandGoto — отрезок марша: армия идёт из sp в tp. Приказ идти
+	// далеко — это цепочка таких отрезков по графу дорог карты.
+	commandGoto = "gc"
 
 	// unitSetHero — род войск «герои» в справочнике юнитов.
 	unitSetHero = 4
@@ -1065,10 +1089,12 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	g.HeroTypes = make(map[int]string)
 	g.Units = make(map[int]UnitType)
 	g.UnitNames = make(map[int]string)
+	g.UnitSets = make(map[int]int)
 	g.UnitUpkeep = make(map[int]map[int]float64)
 	for _, u := range r.States.Mod.AllUnitTypes {
 		if u.UnitTypeID > 0 {
 			g.UnitNames[u.UnitTypeID] = u.UnitName
+			g.UnitSets[u.UnitTypeID] = u.Set
 			if costs := numMap(u.DailyCosts); len(costs) > 0 {
 				g.UnitUpkeep[u.UnitTypeID] = costs
 			}
@@ -1096,11 +1122,16 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 		if a.Owner == nil {
 			continue
 		}
-		army := Army{ID: a.ID, Owner: *a.Owner, Size: a.Size, Location: a.Location}
+		army := Army{ID: a.ID, Owner: *a.Owner, Size: a.Size, Location: a.Location, Pos: a.Pos,
+			Fighting: a.FightStatus != 0 || (a.Battle != nil && len(a.Battle.Attackers) > 0)}
 		for _, u := range a.Units {
 			army.Units = append(army.Units, ArmyUnit{Type: u.Type, Size: u.Size, HasNames: u.Names != nil})
 		}
 		for _, cmd := range a.Commands {
+			if cmd.Class == commandGoto && cmd.Target != nil {
+				target := *cmd.Target
+				army.MarchTo = &target
+			}
 			if cmd.Class != commandDeployWait {
 				continue
 			}

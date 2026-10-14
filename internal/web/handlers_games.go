@@ -51,6 +51,10 @@ type gameSource interface {
 	// GrantRightOfWay заходит в партию и выдаёт право прохода всем ботам,
 	// у кого его ещё нет.
 	GrantRightOfWay(ctx context.Context, gameID string) (string, error)
+	// RallyArmies заходит в партию и шлёт в город все сухопутные армии,
+	// RunAutopilot — то же, что делает автопилот за один свой заход.
+	RallyArmies(ctx context.Context, gameID string, target int, city string) (*supremacy.RallyRun, error)
+	RunAutopilot(ctx context.Context, gameID string, job supremacy.AutopilotJob) (*supremacy.AutopilotRun, error)
 	// GameLosses — потери в войнах партии по газете, с первого дня по today.
 	GameLosses(ctx context.Context, gameID string, today int) (*supremacy.Losses, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
@@ -873,6 +877,9 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 	} else {
 		return err
 	}
+	// Город для сбора войск выбирается из своих провинций — их знает
+	// только состояние партии.
+	data["RallyProvinces"] = rallyProvinces(state)
 
 	// Карту рисуем, если получилось: очертания лежат отдельным файлом
 	// на static-сервере игры, и его недоступность не повод прятать

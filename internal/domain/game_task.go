@@ -22,7 +22,23 @@ type GameTask struct {
 	BuildNextAt time.Time
 	BuildRunAt  time.Time
 	BuildResult string
+	// RallyProvince и RallyCity — своя провинция, куда собирать войска;
+	// ноль — город не выбран. RallyAuto — слать туда автопилотом каждую
+	// новую армию.
+	RallyProvince int
+	RallyCity     string
+	RallyAuto     bool
+	// RallyKnown — армии, которые автопилот уже видел: новые — те, кого
+	// в списке нет. nil — ещё не видел ни одной, см. supremacy.AutopilotJob.
+	RallyKnown []int64
+	// RallyRunAt и RallyResult — последний сбор: кнопкой или автопилотом.
+	RallyRunAt  time.Time
+	RallyResult string
 }
+
+// Rallies — включён ли сбор новых армий автопилотом. Без города он
+// не включается, но и выбранный город сам по себе его не включает.
+func (t GameTask) Rallies() bool { return t.RallyAuto && t.RallyProvince > 0 }
 
 // Виды очереди. Здания и войска — два списка на провинцию: у игры у них
 // разные слоты (стройка и производство), и одно другого не ждёт.

@@ -20,18 +20,22 @@ func NewGameTasks(pool *pgxpool.Pool) *GameTasks { return &GameTasks{pool: pool}
 // в базе нет — это не ошибка, а «ничего не включено».
 func (r *GameTasks) Get(ctx context.Context, gameID string) (*domain.GameTask, error) {
 	var (
-		t         domain.GameTask
-		lastRun   *time.Time
-		buildNext *time.Time
-		buildRun  *time.Time
-		updatedBy *int64
+		t             domain.GameTask
+		lastRun       *time.Time
+		buildNext     *time.Time
+		buildRun      *time.Time
+		rallyRun      *time.Time
+		rallyProvince *int
+		updatedBy     *int64
 	)
 	err := r.pool.QueryRow(ctx,
 		`SELECT game_id, title, hero_deploy, updated_by, updated_at, last_run_at, last_result,
-		        build_next_at, build_run_at, build_result
+		        build_next_at, build_run_at, build_result,
+		        rally_province, rally_city, rally_auto, rally_known, rally_run_at, rally_result
 		   FROM supremacy_game_tasks WHERE game_id = $1`, gameID).
 		Scan(&t.GameID, &t.Title, &t.HeroDeploy, &updatedBy, &t.UpdatedAt, &lastRun, &t.LastResult,
-			&buildNext, &buildRun, &t.BuildResult)
+			&buildNext, &buildRun, &t.BuildResult,
+			&rallyProvince, &t.RallyCity, &t.RallyAuto, &t.RallyKnown, &rallyRun, &t.RallyResult)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return &domain.GameTask{GameID: gameID}, nil
 	}
@@ -47,6 +51,12 @@ func (r *GameTasks) Get(ctx context.Context, gameID string) (*domain.GameTask, e
 	}
 	if buildRun != nil {
 		t.BuildRunAt = *buildRun
+	}
+	if rallyRun != nil {
+		t.RallyRunAt = *rallyRun
+	}
+	if rallyProvince != nil {
+		t.RallyProvince = *rallyProvince
 	}
 	return &t, nil
 }
@@ -67,10 +77,13 @@ func (r *GameTasks) SetHeroDeploy(ctx context.Context, gameID, title string, on 
 	return err
 }
 
-// HeroDeployEnabled перечисляет партии, где автопризыв включён.
-func (r *GameTasks) HeroDeployEnabled(ctx context.Context) ([]domain.GameTask, error) {
+// AutopilotTasks перечисляет партии, где автопилоту есть дело: призыв
+// пехоты или сбор новых армий в город.
+func (r *GameTasks) AutopilotTasks(ctx context.Context) ([]domain.GameTask, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT game_id, title FROM supremacy_game_tasks WHERE hero_deploy ORDER BY game_id`)
+		`SELECT game_id, title, hero_deploy,
+		        coalesce(rally_province, 0), rally_city, rally_auto, rally_known
+		   FROM supremacy_game_tasks WHERE hero_deploy OR rally_auto ORDER BY game_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -79,10 +92,10 @@ func (r *GameTasks) HeroDeployEnabled(ctx context.Context) ([]domain.GameTask, e
 	var out []domain.GameTask
 	for rows.Next() {
 		var t domain.GameTask
-		if err := rows.Scan(&t.GameID, &t.Title); err != nil {
+		if err := rows.Scan(&t.GameID, &t.Title, &t.HeroDeploy,
+			&t.RallyProvince, &t.RallyCity, &t.RallyAuto, &t.RallyKnown); err != nil {
 			return nil, err
 		}
-		t.HeroDeploy = true
 		out = append(out, t)
 	}
 	return out, rows.Err()
@@ -93,5 +106,47 @@ func (r *GameTasks) MarkHeroRun(ctx context.Context, gameID string, at time.Time
 	_, err := r.pool.Exec(ctx,
 		`UPDATE supremacy_game_tasks SET last_run_at = $2, last_result = $3 WHERE game_id = $1`,
 		gameID, at, result)
+	return err
+}
+
+// SetRallyCity выбирает, куда собирать войска. Смена города сбор
+// не включает и не выключает.
+func (r *GameTasks) SetRallyCity(ctx context.Context, gameID, title string, province int, city string, actorID int64) error {
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO supremacy_game_tasks (game_id, title, rally_province, rally_city, updated_by, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, now())
+		 ON CONFLICT (game_id) DO UPDATE
+		    SET rally_province = EXCLUDED.rally_province,
+		        rally_city     = EXCLUDED.rally_city,
+		        updated_by     = EXCLUDED.updated_by,
+		        updated_at     = now(),
+		        title = CASE WHEN EXCLUDED.title = '' THEN supremacy_game_tasks.title
+		                     ELSE EXCLUDED.title END`,
+		gameID, title, province, city, actorID)
+	return err
+}
+
+// SetRallyAuto включает и выключает сбор новых армий автопилотом.
+// Список виденных армий при этом забывается: «новые» считаются от
+// включения, а не от прошлого раза, когда сбор был включён.
+func (r *GameTasks) SetRallyAuto(ctx context.Context, gameID string, on bool, actorID int64) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE supremacy_game_tasks
+		    SET rally_auto = $2, rally_known = NULL, updated_by = $3, updated_at = now()
+		  WHERE game_id = $1`,
+		gameID, on, actorID)
+	return err
+}
+
+// MarkRallyRun записывает итог сбора. armies — наши армии на момент
+// захода; nil означает «в партию не заглянули», и тогда прежний список
+// остаётся как был.
+func (r *GameTasks) MarkRallyRun(ctx context.Context, gameID string, at time.Time, result string, armies []int64) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE supremacy_game_tasks
+		    SET rally_run_at = $2, rally_result = $3,
+		        rally_known = CASE WHEN $4::bigint[] IS NULL THEN rally_known ELSE $4::bigint[] END
+		  WHERE game_id = $1`,
+		gameID, at, result, armies)
 	return err
 }
