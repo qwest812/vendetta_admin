@@ -108,6 +108,9 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 		// Список имён в одну строку: подсказка «кто отметил» показывается
 		// атрибутом title, а он строку и ждёт.
 		"join": func(items []string) string { return strings.Join(items, ", ") },
+		// list — короткий список строк прямо в шаблоне: перебрать
+		// пункты переключателя, не заводя под них данных в обработчике.
+		"list": func(items ...string) []string { return items },
 		"dict": func(values ...any) (map[string]any, error) {
 			if len(values)%2 != 0 {
 				return nil, fmt.Errorf("dict: нечётное число аргументов")

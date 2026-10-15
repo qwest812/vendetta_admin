@@ -252,7 +252,6 @@ func rankingsData(l i18n.Lang, kind string, state *supremacy.GameState, ranks *s
 
 	// Легенда и заливка — по последнему дню.
 	var style strings.Builder
-	mode := map[string]string{rankRes: "map-res", rankArmy: "map-army", rankFear: "map-fear"}[kind]
 	today := byDay[last]
 	top := 0.0
 	for _, e := range today {
@@ -278,8 +277,8 @@ func rankingsData(l i18n.Lang, kind string, state *supremacy.GameState, ranks *s
 			band := len(fearBands) - 1 - i*len(fearBands)/max(len(today), 1)
 			row.Color = fearBands[max(band, 0)]
 		}
-		fmt.Fprintf(&style, "#%s:checked ~ .game-map polygon[data-owner=\"%d\"] { fill: %s; }\n",
-			mode, e.owner, row.Color)
+		fmt.Fprintf(&style, "#map-paper:checked ~ .game-map polygon[data-owner=\"%d\"] { fill: %s; }\n",
+			e.owner, row.Color)
 		v.Rows = append(v.Rows, row)
 	}
 	v.Style = template.CSS(style.String())

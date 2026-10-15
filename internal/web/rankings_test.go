@@ -40,7 +40,7 @@ func TestRankingsResources(t *testing.T) {
 		fr.Series != 1 || fr.Color != resBands[len(resBands)-1] {
 		t.Errorf("Франция: %+v", fr)
 	}
-	if !strings.Contains(string(v.Style), `#map-res:checked ~ .game-map polygon[data-owner="2"]`) {
+	if !strings.Contains(string(v.Style), `#map-paper:checked ~ .game-map polygon[data-owner="2"]`) {
 		t.Errorf("заливка: %s", v.Style)
 	}
 	// Аравия выпала к последнему выпуску, но место на графике у неё есть.
@@ -108,7 +108,7 @@ func TestRankingsArmy(t *testing.T) {
 		v.Rows[0].Color != armyBands[len(armyBands)-1] {
 		t.Errorf("армии: %+v", v.Rows)
 	}
-	if !strings.Contains(string(v.Style), `#map-army:checked`) {
+	if !strings.Contains(string(v.Style), `#map-paper:checked`) {
 		t.Errorf("заливка: %s", v.Style)
 	}
 }

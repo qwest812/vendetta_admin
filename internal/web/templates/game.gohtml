@@ -597,7 +597,28 @@
 {{end}}
 
 {{/* Потери по газете: таблица, заливка карты и кнопка пересчёта. */}}
+{{/* Переключатель разделов газеты. Ответ раздела присылает его заново
+     (Oob) — так подсвечивается выбранный, без своего скрипта. */}}
+{{define "paperswitch"}}
+    <div id="paper-switch" class="paper-switch" role="group"{{if .Oob}} hx-swap-oob="true"{{end}}>
+        {{range $kind := (list "losses" "res" "army" "fear")}}
+            <button type="button" class="ghost{{if eq $kind $.Active}} active{{end}}"
+                    aria-pressed="{{if eq $kind $.Active}}true{{else}}false{{end}}"
+                    hx-get="/games/{{$.GameID}}/{{if eq $kind "losses"}}losses{{else}}rankings?kind={{$kind}}{{end}}"
+                    hx-target="#paper-box" hx-swap="innerHTML"
+                    hx-indicator="#paper-box" hx-disabled-elt="this">
+                {{- if eq $kind "losses"}}{{t "game.paper.losses"}}
+                {{- else if eq $kind "res"}}{{t "game.paper.res"}}
+                {{- else if eq $kind "army"}}{{t "game.paper.army"}}
+                {{- else}}{{t "game.paper.fear"}}{{end -}}
+            </button>
+        {{end}}
+    </div>
+{{end}}
+
 {{define "gamelosses"}}
+    {{template "paperswitch" (dict "GameID" .GameID "Active" "losses" "Oob" true)}}
+    <p class="muted">{{t "game.losses.note"}}</p>
     {{if .Error}}
         <p class="error">{{.Error}}</p>
     {{end}}
@@ -663,13 +684,19 @@
     {{/* Блок бледнеет на время запроса, а кнопка не жмётся дважды —
          как и у первой «Посчитать потери». */}}
     <button type="button" class="ghost" hx-get="/games/{{.GameID}}/losses"
-            hx-target="#losses-box" hx-swap="innerHTML"
-            hx-indicator="#losses-box" hx-disabled-elt="this">{{t "game.losses.again"}}</button>
+            hx-target="#paper-box" hx-swap="innerHTML"
+            hx-indicator="#paper-box" hx-disabled-elt="this">{{t "game.losses.again"}}</button>
 {{end}}
 
 {{/* Рейтинг дня: легенда по последнему дню, заливка карты к ней и
      график по всем дням с таблицей тех же чисел. */}}
 {{define "gamerankings"}}
+    {{template "paperswitch" (dict "GameID" .GameID "Active" .Kind "Oob" true)}}
+    <p class="muted">
+        {{- if eq .Kind "res"}}{{t "game.rank.res.note"}}
+        {{- else if eq .Kind "army"}}{{t "game.rank.army.note"}}
+        {{- else}}{{t "game.rank.fear.note"}}{{end -}}
+    </p>
     {{if .Error}}
         <p class="error">{{.Error}}</p>
     {{end}}
@@ -737,8 +764,8 @@
         {{end}}
     {{end}}
     <button type="button" class="ghost" hx-get="/games/{{.GameID}}/rankings?kind={{.Kind}}"
-            hx-target="#{{.Kind}}-box" hx-swap="innerHTML"
-            hx-indicator="#{{.Kind}}-box" hx-disabled-elt="this">{{t "game.losses.again"}}</button>
+            hx-target="#paper-box" hx-swap="innerHTML"
+            hx-indicator="#paper-box" hx-disabled-elt="this">{{t "game.losses.again"}}</button>
 {{end}}
 
 {{/* Состав не приехал: объяснение встаёт на место строки «догружаем».
@@ -826,10 +853,7 @@
         <input class="map-mode" type="radio" name="map-mode" id="map-power">
         <input class="map-mode" type="radio" name="map-mode" id="map-top">
         <input class="map-mode" type="radio" name="map-mode" id="map-together">
-        <input class="map-mode" type="radio" name="map-mode" id="map-losses">
-        <input class="map-mode" type="radio" name="map-mode" id="map-res">
-        <input class="map-mode" type="radio" name="map-mode" id="map-army">
-        <input class="map-mode" type="radio" name="map-mode" id="map-fear">
+        <input class="map-mode" type="radio" name="map-mode" id="map-paper">
         {{/* Карта большой партии нарисована без состава с сайта: строка сама
              просит его, как только страница загрузилась, и ответ заменяет
              весь блок карты — уже с составом и кланами от сайта. Стоит после
@@ -847,10 +871,7 @@
             <label for="map-power">{{t "game.map.power"}}</label>
             <label for="map-top">{{t "game.map.top"}}</label>
             <label for="map-together">{{t "game.map.together"}}</label>
-            <label for="map-losses">{{t "game.map.losses"}}</label>
-            <label for="map-res">{{t "game.map.res"}}</label>
-            <label for="map-army">{{t "game.map.army"}}</label>
-            <label for="map-fear">{{t "game.map.fear"}}</label>
+            <label for="map-paper">{{t "game.map.paper"}}</label>
         </div>
         {{/* Карта в собственных координатах игры: viewBox их и берёт,
              а размер на странице задаёт css. */}}
@@ -1118,41 +1139,15 @@
                 </p>
             {{end}}
         </div>
-        {{/* Потери в войнах по газете. Считаются по нажатию: газета
-             отдаётся по дню за запрос. Ответ заменяет содержимое блока
+        {{/* Газета: потери в войнах и рейтинги — ресурсы, армии,
+             устрашение. Всё считается по нажатию: газета отдаётся по дню
+             за запрос, а прочитанные дни общие, так что второй раздел
+             открывается без похода в игру. Ответ раздела заменяет блок
              и приносит css заливки к уже нарисованной карте. */}}
-        <div class="map-pane pane-losses">
-            <div id="losses-box">
-                <button type="button" hx-get="/games/{{.GameID}}/losses"
-                        hx-target="#losses-box" hx-swap="innerHTML"
-                        hx-indicator="#losses-box" hx-disabled-elt="this">{{t "game.losses.count"}}</button>
-                <p class="muted">{{t "game.losses.note"}}</p>
-            </div>
-        </div>
-        {{/* Ресурсы, армии и устрашение — рейтинги из той же газеты, что и потери,
-             и тоже по нажатию: второй подсчёт берёт дни из памяти. */}}
-        <div class="map-pane pane-res">
-            <div id="res-box">
-                <button type="button" hx-get="/games/{{.GameID}}/rankings?kind=res"
-                        hx-target="#res-box" hx-swap="innerHTML"
-                        hx-indicator="#res-box" hx-disabled-elt="this">{{t "game.rank.count"}}</button>
-                <p class="muted">{{t "game.rank.res.note"}}</p>
-            </div>
-        </div>
-        <div class="map-pane pane-army">
-            <div id="army-box">
-                <button type="button" hx-get="/games/{{.GameID}}/rankings?kind=army"
-                        hx-target="#army-box" hx-swap="innerHTML"
-                        hx-indicator="#army-box" hx-disabled-elt="this">{{t "game.rank.count"}}</button>
-                <p class="muted">{{t "game.rank.army.note"}}</p>
-            </div>
-        </div>
-        <div class="map-pane pane-fear">
-            <div id="fear-box">
-                <button type="button" hx-get="/games/{{.GameID}}/rankings?kind=fear"
-                        hx-target="#fear-box" hx-swap="innerHTML"
-                        hx-indicator="#fear-box" hx-disabled-elt="this">{{t "game.rank.count"}}</button>
-                <p class="muted">{{t "game.rank.fear.note"}}</p>
+        <div class="map-pane pane-paper">
+            {{template "paperswitch" (dict "GameID" .GameID "Active" "" "Oob" false)}}
+            <div id="paper-box">
+                <p class="muted">{{t "game.paper.note"}}</p>
             </div>
         </div>
         {{/* Играли вместе: группы из архива коалиций. Нынешние сокомандники

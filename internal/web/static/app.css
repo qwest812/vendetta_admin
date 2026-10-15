@@ -567,10 +567,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:checked ~ .map-tabs label[for="map-power"],
 #map-top:checked ~ .map-tabs label[for="map-top"],
 #map-together:checked ~ .map-tabs label[for="map-together"],
-#map-losses:checked ~ .map-tabs label[for="map-losses"],
-#map-res:checked ~ .map-tabs label[for="map-res"],
-#map-army:checked ~ .map-tabs label[for="map-army"],
-#map-fear:checked ~ .map-tabs label[for="map-fear"] {
+#map-paper:checked ~ .map-tabs label[for="map-paper"] {
     border-color: var(--accent);
     color: var(--text);
 }
@@ -583,10 +580,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:focus-visible ~ .map-tabs label[for="map-power"],
 #map-top:focus-visible ~ .map-tabs label[for="map-top"],
 #map-together:focus-visible ~ .map-tabs label[for="map-together"],
-#map-losses:focus-visible ~ .map-tabs label[for="map-losses"],
-#map-res:focus-visible ~ .map-tabs label[for="map-res"],
-#map-army:focus-visible ~ .map-tabs label[for="map-army"],
-#map-fear:focus-visible ~ .map-tabs label[for="map-fear"] { outline: 2px solid var(--accent); }
+#map-paper:focus-visible ~ .map-tabs label[for="map-paper"] { outline: 2px solid var(--accent); }
 
 /* Легенда и пояснение — свои у каждого режима, показывается только пара
    выбранного. */
@@ -598,16 +592,13 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:checked ~ .pane-power,
 #map-top:checked ~ .pane-top,
 #map-together:checked ~ .pane-together,
-#map-losses:checked ~ .pane-losses,
-#map-res:checked ~ .pane-res,
-#map-army:checked ~ .pane-army,
-#map-fear:checked ~ .pane-fear { display: block; }
+#map-paper:checked ~ .pane-paper { display: block; }
 /* Вкладка «Потери»: строка раскрывается списком противников. Пока идёт
    подсчёт, блок притушен — газета листается по дню за запрос. */
 .losses summary { cursor: pointer; }
 .losses .swatch { display: inline-block; vertical-align: middle; }
 .losses-duels { margin: 6px 0 4px 18px; padding: 0; font-size: 13px; color: var(--muted); }
-#losses-box.htmx-request { opacity: .5; pointer-events: none; }
+#paper-box.htmx-request { opacity: .5; pointer-events: none; }
 
 /* Легенда карты: цвет раздаётся кланам на партию, поэтому она идёт сразу
    под картой и читается как её продолжение. Строки в ряд и с переносом —
@@ -1129,11 +1120,13 @@ ul.hero-plans li { padding: 4px 0; border-top: 1px solid var(--border, #ddd); }
 /* Плитки героев: портрет выше, чем картинка здания, — он вертикальный. */
 .hero-tiles .tile img { width: 48px; height: 62px; object-fit: cover; }
 
-/* Вкладки «Ресурсы», «Армии» и «Устрашение». Цвета линий — восемь категорий
+/* Рейтинги газеты: ресурсы, армии, устрашение. Цвета линий — восемь категорий
    в постоянном порядке, проверенные на фоне админки (#1c1f26): яркость,
    насыщенность, различимость при дальтонизме и контраст 3:1. Цвет
    закреплён за страной, а не за местом. */
-#res-box.htmx-request, #army-box.htmx-request, #fear-box.htmx-request { opacity: .5; pointer-events: none; }
+/* Переключатель разделов газеты: выбранный — с рамкой акцента. */
+.paper-switch { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.paper-switch button.active { border-color: var(--accent); color: var(--text); }
 .rank-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 4px 16px; }
 .rank-legend .place { color: var(--muted); min-width: 1.6em; text-align: right; }
 .rank-chart { margin: 12px 0 4px; }

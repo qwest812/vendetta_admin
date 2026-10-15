@@ -62,7 +62,7 @@ func (s *Server) gameLosses(w http.ResponseWriter, r *http.Request) {
 	lang := langOf(r)
 
 	fail := func(msg string) {
-		s.renderPartial(w, r, "game", "gamelosses", map[string]any{"Error": msg, "GameID": gameID})
+		s.renderPartial(w, r, "game", "gamelosses", map[string]any{"Error": msg, "GameID": gameID, "Kind": "losses"})
 	}
 	if s.games == nil || !s.mapTickets.has(who.ID, gameID, lossesTicketTTL) {
 		fail(lang.T("game.losses.expired"))
@@ -140,7 +140,7 @@ func lossesData(l i18n.Lang, state *supremacy.GameState, losses *supremacy.Losse
 		if most > 0 && p.Lost > 0 {
 			band := int(float64(p.Lost) / float64(most) * float64(len(lossesBands)))
 			row.Color = lossesBands[min(band, len(lossesBands)-1)]
-			fmt.Fprintf(&style, "#map-losses:checked ~ .game-map polygon[data-owner=\"%d\"] { fill: %s; }\n",
+			fmt.Fprintf(&style, "#map-paper:checked ~ .game-map polygon[data-owner=\"%d\"] { fill: %s; }\n",
 				p.ID, row.Color)
 		}
 		for _, d := range p.Opponent {
