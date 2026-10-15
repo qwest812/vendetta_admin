@@ -130,6 +130,8 @@ type powerLegend struct {
 // activityLegend — сколько владельцев в каждой полосе режима «Активность».
 // Считаются люди, а не провинции; боты — отдельно, у них входов нет.
 type activityLegend struct {
+	// Active — активны по слову игры, но когда заходили, она не сказала.
+	Active   int
 	Today    int
 	Recent   int
 	Old      int
@@ -152,6 +154,8 @@ func activityClass(p supremacy.Player, now time.Time) string {
 		return ""
 	case p.Inactive:
 		return "act-gone"
+	case p.LastLogin.IsZero() && p.Active:
+		return "act-active"
 	case p.LastLogin.IsZero():
 		return ""
 	case now.Sub(p.LastLogin) < activityToday:
@@ -403,6 +407,8 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 			view.Activity.Old++
 		case "act-gone":
 			view.Activity.Inactive++
+		case "act-active":
+			view.Activity.Active++
 		default:
 			if owner.IsAI {
 				view.Activity.AI++

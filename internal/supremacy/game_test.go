@@ -380,6 +380,38 @@ func TestPlayerLastLogin(t *testing.T) {
 	}
 }
 
+// Единица — не время, а метка «активен»: так игра отдаёт всех, кроме нас
+// самих (снято с живых партий 15.10.2026). Принять её за время значило бы
+// вход в 1970-м. И неактивные рядом с ними остаются неактивными: ноль
+// у нескольких при единицах у остальных — это ответ игры, а не молчание.
+func TestPlayerLastLoginHidden(t *testing.T) {
+	body := `{"states":{
+	  "1":{"players":{
+	    "1":{"playerID":1,"siteUserID":5,"lastLogin":1},
+	    "2":{"playerID":2,"siteUserID":6,"lastLogin":0},
+	    "3":{"playerID":3,"computerPlayer":true,"lastLogin":1}
+	  }},
+	  "3":{"map":{"locations":[{"@c":"p","id":1,"n":"x","o":1}]}}
+	}}`
+	var resp gameStateResponse
+	if err := json.Unmarshal([]byte(body), &resp); err != nil {
+		t.Fatal(err)
+	}
+	g, err := resp.build("1", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := g.Players[1]; !p.Active || !p.LastLogin.IsZero() || p.Inactive {
+		t.Errorf("единица должна значить «активен» без времени: %+v", p)
+	}
+	if !g.Players[2].Inactive {
+		t.Errorf("ноль рядом с единицами — неактивен: %+v", g.Players[2])
+	}
+	if g.Players[3].Active {
+		t.Errorf("бот не бывает «активным»: %+v", g.Players[3])
+	}
+}
+
 // Ноль у всех разом — игра не сказала, а не все бросили партию.
 func TestPlayerLastLoginAllZero(t *testing.T) {
 	body := `{"states":{

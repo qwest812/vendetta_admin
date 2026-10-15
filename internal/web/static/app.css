@@ -519,10 +519,12 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-together:checked ~ .game-map polygon.together { fill: var(--together); }
 /* Режим «Активность»: светофор по последнему входу в партию. Боты и те,
    про кого игра не сказала, остаются серыми. */
+#map-activity:checked ~ .game-map polygon.act-active { fill: #6f9f7c; }
 #map-activity:checked ~ .game-map polygon.act-today { fill: #3f8f5a; }
 #map-activity:checked ~ .game-map polygon.act-recent { fill: #b08a2e; }
 #map-activity:checked ~ .game-map polygon.act-old { fill: #b0523f; }
 #map-activity:checked ~ .game-map polygon.act-gone { fill: #5a2a2a; }
+.map-legend .swatch.act-active { background: #6f9f7c; }
 .map-legend .swatch.act-today { background: #3f8f5a; }
 .map-legend .swatch.act-recent { background: #b08a2e; }
 .map-legend .swatch.act-old { background: #b0523f; }

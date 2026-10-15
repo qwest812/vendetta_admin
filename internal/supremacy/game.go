@@ -310,6 +310,10 @@ type Player struct {
 	// Inactive — живой игрок, которого игра признала неактивным: она
 	// ставит ему lastLogin = 0 (LAST_LOGIN_INACTIVE у клиента).
 	Inactive bool
+	// Active — игра говорит «активен», но время входа скрывает: lastLogin
+	// = 1. Так она отдаёт всех, кроме нас самих, — и наблюдателю, и
+	// участнику (проверено 15.10.2026). Точное время знаем только своё.
+	Active bool
 }
 
 // Team — коалиция партии. Своё название и свой цвет игра даёт каждой,
@@ -926,6 +930,10 @@ const (
 	// на всё время призыва.
 	commandDeployWait = "dwc"
 
+	// lastLoginReal — с какого значения lastLogin это время, а не метка:
+	// 1 января 2000-го в миллисекундах. Меньше — метки игры (0 и 1).
+	lastLoginReal = 946684800000
+
 	// commandGoto — отрезок марша: армия идёт из sp в tp. Приказ идти
 	// далеко — это цепочка таких отрезков по графу дорог карты.
 	commandGoto = "gc"
@@ -987,9 +995,14 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			NativeAI: nativeBot(p.IsAI, p.Native, p.SiteUserID),
 		}
 		if p.LastLogin != nil {
-			if ms := int64(*p.LastLogin); ms > 0 {
+			switch ms := int64(*p.LastLogin); {
+			case ms >= lastLoginReal:
 				player.LastLogin = time.UnixMilli(ms)
-			} else if !p.IsAI {
+			case ms > 0:
+				// Метка «активен» вместо времени: принять её за время
+				// значило бы вход в 1970-м и «давно не заходил» у всех.
+				player.Active = !p.IsAI
+			case !p.IsAI:
 				player.Inactive = true
 			}
 		}
@@ -1007,7 +1020,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	// времени входа не сказала»: неактивными тогда не помечаем никого.
 	anyLogin := false
 	for _, pl := range g.Players {
-		if !pl.LastLogin.IsZero() {
+		if !pl.LastLogin.IsZero() || pl.Active {
 			anyLogin = true
 			break
 		}

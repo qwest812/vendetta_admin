@@ -17,6 +17,8 @@ func TestActivityClass(t *testing.T) {
 		{supremacy.Player{LastLogin: now.Add(-48 * time.Hour)}, "act-recent"},
 		{supremacy.Player{LastLogin: now.Add(-100 * time.Hour)}, "act-old"},
 		{supremacy.Player{Inactive: true}, "act-gone"},
+		{supremacy.Player{Active: true}, "act-active"},
+		{supremacy.Player{Active: true, LastLogin: now.Add(-2 * time.Hour)}, "act-today"},
 		{supremacy.Player{IsAI: true, LastLogin: now}, ""},
 		{supremacy.Player{}, ""},
 	}
