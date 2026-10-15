@@ -27,7 +27,7 @@ func TestLossesData(t *testing.T) {
 		t.Fatalf("view = %+v", v)
 	}
 	fr, de := v.Rows[0], v.Rows[1]
-	if fr.Nation != "Франция" || fr.OnMap || fr.Lost != "1 200 000" || fr.Ratio != "0.01" {
+	if fr.Nation != "Франция" || fr.OnMap || fr.Lost != "1 200" || fr.Ratio != "0.01" {
 		t.Fatalf("Франция: %+v", fr)
 	}
 	if fr.Opponents[0].Nation != "Германия" {
@@ -67,6 +67,17 @@ func TestLossesFailedWording(t *testing.T) {
 		out := buf.String()
 		if !strings.Contains(out, c.want) || strings.Contains(out, c.deny) || !strings.Contains(out, "Посчитано") {
 			t.Errorf("%s: %s", c.name, out)
+		}
+	}
+}
+
+// Потери — в тысячах: тысяча солдат газеты — это один юнит.
+func TestThousands(t *testing.T) {
+	for n, want := range map[int64]string{
+		171000: "171", 1200000: "1 200", 12400: "12,4", 4000: "4", 0: "0", 950: "1", 400: "0,4",
+	} {
+		if got := thousands(n); got != want {
+			t.Errorf("thousands(%d) = %q, ожидалось %q", n, got, want)
 		}
 	}
 }

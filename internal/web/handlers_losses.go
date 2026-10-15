@@ -135,7 +135,7 @@ func lossesData(l i18n.Lang, state *supremacy.GameState, losses *supremacy.Losse
 		n, name := nation(p.ID, p.Name)
 		row := lossesRow{
 			Nation: n, Name: name, Mine: meID > 0 && p.ID == meID, OnMap: onMap[p.ID],
-			Lost: groupDigits(p.Lost), Killed: groupDigits(p.Killed), Ratio: formatKD(p.Killed, p.Lost),
+			Lost: thousands(p.Lost), Killed: thousands(p.Killed), Ratio: formatKD(p.Killed, p.Lost),
 		}
 		if most > 0 && p.Lost > 0 {
 			band := int(float64(p.Lost) / float64(most) * float64(len(lossesBands)))
@@ -146,7 +146,7 @@ func lossesData(l i18n.Lang, state *supremacy.GameState, losses *supremacy.Losse
 		for _, d := range p.Opponent {
 			on, _ := nation(d.OpponentID, d.OpponentName)
 			row.Opponents = append(row.Opponents, lossesDuel{
-				Nation: on, Lost: groupDigits(d.Lost), Killed: groupDigits(d.Killed)})
+				Nation: on, Lost: thousands(d.Lost), Killed: thousands(d.Killed)})
 		}
 		v.Rows = append(v.Rows, row)
 	}
@@ -163,6 +163,23 @@ func formatKD(killed, lost int64) string {
 		return "∞"
 	}
 	return strconv.FormatFloat(float64(killed)/float64(lost), 'f', 2, 64)
+}
+
+// thousands — потери в тысячах: газета пишет солдат, а тысяча — это
+// один юнит, и лишние нули только мешают читать. 171000 → «171»,
+// 1200000 → «1 200»; некратное тысяче не обрубается: 12400 → «12,4».
+func thousands(n int64) string {
+	whole, rest := n/1000, n%1000
+	if rest < 0 {
+		rest = -rest
+	}
+	out := groupDigits(whole)
+	if tenth := (rest + 50) / 100; tenth > 0 && tenth < 10 {
+		out += "," + strconv.FormatInt(tenth, 10)
+	} else if tenth == 10 {
+		out = groupDigits(whole + 1)
+	}
+	return out
 }
 
 // groupDigits — 1234567 → «1 234 567».
