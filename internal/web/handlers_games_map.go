@@ -125,6 +125,16 @@ type powerLegend struct {
 //
 // Роды не пересекаются: каждый владелец попадает ровно в один, тот же,
 // в какой его красит css.
+// becameBot — страной живого игрока теперь управляет компьютер: игра
+// признала его неактивным или отдала страну боту. Бот с начала партии
+// сюда не относится — живым он не был.
+func becameBot(p supremacy.Player) bool {
+	if p.IsAI {
+		return !p.NativeAI
+	}
+	return p.Inactive
+}
+
 // agoText — «3 ч назад», «2 дн назад» для подсказки.
 func agoText(l i18n.Lang, d time.Duration) string {
 	switch {
@@ -139,8 +149,15 @@ func agoText(l i18n.Lang, d time.Duration) string {
 type playerKinds struct {
 	Regular int
 	AI      int
+	// Gone — стал ботом: живой игрок, которого игра признала неактивным
+	// (lastLogin = 0 — его страной управляет компьютер, так считает и
+	// клиент игры), или страна, отданная компьютеру, но не бот с начала.
+	// Проигравшие сюда не попадают: земли у них нет, и на карте их нет.
+	Gone    int
 	Premium int
 	Banned  int
+	// GoneList — кто именно стал ботом: страна и ник.
+	GoneList []gamePlayerView
 }
 
 // topLegendView — строка легенды режима «Топ кланов»: клан из верхушки
@@ -303,14 +320,17 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 				shape.TeamColor = template.CSS(color)
 				shape.Title += ", " + l.T("tip.team", nonEmpty(state.Teams[owner.TeamID].Name, l.T("game.noname")))
 			}
-			// Режим «Игроки» различает четверых: живого человека, бота,
-			// подписку и бан. Все четыре — свойства самого игрока, из
-			// состояния партии, и класс нужен каждому: серой заливкой
-			// по умолчанию помечена ничейная земля, и обычный игрок
-			// не должен выглядеть как она.
-			if owner.IsAI {
+			// Режим «Игроки» различает пятерых: живого человека, бота,
+			// ставшего ботом, подписку и бан. Все — свойства самого
+			// игрока, из состояния партии, и класс нужен каждому: серой
+			// заливкой по умолчанию помечена ничейная земля, и обычный
+			// игрок не должен выглядеть как она.
+			switch {
+			case becameBot(owner):
+				classes = append(classes, "gone")
+			case owner.IsAI:
 				classes = append(classes, "ai")
-			} else {
+			default:
 				classes = append(classes, "human")
 			}
 			if owner.Premium {
@@ -351,12 +371,17 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 	// Легенда режима «Игроки» считает владельцев, а не провинции: цвет
 	// говорит про человека, и в centers лежат ровно те, у кого земля есть.
 	// Порядок веток тот же, в каком спорят правила css: бан важнее
-	// подписки, подписка — всего остального.
+	// всего, ставший ботом — подписки (подписка у брошенной страны уже
+	// ничего не значит), подписка — остального.
 	for playerID := range centers {
 		owner := state.Players[playerID]
 		switch {
 		case owner.Banned:
 			view.Kinds.Banned++
+		case becameBot(owner):
+			view.Kinds.Gone++
+			view.Kinds.GoneList = append(view.Kinds.GoneList,
+				gamePlayerView{Nation: nonEmpty(owner.Nation, l.T("game.noname")), Name: owner.Name})
 		case owner.Premium:
 			view.Kinds.Premium++
 		case owner.IsAI:
@@ -422,6 +447,7 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 	// Порядок подписей игра не задаёт, а страница должна быть одинаковой
 	// от захода к заходу.
 	sort.Slice(view.Labels, func(i, j int) bool { return view.Labels[i].Text < view.Labels[j].Text })
+	sort.Slice(view.Kinds.GoneList, func(i, j int) bool { return view.Kinds.GoneList[i].Nation < view.Kinds.GoneList[j].Nation })
 	return view
 }
 

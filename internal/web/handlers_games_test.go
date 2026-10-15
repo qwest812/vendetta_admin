@@ -475,12 +475,17 @@ func TestGameMapPlayerKinds(t *testing.T) {
 			4: {{X: 60, Y: 0}, {X: 70, Y: 0}, {X: 70, Y: 10}},
 			5: {{X: 80, Y: 0}, {X: 90, Y: 0}, {X: 90, Y: 10}},
 			6: {{X: 0, Y: 20}, {X: 10, Y: 20}, {X: 10, Y: 30}},
+			8: {{X: 20, Y: 20}, {X: 30, Y: 20}, {X: 30, Y: 30}},
+			9: {{X: 40, Y: 20}, {X: 50, Y: 20}, {X: 50, Y: 30}},
 		},
 	}
 	state := &supremacy.GameState{
 		Players: map[int]supremacy.Player{
+			37: {ID: 37, Nation: "Британия", Name: "Бросил", Inactive: true, Premium: true},
+			// Отдана компьютеру, но не бот с начала — тоже стала ботом.
+			41: {ID: 41, Nation: "Дания", Name: "Ушёл", IsAI: true},
 			12: {ID: 12, Nation: "Греция", Name: "Обычный"},
-			29: {ID: 29, Nation: "Франция", IsAI: true},
+			29: {ID: 29, Nation: "Франция", IsAI: true, NativeAI: true},
 			31: {ID: 31, Nation: "Швеция", Name: "Богатый", Premium: true},
 			33: {ID: 33, Nation: "Бельгия", Name: "Мультовод", Banned: true},
 			35: {ID: 35, Nation: "Италия", Name: "И то и то", Premium: true, Banned: true},
@@ -495,6 +500,8 @@ func TestGameMapPlayerKinds(t *testing.T) {
 			// а не земли, и от неё числа меняться не должны.
 			{ID: 6, Name: "Милан", Owner: 35},
 			{ID: 7, Name: "Ничьё"},
+			{ID: 8, Name: "Лондон", Owner: 37},
+			{ID: 9, Name: "Копенгаген", Owner: 41},
 		},
 	}
 
@@ -506,10 +513,26 @@ func TestGameMapPlayerKinds(t *testing.T) {
 			t.Errorf("классы провинции %d = %q, ожидались %q", i, got, w)
 		}
 	}
-	// Забаненного с премиумом легенда считает забаненным: в css его
-	// правило стоит ниже и побеждает, а расходиться им нельзя.
-	if got := (playerKinds{Regular: 1, AI: 1, Premium: 1, Banned: 2}); view.Kinds != got {
-		t.Errorf("счёт владельцев = %+v, ожидался %+v", view.Kinds, got)
+	// Ставший ботом — свой класс вместо «human», и подписка у него
+	// не перебивает: в css правило «gone» стоит ниже «premium».
+	var london string
+	for _, sh := range view.Shapes {
+		if strings.Contains(sh.Title, "Лондон") {
+			london = sh.Class
+		}
+	}
+	if london != "gone premium" {
+		t.Errorf("классы Лондона = %q, ожидались %q", london, "gone premium")
+	}
+	// Забаненного с премиумом легенда считает забаненным, ставшего ботом
+	// с премиумом — ставшим ботом: в css их правила стоят ниже и
+	// побеждают, а расходиться им нельзя.
+	k := view.Kinds
+	if k.Regular != 1 || k.AI != 1 || k.Premium != 1 || k.Banned != 2 || k.Gone != 2 {
+		t.Errorf("счёт владельцев = %+v", k)
+	}
+	if len(k.GoneList) != 2 || k.GoneList[0].Nation != "Британия" || k.GoneList[1].Nation != "Дания" {
+		t.Errorf("стали ботами: %+v", k.GoneList)
 	}
 }
 
@@ -537,7 +560,7 @@ func TestGameMapPower(t *testing.T) {
 			33: {ID: 33, Nation: "Бельгия", Name: "Ровня"},
 			35: {ID: 35, Nation: "Италия", Name: "Слабее"},
 			37: {ID: 37, Nation: "Испания", Name: "Неспрошенный"},
-			39: {ID: 39, Nation: "Турция", IsAI: true},
+			39: {ID: 39, Nation: "Турция", IsAI: true, NativeAI: true},
 		},
 		Provinces: []supremacy.Province{
 			{ID: 1, Name: "Афины", Owner: 12},
@@ -624,7 +647,7 @@ func TestPremiumViews(t *testing.T) {
 			12: {ID: 12, Nation: "Греция", Name: "Dau7er", Premium: true},
 			29: {ID: 29, Nation: "Франция", Name: "Сосед", Premium: true},
 			31: {ID: 31, Nation: "Швеция", Name: "Бедный"},
-			33: {ID: 33, Nation: "Бельгия", IsAI: true, Premium: true},
+			33: {ID: 33, Nation: "Бельгия", IsAI: true, NativeAI: true, Premium: true},
 		},
 	}
 

@@ -500,6 +500,9 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-players:checked ~ .game-map polygon.human { fill: #3c6e9c; }
 #map-players:checked ~ .game-map polygon.ai { fill: #6f7b52; }
 #map-players:checked ~ .game-map polygon.premium { fill: #7d63a8; }
+/* Ставший ботом — после подписки: у брошенной страны она уже ничего
+   не значит. Бан — последним, он важнее всего. */
+#map-players:checked ~ .game-map polygon.gone { fill: #8a5a2b; }
 #map-players:checked ~ .game-map polygon.banned { fill: #a2453c; }
 /* Режим «Сила»: цвет говорит, насколько владелец опаснее смотрящего.
    Шкала идёт от красного к зелёному через жёлтый — так же, как читается
@@ -650,6 +653,7 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 .map-legend .swatch.side-friend { background: #3f7d5a; }
 .map-legend .swatch.human { background: #3c6e9c; }
 .map-legend .swatch.ai { background: #6f7b52; }
+.map-legend .swatch.gone { background: #8a5a2b; }
 .map-legend .swatch.premium { background: #7d63a8; }
 .map-legend .swatch.banned { background: #a2453c; }
 /* Образцы режима силы — та же шкала от красного к зелёному. */
