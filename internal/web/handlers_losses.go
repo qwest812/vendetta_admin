@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"Vendetta_admin/internal/i18n"
 	"Vendetta_admin/internal/supremacy"
@@ -27,6 +28,8 @@ type lossesView struct {
 	Days    int
 	Missing string
 	Why     string
+	// At — когда посчитано: по нему видно, что пересчёт сработал.
+	At time.Time
 	// Style — правила заливки провинций по владельцу. Карта уже на
 	// странице, перерисовывать её ради цветов незачем: ответ приносит
 	// только css к ней.
@@ -100,7 +103,7 @@ func (s *Server) gameLosses(w http.ResponseWriter, r *http.Request) {
 // lossesData готовит таблицу и заливку. Имена — из состояния партии, если
 // игрок там есть; иначе как его назвала газета.
 func lossesData(l i18n.Lang, state *supremacy.GameState, losses *supremacy.Losses, meID int) *lossesView {
-	v := &lossesView{Days: losses.Days, Why: losses.Why}
+	v := &lossesView{Days: losses.Days, Why: losses.Why, At: time.Now()}
 	if len(losses.Missing) > 0 {
 		days := make([]string, len(losses.Missing))
 		for i, d := range losses.Missing {

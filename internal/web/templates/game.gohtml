@@ -603,10 +603,18 @@
     {{end}}
     {{with .Losses}}
         <style>{{.Style}}</style>
-        <p class="muted">
-            {{t "game.losses.days" .Days}}
-            {{if .Missing}} {{t "game.losses.missing" .Missing}}{{if .Why}} {{t "game.losses.why" .Why}}{{end}}{{end}}
-        </p>
+        {{/* Ни одного дня — это не «войн нет», а «прочитать не вышло»:
+             так и говорим, с ответом игры. Время — чтобы было видно, что
+             пересчёт сработал, даже когда итог не изменился. */}}
+        {{if and (not .Days) .Missing}}
+            <p class="error">{{t "game.losses.failed"}}{{if .Why}} {{t "game.losses.why" .Why}}{{end}}</p>
+        {{else}}
+            <p class="muted">
+                {{t "game.losses.days" .Days}}
+                {{if .Missing}} {{t "game.losses.missing" .Missing}}{{if .Why}} {{t "game.losses.why" .Why}}{{end}}{{end}}
+            </p>
+        {{end}}
+        <p class="muted">{{t "game.losses.at" (datetime .At)}}</p>
         {{if .Rows}}
             <ul class="map-legend">
                 <li><span class="swatch" style="background: #e8c9a8"></span>{{t "game.losses.few"}}</li>
@@ -648,12 +656,15 @@
                     </tbody>
                 </table>
             </div>
-        {{else}}
+        {{else if .Days}}
             <p class="muted">{{t "game.losses.none"}}</p>
         {{end}}
     {{end}}
+    {{/* Блок бледнеет на время запроса, а кнопка не жмётся дважды —
+         как и у первой «Посчитать потери». */}}
     <button type="button" class="ghost" hx-get="/games/{{.GameID}}/losses"
-            hx-target="#losses-box" hx-swap="innerHTML">{{t "game.losses.again"}}</button>
+            hx-target="#losses-box" hx-swap="innerHTML"
+            hx-indicator="#losses-box" hx-disabled-elt="this">{{t "game.losses.again"}}</button>
 {{end}}
 
 {{/* Состав не приехал: объяснение встаёт на место строки «догружаем».
@@ -1051,7 +1062,7 @@
             <div id="losses-box">
                 <button type="button" hx-get="/games/{{.GameID}}/losses"
                         hx-target="#losses-box" hx-swap="innerHTML"
-                        hx-indicator="#losses-box">{{t "game.losses.count"}}</button>
+                        hx-indicator="#losses-box" hx-disabled-elt="this">{{t "game.losses.count"}}</button>
                 <p class="muted">{{t "game.losses.note"}}</p>
             </div>
         </div>

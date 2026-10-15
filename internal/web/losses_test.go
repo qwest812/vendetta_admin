@@ -1,8 +1,10 @@
 package web
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"Vendetta_admin/internal/i18n"
 	"Vendetta_admin/internal/supremacy"
@@ -36,5 +38,35 @@ func TestLossesData(t *testing.T) {
 	}
 	if !strings.Contains(string(v.Style), `polygon[data-owner="7"] { fill: #6e1f1a; }`) {
 		t.Fatalf("css: %s", v.Style)
+	}
+}
+
+// Ни одного прочитанного дня — это «прочитать не вышло», а не «войн нет»:
+// иначе пустой итог выглядел бы как ответ. Время подсчёта видно всегда.
+func TestLossesFailedWording(t *testing.T) {
+	pages, err := parseTemplates(i18n.RU)
+	if err != nil {
+		t.Fatalf("разбор шаблонов: %v", err)
+	}
+	cases := []struct {
+		name       string
+		view       *lossesView
+		want, deny string
+	}{
+		{"ни одного дня", &lossesView{Missing: "1, 2", Why: "http 502", At: time.Now()},
+			"Газету прочитать не удалось", "сводок о войнах нет"},
+		{"дни есть, войн нет", &lossesView{Days: 3, At: time.Now()},
+			"сводок о войнах нет", "не удалось"},
+	}
+	for _, c := range cases {
+		var buf bytes.Buffer
+		err := pages["game"].ExecuteTemplate(&buf, "gamelosses", map[string]any{"Losses": c.view, "GameID": "1"})
+		if err != nil {
+			t.Fatalf("%s: отрисовка: %v", c.name, err)
+		}
+		out := buf.String()
+		if !strings.Contains(out, c.want) || strings.Contains(out, c.deny) || !strings.Contains(out, "Посчитано") {
+			t.Errorf("%s: %s", c.name, out)
+		}
 	}
 }
