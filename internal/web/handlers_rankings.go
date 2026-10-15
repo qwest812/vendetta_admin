@@ -1,8 +1,8 @@
 package web
 
-// Вкладки карты «Ресурсы» и «Устрашение»: рейтинги из газеты —
-// крупнейшие экономики (производство ресурсов в тоннах за сутки)
-// и самые устрашающие страны. Газета печатает каждый раз в несколько
+// Вкладки карты «Ресурсы», «Армии» и «Устрашение»: рейтинги из газеты —
+// крупнейшие экономики (производство ресурсов в тоннах за сутки), самые
+// могущественные армии (доля военной силы) и самые устрашающие страны. Газета печатает каждый раз в несколько
 // дней; карта красится по последнему такому дню, а под ней — график
 // по всем: кто рос, кто проседал.
 
@@ -26,14 +26,17 @@ import (
 // в адресе вкладки (?kind=…).
 const (
 	rankRes  = "res"
+	rankArmy = "army"
 	rankFear = "fear"
 )
 
 // Заливка карты — одна шкала от светлого к тёмному на вид рейтинга:
-// темнее — больше производит или страшнее. Зелёная у ресурсов и красная
-// у устрашения, чтобы вкладки не путались между собой и с «Потерями».
+// темнее — больше производит, сильнее или страшнее. Зелёная у ресурсов,
+// синяя у армий и красная у устрашения, чтобы вкладки не путались между
+// собой и с «Потерями».
 var (
 	resBands  = []string{"#cfe8c4", "#9ccf8a", "#5fae55", "#2f8a3a", "#14602a"}
+	armyBands = []string{"#c9daf2", "#93b8e8", "#5a8fd6", "#2f66b3", "#17407a"}
 	fearBands = []string{"#f0c9c9", "#e09a9a", "#cc6464", "#a83a3a", "#741f1f"}
 )
 
@@ -109,12 +112,12 @@ type rankingsView struct {
 	Chart   *rankChart
 }
 
-// gameRankings отдаёт блок вкладки «Ресурсы» или «Устрашение». Пускает
+// gameRankings отдаёт блок вкладки «Ресурсы», «Армии» или «Устрашение». Пускает
 // того же, кого пускают «Потери», — кто недавно видел карту этой партии.
 func (s *Server) gameRankings(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
 	kind := r.URL.Query().Get("kind")
-	if kind != rankFear {
+	if kind != rankFear && kind != rankArmy {
 		kind = rankRes
 	}
 	who := currentUser(r)
@@ -169,7 +172,8 @@ func rankingsData(l i18n.Lang, kind string, state *supremacy.GameState, ranks *s
 		v.Missing = strings.Join(days, ", ")
 	}
 
-	// Строки по дням. Значение — тонны у ресурсов, место у устрашения.
+	// Строки по дням. Значение — тонны у ресурсов, доля у армий, место
+	// у устрашения.
 	type entry struct {
 		owner int
 		label string
@@ -179,12 +183,15 @@ func rankingsData(l i18n.Lang, kind string, state *supremacy.GameState, ranks *s
 	var days []int
 	for _, d := range ranks.Days {
 		lines := d.Economy
-		if kind == rankFear {
+		switch kind {
+		case rankArmy:
+			lines = d.Army
+		case rankFear:
 			lines = d.Fear
 		}
 		var row []entry
 		for i, r := range lines {
-			value := float64(r.Value)
+			value := r.Value
 			if kind == rankFear {
 				value = float64(i + 1)
 			}
@@ -245,7 +252,7 @@ func rankingsData(l i18n.Lang, kind string, state *supremacy.GameState, ranks *s
 
 	// Легенда и заливка — по последнему дню.
 	var style strings.Builder
-	mode := map[string]string{rankRes: "map-res", rankFear: "map-fear"}[kind]
+	mode := map[string]string{rankRes: "map-res", rankArmy: "map-army", rankFear: "map-fear"}[kind]
 	today := byDay[last]
 	top := 0.0
 	for _, e := range today {
@@ -255,13 +262,17 @@ func rankingsData(l i18n.Lang, kind string, state *supremacy.GameState, ranks *s
 		nation, name := player(e.owner, e.label)
 		row := rankRow{Place: i + 1, Nation: nation, Name: name,
 			Mine: meID > 0 && e.owner == meID, Series: series[e.owner]}
-		if kind == rankRes {
+		if kind != rankFear {
+			bands := resBands
+			if kind == rankArmy {
+				bands = armyBands
+			}
 			row.Value = rankValue(l, kind, e.value)
 			band := 0
 			if top > 0 {
-				band = int(e.value / top * float64(len(resBands)))
+				band = int(e.value / top * float64(len(bands)))
 			}
-			row.Color = resBands[min(band, len(resBands)-1)]
+			row.Color = bands[min(band, len(bands)-1)]
 		} else {
 			row.Value = rankValue(l, kind, e.value)
 			band := len(fearBands) - 1 - i*len(fearBands)/max(len(today), 1)
@@ -282,10 +293,10 @@ func rankingsData(l i18n.Lang, kind string, state *supremacy.GameState, ranks *s
 	return v
 }
 
-// betterRank — значение a лучше b: у ресурсов — больше тонн, у
-// устрашения — выше место (меньше число).
+// betterRank — значение a лучше b: у ресурсов и армий — больше число,
+// у устрашения — выше место (меньше число).
 func betterRank(kind string, a, b float64) bool {
-	if kind == rankRes {
+	if kind != rankFear {
 		return a > b
 	}
 	return a < b
@@ -299,8 +310,11 @@ func rankChartFor(l i18n.Lang, kind string, days []int, valuesOn func(int) map[i
 	// Слева — подписи шкалы: «200 тыс. т» у ресурсов, номер места у
 	// устрашения; отступ под самую длинную из них.
 	left := 28.0
-	if kind == rankRes {
+	switch kind {
+	case rankRes:
 		left = 76
+	case rankArmy:
+		left = 40
 	}
 	c := &rankChart{W: 720, H: 260, Left: left, Bottom: 28, Top: 12, Right: 120, Days: days}
 	c.GridEnd, c.TickX, c.TickY = c.W-c.Right, c.Left-6, c.H-8
@@ -317,10 +331,10 @@ func rankChartFor(l i18n.Lang, kind string, days []int, valuesOn func(int) map[i
 			hi = math.Max(hi, v)
 		}
 	}
-	if kind == rankRes {
-		hi = niceCeil(hi)
-	} else {
+	if kind == rankFear {
 		lo = 1
+	} else {
+		hi = niceCeil(hi)
 	}
 	x := func(d int) float64 {
 		if lastDay == first {
@@ -343,11 +357,16 @@ func rankChartFor(l i18n.Lang, kind string, days []int, valuesOn func(int) map[i
 	for d := first; d <= lastDay; d += step {
 		c.XTicks = append(c.XTicks, rankTick{Pos: x(d), Label: strconv.Itoa(d)})
 	}
-	if kind == rankRes {
+	switch kind {
+	case rankRes:
 		for v := 0.0; v <= hi; v += hi / 4 {
 			c.YTicks = append(c.YTicks, rankTick{Pos: y(v), Label: l.T("game.rank.kt", groupDigits(int64(v/1000)))})
 		}
-	} else {
+	case rankArmy:
+		for v := 0.0; v <= hi; v += hi / 4 {
+			c.YTicks = append(c.YTicks, rankTick{Pos: y(v), Label: formatShare(v)})
+		}
+	default:
 		for v := 1.0; v <= hi; v++ {
 			c.YTicks = append(c.YTicks, rankTick{Pos: y(v), Label: strconv.Itoa(int(v))})
 		}
@@ -430,10 +449,18 @@ func spreadLabels(lines []rankLine, gap, top, bottom float64) {
 }
 
 func rankValue(l i18n.Lang, kind string, v float64) string {
-	if kind == rankRes {
+	switch kind {
+	case rankRes:
 		return l.T("game.rank.tons", groupDigits(int64(v)))
+	case rankArmy:
+		return formatShare(v)
 	}
 	return l.T("game.rank.place", int(v))
+}
+
+// formatShare — доля так же, как её пишет газета: «6,45%».
+func formatShare(v float64) string {
+	return strings.ReplaceAll(strconv.FormatFloat(v, 'f', -1, 64), ".", ",") + "%"
 }
 
 // niceCeil — круглая верхушка шкалы: 42 402 → 50 000, 8 200 → 10 000.

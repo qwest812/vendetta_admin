@@ -5,11 +5,15 @@ package supremacy
 // эффективные экономики, самые могущественные армии, самые популярные.
 // Формат строк у нескольких одинаковый — «популярные» неотличимы от
 // «устрашающих», «эффективные экономики» от «крупнейших», — поэтому
-// статью узнаём по заголовку. Берём два:
+// статью узнаём по заголовку. Берём три:
 //
 // Крупнейшие экономики — суточное производство ресурсов в тоннах:
 //
 //	1-й : {{{countryLink 'Франция' '2'}}} : 42 402 т.
+//
+// Самые могущественные армии — доля военной силы в процентах:
+//
+//	1-й : {{{countryLink 'Швеция' '6'}}} (6,45%)
 //
 // Самые устрашающие — место без числа, порядок строки:
 //
@@ -26,6 +30,7 @@ import (
 // Виды рейтингов, которые берём из газеты.
 const (
 	RankEconomy = "economy"
+	RankArmy    = "army"
 	RankFear    = "fear"
 )
 
@@ -38,6 +43,10 @@ func rankingKind(title string) string {
 	// «экономики», но число в них — цена производства в фунтах.
 	case strings.Contains(t, "крупнейш") || strings.Contains(t, "largest") || strings.Contains(t, "biggest"):
 		return RankEconomy
+	// «Могущественные», а не просто «армия»: «Армия истреблена» — это
+	// сводка о бое, а не рейтинг.
+	case strings.Contains(t, "могуществ") || strings.Contains(t, "powerful") || strings.Contains(t, "strongest"):
+		return RankArmy
 	case strings.Contains(t, "устраша") || strings.Contains(t, "fear"):
 		return RankFear
 	}
@@ -45,14 +54,16 @@ func rankingKind(title string) string {
 }
 
 // RankLine — строка рейтинга: номер игрока в партии, как газета назвала
-// страну, и число — тонны в сутки у экономик; у устрашения его нет.
+// страну, и число — тонны в сутки у экономик, доля в процентах у армий;
+// у устрашения его нет.
 type RankLine struct {
 	PlayerID int
 	Nation   string
-	Value    int64
+	Value    float64
 }
 
-var reRankLine = regexp.MustCompile(`^\s*\d+\S*\s*:\s*\{\{\{countryLink '([^']*)' '(\d+)'\}\}\}\s*(?::\s*([\d\s\x{a0}\x{202f}.,]+))?`)
+// После ссылки на страну — «: 42 402 т.» у экономик или «(6,45%)» у армий.
+var reRankLine = regexp.MustCompile(`^\s*\d+\S*\s*:\s*\{\{\{countryLink '([^']*)' '(\d+)'\}\}\}\s*(?::\s*([\d\s\x{a0}\x{202f}.,]+)|\(\s*([\d.,]+)\s*%\s*\))?`)
 
 // parsePaperRanking разбирает строки рейтинга по порядку мест.
 func parsePaperRanking(body string) []RankLine {
@@ -67,9 +78,14 @@ func parsePaperRanking(body string) []RankLine {
 			continue
 		}
 		r := RankLine{PlayerID: id, Nation: m[1]}
-		if m[3] != "" {
+		switch {
+		case m[3] != "":
 			if n, ok := parseCount(m[3]); ok {
-				r.Value = n
+				r.Value = float64(n)
+			}
+		case m[4] != "":
+			if f, err := strconv.ParseFloat(strings.ReplaceAll(m[4], ",", "."), 64); err == nil {
+				r.Value = f
 			}
 		}
 		out = append(out, r)
@@ -81,6 +97,7 @@ func parsePaperRanking(body string) []RankLine {
 type RankDay struct {
 	Day     int
 	Economy []RankLine
+	Army    []RankLine
 	Fear    []RankLine
 }
 
@@ -101,7 +118,7 @@ func (c *Client) GameRankings(ctx context.Context, gameID string, today int) (*R
 	}
 	out := &Rankings{Missing: missing, Why: why}
 	for d, day := range days {
-		out.Days = append(out.Days, RankDay{Day: d, Economy: day.economy, Fear: day.fear})
+		out.Days = append(out.Days, RankDay{Day: d, Economy: day.economy, Army: day.army, Fear: day.fear})
 	}
 	sort.Slice(out.Days, func(i, j int) bool { return out.Days[i].Day < out.Days[j].Day })
 	return out, nil

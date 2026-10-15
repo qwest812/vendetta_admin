@@ -13,6 +13,14 @@ func TestParseRankings(t *testing.T) {
 		t.Errorf("экономики = %+v", got)
 	}
 
+	const army = "Оценивая военный потенциал стран Европы, ведущие международные военные эксперты называют сильнейшими:\n" +
+		"1-й : {{{countryLink 'Швеция' '6'}}} (6,45%)\n" +
+		"2-й : {{{countryLink 'Украина' '43'}}} (5,68%)\n"
+	a := parsePaperRanking(army)
+	if len(a) != 2 || a[0] != (RankLine{6, "Швеция", 6.45}) || a[1] != (RankLine{43, "Украина", 5.68}) {
+		t.Errorf("армии = %+v", a)
+	}
+
 	const fear = "Опрос общественного мнения показал, что следующие страны являются самыми устрашающими:\n" +
 		"1-й : {{{countryLink 'Украина' '43'}}}, Гетман MishaBlack\n" +
 		"2-й : {{{countryLink 'Египет' '25'}}}, Султан Boec1990\n"
@@ -31,7 +39,7 @@ func TestRankingKind(t *testing.T) {
 		"Самые устрашающие страны мира":   RankFear,
 		"Most feared countries":           RankFear,
 		"Самые популярные страны мира":    "",
-		"Самые могущественные армии мира": "",
+		"Самые могущественные армии мира": RankArmy,
 		"Самые богатые страны":            "",
 	} {
 		if got := rankingKind(title); got != want {

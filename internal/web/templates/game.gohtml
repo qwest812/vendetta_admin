@@ -828,6 +828,7 @@
         <input class="map-mode" type="radio" name="map-mode" id="map-together">
         <input class="map-mode" type="radio" name="map-mode" id="map-losses">
         <input class="map-mode" type="radio" name="map-mode" id="map-res">
+        <input class="map-mode" type="radio" name="map-mode" id="map-army">
         <input class="map-mode" type="radio" name="map-mode" id="map-fear">
         {{/* Карта большой партии нарисована без состава с сайта: строка сама
              просит его, как только страница загрузилась, и ответ заменяет
@@ -848,6 +849,7 @@
             <label for="map-together">{{t "game.map.together"}}</label>
             <label for="map-losses">{{t "game.map.losses"}}</label>
             <label for="map-res">{{t "game.map.res"}}</label>
+            <label for="map-army">{{t "game.map.army"}}</label>
             <label for="map-fear">{{t "game.map.fear"}}</label>
         </div>
         {{/* Карта в собственных координатах игры: viewBox их и берёт,
@@ -1127,7 +1129,7 @@
                 <p class="muted">{{t "game.losses.note"}}</p>
             </div>
         </div>
-        {{/* Ресурсы и устрашение — рейтинги из той же газеты, что и потери,
+        {{/* Ресурсы, армии и устрашение — рейтинги из той же газеты, что и потери,
              и тоже по нажатию: второй подсчёт берёт дни из памяти. */}}
         <div class="map-pane pane-res">
             <div id="res-box">
@@ -1135,6 +1137,14 @@
                         hx-target="#res-box" hx-swap="innerHTML"
                         hx-indicator="#res-box" hx-disabled-elt="this">{{t "game.rank.count"}}</button>
                 <p class="muted">{{t "game.rank.res.note"}}</p>
+            </div>
+        </div>
+        <div class="map-pane pane-army">
+            <div id="army-box">
+                <button type="button" hx-get="/games/{{.GameID}}/rankings?kind=army"
+                        hx-target="#army-box" hx-swap="innerHTML"
+                        hx-indicator="#army-box" hx-disabled-elt="this">{{t "game.rank.count"}}</button>
+                <p class="muted">{{t "game.rank.army.note"}}</p>
             </div>
         </div>
         <div class="map-pane pane-fear">

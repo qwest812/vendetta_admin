@@ -9,7 +9,7 @@ import (
 	"Vendetta_admin/internal/supremacy"
 )
 
-func rl(id int, nation string, value int64) supremacy.RankLine {
+func rl(id int, nation string, value float64) supremacy.RankLine {
 	return supremacy.RankLine{PlayerID: id, Nation: nation, Value: value}
 }
 
@@ -94,5 +94,21 @@ func TestNiceCeil(t *testing.T) {
 		if got := niceCeil(v); got != want {
 			t.Errorf("niceCeil(%v) = %v, ожидалось %v", v, got, want)
 		}
+	}
+}
+
+// Армии: доля в процентах, как пишет газета, больше — лучше и темнее.
+func TestRankingsArmy(t *testing.T) {
+	ranks := &supremacy.Rankings{Days: []supremacy.RankDay{
+		{Day: 4, Army: []supremacy.RankLine{rl(6, "Швеция", 6.45), rl(43, "Украина", 5.68)}},
+		{Day: 8, Army: []supremacy.RankLine{rl(43, "Украина", 9.09), rl(6, "Швеция", 7.5)}},
+	}}
+	v := rankingsData(i18n.RU, rankArmy, rankState(), ranks, 0)
+	if v.Days != 2 || v.Rows[0].Nation != "Украина" || v.Rows[0].Value != "9,09%" ||
+		v.Rows[0].Color != armyBands[len(armyBands)-1] {
+		t.Errorf("армии: %+v", v.Rows)
+	}
+	if !strings.Contains(string(v.Style), `#map-army:checked`) {
+		t.Errorf("заливка: %s", v.Style)
 	}
 }

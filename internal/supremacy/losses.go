@@ -58,6 +58,7 @@ type warLine struct {
 type paperDay struct {
 	wars    []warLine
 	economy []RankLine
+	army    []RankLine
 	fear    []RankLine
 	at      time.Time
 }
@@ -443,11 +444,17 @@ func (c *Client) paperDay(ctx context.Context, acc *gameAccess, gameID string, d
 		if w, ok := parseWar(a.Body); ok {
 			out.wars = append(out.wars, w)
 		}
-		switch rankingKind(a.Title) {
-		case RankEconomy:
-			out.economy = parsePaperRanking(a.Body)
-		case RankFear:
-			out.fear = parsePaperRanking(a.Body)
+		// Пустой разбор не затирает найденный: заголовок мог совпасть
+		// случайно, а рейтинг в день один.
+		if rank := parsePaperRanking(a.Body); len(rank) > 0 {
+			switch rankingKind(a.Title) {
+			case RankEconomy:
+				out.economy = rank
+			case RankArmy:
+				out.army = rank
+			case RankFear:
+				out.fear = rank
+			}
 		}
 	}
 	return out, nil
