@@ -23,8 +23,10 @@ package supremacy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
@@ -366,21 +368,55 @@ func (c *Client) fetchPaperDays(ctx context.Context, acc *gameAccess, gameID str
 	return out, failed, why
 }
 
+// paperRetry — паузы перед повторами дня газеты после сбоя прокси игры.
+// Заминки у неё секундные; дольше ждать — держать человека у кнопки.
+var paperRetry = []time.Duration{time.Second, 3 * time.Second}
+
+// gatewayError — прокси игры не достучался до сервера партии: ответ
+// 502, 503 или 504. Это заминка, а не отказ, и её стоит переждать.
+func gatewayError(err error) bool {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	switch apiErr.Status {
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	}
+	return false
+}
+
 // paperDay спрашивает один день газеты — тем же запросом, каким клиент
 // игры листает газету: UltUpdateGameStateAction с stateType 2 и номером
 // дня в option.
+//
+// Сбой прокси игры (502, 503, 504) повторяется: газета — только чтение,
+// и повтор ничего не задвоит. Без этого одна заминка сервера проваливала
+// разом все дни (так и было 15.10.2026: девять дней — девять 502 за одну
+// миллисекунду).
 func (c *Client) paperDay(ctx context.Context, acc *gameAccess, gameID string, day int) ([]warLine, error) {
 	var raw json.RawMessage
-	if err := c.gsCall(ctx, acc, gameID, 2, "ultshared.action.UltUpdateGameStateAction", 0,
-		map[string]any{
-			"stateType":         2,
-			"stateID":           "",
-			"addStateIDsOnSent": false,
-			"option":            day,
-			"actions":           nil,
-			"lastCallDuration":  50,
-		}, &raw); err != nil {
-		return nil, err
+	for attempt := 0; ; attempt++ {
+		err := c.gsCall(ctx, acc, gameID, 2, "ultshared.action.UltUpdateGameStateAction", 0,
+			map[string]any{
+				"stateType":         2,
+				"stateID":           "",
+				"addStateIDsOnSent": false,
+				"option":            day,
+				"actions":           nil,
+				"lastCallDuration":  50,
+			}, &raw)
+		if err == nil {
+			break
+		}
+		if attempt >= len(paperRetry) || !gatewayError(err) {
+			return nil, err
+		}
+		select {
+		case <-time.After(paperRetry[attempt]):
+		case <-ctx.Done():
+			return nil, err
+		}
 	}
 	articles, err := paperArticles(raw)
 	if err != nil {
