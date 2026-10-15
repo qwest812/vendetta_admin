@@ -605,7 +605,7 @@
         <style>{{.Style}}</style>
         <p class="muted">
             {{t "game.losses.days" .Days}}
-            {{if .Missing}} {{t "game.losses.missing" .Missing}}{{end}}
+            {{if .Missing}} {{t "game.losses.missing" .Missing}}{{if .Why}} {{t "game.losses.why" .Why}}{{end}}{{end}}
         </p>
         {{if .Rows}}
             <ul class="map-legend">

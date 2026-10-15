@@ -26,6 +26,7 @@ type lossesView struct {
 	Rows    []lossesRow
 	Days    int
 	Missing string
+	Why     string
 	// Style — правила заливки провинций по владельцу. Карта уже на
 	// странице, перерисовывать её ради цветов незачем: ответ приносит
 	// только css к ней.
@@ -99,7 +100,7 @@ func (s *Server) gameLosses(w http.ResponseWriter, r *http.Request) {
 // lossesData готовит таблицу и заливку. Имена — из состояния партии, если
 // игрок там есть; иначе как его назвала газета.
 func lossesData(l i18n.Lang, state *supremacy.GameState, losses *supremacy.Losses, meID int) *lossesView {
-	v := &lossesView{Days: losses.Days}
+	v := &lossesView{Days: losses.Days, Why: losses.Why}
 	if len(losses.Missing) > 0 {
 		days := make([]string, len(losses.Missing))
 		for i, d := range losses.Missing {

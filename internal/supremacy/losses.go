@@ -85,7 +85,9 @@ type Losses struct {
 	Players []PlayerLosses // по убыванию потерь
 	Days    int            // сколько дней газеты прочитано
 	// Missing — дни, которые игра так и не отдала: итог без них неполный.
+	// Why — чем она отказала в первом из них: обычно отказ у всех один.
 	Missing []int
+	Why     string
 }
 
 var countryLinkLine = regexp.MustCompile(`\{\{\{countryLink\s+'([^']*)'\s+'(\d+)'\}\}\}\s*[-–—]\s*(.+)$`)
@@ -278,17 +280,20 @@ func (c *Client) GameLosses(ctx context.Context, gameID string, today int) (*Los
 	}
 	c.mu.Unlock()
 
-	var missing []int
+	var (
+		missing []int
+		reason  string
+	)
 	if len(need) > 0 {
 		acc, err := c.gameAccess(ctx, gameID)
 		if err != nil {
 			return nil, err
 		}
-		fetched, failed := c.fetchPaperDays(ctx, acc, gameID, need)
+		fetched, failed, why := c.fetchPaperDays(ctx, acc, gameID, need)
 		if len(fetched) == 0 && len(failed) > 0 && ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		missing = failed
+		missing, reason = failed, why
 		c.mu.Lock()
 		for d, day := range fetched {
 			e.days[d] = day
@@ -306,19 +311,22 @@ func (c *Client) GameLosses(ctx context.Context, gameID string, today int) (*Los
 	c.mu.Unlock()
 
 	sort.Ints(missing)
-	return &Losses{Players: sumWars(days), Days: len(days), Missing: missing}, nil
+	return &Losses{Players: sumWars(days), Days: len(days), Missing: missing, Why: reason}, nil
 }
 
 // fetchPaperDays спрашивает дни газеты в несколько потоков. Не отданные
-// игрой дни возвращаются вторым списком.
+// игрой дни возвращаются вторым списком, а первая причина отказа — третьим:
+// без неё на странице видно только «не отдала», и искать почему пришлось
+// бы в логе сервера.
 func (c *Client) fetchPaperDays(ctx context.Context, acc *gameAccess, gameID string,
-	days []int) (map[int]paperDay, []int) {
+	days []int) (map[int]paperDay, []int, string) {
 
 	var (
 		mu     sync.Mutex
 		wg     sync.WaitGroup
 		out    = make(map[int]paperDay, len(days))
 		failed []int
+		why    string
 	)
 	queue := make(chan int)
 	for range min(paperWorkers, len(days)) {
@@ -331,6 +339,9 @@ func (c *Client) fetchPaperDays(ctx context.Context, acc *gameAccess, gameID str
 				if err != nil {
 					c.log.Warn("день газеты", "gameID", gameID, "день", d, "err", err)
 					failed = append(failed, d)
+					if why == "" {
+						why = err.Error()
+					}
 				} else {
 					out[d] = paperDay{wars: wars, at: time.Now()}
 				}
@@ -349,7 +360,10 @@ func (c *Client) fetchPaperDays(ctx context.Context, acc *gameAccess, gameID str
 	}
 	close(queue)
 	wg.Wait()
-	return out, failed
+	if why == "" && ctx.Err() != nil {
+		why = ctx.Err().Error()
+	}
+	return out, failed, why
 }
 
 // paperDay спрашивает один день газеты — тем же запросом, каким клиент

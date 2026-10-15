@@ -595,6 +595,7 @@ var messages = map[string]entry{
 	"game.losses.again":          {ru: "Пересчитать", en: "Recount"},
 	"game.losses.note":           {ru: "Потери в войнах по газете партии за все дни: всего и с кем. Первый подсчёт листает газету с первого дня и может занять до минуты, следующие — быстрые.", en: "War losses from the game newspaper over all days: total and against whom. The first count reads the paper from day one and may take up to a minute; later ones are quick."},
 	"game.losses.days":           {ru: "Прочитано дней газеты: %d.", en: "Newspaper days read: %d."},
+	"game.losses.why":            {ru: "Ответ игры: %s", en: "The game said: %s"},
 	"game.losses.missing":        {ru: "Игра не отдала дни %s — итог без них неполный.", en: "The game did not return days %s — totals are incomplete."},
 	"game.losses.few":            {ru: "потерял мало", en: "few losses"},
 	"game.losses.many":           {ru: "потерял больше всех", en: "most losses"},
