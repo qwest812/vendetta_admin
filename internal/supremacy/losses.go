@@ -399,8 +399,10 @@ func (c *Client) paperDay(ctx context.Context, acc *gameAccess, gameID string, d
 	for attempt := 0; ; attempt++ {
 		err := c.gsCall(ctx, acc, gameID, 2, "ultshared.action.UltUpdateGameStateAction", 0,
 			map[string]any{
-				"stateType":         2,
-				"stateID":           "",
+				"stateType": 2,
+				// Ноль, как шлёт клиент, а не пустая строка: на пустую
+				// игровой сервер отвечает 502 (замечено 15.10.2026).
+				"stateID":           "0",
 				"addStateIDsOnSent": false,
 				"option":            day,
 				"actions":           nil,
