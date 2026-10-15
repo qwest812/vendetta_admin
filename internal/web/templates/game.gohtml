@@ -753,7 +753,6 @@
         <input class="map-mode" type="radio" name="map-mode" id="map-top">
         <input class="map-mode" type="radio" name="map-mode" id="map-together">
         <input class="map-mode" type="radio" name="map-mode" id="map-losses">
-        <input class="map-mode" type="radio" name="map-mode" id="map-activity">
         {{/* Карта большой партии нарисована без состава с сайта: строка сама
              просит его, как только страница загрузилась, и ответ заменяет
              весь блок карты — уже с составом и кланами от сайта. Стоит после
@@ -772,7 +771,6 @@
             <label for="map-top">{{t "game.map.top"}}</label>
             <label for="map-together">{{t "game.map.together"}}</label>
             <label for="map-losses">{{t "game.map.losses"}}</label>
-            <label for="map-activity">{{t "game.map.activity"}}</label>
         </div>
         {{/* Карта в собственных координатах игры: viewBox их и берёт,
              а размер на странице задаёт css. */}}
@@ -1039,24 +1037,6 @@
                     {{t "game.map.top.none"}}
                 </p>
             {{end}}
-        </div>
-        {{/* Активность: когда владелец последний раз заходил в партию.
-             Считаются люди, а не провинции. */}}
-        <div class="map-pane pane-activity">
-            {{with .Map.Activity}}
-                <ul class="map-legend">
-                    <li><span class="swatch act-active"></span> {{t "game.map.activity.active"}} <span class="muted">— {{.Active}}</span></li>
-                    {{/* Точное время игра отдаёт только про нас самих, поэтому
-                         полосы по времени — лишь когда оно есть. */}}
-                    {{if .Today}}<li><span class="swatch act-today"></span> {{t "game.map.activity.today"}} <span class="muted">— {{.Today}}</span></li>{{end}}
-                    {{if .Recent}}<li><span class="swatch act-recent"></span> {{t "game.map.activity.recent"}} <span class="muted">— {{.Recent}}</span></li>{{end}}
-                    {{if .Old}}<li><span class="swatch act-old"></span> {{t "game.map.activity.old"}} <span class="muted">— {{.Old}}</span></li>{{end}}
-                    <li><span class="swatch act-gone"></span> {{t "game.map.activity.inactive"}} <span class="muted">— {{.Inactive}}</span></li>
-                    {{if .Unknown}}<li><span class="swatch"></span> {{t "game.map.activity.unknown"}} <span class="muted">— {{.Unknown}}</span></li>{{end}}
-                    {{if .AI}}<li><span class="swatch"></span> {{t "game.map.players.ai"}} <span class="muted">— {{.AI}}</span></li>{{end}}
-                </ul>
-            {{end}}
-            <p class="muted">{{t "game.map.activity.note"}}</p>
         </div>
         {{/* Потери в войнах по газете. Считаются по нажатию: газета
              отдаётся по дню за запрос. Ответ заменяет содержимое блока
