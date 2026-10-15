@@ -667,6 +667,80 @@
             hx-indicator="#losses-box" hx-disabled-elt="this">{{t "game.losses.again"}}</button>
 {{end}}
 
+{{/* Рейтинг дня: легенда по последнему дню, заливка карты к ней и
+     график по всем дням с таблицей тех же чисел. */}}
+{{define "gamerankings"}}
+    {{if .Error}}
+        <p class="error">{{.Error}}</p>
+    {{end}}
+    {{with .Ranks}}
+        <style>{{.Style}}</style>
+        {{if and (not .Days) .Missing}}
+            <p class="error">{{t "game.losses.failed"}}{{if .Why}} {{t "game.losses.why" .Why}}{{end}}</p>
+        {{else}}
+            <p class="muted">
+                {{t "game.rank.days" .Days .Day}}
+                {{if .Missing}} {{t "game.losses.missing" .Missing}}{{if .Why}} {{t "game.losses.why" .Why}}{{end}}{{end}}
+            </p>
+        {{end}}
+        {{if .Rows}}
+            <ol class="map-legend rank-legend">
+                {{range .Rows}}
+                    <li>
+                        <span class="place">{{.Place}}.</span>
+                        <span class="swatch" style="background: {{.Color}}"></span>
+                        {{.Nation}}{{if .Name}} <span class="muted">({{.Name}})</span>{{end}}
+                        — {{.Value}}
+                        {{if .Mine}} <span class="badge">{{t "game.thatsyou"}}</span>{{end}}
+                    </li>
+                {{end}}
+            </ol>
+            {{with .Chart}}
+                <figure class="rank-chart">
+                    <svg viewBox="0 0 {{.W}} {{.H}}" role="img" aria-label="{{t "game.rank.chart"}}">
+                        {{range .YTicks}}
+                            <line class="grid" x1="{{$.Ranks.Chart.Left}}" x2="{{$.Ranks.Chart.GridEnd}}" y1="{{.Pos}}" y2="{{.Pos}}"></line>
+                            <text class="tick" x="{{$.Ranks.Chart.TickX}}" y="{{.Pos}}" text-anchor="end" dominant-baseline="middle">{{.Label}}</text>
+                        {{end}}
+                        {{range .XTicks}}
+                            <text class="tick" x="{{.Pos}}" y="{{$.Ranks.Chart.TickY}}" text-anchor="middle">{{.Label}}</text>
+                        {{end}}
+                        {{range .Lines}}
+                            <g class="series-{{.Series}}">
+                                {{range .Paths}}<path d="{{.}}"></path>{{end}}
+                                {{range .Dots}}<circle cx="{{.X}}" cy="{{.Y}}" r="4"><title>{{.Tip}}</title></circle>{{end}}
+                                <text class="end" x="{{.End.X}}" y="{{.End.Y}}" dominant-baseline="middle">{{.Label}}</text>
+                            </g>
+                        {{end}}
+                    </svg>
+                    <figcaption class="muted">{{t "game.rank.axis"}}</figcaption>
+                </figure>
+                <details>
+                    <summary>{{t "game.rank.table"}}</summary>
+                    <div class="table-wrap">
+                        <table class="rank-table">
+                            <thead><tr><th></th>{{range .Days}}<th>{{.}}</th>{{end}}</tr></thead>
+                            <tbody>
+                            {{range .Table}}
+                                <tr>
+                                    <td class="nowrap"><span class="swatch series-{{.Series}}"></span> {{.Label}}</td>
+                                    {{range .Cells}}<td class="nowrap">{{.}}</td>{{end}}
+                                </tr>
+                            {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            {{end}}
+        {{else if .Days}}
+            <p class="muted">{{t "game.rank.none"}}</p>
+        {{end}}
+    {{end}}
+    <button type="button" class="ghost" hx-get="/games/{{.GameID}}/rankings?kind={{.Kind}}"
+            hx-target="#{{.Kind}}-box" hx-swap="innerHTML"
+            hx-indicator="#{{.Kind}}-box" hx-disabled-elt="this">{{t "game.losses.again"}}</button>
+{{end}}
+
 {{/* Состав не приехал: объяснение встаёт на место строки «догружаем».
      Повторить можно, пока действует пропуск — кнопка просит тот же блок. */}}
 {{define "rosterfailed"}}
@@ -753,6 +827,8 @@
         <input class="map-mode" type="radio" name="map-mode" id="map-top">
         <input class="map-mode" type="radio" name="map-mode" id="map-together">
         <input class="map-mode" type="radio" name="map-mode" id="map-losses">
+        <input class="map-mode" type="radio" name="map-mode" id="map-res">
+        <input class="map-mode" type="radio" name="map-mode" id="map-fear">
         {{/* Карта большой партии нарисована без состава с сайта: строка сама
              просит его, как только страница загрузилась, и ответ заменяет
              весь блок карты — уже с составом и кланами от сайта. Стоит после
@@ -771,6 +847,8 @@
             <label for="map-top">{{t "game.map.top"}}</label>
             <label for="map-together">{{t "game.map.together"}}</label>
             <label for="map-losses">{{t "game.map.losses"}}</label>
+            <label for="map-res">{{t "game.map.res"}}</label>
+            <label for="map-fear">{{t "game.map.fear"}}</label>
         </div>
         {{/* Карта в собственных координатах игры: viewBox их и берёт,
              а размер на странице задаёт css. */}}
@@ -1047,6 +1125,24 @@
                         hx-target="#losses-box" hx-swap="innerHTML"
                         hx-indicator="#losses-box" hx-disabled-elt="this">{{t "game.losses.count"}}</button>
                 <p class="muted">{{t "game.losses.note"}}</p>
+            </div>
+        </div>
+        {{/* Ресурсы и устрашение — рейтинги из той же газеты, что и потери,
+             и тоже по нажатию: второй подсчёт берёт дни из памяти. */}}
+        <div class="map-pane pane-res">
+            <div id="res-box">
+                <button type="button" hx-get="/games/{{.GameID}}/rankings?kind=res"
+                        hx-target="#res-box" hx-swap="innerHTML"
+                        hx-indicator="#res-box" hx-disabled-elt="this">{{t "game.rank.count"}}</button>
+                <p class="muted">{{t "game.rank.res.note"}}</p>
+            </div>
+        </div>
+        <div class="map-pane pane-fear">
+            <div id="fear-box">
+                <button type="button" hx-get="/games/{{.GameID}}/rankings?kind=fear"
+                        hx-target="#fear-box" hx-swap="innerHTML"
+                        hx-indicator="#fear-box" hx-disabled-elt="this">{{t "game.rank.count"}}</button>
+                <p class="muted">{{t "game.rank.fear.note"}}</p>
             </div>
         </div>
         {{/* Играли вместе: группы из архива коалиций. Нынешние сокомандники

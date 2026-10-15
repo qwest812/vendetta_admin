@@ -63,6 +63,8 @@ type gameSource interface {
 	HeroCards(ctx context.Context) (map[int]supremacy.HeroCard, error)
 	// GameLosses — потери в войнах партии по газете, с первого дня по today.
 	GameLosses(ctx context.Context, gameID string, today int) (*supremacy.Losses, error)
+	// GameRankings — рейтинги дня из той же газеты: богатые и устрашающие.
+	GameRankings(ctx context.Context, gameID string, today int) (*supremacy.Rankings, error)
 	MapGeometry(ctx context.Context, mapID string) (*supremacy.MapGeometry, error)
 	// UserStatsBatch — боевой счёт игроков с сайта. Сайт отвечает про
 	// одного за раз, поэтому пачка спрашивается в несколько потоков;

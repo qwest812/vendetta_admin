@@ -567,7 +567,9 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:checked ~ .map-tabs label[for="map-power"],
 #map-top:checked ~ .map-tabs label[for="map-top"],
 #map-together:checked ~ .map-tabs label[for="map-together"],
-#map-losses:checked ~ .map-tabs label[for="map-losses"] {
+#map-losses:checked ~ .map-tabs label[for="map-losses"],
+#map-res:checked ~ .map-tabs label[for="map-res"],
+#map-fear:checked ~ .map-tabs label[for="map-fear"] {
     border-color: var(--accent);
     color: var(--text);
 }
@@ -580,7 +582,9 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:focus-visible ~ .map-tabs label[for="map-power"],
 #map-top:focus-visible ~ .map-tabs label[for="map-top"],
 #map-together:focus-visible ~ .map-tabs label[for="map-together"],
-#map-losses:focus-visible ~ .map-tabs label[for="map-losses"] { outline: 2px solid var(--accent); }
+#map-losses:focus-visible ~ .map-tabs label[for="map-losses"],
+#map-res:focus-visible ~ .map-tabs label[for="map-res"],
+#map-fear:focus-visible ~ .map-tabs label[for="map-fear"] { outline: 2px solid var(--accent); }
 
 /* Легенда и пояснение — свои у каждого режима, показывается только пара
    выбранного. */
@@ -592,7 +596,9 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 #map-power:checked ~ .pane-power,
 #map-top:checked ~ .pane-top,
 #map-together:checked ~ .pane-together,
-#map-losses:checked ~ .pane-losses { display: block; }
+#map-losses:checked ~ .pane-losses,
+#map-res:checked ~ .pane-res,
+#map-fear:checked ~ .pane-fear { display: block; }
 /* Вкладка «Потери»: строка раскрывается списком противников. Пока идёт
    подсчёт, блок притушен — газета листается по дню за запрос. */
 .losses summary { cursor: pointer; }
@@ -1119,3 +1125,34 @@ ul.hero-plans li { padding: 4px 0; border-top: 1px solid var(--border, #ddd); }
 
 /* Плитки героев: портрет выше, чем картинка здания, — он вертикальный. */
 .hero-tiles .tile img { width: 48px; height: 62px; object-fit: cover; }
+
+/* Вкладки «Ресурсы» и «Устрашение». Цвета линий — восемь категорий
+   в постоянном порядке, проверенные на фоне админки (#1c1f26): яркость,
+   насыщенность, различимость при дальтонизме и контраст 3:1. Цвет
+   закреплён за страной, а не за местом. */
+#res-box.htmx-request, #fear-box.htmx-request { opacity: .5; pointer-events: none; }
+.rank-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 4px 16px; }
+.rank-legend .place { color: var(--muted); min-width: 1.6em; text-align: right; }
+.rank-chart { margin: 12px 0 4px; }
+.rank-chart svg { width: 100%; height: auto; display: block; }
+.rank-chart .grid { stroke: var(--border); stroke-width: 1; }
+.rank-chart .tick { fill: var(--muted); font-size: 11px; }
+.rank-chart .end { fill: var(--text); font-size: 11px; }
+.rank-chart path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.rank-chart circle { stroke: var(--surface); stroke-width: 2; }
+.rank-chart g:hover path { stroke-width: 3; }
+.rank-table .swatch {
+    display: inline-block; vertical-align: -2px;
+    width: 14px; height: 14px; border-radius: 3px;
+}
+.series-1 { --series: #3987e5; }
+.series-2 { --series: #d95926; }
+.series-3 { --series: #199e70; }
+.series-4 { --series: #c98500; }
+.series-5 { --series: #d55181; }
+.series-6 { --series: #008300; }
+.series-7 { --series: #9085e9; }
+.series-8 { --series: #e66767; }
+.rank-chart [class^="series-"] path { stroke: var(--series); }
+.rank-chart [class^="series-"] circle { fill: var(--series); }
+.rank-table .swatch[class*="series-"] { background: var(--series); }

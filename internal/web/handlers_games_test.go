@@ -980,6 +980,9 @@ func (sizeSource) RunHeroOrders(context.Context, string, []domain.HeroPlan, time
 	return nil, nil
 }
 func (sizeSource) HeroCards(context.Context) (map[int]supremacy.HeroCard, error) { return nil, nil }
+func (sizeSource) GameRankings(context.Context, string, int) (*supremacy.Rankings, error) {
+	return nil, nil
+}
 func (sizeSource) GrantRightOfWay(context.Context, string) (string, error) {
 	return "", nil
 }

@@ -311,6 +311,7 @@ func (s *Server) Handler() http.Handler {
 	// Потери в войнах по газете: считаются по нажатию на вкладке карты,
 	// пускают того же, кто видел карту, см. gameLosses.
 	mux.Handle("GET /games/{id}/losses", games(s.gameLosses))
+	mux.Handle("GET /games/{id}/rankings", games(s.gameRankings))
 
 	// Только рут: он один жмёт кнопки в чужой партии от имени общего
 	// аккаунта, выдаёт доступ к разделу и удаляет пользователей и карточки.

@@ -80,7 +80,7 @@ func TestGameLossesLive(t *testing.T) {
 	// Сырой ответ одного дня — чтобы увидеть формат, если разбор промахнётся.
 	var raw json.RawMessage
 	if err := c.gsCall(ctx, acc, gameID, 2, "ultshared.action.UltUpdateGameStateAction", 0,
-		map[string]any{"stateType": 2, "stateID": "", "addStateIDsOnSent": false,
+		map[string]any{"stateType": 2, "stateID": "0", "addStateIDsOnSent": false,
 			"option": max(g.Day-1, 1), "actions": nil, "lastCallDuration": 50}, &raw); err != nil {
 		t.Fatalf("день газеты: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestGameLossesLive(t *testing.T) {
 	t.Logf("статей за день %d: %d (err %v)", max(g.Day-1, 1), len(articles), err)
 	for i, a := range articles {
 		if i < 5 {
-			t.Logf("статья %d: %q", i, a)
+			t.Logf("статья %d: %q — %q", i, a.Title, a.Body)
 		}
 	}
 

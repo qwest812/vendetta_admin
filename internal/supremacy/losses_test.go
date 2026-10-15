@@ -77,14 +77,14 @@ func TestSumWarsBanksAcrossPeace(t *testing.T) {
 }
 
 func TestPaperArticlesShapes(t *testing.T) {
-	art := `{"@c":"ultshared.UltArticle","messageBody":"x"}`
+	art := `{"@c":"ultshared.UltArticle","title":"t","messageBody":"x"}`
 	for _, raw := range []string{
 		`{"day":3,"articles":[` + art + `]}`,
 		`{"day":3,"articles":["java.util.ArrayList",[` + art + `]]}`,
 		`{"states":{"2":{"day":3,"articles":[` + art + `]}}}`,
 	} {
 		got, err := paperArticles(json.RawMessage(raw))
-		if err != nil || len(got) != 1 || got[0] != "x" {
+		if err != nil || len(got) != 1 || got[0] != (paperArticle{Title: "t", Body: "x"}) {
 			t.Errorf("%s → %v, %v", raw, got, err)
 		}
 	}

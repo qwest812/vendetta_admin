@@ -54,10 +54,12 @@ type warLine struct {
 	LostA, LostB int64
 }
 
-// paperDay — разобранный день газеты.
+// paperDay — разобранный день газеты: сводки о войнах и рейтинги дня.
 type paperDay struct {
-	wars []warLine
-	at   time.Time
+	wars    []warLine
+	economy []RankLine
+	fear    []RankLine
+	at      time.Time
 }
 
 type paperEntry struct {
@@ -251,6 +253,17 @@ func sumWars(days map[int]paperDay) []PlayerLosses {
 // с первого по today. Заходит наблюдателем: входом в партию это
 // не считается. Прошедшие дни берутся из памяти.
 func (c *Client) GameLosses(ctx context.Context, gameID string, today int) (*Losses, error) {
+	days, missing, why, err := c.readPaper(ctx, gameID, today)
+	if err != nil {
+		return nil, err
+	}
+	return &Losses{Players: sumWars(days), Days: len(days), Missing: missing, Why: why}, nil
+}
+
+// readPaper отдаёт разобранные дни газеты с первого по today: что уже
+// прочитано — из памяти, недостающее спрашивает у игры. Второе и третье
+// значения — дни, которые игра не отдала, и чем она отказала.
+func (c *Client) readPaper(ctx context.Context, gameID string, today int) (map[int]paperDay, []int, string, error) {
 	if today < 1 {
 		today = 1
 	}
@@ -289,11 +302,11 @@ func (c *Client) GameLosses(ctx context.Context, gameID string, today int) (*Los
 	if len(need) > 0 {
 		acc, err := c.gameAccess(ctx, gameID)
 		if err != nil {
-			return nil, err
+			return nil, nil, "", err
 		}
 		fetched, failed, why := c.fetchPaperDays(ctx, acc, gameID, need)
 		if len(fetched) == 0 && len(failed) > 0 && ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, nil, "", ctx.Err()
 		}
 		missing, reason = failed, why
 		c.mu.Lock()
@@ -313,7 +326,7 @@ func (c *Client) GameLosses(ctx context.Context, gameID string, today int) (*Los
 	c.mu.Unlock()
 
 	sort.Ints(missing)
-	return &Losses{Players: sumWars(days), Days: len(days), Missing: missing, Why: reason}, nil
+	return days, missing, reason, nil
 }
 
 // fetchPaperDays спрашивает дни газеты в несколько потоков. Не отданные
@@ -336,7 +349,7 @@ func (c *Client) fetchPaperDays(ctx context.Context, acc *gameAccess, gameID str
 		go func() {
 			defer wg.Done()
 			for d := range queue {
-				wars, err := c.paperDay(ctx, acc, gameID, d)
+				day, err := c.paperDay(ctx, acc, gameID, d)
 				mu.Lock()
 				if err != nil {
 					c.log.Warn("день газеты", "gameID", gameID, "день", d, "err", err)
@@ -345,7 +358,8 @@ func (c *Client) fetchPaperDays(ctx context.Context, acc *gameAccess, gameID str
 						why = err.Error()
 					}
 				} else {
-					out[d] = paperDay{wars: wars, at: time.Now()}
+					day.at = time.Now()
+					out[d] = day
 				}
 				mu.Unlock()
 			}
@@ -394,7 +408,7 @@ func gatewayError(err error) bool {
 // и повтор ничего не задвоит. Без этого одна заминка сервера проваливала
 // разом все дни (так и было 15.10.2026: девять дней — девять 502 за одну
 // миллисекунду).
-func (c *Client) paperDay(ctx context.Context, acc *gameAccess, gameID string, day int) ([]warLine, error) {
+func (c *Client) paperDay(ctx context.Context, acc *gameAccess, gameID string, day int) (paperDay, error) {
 	var raw json.RawMessage
 	for attempt := 0; ; attempt++ {
 		err := c.gsCall(ctx, acc, gameID, 2, "ultshared.action.UltUpdateGameStateAction", 0,
@@ -412,31 +426,43 @@ func (c *Client) paperDay(ctx context.Context, acc *gameAccess, gameID string, d
 			break
 		}
 		if attempt >= len(paperRetry) || !gatewayError(err) {
-			return nil, err
+			return paperDay{}, err
 		}
 		select {
 		case <-time.After(paperRetry[attempt]):
 		case <-ctx.Done():
-			return nil, err
+			return paperDay{}, err
 		}
 	}
 	articles, err := paperArticles(raw)
 	if err != nil {
-		return nil, fmt.Errorf("день %d: %w", day, err)
+		return paperDay{}, fmt.Errorf("день %d: %w", day, err)
 	}
-	var wars []warLine
-	for _, body := range articles {
-		if w, ok := parseWar(body); ok {
-			wars = append(wars, w)
+	var out paperDay
+	for _, a := range articles {
+		if w, ok := parseWar(a.Body); ok {
+			out.wars = append(out.wars, w)
+		}
+		switch rankingKind(a.Title) {
+		case RankEconomy:
+			out.economy = parsePaperRanking(a.Body)
+		case RankFear:
+			out.fear = parsePaperRanking(a.Body)
 		}
 	}
-	return wars, nil
+	return out, nil
 }
 
 // paperArticles достаёт тексты статей из ответа. Ответ бывает самим
 // состоянием газеты или полным ответом со states["2"]; список статей —
 // массивом или java-списком ["java.util.ArrayList", [...]].
-func paperArticles(raw json.RawMessage) ([]string, error) {
+// paperArticle — статья газеты: заголовок и текст.
+type paperArticle struct {
+	Title string `json:"title"`
+	Body  string `json:"messageBody"`
+}
+
+func paperArticles(raw json.RawMessage) ([]paperArticle, error) {
 	var wrapped struct {
 		States map[string]json.RawMessage `json:"states"`
 	}
@@ -452,13 +478,11 @@ func paperArticles(raw json.RawMessage) ([]string, error) {
 		return nil, fmt.Errorf("разбор газеты: %w", err)
 	}
 	list := javaList(paper.Articles)
-	out := make([]string, 0, len(list))
+	out := make([]paperArticle, 0, len(list))
 	for _, a := range list {
-		var art struct {
-			Body string `json:"messageBody"`
-		}
+		var art paperArticle
 		if json.Unmarshal(a, &art) == nil && art.Body != "" {
-			out = append(out, art.Body)
+			out = append(out, art)
 		}
 	}
 	return out, nil
