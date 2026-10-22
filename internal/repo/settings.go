@@ -27,6 +27,11 @@ const (
 	// От него же кормится сбор коалиций, поэтому выключенный опрос лобби
 	// оставляет архив без новых партий.
 	SettingLobbyWatch = "lobby_watch"
+	// SettingManualData — показываются ли разделы, которые люди заполняют
+	// руками: признаки, комментарии, герои, друзья и враги, ручные
+	// карточки. Выключенный рубильник их прячет и закрывает на запись,
+	// но ничего не удаляет — включённый обратно возвращает всё как было.
+	SettingManualData = "manual_data"
 	// SettingS1914Session — подпись, которой админка ходит в Supremacy.
 	// Лежит здесь, а не в отдельной таблице: это одна строка на всю
 	// установку, ровно как переключатели рядом. Руками её никто не правит,
@@ -59,6 +64,12 @@ func (r *Settings) CoalitionScanEnabled(ctx context.Context) (bool, error) {
 // да, как и у сбора коалиций.
 func (r *Settings) LobbyWatchEnabled(ctx context.Context) (bool, error) {
 	return r.Bool(ctx, SettingLobbyWatch, true)
+}
+
+// ManualDataEnabled — открыты ли ручные разделы. По умолчанию да: пока
+// рубильник не трогали, админка работает как работала.
+func (r *Settings) ManualDataEnabled(ctx context.Context) (bool, error) {
+	return r.Bool(ctx, SettingManualData, true)
 }
 
 // SetBool переключает и запоминает, кто это сделал.

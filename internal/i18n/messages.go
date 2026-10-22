@@ -933,6 +933,14 @@ var messages = map[string]entry{
 	"err.plan.limit":       {ru: "В списках можно держать не больше %d карточек — врагов и друзей вместе. Удалите лишнее.", en: "Your lists can hold at most %d cards, enemies and friends together. Remove some."},
 	"err.checks.bad":       {ru: "Проверок в сутки — целое число от 0 до %d", en: "Checks a day must be a whole number from 0 to %d"},
 
+	// --- рубильник ручных разделов (только руту) ---
+	"manual.title": {ru: "Ручные разделы", en: "Manual sections"},
+	"manual.note":  {ru: "Всё, что люди заполняют руками: признаки и их справочник, комментарии, герои игроков, друзья и враги, создание и правка карточек. Выключенные разделы пропадают у всех, включая рута, и закрываются на запись; на карте партии друзья и враги не подсвечиваются. Записи остаются в базе — включите обратно, и всё вернётся как было. Автоматически собранное — партии, карта, газета, коалиции, ники и баны — работает как обычно.", en: "Everything people fill in by hand: traits and their directory, comments, player heroes, friends and enemies, creating and editing cards. Switched off, these sections disappear for everyone, root included, and stop accepting writes; the game map no longer highlights friends and enemies. The records stay in the database — switch back on and everything returns as it was. Automatically collected data — games, the map, the newspaper, coalitions, nicknames and bans — works as usual."},
+	"manual.start": {ru: "Включить ручные разделы", en: "Enable manual sections"},
+	"manual.stop":  {ru: "Выключить ручные разделы", en: "Disable manual sections"},
+	"manual.on":    {ru: "Включены.", en: "Enabled."},
+	"manual.off":   {ru: "Выключены: видно только собранное автоматически.", en: "Disabled: only automatically collected data is shown."},
+
 	// --- архив коалиций: рубильник и сводка (только руту) ---
 	"lobby.title":      {ru: "Поиск новых партий", en: "New game search"},
 	"lobby.note":       {ru: "Воркер смотрит лобби, находит новые партии и пишет о подходящих в телеграм. Из того же опроса сбор коалиций узнаёт о новых партиях: пока поиск выключен, новые партии в архив не попадают, а уже известные обходятся как обычно. Поиск игроков в лобби смотрит лобби сам и от этой кнопки не зависит.", en: "The worker watches the lobby, finds new games and posts matching ones to Telegram. The coalition archive learns about new games from the same poll: while the search is off, no new games enter the archive, while known ones are checked as usual. The lobby player search polls the lobby itself and does not depend on this button."},

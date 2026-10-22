@@ -4,7 +4,7 @@
 <div class="card">
     <div class="card-head">
         <h1>{{t "home.heading"}}</h1>
-        {{if .CurrentUser.IsAdmin}}<a class="button" href="/players/new">{{t "home.add"}}</a>{{end}}
+        {{if and .CurrentUser.IsAdmin .Manual}}<a class="button" href="/players/new">{{t "home.add"}}</a>{{end}}
     </div>
 
     <div class="filters">

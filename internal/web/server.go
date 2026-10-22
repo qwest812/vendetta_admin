@@ -216,18 +216,24 @@ func (s *Server) Handler() http.Handler {
 	// пользователь тоже, поэтому права те же, что у заметок. Чужой список
 	// не показывается и не правится — пользователь берётся из сессии,
 	// а не из адреса. Разделы устроены одинаково, поэтому и роуты общие.
+	//
+	// Всё ручное закрывается рубильником в «Настройках»: manual оборачивает
+	// обработчик внутри проверки роли, так что гость по-прежнему уходит
+	// на вход, а не видит 404.
+	manual := func(h http.HandlerFunc) http.Handler { return s.requireManual(h) }
+	manualCSRF := func(h http.HandlerFunc) http.Handler { return s.requireManual(auth.VerifyCSRF(h)) }
 	for _, sec := range []*relationSection{s.enemies, s.friends} {
 		path := "/" + sec.words.Path
-		mux.Handle("GET "+path, user(http.HandlerFunc(sec.list)))
-		mux.Handle("GET "+path+"/search", user(http.HandlerFunc(sec.search)))
-		mux.Handle("POST "+path, user(auth.VerifyCSRF(http.HandlerFunc(sec.add))))
-		mux.Handle("POST "+path+"/{playerID}", user(auth.VerifyCSRF(http.HandlerFunc(sec.update))))
+		mux.Handle("GET "+path, user(manual(sec.list)))
+		mux.Handle("GET "+path+"/search", user(manual(sec.search)))
+		mux.Handle("POST "+path, user(manualCSRF(sec.add)))
+		mux.Handle("POST "+path+"/{playerID}", user(manualCSRF(sec.update)))
 		// Пометка в строке поиска сама ничего не записывает: сперва
 		// раскрывается форма заметки, и запись делает только её отправка.
-		mux.Handle("GET "+path+"/{playerID}/mark", user(http.HandlerFunc(sec.markBack)))
-		mux.Handle("GET "+path+"/{playerID}/mark/form", user(http.HandlerFunc(sec.markForm)))
-		mux.Handle("POST "+path+"/{playerID}/mark", user(auth.VerifyCSRF(http.HandlerFunc(sec.mark))))
-		mux.Handle("POST "+path+"/{playerID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(sec.remove))))
+		mux.Handle("GET "+path+"/{playerID}/mark", user(manual(sec.markBack)))
+		mux.Handle("GET "+path+"/{playerID}/mark/form", user(manual(sec.markForm)))
+		mux.Handle("POST "+path+"/{playerID}/mark", user(manualCSRF(sec.mark)))
+		mux.Handle("POST "+path+"/{playerID}/delete", user(manualCSRF(sec.remove)))
 	}
 
 	// Обратная связь: писать может каждый, кому выдан доступ. Своё обращение
@@ -248,10 +254,10 @@ func (s *Server) Handler() http.Handler {
 	// Удаление комментария разрешает сам хендлер: свой убирает автор, чужой
 	// админ и выше. Снятие признака у всех разом — админское, это средство
 	// против наговора.
-	mux.Handle("POST /players/{id}/traits", user(auth.VerifyCSRF(http.HandlerFunc(s.traitsSave))))
-	mux.Handle("POST /players/{id}/heroes", user(auth.VerifyCSRF(http.HandlerFunc(s.heroesSave))))
-	mux.Handle("POST /players/{id}/comments", user(auth.VerifyCSRF(http.HandlerFunc(s.commentSave))))
-	mux.Handle("POST /comments/{commentID}/delete", user(auth.VerifyCSRF(http.HandlerFunc(s.commentDelete))))
+	mux.Handle("POST /players/{id}/traits", user(manualCSRF(s.traitsSave)))
+	mux.Handle("POST /players/{id}/heroes", user(manualCSRF(s.heroesSave)))
+	mux.Handle("POST /players/{id}/comments", user(manualCSRF(s.commentSave)))
+	mux.Handle("POST /comments/{commentID}/delete", user(manualCSRF(s.commentDelete)))
 
 	// Управление доступами: админ и выше.
 	admin := auth.RequireRole(domain.RoleAdmin)
@@ -263,12 +269,12 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /audit", admin(http.HandlerFunc(s.auditList)))
 
 	// Карточки игроков — админ и выше.
-	mux.Handle("GET /players/new", admin(http.HandlerFunc(s.playerNew)))
-	mux.Handle("POST /players", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerCreate))))
-	mux.Handle("GET /players/{id}/edit", admin(http.HandlerFunc(s.playerEdit)))
-	mux.Handle("POST /players/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.playerUpdate))))
+	mux.Handle("GET /players/new", admin(manual(s.playerNew)))
+	mux.Handle("POST /players", admin(manualCSRF(s.playerCreate)))
+	mux.Handle("GET /players/{id}/edit", admin(manual(s.playerEdit)))
+	mux.Handle("POST /players/{id}", admin(manualCSRF(s.playerUpdate)))
 
-	mux.Handle("POST /players/{id}/traits/{traitID}/dropall", admin(auth.VerifyCSRF(http.HandlerFunc(s.traitDropAll))))
+	mux.Handle("POST /players/{id}/traits/{traitID}/dropall", admin(manualCSRF(s.traitDropAll)))
 
 	mux.Handle("POST /clans", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanCreate))))
 	mux.Handle("POST /clans/{id}", admin(auth.VerifyCSRF(http.HandlerFunc(s.clanUpdate))))
@@ -287,9 +293,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /signups", root(http.HandlerFunc(s.signupsPage)))
 	mux.Handle("POST /settings/coalitions", root(auth.VerifyCSRF(http.HandlerFunc(s.coalitionScanToggle))))
 	mux.Handle("POST /settings/lobby", root(auth.VerifyCSRF(http.HandlerFunc(s.lobbyWatchToggle))))
-	mux.Handle("POST /settings/traits", root(auth.VerifyCSRF(http.HandlerFunc(s.traitCreate))))
-	mux.Handle("POST /settings/traits/{id}", root(auth.VerifyCSRF(http.HandlerFunc(s.traitUpdate))))
-	mux.Handle("POST /settings/traits/{id}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.traitDelete))))
+	mux.Handle("POST /settings/manual", root(auth.VerifyCSRF(http.HandlerFunc(s.manualDataToggle))))
+	mux.Handle("POST /settings/traits", root(manualCSRF(s.traitCreate)))
+	mux.Handle("POST /settings/traits/{id}", root(manualCSRF(s.traitUpdate)))
+	mux.Handle("POST /settings/traits/{id}/delete", root(manualCSRF(s.traitDelete)))
 	// Справочник героев обновляется по кнопке: игра его меняет молча,
 	// а спрашивать её по таймеру не за чем — новый герой появляется
 	// от силы раз в пару месяцев.

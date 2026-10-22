@@ -74,13 +74,17 @@ func (s *Server) gameLists(r *http.Request, state *supremacy.GameState) (*gameSi
 	for _, c := range cards {
 		list = append(list, c)
 	}
-	enemyIDs, err := s.enemies.marked(r, list)
-	if err != nil {
-		return nil, err
-	}
-	friendIDs, err := s.friends.marked(r, list)
-	if err != nil {
-		return nil, err
+	// Пока ручные разделы выключены, личных списков как бы нет: пустая,
+	// но не nil пометка не отбирает никого, и карта красит партию одними
+	// кланами — без друзей и врагов.
+	enemyIDs, friendIDs := map[int64]bool{}, map[int64]bool{}
+	if s.manualOn(r.Context()) {
+		if enemyIDs, err = s.enemies.marked(r, list); err != nil {
+			return nil, err
+		}
+		if friendIDs, err = s.friends.marked(r, list); err != nil {
+			return nil, err
+		}
 	}
 
 	// Один и тот же разбор для всех трёх наборов: игроки партии сверяются

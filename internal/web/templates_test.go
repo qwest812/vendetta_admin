@@ -90,6 +90,51 @@ func TestPagesRender(t *testing.T) {
 			deny: []string{`name="status"`, "Только союзные"},
 		},
 		{
+			// Ручные разделы выключены: в поиске нет ни признаков, ни
+			// пометок, в меню — друзей и врагов, а завести карточку негде.
+			name: "home/без ручных разделов",
+			page: "home",
+			data: map[string]any{
+				"Query": "КСГ", "Total": 1, "Limit": 50, "Manual": false,
+				"Players": []*domain.Player{enemy},
+				"CanMark": true, "MarkedEnemies": map[int64]bool{},
+				"MarkedFriends": map[int64]bool{},
+				"EnemyWords":    enemyWords, "FriendWords": friendWords,
+			},
+			want: []string{"Dau7er", `href="/players/3"`},
+			deny: []string{"Мультивод", "/mark/form", `href="/friends"`, `href="/enemies"`,
+				`href="/players/new"`},
+		},
+		{
+			// Карточка без ручных разделов: остаётся собранное из игры,
+			// а признаков, героев, заметок и комментариев нет вовсе.
+			name: "player/без ручных разделов",
+			page: "player",
+			data: map[string]any{"Player": enemy, "Comments": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": enemy.MarkedTraits(), "Body": "",
+				"CommentMax": domain.CommentMaxLen, "Manual": false,
+				"Stats": domain.UserStats{Level: 17, Games: 41}},
+			want: []string{"Dau7er", "17 уровень"},
+			deny: []string{"Мультивод", `action="/players/3/traits"`, `action="/players/3/comments"`,
+				`/players/3/edit`, "Признаки не отмечены"},
+		},
+		{
+			// Рубильник ручных разделов у рута: выключенный предлагает
+			// включить, а справочник признаков на это время пропадает.
+			name: "settings/ручные разделы выключены",
+			page: "settings",
+			user: root,
+			data: map[string]any{
+				"Traits": []domain.Trait{{ID: 1, Code: "multiaccount", Name: "Мультивод",
+					Kind: domain.TraitBad, IsActive: true}},
+				"Usage": map[int64]int{}, "Kinds": domain.TraitKinds, "Error": "",
+				"ManualSwitch": true, "Manual": false, "MapsTotal": 0, "MapDays": 14,
+			},
+			want: []string{`action="/settings/manual"`, `name="on" value="1"`,
+				"Включить ручные разделы", "Выключены"},
+			deny: []string{`action="/settings/traits"`, "Мультивод"},
+		},
+		{
 			// Справочник признаков живёт в рутовых настройках: строка
 			// правится на месте, знак выбирается списком, а удаление
 			// предупреждает, скольких игроков оно затронет.
@@ -1046,6 +1091,11 @@ func TestPagesRender(t *testing.T) {
 			tt.data["CurrentUser"] = user
 			tt.data["CSRFToken"] = "csrf"
 			tt.data["Path"] = "/"
+			// Ручные разделы по умолчанию открыты, как и в живой админке;
+			// выключенные случай задаёт сам.
+			if _, set := tt.data["Manual"]; !set {
+				tt.data["Manual"] = true
+			}
 
 			var buf bytes.Buffer
 			if err := tmpl.ExecuteTemplate(&buf, "base.gohtml", tt.data); err != nil {
@@ -1086,6 +1136,7 @@ func TestEmptyResultsWording(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
+			tt.data["Manual"] = true
 			if err := pages["home"].ExecuteTemplate(&buf, "results", tt.data); err != nil {
 				t.Fatalf("отрисовка: %v", err)
 			}

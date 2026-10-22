@@ -15,8 +15,11 @@
             <a href="/" {{if eq .Path "/"}}class="active"{{end}}>{{t "nav.search"}}</a>
             {{/* Пункт «Кланы» из меню убран: раздел жив и открывается прямой
                  ссылкой /clans, но в навигации его пока не показываем. */}}
-            <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>{{t "nav.friends"}}</a>
-            <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>{{t "nav.enemies"}}</a>
+            {{/* Личные списки — ручной раздел: их прячет рубильник в «Настройках». */}}
+            {{if .Manual}}
+                <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>{{t "nav.friends"}}</a>
+                <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>{{t "nav.enemies"}}</a>
+            {{end}}
             {{if .CurrentUser.IsAdmin}}
                 <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>{{t "nav.users"}}</a>
                 <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>{{t "nav.audit"}}</a>

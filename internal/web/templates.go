@@ -200,6 +200,9 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	data["Path"] = r.URL.Path
 	data["FeedbackBadge"] = s.feedbackBadge(r)
 	data["Lang"] = lang
+	// Manual — открыты ли ручные разделы. Нужен меню на каждой странице,
+	// поэтому кладётся здесь, а не каждым обработчиком.
+	data["Manual"] = s.manualOn(r.Context())
 	// Back — куда вернуться после переключения языка: на ту же страницу
 	// со всеми её параметрами, а не на главную.
 	data["Back"] = backTo(r.URL)
@@ -236,6 +239,7 @@ func (s *Server) renderPartialStatus(w http.ResponseWriter, r *http.Request, sta
 	data["CurrentUser"] = currentUser(r)
 	data["CSRFToken"] = csrfToken(r)
 	data["Lang"] = langOf(r)
+	data["Manual"] = s.manualOn(r.Context())
 
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, block, data); err != nil {

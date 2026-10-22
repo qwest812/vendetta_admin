@@ -31,7 +31,7 @@
         </div>
         {{if .CurrentUser.IsAdmin}}
             <div class="head-actions">
-                <a class="button" href="/players/{{$p.ID}}/edit">{{t "common.edit"}}</a>
+                {{if $.Manual}}<a class="button" href="/players/{{$p.ID}}/edit">{{t "common.edit"}}</a>{{end}}
                 {{/* Поиск в лобби: как только игрок окажется в открытой партии,
                      воркер напишет об этом в телеграм. */}}
                 {{if .CanHunt}}
@@ -55,7 +55,8 @@
 
     {{/* Метки со счётчиком: одна отметка и пять отметок — разные вещи.
          Имена отметивших подсказкой видят только админы. */}}
-    {{if .Marks}}
+    {{if not .Manual}}
+    {{else if .Marks}}
         <div class="trait-list">
             {{range .Marks}}
                 <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}"
@@ -117,6 +118,9 @@
     <p class="muted">{{t "player.added"}} {{datetime $p.CreatedAt}}, {{t "player.changed"}} {{datetime $p.UpdatedAt}}</p>
 </div>
 
+{{/* Всё ниже люди заполняют руками, и рубильник в «Настройках» прячет
+     это целиком: признаки, героев, личные заметки и комментарии. */}}
+{{if .Manual}}
 {{/* Признаки и герои свёрнуты: отмечают их изредка, а читают карточку
      каждый раз — списки на два экрана мешали бы добраться до комментариев.
      Что отмечено, видно и в закрытом виде: метки стоят в шапке карточки,
@@ -288,4 +292,5 @@
         {{end}}
     </ul>
 </div>
+{{end}}
 {{end}}

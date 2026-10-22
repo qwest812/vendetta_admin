@@ -99,6 +99,9 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 		"Coalitions": coalitions, "Heroes": heroes, "Lobby": lobby,
 		"Maps": maps, "MapDays": int(mapStatsSpan.Hours() / 24),
 		"MapsTotal": mapsTotal(maps), "Error": errMsg,
+		// Рубильнику ручных разделов, как и поиску в лобби, без настроек
+		// в базе некуда писать.
+		"ManualSwitch": s.settings != nil,
 	})
 }
 

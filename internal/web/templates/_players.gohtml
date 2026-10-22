@@ -3,7 +3,9 @@
      и «в друзья» — через .CanMark: на карточке клана их нет. */}}
 {{define "results"}}
 {{$csrf := .CSRFToken}}
-{{$canMark := .CanMark}}
+{{/* Ручные разделы выключены — нет ни пометок, ни признаков. */}}
+{{$canMark := and .CanMark .Manual}}
+{{$manual := .Manual}}
 {{$enemies := .MarkedEnemies}}
 {{$friends := .MarkedFriends}}
 {{$enemyWords := .EnemyWords}}
@@ -23,11 +25,13 @@
                         {{if .ClanName}}<span class="clan clan-{{.ClanStatus}}">[{{.ClanName}}]</span>{{end}}
                         {{if .GameID}}<span class="game-id">ID {{.GameID}}</span>{{end}}
                     </div>
-                    <div class="player-traits">
-                        {{range .Traits}}
-                            <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
-                        {{end}}
-                    </div>
+                    {{if $manual}}
+                        <div class="player-traits">
+                            {{range .Traits}}
+                                <span class="tag {{if .IsNegative}}neg{{else if .IsPositive}}pos{{else}}zero{{end}}">{{.Name}}</span>
+                            {{end}}
+                        </div>
+                    {{end}}
                 </a>
                 {{if $canMark}}
                     <div class="marks">

@@ -193,6 +193,7 @@ func TestPageRendersInEnglish(t *testing.T) {
 	err = pages["faq"].ExecuteTemplate(&buf, "base.gohtml", map[string]any{
 		"CurrentUser": &domain.User{ID: 1, Nickname: "root", Role: domain.RoleRoot},
 		"CSRFToken":   "csrf", "Path": "/faq", "Lang": i18n.EN, "Back": "/faq",
+		"Manual": true,
 	})
 	if err != nil {
 		t.Fatalf("отрисовка: %v", err)
