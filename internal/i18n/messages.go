@@ -980,7 +980,7 @@ var messages = map[string]entry{
 	"landing.step2.body":        {ru: "Найдите игрока по нику или ID, откройте партию и посмотрите карту и газету.", en: "Find a player by nickname or ID, open a game and look at its map and newspaper."},
 	"landing.step3.title":       {ru: "Поставьте расширение", en: "Install the extension"},
 	"landing.step3.body":        {ru: "Войдите в боковой панели Chrome теми же почтой и паролем — и карта в игре заговорит.", en: "Sign in to the Chrome side panel with the same email and password — and the in-game map starts talking."},
-	"landing.foot":              {ru: "Неофициальный фанатский инструмент для Supremacy 1914. Не связан с Bytro Labs и не одобрен ею.", en: "An unofficial fan-made tool for Supremacy 1914. Not affiliated with or endorsed by Bytro Labs."},
+	"landing.foot":              {ru: "Неофициальный фанатский инструмент для Supremacy 1914.", en: "An unofficial fan-made tool for Supremacy 1914."},
 	"landing.privacy":           {ru: "Политика конфиденциальности", en: "Privacy policy"},
 
 	// --- рубильник ручных разделов (только руту) ---
