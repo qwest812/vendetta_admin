@@ -140,7 +140,7 @@ func lossesData(l i18n.Lang, state *supremacy.GameState, losses *supremacy.Losse
 		if most > 0 && p.Lost > 0 {
 			band := int(float64(p.Lost) / float64(most) * float64(len(lossesBands)))
 			row.Color = lossesBands[min(band, len(lossesBands)-1)]
-			fmt.Fprintf(&style, "#map-paper:checked ~ .game-map polygon[data-owner=\"%d\"] { fill: %s; }\n",
+			fmt.Fprintf(&style, "#map-paper:checked ~ .map-stage .game-map polygon[data-owner=\"%d\"] { fill: %s; }\n",
 				p.ID, row.Color)
 		}
 		for _, d := range p.Opponent {

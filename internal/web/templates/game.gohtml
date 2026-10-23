@@ -1,5 +1,8 @@
 {{define "title"}}{{t "game.title"}}{{end}}
 
+{{/* Масштаб, перетаскивание и инспектор карты — см. static/map.js. */}}
+{{define "head"}}<script src="/static/map.js" defer></script>{{end}}
+
 {{define "content"}}
 {{/* Анонимная партия не по зубам пакету — дальше не идёт ничего. Закрыта
      вся страница, а не одна карта: состав с сайта — это те же имена, за
@@ -863,37 +866,82 @@
                hx-get="/games/{{.GameID}}/roster" hx-trigger="load"
                hx-target="closest .map-view" hx-swap="outerHTML">{{t "game.roster.later"}}</p>
         {{end}}
+        {{/* Режимы — столбцом слева, у каждого строка о том, что он
+             красит. На телефоне столбец становится лентой, и пояснения
+             прячутся: места под них там нет. */}}
         <div class="map-tabs">
-            <label for="map-clans">{{t "game.map.clans"}}</label>
-            <label for="map-sides">{{t "game.map.mine"}}</label>
-            <label for="map-teams">{{t "game.map.teams"}}</label>
-            <label for="map-players">{{t "game.map.players"}}</label>
-            <label for="map-power">{{t "game.map.power"}}</label>
-            <label for="map-top">{{t "game.map.top"}}</label>
-            <label for="map-together">{{t "game.map.together"}}</label>
-            <label for="map-paper">{{t "game.map.paper"}}</label>
+            <label for="map-clans"><b>{{t "game.map.clans"}}</b><span>{{t "game.map.clans.desc"}}</span></label>
+            {{/* Личные списки — ручной раздел: выключен он — режиму
+                 нечего красить. */}}
+            {{if $.Manual}}<label for="map-sides"><b>{{t "game.map.mine"}}</b><span>{{t "game.map.sides.desc"}}</span></label>{{end}}
+            <label for="map-teams"><b>{{t "game.map.teams"}}</b><span>{{t "game.map.teams.desc"}}</span></label>
+            <label for="map-players"><b>{{t "game.map.players"}}</b><span>{{t "game.map.players.desc"}}</span></label>
+            <label for="map-power"><b>{{t "game.map.power"}}</b><span>{{t "game.map.power.desc"}}</span></label>
+            <label for="map-top"><b>{{t "game.map.top"}}</b><span>{{t "game.map.top.desc"}}</span></label>
+            <label for="map-together"><b>{{t "game.map.together"}}</b><span>{{t "game.map.together.desc"}}</span></label>
+            <label for="map-paper"><b>{{t "game.map.paper"}}</b><span>{{t "game.map.paper.desc"}}</span></label>
         </div>
-        {{/* Карта в собственных координатах игры: viewBox их и берёт,
-             а размер на странице задаёт css. */}}
-        <svg class="game-map" viewBox="0 0 {{.Map.Width}} {{.Map.Height}}"
-             preserveAspectRatio="xMidYMid meet" role="img"
-             aria-label="{{t "game.map.aria"}}">
-            <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
-            {{range .Map.Shapes}}
-                <polygon points="{{.Points}}" class="{{.Class}}"{{if .Owner}} data-owner="{{.Owner}}"{{end}}
-                         {{if or .ClanColor .TeamColor .TopColor .TogetherColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}; --top: {{.TopColor}}; --together: {{.TogetherColor}}"{{end}}><title>{{.Title}}</title></polygon>
-            {{end}}
-            {{/* Подписи поверх заливки: страна пишется один раз, посередине
-                 своих владений. */}}
-            {{range .Map.Labels}}
-                {{/* Значок отдельным tspan: он красится не как название
-                     и в режиме альянсов прячется целиком. Ник — второй
-                     строкой: перенос в svg не делается сам, поэтому
-                     у строки заново задаются x и сдвиг по y. */}}
-                <text x="{{.X}}" y="{{.Y}}" text-anchor="middle"
-                      class="{{if .Enemy}}enemy{{else if .Friend}}friend{{end}}">{{if .Mark}}<tspan class="sign">{{.Mark}}</tspan> {{end}}{{.Text}}{{if .Nick}}<tspan class="player" x="{{.X}}" dy="36">{{.Nick}}</tspan>{{end}}</text>
-            {{end}}
-        </svg>
+        {{/* Сцена карты: масштаб и перетаскивание делает map.js, меняя
+             viewBox, — очертания при этом не перерисовываются. */}}
+        <div class="map-stage">
+            <div class="map-zoom">
+                <button type="button" class="ghost" data-zoom="in" title="{{t "game.map.zoom.in"}}" aria-label="{{t "game.map.zoom.in"}}">+</button>
+                <button type="button" class="ghost" data-zoom="fit" title="{{t "game.map.zoom.fit"}}">{{t "game.map.zoom.fitshort"}}</button>
+                <button type="button" class="ghost" data-zoom="out" title="{{t "game.map.zoom.out"}}" aria-label="{{t "game.map.zoom.out"}}">−</button>
+            </div>
+            {{/* Карта в собственных координатах игры: viewBox их и берёт,
+                 а размер на странице задаёт css. */}}
+            <svg class="game-map" viewBox="0 0 {{.Map.Width}} {{.Map.Height}}"
+                 preserveAspectRatio="xMidYMid meet" role="img"
+                 aria-label="{{t "game.map.aria"}}">
+                <rect width="{{.Map.Width}}" height="{{.Map.Height}}" fill="#16222c"></rect>
+                {{range .Map.Shapes}}
+                    <polygon points="{{.Points}}" class="{{.Class}}"{{if .Owner}} data-owner="{{.Owner}}"{{end}} data-name="{{.Name}}"
+                             {{if or .ClanColor .TeamColor .TopColor .TogetherColor}}style="--clan: {{.ClanColor}}; --team: {{.TeamColor}}; --top: {{.TopColor}}; --together: {{.TogetherColor}}"{{end}}><title>{{.Title}}</title></polygon>
+                {{end}}
+                {{/* Подписи поверх заливки: страна пишется один раз, посередине
+                     своих владений. */}}
+                {{range .Map.Labels}}
+                    {{/* Значок отдельным tspan: он красится не как название
+                         и в режиме альянсов прячется целиком. Ник — второй
+                         строкой: перенос в svg не делается сам, поэтому
+                         у строки заново задаются x и сдвиг по y. */}}
+                    <text x="{{.X}}" y="{{.Y}}" text-anchor="middle"
+                          class="{{if .Enemy}}enemy{{else if .Friend}}friend{{end}}">{{if .Mark}}<tspan class="sign">{{.Mark}}</tspan> {{end}}{{.Text}}{{if .Nick}}<tspan class="player" x="{{.X}}" dy="36">{{.Nick}}</tspan>{{end}}</text>
+                {{end}}
+            </svg>
+        </div>
+
+        {{/* Инспектор: щелчок по провинции показывает её хозяина.
+             Сведения приезжают json-ом рядом (map-owners) — сервер их уже
+             собрал для карты, ходить за ними второй раз незачем. */}}
+        <aside class="map-inspector" aria-live="polite" data-neutral="{{t "game.insp.neutral"}}">
+            <p class="insp-kicker">{{t "game.insp.kicker"}}</p>
+            <h3 class="insp-name">{{t "game.insp.empty"}}</h3>
+            <p class="muted insp-hint">{{t "game.insp.hint"}}</p>
+            <dl class="insp-rows" hidden>
+                <div data-k="nation"><dt>{{t "game.col.nation"}}</dt><dd></dd></div>
+                <div data-k="name"><dt>{{t "game.col.player"}}</dt><dd></dd></div>
+                <div data-k="clan"><dt>{{t "playerform.clan"}}</dt><dd></dd></div>
+                <div data-k="team"><dt>{{t "game.col.team"}}</dt><dd></dd></div>
+                <div data-k="level"><dt>{{t "game.col.level"}}</dt><dd></dd></div>
+                <div data-k="kd"><dt>{{t "game.col.kd"}}</dt><dd></dd></div>
+                <div data-k="powerText"><dt>{{t "game.col.power"}}</dt><dd></dd></div>
+                <div data-k="provinces"><dt>{{t "game.insp.provinces"}}</dt><dd></dd></div>
+                <div data-k="seen"><dt>{{t "game.insp.seen"}}</dt><dd></dd></div>
+            </dl>
+            <p class="insp-flags">
+                <span class="badge" data-f="mine" hidden>{{t "game.insp.mine"}}</span>
+                <span class="badge" data-f="ai" hidden>{{t "game.insp.ai"}}</span>
+                <span class="badge" data-f="gone" hidden>{{t "game.map.players.gone"}}</span>
+                <span class="badge" data-f="premium" hidden>{{t "game.insp.premium"}}</span>
+                <span class="badge clan-enemy" data-f="banned" hidden>{{t "player.banned"}}</span>
+                <span class="badge clan-enemy" data-f="enemy" hidden>{{t "rel.enemies.markdone"}}</span>
+                <span class="badge clan-ally" data-f="friend" hidden>{{t "rel.friends.markdone"}}</span>
+            </p>
+            <a class="button insp-card" hidden>{{t "game.insp.card"}}</a>
+        </aside>
+        <script type="application/json" class="map-owners">{{.Map.Owners}}</script>
 
         <div class="map-pane pane-clans">
             {{/* Легенда обязательна: цвет раздаётся на партию, по убыванию
@@ -1176,7 +1224,7 @@
             <p class="muted">{{if .Map.Together}}{{t "game.map.together.note"}}{{else}}{{t "game.map.together.none"}}{{end}}</p>
         </div>
 
-        <p class="muted">
+        <p class="muted map-hint">
             {{if .Me}}{{t "game.map.yours"}} {{end}}{{t "game.map.hover"}}
         </p>
     </div>

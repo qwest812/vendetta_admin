@@ -483,43 +483,43 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 .game-map polygon.neutral { fill: #2b3a46; }
 /* Режим «Кланы»: цвет приезжает переменной --clan из шаблона, потому что
    раздаётся он на партию и заранее в стилях его не пропишешь. */
-#map-clans:checked ~ .game-map polygon.clan { fill: var(--clan); }
+#map-clans:checked ~ .map-stage .game-map polygon.clan { fill: var(--clan); }
 /* Режим «Мои списки»: своя заливка у врагов и друзей, всё прочее серое.
    Правило врага стоит ниже — если человек попал в оба списка, побеждает
    вражда: о ней предупредить нужнее. */
-#map-sides:checked ~ .game-map polygon.side-friend { fill: #3f7d5a; }
-#map-sides:checked ~ .game-map polygon.side-enemy { fill: #a2453c; }
+#map-sides:checked ~ .map-stage .game-map polygon.side-friend { fill: #3f7d5a; }
+#map-sides:checked ~ .map-stage .game-map polygon.side-enemy { fill: #a2453c; }
 /* Режим «Коалиции»: цвет тоже приезжает переменной, но берётся не из нашей
    палитры, а из самой игры — коалиция раскрашивает себя сама. */
-#map-teams:checked ~ .game-map polygon.team { fill: var(--team); }
+#map-teams:checked ~ .map-stage .game-map polygon.team { fill: var(--team); }
 /* Режим «Игроки»: цвет говорит, кто владеет землёй, — живой человек, бот,
    игрок с подпиской или забаненный. Правила спорят за одну провинцию,
    и побеждает стоящее ниже, поэтому они и идут по возрастанию важности:
    подписка важнее «просто живого», бан важнее всего. Ничейной земле своего
    правила не досталось — она остаётся тёмно-серой, как и в других режимах. */
-#map-players:checked ~ .game-map polygon.human { fill: #3c6e9c; }
-#map-players:checked ~ .game-map polygon.ai { fill: #6f7b52; }
-#map-players:checked ~ .game-map polygon.premium { fill: #7d63a8; }
+#map-players:checked ~ .map-stage .game-map polygon.human { fill: #3c6e9c; }
+#map-players:checked ~ .map-stage .game-map polygon.ai { fill: #6f7b52; }
+#map-players:checked ~ .map-stage .game-map polygon.premium { fill: #7d63a8; }
 /* Ставший ботом — после подписки: у брошенной страны она уже ничего
    не значит. Бан — последним, он важнее всего. */
-#map-players:checked ~ .game-map polygon.gone { fill: #8a5a2b; }
-#map-players:checked ~ .game-map polygon.banned { fill: #a2453c; }
+#map-players:checked ~ .map-stage .game-map polygon.gone { fill: #8a5a2b; }
+#map-players:checked ~ .map-stage .game-map polygon.banned { fill: #a2453c; }
 /* Режим «Сила»: цвет говорит, насколько владелец опаснее смотрящего.
    Шкала идёт от красного к зелёному через жёлтый — так же, как читается
    светофор, и отдельного объяснения ей не нужно. Провинции без счёта
    правила не получают и остаются серыми: «не спрашивали» — это не
    «слабый», и путать их нельзя. */
-#map-power:checked ~ .game-map polygon.power-much-up { fill: #8f2f26; }
-#map-power:checked ~ .game-map polygon.power-up { fill: #c0564a; }
-#map-power:checked ~ .game-map polygon.power-even { fill: #b08a2e; }
-#map-power:checked ~ .game-map polygon.power-down { fill: #4f8f5f; }
-#map-power:checked ~ .game-map polygon.power-much-down { fill: #2f6b45; }
+#map-power:checked ~ .map-stage .game-map polygon.power-much-up { fill: #8f2f26; }
+#map-power:checked ~ .map-stage .game-map polygon.power-up { fill: #c0564a; }
+#map-power:checked ~ .map-stage .game-map polygon.power-even { fill: #b08a2e; }
+#map-power:checked ~ .map-stage .game-map polygon.power-down { fill: #4f8f5f; }
+#map-power:checked ~ .map-stage .game-map polygon.power-much-down { fill: #2f6b45; }
 /* Режим «Топ кланов»: цвет тоже переменной, но раздаётся он не по владениям,
    а по месту в рейтинге — первый номер должен быть одного цвета во всех
    партиях. */
-#map-top:checked ~ .game-map polygon.top { fill: var(--top); }
+#map-top:checked ~ .map-stage .game-map polygon.top { fill: var(--top); }
 /* Режим «Играли вместе»: цвет группы, собранной из архива коалиций. */
-#map-together:checked ~ .game-map polygon.together { fill: var(--together); }
+#map-together:checked ~ .map-stage .game-map polygon.together { fill: var(--together); }
 /* Режим «Активность»: светофор по последнему входу в партию. Боты и те,
    про кого игра не сказала, остаются серыми. */
 .game-map text {
@@ -533,10 +533,10 @@ a.mark.done.friend, a.mark.done.friend:hover { border-color: rgba(76, 175, 122, 
 /* Название страны красится и получает значок только в режиме личных
    списков: в режиме кланов подписи нейтральные, иначе на одной картинке
    опять оказались бы две разные разметки. */
-#map-sides:checked ~ .game-map text.enemy { fill: #ffb3aa; }
-#map-sides:checked ~ .game-map text.friend { fill: #a8e8c0; }
+#map-sides:checked ~ .map-stage .game-map text.enemy { fill: #ffb3aa; }
+#map-sides:checked ~ .map-stage .game-map text.friend { fill: #a8e8c0; }
 .game-map text .sign { display: none; }
-#map-sides:checked ~ .game-map text .sign { display: inline; }
+#map-sides:checked ~ .map-stage .game-map text .sign { display: inline; }
 /* Меч чёрный — на приглушённой заливке он читается как значок, а не как
    часть названия. Светлая обводка вместо общей тёмной: иначе чёрное
    по чёрному сливается. Рукопожатие рисует шрифт эмодзи, fill его
@@ -1260,3 +1260,79 @@ body.landing { background: var(--bg); }
 /* Первый экран — position: relative и рисуется поверх плавающего
    переключателя языка, если тот не поднять. */
 body.landing .langs.floating { z-index: 10; }
+
+/* --- Карта партии в три колонки: режимы, карта, инспектор ---
+   Порядок в разметке прежний — радиокнопки первыми, остальное их соседи,
+   так что правила режимов работают как раньше; раскладывает сетка.
+   Легенда и всё, что под ней (состав, газета), — во всю ширину под
+   картой: таблицам в узкой колонке не место. */
+main:has(.map-view) { max-width: 1560px; }
+.map-view {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr) 250px;
+    grid-template-areas:
+        "later later later"
+        "tabs  stage insp"
+        "pane  pane  pane"
+        "hint  hint  hint";
+    gap: 0 16px;
+    align-items: start;
+}
+.map-view > #roster-later { grid-area: later; }
+.map-view > .map-tabs { grid-area: tabs; }
+.map-view > .map-stage { grid-area: stage; }
+.map-view > .map-inspector { grid-area: insp; }
+.map-view > .map-pane { grid-area: pane; margin-top: 12px; }
+.map-view > .map-hint { grid-area: hint; }
+
+/* Режимы столбцом: название и строка пояснения. */
+.map-view .map-tabs { flex-direction: column; gap: 6px; margin: 0; }
+.map-view .map-tabs label { display: block; padding: 8px 10px; line-height: 1.3; }
+.map-view .map-tabs label b { display: block; font-weight: 600; color: var(--text); font-size: 13px; }
+.map-view .map-tabs label span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+/* Сцена: карта и кнопки масштаба поверх неё в правом верхнем углу. */
+.map-stage { position: relative; }
+.map-stage .game-map { margin: 0; cursor: grab; touch-action: none; user-select: none; }
+.map-stage .game-map.dragging { cursor: grabbing; }
+.map-zoom { position: absolute; top: 8px; right: 8px; z-index: 1; display: flex; gap: 4px; }
+.map-zoom button {
+    min-width: 34px; padding: 5px 9px; font-size: 14px; line-height: 1;
+    background: rgba(20, 22, 26, .82); border: 1px solid var(--border); color: var(--text);
+}
+.map-zoom button:hover { border-color: var(--accent); }
+/* Выбранная провинция — светлой обводкой поверх любой заливки. */
+.game-map polygon.picked { stroke: #fff; stroke-width: 5; }
+
+/* Инспектор: та же карточка, что и везде, только в колонке. */
+.map-inspector {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px 16px; font-size: 13px;
+}
+.insp-kicker { margin: 0; color: var(--accent); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }
+.insp-name { margin: 4px 0 8px; font-size: 17px; }
+.insp-hint { margin: 0; font-size: 12px; }
+.insp-rows { margin: 0 0 10px; }
+.insp-rows div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.insp-rows dt { color: var(--muted); }
+.insp-rows dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.insp-rows dd .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.insp-flags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.insp-flags:not(:has(.badge:not([hidden]))) { display: none; }
+.map-inspector .insp-card { display: block; text-align: center; }
+.map-inspector .insp-card[hidden] { display: none; }
+
+@media (max-width: 1000px) {
+    .map-view {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "later" "tabs" "stage" "insp" "pane" "hint";
+    }
+    .map-view .map-tabs { flex-direction: row; overflow-x: auto; scrollbar-width: none; margin-bottom: 8px; }
+    .map-view .map-tabs::-webkit-scrollbar { display: none; }
+    .map-view .map-tabs label { white-space: nowrap; }
+    .map-view .map-tabs label span { display: none; }
+    .map-inspector { margin-top: 10px; }
+}
+/* Свой display у значков и строк перебил бы атрибут hidden — а скрипт
+   прячет ими пустое. */
+.map-inspector [hidden] { display: none !important; }

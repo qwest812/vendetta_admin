@@ -53,6 +53,9 @@ type mapShape struct {
 	// TogetherColor — цвет группы в режиме «Играли вместе».
 	TogetherColor template.CSS
 	Title         string
+	// Name — одно название провинции, без владельца: его берёт инспектор,
+	// а владельца рассказывает сам, подробнее подсказки.
+	Name string
 }
 
 // mapLabel — подпись страны на карте: имя пишется один раз, посередине
@@ -100,6 +103,100 @@ type gameMapView struct {
 	// Power — счёт владельцев по полосам режима «Сила» и счёт самого
 	// смотрящего: без него полосы не значат ничего.
 	Power powerLegend
+	// Owners — что знаем о каждом владельце провинций, по его номеру
+	// в партии. Читает инспектор справа от карты: щелчок по провинции
+	// показывает её хозяина, не уходя со страницы и не тратя проверку.
+	Owners map[int]ownerView
+}
+
+// ownerView — владелец провинций глазами инспектора. Поля короткие и
+// пустые опускаются: уходит это в страницу json-ом на каждого игрока.
+// Power — css-класс полосы из режима «Сила», тот же, что красит карту.
+type ownerView struct {
+	Nation    string `json:"nation"`
+	Name      string `json:"name,omitempty"`
+	Card      int64  `json:"card,omitempty"`
+	Clan      string `json:"clan,omitempty"`
+	Team      string `json:"team,omitempty"`
+	Level     int    `json:"level,omitempty"`
+	KD        string `json:"kd,omitempty"`
+	Power     string `json:"power,omitempty"`
+	PowerText string `json:"powerText,omitempty"`
+	Seen      string `json:"seen,omitempty"`
+	Provinces int    `json:"provinces"`
+	AI        bool   `json:"ai,omitempty"`
+	Gone      bool   `json:"gone,omitempty"`
+	Premium   bool   `json:"premium,omitempty"`
+	Banned    bool   `json:"banned,omitempty"`
+	Enemy     bool   `json:"enemy,omitempty"`
+	Friend    bool   `json:"friend,omitempty"`
+	Mine      bool   `json:"mine,omitempty"`
+}
+
+// powerKeys — подпись полосы «Силы» по её css-классу: те же слова,
+// что в легенде режима.
+var powerKeys = map[string]string{
+	"power-much-up":   "game.map.power.muchup",
+	"power-up":        "game.map.power.up",
+	"power-even":      "game.map.power.even",
+	"power-down":      "game.map.power.down",
+	"power-much-down": "game.map.power.muchdown",
+}
+
+// mapOwners собирает инспектору сведения о владельцах: из состояния
+// партии — страну и род, из базы — карточку, клан, счёт и личные списки.
+// Личных списков нет, пока выключены ручные разделы: gameLists тогда
+// отдаёт их пустыми.
+func mapOwners(l i18n.Lang, state *supremacy.GameState, sides *gameSides, meID int) map[int]ownerView {
+	counts := map[int]int{}
+	for _, p := range state.Provinces {
+		if p.Owner > 0 {
+			counts[p.Owner]++
+		}
+	}
+	out := make(map[int]ownerView, len(counts))
+	for id, n := range counts {
+		p, ok := state.Players[id]
+		if !ok {
+			continue
+		}
+		v := ownerView{
+			Nation: nonEmpty(p.Nation, l.T("game.noname")), Name: p.Name, Provinces: n,
+			AI: p.IsAI, Gone: p.IsAI && !p.NativeAI, Premium: p.Premium, Banned: p.Banned,
+			Mine: meID > 0 && id == meID,
+		}
+		if p.TeamID > 0 {
+			v.Team = nonEmpty(state.Teams[p.TeamID].Name, l.T("game.noname"))
+		}
+		// Последний заход: игра называет время только про нас самих,
+		// а «неактивен» — про всех; та же логика, что у подсказки.
+		switch {
+		case p.Inactive:
+			v.Seen = l.T("tip.inactive")
+		case !p.IsAI && !p.LastLogin.IsZero():
+			v.Seen = l.T("tip.lastlogin", agoText(l, time.Since(p.LastLogin)))
+		}
+		if card, ok := sides.Cards[id]; ok {
+			v.Card = card.ID
+		}
+		if a, ok := sides.Alliances[id]; ok && a.Name != "" {
+			v.Clan = a.Name
+			if a.Tag != "" {
+				v.Clan += " [" + a.Tag + "]"
+			}
+		}
+		if st, ok := sides.Stats[id]; ok && st.Rated() {
+			v.Level, v.KD = st.Level, formatRatio(st.KD())
+			v.Power = powerClass(st, sides.Me)
+			if key, ok := powerKeys[v.Power]; ok {
+				v.PowerText = l.T(key)
+			}
+		}
+		_, v.Enemy = sides.Enemies[id]
+		_, v.Friend = sides.Friends[id]
+		out[id] = v
+	}
+	return out
 }
 
 // powerLegend — сколько владельцев в каждой полосе режима «Сила» и с чем
@@ -244,7 +341,7 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 			continue
 		}
 
-		shape := mapShape{Points: svgPoints(points), Title: p.Name, Owner: p.Owner}
+		shape := mapShape{Points: svgPoints(points), Title: p.Name, Name: p.Name, Owner: p.Owner}
 		// Ничейная земля своим классом отличается от занятой: в обоих
 		// режимах она серая, но темнее — свободную землю не должно быть
 		// видно как чью-то.
@@ -448,6 +545,7 @@ func gameMap(l i18n.Lang, geo *supremacy.MapGeometry, state *supremacy.GameState
 	// от захода к заходу.
 	sort.Slice(view.Labels, func(i, j int) bool { return view.Labels[i].Text < view.Labels[j].Text })
 	sort.Slice(view.Kinds.GoneList, func(i, j int) bool { return view.Kinds.GoneList[i].Nation < view.Kinds.GoneList[j].Nation })
+	view.Owners = mapOwners(l, state, sides, meID)
 	return view
 }
 

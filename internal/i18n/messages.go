@@ -578,7 +578,31 @@ var messages = map[string]entry{
 	// Карта и её режимы.
 	// Вкладка карты называется по-игровому: в самой Supremacy это альянс.
 	// Наш справочник со статусами — отдельная вещь, он так и остался «Кланы».
-	"game.map.clans":            {ru: "Альянсы", en: "Alliances"},
+	"game.map.clans": {ru: "Альянсы", en: "Alliances"},
+	// Пояснения к режимам карты — строкой под названием в левом столбце.
+	"game.map.clans.desc":    {ru: "Цвет у каждого альянса партии", en: "A colour for each alliance in the game"},
+	"game.map.sides.desc":    {ru: "Ваши друзья и враги", en: "Your friends and enemies"},
+	"game.map.teams.desc":    {ru: "Коалиции этой партии, цветами игры", en: "This game's coalitions, in the game's colours"},
+	"game.map.players.desc":  {ru: "Люди, боты, подписка, баны", en: "Humans, bots, premium, bans"},
+	"game.map.power.desc":    {ru: "Насколько владелец опаснее вас", en: "How much stronger the owner is than you"},
+	"game.map.top.desc":      {ru: "Кланы из верхушки рейтинга", en: "Clans from the top of the ranking"},
+	"game.map.together.desc": {ru: "Кто уже играл вместе в коалициях", en: "Who has played together in coalitions"},
+	"game.map.paper.desc":    {ru: "Потери, ресурсы и армии по газете", en: "Losses, resources and armies from the newspaper"},
+	"game.map.zoom.in":       {ru: "Приблизить", en: "Zoom in"},
+	"game.map.zoom.out":      {ru: "Отдалить", en: "Zoom out"},
+	"game.map.zoom.fit":      {ru: "Показать всю карту", en: "Show the whole map"},
+	"game.map.zoom.fitshort": {ru: "Вся", en: "Fit"},
+	// Инспектор провинции справа от карты.
+	"game.insp.kicker":          {ru: "Провинция", en: "Province"},
+	"game.insp.empty":           {ru: "Ничего не выбрано", en: "Nothing selected"},
+	"game.insp.hint":            {ru: "Щёлкните по провинции — здесь появится её владелец. Колесо или щипок — масштаб, перетаскивание — сдвиг.", en: "Click a province to see its owner here. Wheel or pinch to zoom, drag to move."},
+	"game.insp.neutral":         {ru: "Ничейная земля", en: "No owner"},
+	"game.insp.provinces":       {ru: "Провинций", en: "Provinces"},
+	"game.insp.seen":            {ru: "В партии", en: "In the game"},
+	"game.insp.mine":            {ru: "Это вы", en: "This is you"},
+	"game.insp.ai":              {ru: "Компьютер", en: "Computer"},
+	"game.insp.premium":         {ru: "Подписка", en: "Premium"},
+	"game.insp.card":            {ru: "Карточка игрока", en: "Player card"},
 	"game.map.mine":             {ru: "Мои списки", en: "My lists"},
 	"game.map.teams":            {ru: "Коалиции", en: "Coalitions"},
 	"game.map.players":          {ru: "Игроки", en: "Players"},

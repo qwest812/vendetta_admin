@@ -277,7 +277,7 @@ func rankingsData(l i18n.Lang, kind string, state *supremacy.GameState, ranks *s
 			band := len(fearBands) - 1 - i*len(fearBands)/max(len(today), 1)
 			row.Color = fearBands[max(band, 0)]
 		}
-		fmt.Fprintf(&style, "#map-paper:checked ~ .game-map polygon[data-owner=\"%d\"] { fill: %s; }\n",
+		fmt.Fprintf(&style, "#map-paper:checked ~ .map-stage .game-map polygon[data-owner=\"%d\"] { fill: %s; }\n",
 			e.owner, row.Color)
 		v.Rows = append(v.Rows, row)
 	}
