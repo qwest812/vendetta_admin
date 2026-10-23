@@ -2,12 +2,8 @@
 // игроки его не вводят, а магазин Chrome видит в манифесте ровно этот
 // адрес вместо доступа ко всем сайтам. Меняется адрес — меняется и
 // host_permissions в manifest.json.
-//
-// http, а не https: у админки пока нет сертификата, и почта с паролем
-// при входе идут открытым текстом. Появится https — поправить здесь
-// и в манифесте.
 
 "use strict";
 
 // eslint-disable-next-line no-unused-vars
-const SERVER = "http://212.43.155.212:8082";
+const SERVER = "https://supremacy.tagumplay.com";

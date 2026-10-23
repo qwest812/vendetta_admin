@@ -32,6 +32,9 @@ services:
       SESSION_TTL: ${SESSION_TTL:-168h}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Адреса обратного прокси, от которого верим X-Real-IP. Пусто —
+      # заголовок не читается, и в журнале входов адрес соединения.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       # Даты в интерфейсе печатаются по этой зоне; в контейнере по умолчанию UTC.
       TZ: ${TZ:-UTC}
       # Почта рута необязательна: вход возможен по нику. Проверку «задан хотя бы

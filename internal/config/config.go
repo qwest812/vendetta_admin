@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -17,6 +18,10 @@ type Config struct {
 	SessionTTL   time.Duration
 	CookieSecure bool
 	LogLevel     slog.Level
+	// TrustedProxies — адреса обратного прокси, которому верим в X-Real-IP.
+	// Пусто — заголовок не читается вовсе: без прокси его подставит кто
+	// угодно, и журнал входов подписывал бы вход чужим адресом.
+	TrustedProxies []netip.Prefix
 
 	// Учётные данные рута. Применяются только при первом запуске:
 	// если рут уже есть в базе, значения игнорируются.
@@ -200,6 +205,12 @@ func Load() (*Config, error) {
 		cfg.TelegramTopicID = id
 	}
 
+	proxies, err := parseProxies(env("TRUSTED_PROXIES", ""))
+	if err != nil {
+		return nil, fmt.Errorf("TRUSTED_PROXIES: %w", err)
+	}
+	cfg.TrustedProxies = proxies
+
 	// Входят только по почте, поэтому без почты рут не вошёл бы вовсе.
 	// Ник по умолчанию берём из локальной части адреса.
 	if cfg.RootNickname == "" {
@@ -215,6 +226,29 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("ROOT_PASSWORD короче 12 символов")
 	}
 	return cfg, nil
+}
+
+// parseProxies разбирает список через запятую: подсети («172.16.0.0/12»)
+// и отдельные адреса («172.19.0.1» — то же, что /32).
+func parseProxies(raw string) ([]netip.Prefix, error) {
+	var out []netip.Prefix
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if p, err := netip.ParsePrefix(part); err == nil {
+			out = append(out, p.Masked())
+			continue
+		}
+		a, err := netip.ParseAddr(part)
+		if err != nil {
+			return nil, fmt.Errorf("%q — ни адрес, ни подсеть", part)
+		}
+		a = a.Unmap()
+		out = append(out, netip.PrefixFrom(a, a.BitLen()))
+	}
+	return out, nil
 }
 
 func env(key, fallback string) string {

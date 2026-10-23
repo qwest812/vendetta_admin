@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -79,8 +80,9 @@ type Server struct {
 	health     func(context.Context) error
 	// cookieSecure — тот же флаг, что у куки сессии: язык хранится в куке,
 	// и жить она должна по тем же правилам.
-	cookieSecure bool
-	pages        site
+	cookieSecure   bool
+	trustedProxies []netip.Prefix
+	pages          site
 }
 
 type Deps struct {
@@ -137,6 +139,8 @@ type Deps struct {
 	Health func(context.Context) error
 	// CookieSecure — ставить ли кукам флаг Secure. Тот же, что у сессии.
 	CookieSecure bool
+	// TrustedProxies — от кого принимать X-Real-IP, см. realIP.
+	TrustedProxies []netip.Prefix
 }
 
 func NewServer(d Deps) (*Server, error) {
@@ -157,6 +161,7 @@ func NewServer(d Deps) (*Server, error) {
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
 		builds: d.BuildQueue, heroPlans: d.HeroPlans,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
+		trustedProxies: d.TrustedProxies,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
 	s.friends = newRelationSection(s, d.Friends, friendWords)
@@ -370,7 +375,9 @@ func (s *Server) Handler() http.Handler {
 		}
 		site.ServeHTTP(w, r)
 	})
-	return s.recoverPanic(securityHeaders(compress(s.logRequests(routes))))
+	// Настоящий адрес подставляется раньше всех: по нему пишется журнал
+	// входов и считаются лимиты входа и регистрации.
+	return s.realIP(s.recoverPanic(securityHeaders(compress(s.logRequests(routes)))))
 }
 
 // healthz отвечает 200, только если база отвечает: по нему docker

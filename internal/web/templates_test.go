@@ -344,7 +344,7 @@ func TestPagesRender(t *testing.T) {
 			page: "privacy",
 			data: map[string]any{},
 			want: []string{"Политика конфиденциальности", "privacy policy",
-				"http://212.43.155.212:8082", "chrome.storage.local"},
+				"https://supremacy.tagumplay.com", "chrome.storage.local"},
 		},
 		{
 			// После ошибки введённое возвращается в поля, кроме пароля,

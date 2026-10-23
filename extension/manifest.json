@@ -27,7 +27,7 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "http://212.43.155.212/*"
+    "https://supremacy.tagumplay.com/*"
   ],
   "content_scripts": [
     {
