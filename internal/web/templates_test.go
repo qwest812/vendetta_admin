@@ -100,7 +100,7 @@ func TestPagesRender(t *testing.T) {
 			guest: true,
 			data:  map[string]any{"Landing": true, "Players": 1234, "PlayersWeek": 87, "Renamed": 718, "Banned": 23, "Games": 56, "Manual": true},
 			want: []string{`class="landing"`, "Frontline", "Знай, кто напротив.", "1234", "игроков в базе",
-				"+87", "новых игроков за неделю", "718", "сменили ник", "23", "банов замечено",
+				"+87", "новых игроков за неделю", "718", "сменили ник", "23", "в истории банов",
 				"56", `href="/register"`, `href="/login"`, `href="/privacy"`, "Что замечено за игроком",
 				"Не связан с Bytro Labs"},
 			deny: []string{"Работает и с телефона", `<main`},

@@ -948,7 +948,7 @@ var messages = map[string]entry{
 	"landing.fact.modes":        {ru: "режимов карты", en: "map modes"},
 	"landing.fact.players.week": {ru: "новых игроков за неделю", en: "new players this week"},
 	"landing.fact.renamed":      {ru: "игроков сменили ник — старые ники помним", en: "players changed nickname — we remember the old ones"},
-	"landing.fact.banned":       {ru: "банов замечено и сохранено в истории", en: "bans spotted and kept on record"},
+	"landing.fact.banned":       {ru: "в истории банов", en: "on the ban record"},
 	"landing.features":          {ru: "Что внутри", en: "What's inside"},
 	"landing.features.tag":      {ru: "Возможности", en: "Features"},
 	"landing.f.base.kicker":     {ru: "База", en: "Database"},
