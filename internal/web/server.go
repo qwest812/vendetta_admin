@@ -196,7 +196,9 @@ func (s *Server) Handler() http.Handler {
 
 	// Поиск и просмотр — всем авторизованным.
 	user := auth.RequireRole(domain.RoleUser)
-	mux.Handle("GET /{$}", user(http.HandlerFunc(s.home)))
+	// Корень один на двоих: вошедшему — поиск, гостю — витрина. Отдельной
+	// проверки роли тут нет, её делает index сам.
+	mux.HandleFunc("GET /{$}", s.index)
 	mux.Handle("GET /search", user(http.HandlerFunc(s.search)))
 	mux.Handle("GET /players/{id}", user(http.HandlerFunc(s.playerCard)))
 	// Кланы смотрят все: это такой же справочник, как карточки игроков.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -324,6 +325,27 @@ func (r *Players) collect(ctx context.Context, rows pgx.Rows) ([]*domain.Player,
 		return nil, err
 	}
 	return players, r.attachTraits(ctx, players)
+}
+
+// Showcase — цифры для витрины. Все собираются сами, без участия людей:
+// карточки заводятся из партий, ники и баны замечаются при заходах.
+type Showcase struct {
+	Players int // карточек в базе
+	Recent  int // из них заведено с since
+	Renamed int // игроков, у которых замечена смена ника
+	Banned  int // игроков, у которых замечен бан
+}
+
+// Showcase считает цифры витрины одним запросом.
+func (r *Players) Showcase(ctx context.Context, since time.Time) (Showcase, error) {
+	var s Showcase
+	err := r.pool.QueryRow(ctx,
+		`SELECT (SELECT count(*) FROM players),
+		        (SELECT count(*) FROM players WHERE created_at >= $1),
+		        (SELECT count(DISTINCT player_id) FROM player_nicknames),
+		        (SELECT count(DISTINCT site_user_id) FROM supremacy_ban_events WHERE banned)`, since).
+		Scan(&s.Players, &s.Recent, &s.Renamed, &s.Banned)
+	return s, err
 }
 
 func (r *Players) ByID(ctx context.Context, id int64) (*domain.Player, error) {

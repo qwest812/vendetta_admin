@@ -1156,3 +1156,107 @@ ul.hero-plans li { padding: 4px 0; border-top: 1px solid var(--border, #ddd); }
 .rank-chart [class^="series-"] path { stroke: var(--series); }
 .rank-chart [class^="series-"] circle { fill: var(--series); }
 .rank-table .swatch[class*="series-"] { background: var(--series); }
+
+/* --- Витрина для гостя (landing.gohtml) ---
+   Своя раскладка во всю ширину, без main. Первый экран — на той же
+   картинке из игры, что вход и регистрация, но затемнён сильнее:
+   на нём крупный текст, а не одна форма. */
+body.landing { background: var(--bg); }
+.ld-wrap { max-width: 1080px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); }
+
+.ld-hero {
+    position: relative;
+    padding: 20px 0 56px;
+    background: linear-gradient(180deg, rgba(10, 12, 16, .72), rgba(20, 22, 26, .96) 92%),
+        url("/static/auth/bg-wide.jpg") center / cover no-repeat, var(--bg);
+}
+@media (max-aspect-ratio: 4/5) {
+    .ld-hero { background-image: linear-gradient(180deg, rgba(10, 12, 16, .72), rgba(20, 22, 26, .96) 92%), url("/static/auth/bg-tall.jpg"); }
+}
+.ld-mast {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding-bottom: 14px; margin-bottom: clamp(36px, 8vw, 88px);
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    /* Место под плавающий переключатель языка справа. */
+    padding-right: 72px;
+}
+.ld-logo { font-weight: 700; letter-spacing: .5px; color: var(--accent); }
+.ld-mast-login { color: var(--muted); font-size: 14px; }
+
+.ld-eyebrow {
+    display: flex; align-items: center; gap: 12px; margin: 0 0 18px;
+    color: var(--muted); font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
+}
+.ld-eyebrow::before { content: ""; width: 32px; height: 2px; background: var(--accent); flex: none; }
+.ld-title {
+    margin: 0 0 20px; max-width: 16ch;
+    font-size: clamp(2.3rem, 6.5vw, 4.4rem); line-height: 1; letter-spacing: -.02em;
+}
+.ld-title em { font-style: normal; color: var(--accent); display: block; }
+.ld-lead { max-width: 62ch; margin: 0 0 28px; color: #c9ced8; font-size: clamp(15px, 1.6vw, 17px); }
+
+.ld-cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.ld-cta .button { padding: 11px 22px; font-size: 15px; }
+
+.ld-facts {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px; margin: 44px 0 0; background: var(--border);
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.ld-facts div { background: rgba(28, 31, 38, .85); padding: 16px 18px; }
+.ld-facts dt { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ld-facts dd { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* «Линия фронта» под первым экраном — пунктир цвета акцента. */
+.ld-frontline {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+    background: repeating-linear-gradient(90deg, var(--accent) 0 18px, transparent 18px 30px);
+    opacity: .7;
+}
+
+.ld-section { padding: clamp(40px, 7vw, 72px) 0; }
+.ld-section.alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.ld-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 24px; }
+.ld-head h2 { margin: 0; font-size: clamp(1.5rem, 3vw, 2rem); }
+.ld-tag {
+    color: var(--muted); font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
+    border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;
+}
+
+/* Сетка с волосяными линиями: промежуток в 1px показывает фон-рамку. */
+.ld-grid {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.ld-card { background: var(--surface); padding: 22px 22px 24px; }
+.ld-card-n { color: var(--accent); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; }
+.ld-card h3 { margin: 8px 0 8px; font-size: 18px; }
+.ld-card p { margin: 0; color: #b8beca; font-size: 14px; }
+
+.ld-steps { list-style: none; counter-reset: step; margin: 0 0 28px; padding: 0;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.ld-steps li { counter-increment: step; position: relative; padding-left: 52px; }
+.ld-steps li::before {
+    content: counter(step); position: absolute; left: 0; top: -2px;
+    width: 36px; height: 36px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700;
+    border: 2px solid var(--accent); color: var(--accent);
+}
+.ld-steps b { display: block; margin-bottom: 4px; }
+.ld-steps p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.ld-foot { padding: 28px 0 40px; color: var(--muted); font-size: 13px; }
+.ld-foot p { margin: 0 0 6px; }
+.ld-foot a { color: var(--muted); text-decoration: underline; }
+.ld-foot a:hover { color: var(--accent); }
+
+@media (max-width: 860px) {
+    .ld-grid, .ld-steps { grid-template-columns: 1fr; }
+    .ld-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.ld-hero a.button.ghost { color: var(--text); border-color: rgba(255, 255, 255, .35); }
+.ld-hero a.button.ghost:hover { border-color: var(--accent); }
+/* Первый экран — position: relative и рисуется поверх плавающего
+   переключателя языка, если тот не поднять. */
+body.landing .langs.floating { z-index: 10; }

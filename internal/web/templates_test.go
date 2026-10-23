@@ -64,6 +64,9 @@ func TestPagesRender(t *testing.T) {
 		data map[string]any
 		want []string
 		deny []string // чего на странице быть не должно
+		// guest — смотрит гость: без пользователя вовсе, а не админ
+		// по умолчанию.
+		guest bool
 	}{
 		{
 			page: "home",
@@ -88,6 +91,27 @@ func TestPagesRender(t *testing.T) {
 				`href="/players/3"`,
 			},
 			deny: []string{`name="status"`, "Только союзные"},
+		},
+		{
+			// Витрина для гостя: живые цифры, вход и регистрация. Пока
+			// ручные разделы открыты, обещает заметки; выключены — нет.
+			name:  "landing/гость",
+			page:  "landing",
+			guest: true,
+			data:  map[string]any{"Landing": true, "Players": 1234, "PlayersWeek": 87, "Renamed": 718, "Banned": 23, "Games": 56, "Manual": true},
+			want: []string{`class="landing"`, "Frontline", "Знай, кто напротив.", "1234", "игроков в базе",
+				"+87", "новых игроков за неделю", "718", "сменили ник", "23", "банов замечено",
+				"56", `href="/register"`, `href="/login"`, `href="/privacy"`, "Что замечено за игроком",
+				"Не связан с Bytro Labs"},
+			deny: []string{"Работает и с телефона", `<main`},
+		},
+		{
+			name:  "landing/без ручных разделов",
+			page:  "landing",
+			guest: true,
+			data:  map[string]any{"Landing": true, "Manual": false},
+			want:  []string{"Работает и с телефона", "режимов карты"},
+			deny:  []string{"Что замечено за игроком", "игроков в базе"},
 		},
 		{
 			// Ручные разделы выключены: в поиске нет ни признаков, ни
@@ -1084,8 +1108,8 @@ func TestPagesRender(t *testing.T) {
 			if !ok {
 				t.Fatalf("нет шаблона %q", tt.page)
 			}
-			user := tt.user
-			if user == nil {
+			var user *domain.User = tt.user
+			if user == nil && !tt.guest {
 				user = admin
 			}
 			tt.data["CurrentUser"] = user

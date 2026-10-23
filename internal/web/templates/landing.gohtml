@@ -1,0 +1,94 @@
+{{define "title"}}{{t "landing.title"}}{{end}}
+
+{{define "head"}}<meta name="description" content="{{t "landing.meta"}}">{{end}}
+
+{{/* Витрина для гостя: что это за админка и как в неё попасть. Вошедший
+     сюда не попадает — по тому же адресу у него поиск. */}}
+{{define "content"}}
+<header class="ld-hero">
+    <div class="ld-wrap">
+        <div class="ld-mast">
+            <span class="ld-logo">{{t "landing.brand"}}</span>
+            <a class="ld-mast-login" href="/login">{{t "landing.cta.login"}}</a>
+        </div>
+
+        <p class="ld-eyebrow">{{t "landing.eyebrow"}}</p>
+        <h1 class="ld-title">{{t "landing.h1"}} <em>{{t "landing.h1.em"}}</em></h1>
+        <p class="ld-lead">{{t "landing.lead"}}</p>
+
+        <div class="ld-cta">
+            <a class="button" href="/register">{{t "landing.cta.register"}}</a>
+            <a class="button ghost" href="/login">{{t "landing.cta.login"}}</a>
+        </div>
+
+        {{/* Цифры живые; не посчиталась — плашки нет, а не ноль. */}}
+        <dl class="ld-facts">
+            {{with .Players}}<div><dt>{{.}}</dt><dd>{{t "landing.fact.players"}}</dd></div>{{end}}
+            {{with .PlayersWeek}}<div><dt>+{{.}}</dt><dd>{{t "landing.fact.players.week"}}</dd></div>{{end}}
+            {{with .Games}}<div><dt>{{.}}</dt><dd>{{t "landing.fact.games"}}</dd></div>{{end}}
+            {{with .Renamed}}<div><dt>{{.}}</dt><dd>{{t "landing.fact.renamed"}}</dd></div>{{end}}
+            {{with .Banned}}<div><dt>{{.}}</dt><dd>{{t "landing.fact.banned"}}</dd></div>{{end}}
+            <div><dt>6</dt><dd>{{t "landing.fact.modes"}}</dd></div>
+        </dl>
+    </div>
+    <div class="ld-frontline" aria-hidden="true"></div>
+</header>
+
+<section class="ld-section">
+    <div class="ld-wrap">
+        <div class="ld-head">
+            <h2>{{t "landing.features"}}</h2>
+            <span class="ld-tag">{{t "landing.features.tag"}}</span>
+        </div>
+        <div class="ld-grid">
+            {{template "ld-card" (dict "N" "01" "Kicker" (t "landing.f.base.kicker") "Title" (t "landing.f.base.title") "Body" (t "landing.f.base.body"))}}
+            {{template "ld-card" (dict "N" "02" "Kicker" (t "landing.f.map.kicker") "Title" (t "landing.f.map.title") "Body" (t "landing.f.map.body"))}}
+            {{template "ld-card" (dict "N" "03" "Kicker" (t "landing.f.paper.kicker") "Title" (t "landing.f.paper.title") "Body" (t "landing.f.paper.body"))}}
+            {{template "ld-card" (dict "N" "04" "Kicker" (t "landing.f.coal.kicker") "Title" (t "landing.f.coal.title") "Body" (t "landing.f.coal.body"))}}
+            {{template "ld-card" (dict "N" "05" "Kicker" (t "landing.f.ext.kicker") "Title" (t "landing.f.ext.title") "Body" (t "landing.f.ext.body"))}}
+            {{/* Признаки и заметки — ручной раздел: выключил его рут, и
+                 обещать их на витрине незачем. */}}
+            {{if .Manual}}
+                {{template "ld-card" (dict "N" "06" "Kicker" (t "landing.f.notes.kicker") "Title" (t "landing.f.notes.title") "Body" (t "landing.f.notes.body"))}}
+            {{else}}
+                {{template "ld-card" (dict "N" "06" "Kicker" (t "landing.f.phone.kicker") "Title" (t "landing.f.phone.title") "Body" (t "landing.f.phone.body"))}}
+            {{end}}
+        </div>
+    </div>
+</section>
+
+<section class="ld-section alt">
+    <div class="ld-wrap">
+        <div class="ld-head">
+            <h2>{{t "landing.steps"}}</h2>
+            <span class="ld-tag">{{t "landing.steps.tag"}}</span>
+        </div>
+        <ol class="ld-steps">
+            <li><b>{{t "landing.step1.title"}}</b><p>{{t "landing.step1.body"}}</p></li>
+            <li><b>{{t "landing.step2.title"}}</b><p>{{t "landing.step2.body"}}</p></li>
+            <li><b>{{t "landing.step3.title"}}</b><p>{{t "landing.step3.body"}}</p></li>
+        </ol>
+        <div class="ld-cta">
+            <a class="button" href="/register">{{t "landing.cta.register"}}</a>
+        </div>
+    </div>
+</section>
+
+<footer class="ld-foot">
+    <div class="ld-wrap">
+        <p>{{t "landing.foot"}}</p>
+        <p><a href="/privacy">{{t "landing.privacy"}}</a> · <a href="/login">{{t "landing.cta.login"}}</a></p>
+    </div>
+</footer>
+{{end}}
+
+{{/* Карточка возможности: номер, рубрика, заголовок и текст. Ключи
+     пишутся целиком, а не собираются из кусков: так их видит тест
+     словаря. */}}
+{{define "ld-card"}}
+<article class="ld-card">
+    <span class="ld-card-n">{{.N}} · {{.Kicker}}</span>
+    <h3>{{.Title}}</h3>
+    <p>{{.Body}}</p>
+</article>
+{{end}}

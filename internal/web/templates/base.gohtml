@@ -6,8 +6,9 @@
     <title>{{block "title" .}}{{t "brand"}}{{end}}</title>
     <link rel="stylesheet" href="/static/app.css">
     <script src="/static/htmx.min.js" defer></script>
+    {{block "head" .}}{{end}}
 </head>
-<body{{if not .CurrentUser}} class="guest"{{end}}>
+<body{{if .Landing}} class="landing"{{else if not .CurrentUser}} class="guest"{{end}}>
 {{if .CurrentUser}}
     <header class="topbar">
         <a class="brand" href="/">{{t "brand"}}</a>
@@ -51,6 +52,11 @@
         </div>
     </header>
 {{end}}
+{{/* Витрина раскладывает страницу сама — во всю ширину, без рамки main. */}}
+{{if .Landing}}
+    <div class="langs floating">{{template "langswitch" .}}</div>
+    {{template "content" .}}
+{{else}}
 <main class="{{if not .CurrentUser}}centered{{end}}">
     {{/* До входа шапки нет, а язык выбрать надо: переключатель тогда
          висит в том же правом углу сам по себе. */}}
@@ -59,6 +65,7 @@
     {{end}}
     {{template "content" .}}
 </main>
+{{end}}
 </body>
 </html>{{end}}
 
