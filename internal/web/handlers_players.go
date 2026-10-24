@@ -248,8 +248,19 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		return
 	}
 
+	// Где играет сейчас — открытые партии из обхода, где у него есть
+	// провинции. Только тем, кому открыты «Игры».
+	var playing []myGameView
+	if me.CanViewGames() {
+		playing, err = s.playerGames(r.Context(), player.GameID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+
 	s.render(w, r, status, "player", map[string]any{
-		"A": analytics, "Hunting": hunting, "CanHunt": me.IsRoot() && s.hunts != nil && player.GameID != "",
+		"A": analytics, "Playing": playing, "Hunting": hunting, "CanHunt": me.IsRoot() && s.hunts != nil && player.GameID != "",
 		"Player": player, "Comments": comments, "MyComment": myComment,
 		"MyNotes": notes, "NoteMax": domain.MaxCommentLen,
 		"Error": errMsg, "Seen": seen, "Bans": bans, "FormerNicks": formerNicks, "Traits": traits,

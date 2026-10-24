@@ -213,6 +213,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /players", user(http.HandlerFunc(s.home)))
 	// Мини-карта своей партии по снимку из расширения — для «Обзора».
 	mux.Handle("GET /overview/map/{id}", user(http.HandlerFunc(s.miniMap)))
+	// Мини-карта партии в карточке игрока — по доступу к «Играм», как
+	// и всё, что показывает партии.
+	mux.Handle("GET /players/{id}/map/{game}", user(auth.RequireGamesAccess(http.HandlerFunc(s.playerMiniMap))))
 	mux.Handle("GET /search", user(http.HandlerFunc(s.search)))
 	mux.Handle("GET /players/{id}", user(http.HandlerFunc(s.playerCard)))
 	// Кланы смотрят все: это такой же справочник, как карточки игроков.

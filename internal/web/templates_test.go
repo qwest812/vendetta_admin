@@ -168,6 +168,21 @@ func TestPagesRender(t *testing.T) {
 				`href="/players/new"`},
 		},
 		{
+			// Где играет сейчас: карточки партий из обхода, мини-карта
+			// подгружается по адресу этого игрока.
+			name: "player/где играет сейчас",
+			page: "player",
+			user: root,
+			data: map[string]any{"Player": enemy, "Comments": nil, "Error": "", "Seen": nil, "Bans": nil,
+				"Traits": directory, "Marks": marks, "Marked": enemy.MarkedTraits(), "Body": "",
+				"CommentMax": domain.CommentMaxLen,
+				"Playing": []myGameView{{GameID: "10934703", Title: "World War", Day: 12, Mine: 30, Total: 900,
+					Scanned: true, TakenAt: banSeen}}},
+			want: []string{"Где играет сейчас", `hx-get="/players/3/map/10934703"`, "World War",
+				"провинций 30 из 900", `href="/games/10934703"`},
+			deny: []string{"ваших провинций"},
+		},
+		{
 			// Карточка без ручных разделов: остаётся собранное из игры,
 			// а признаков, героев, заметок и комментариев нет вовсе.
 			name: "player/без ручных разделов",

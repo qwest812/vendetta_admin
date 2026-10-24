@@ -86,3 +86,28 @@
     {{end}}
 </div>
 {{end}}
+
+{{/* Карточки партий с мини-картой: «Ваши партии» в «Обзоре» и «Где играет
+     сейчас» в карточке игрока (Self — про себя, «ваших»). Base — адрес
+     мини-карты без номера партии:
+     она подгружается отдельно, очертания тяжёлые. */}}
+{{define "gamecards"}}
+{{$base := .Base}}{{$can := .CanGames}}{{$self := .Self}}
+<div class="my-games">
+    {{range .Games}}
+        <article class="card my-game">
+            <div class="card-head">
+                {{$name := .Title}}{{if not $name}}{{$name = t "game.unnamed" .GameID}}{{end}}
+                <h2>{{if $can}}<a href="/games/{{.GameID}}">{{$name}}</a>{{else}}{{$name}}{{end}}</h2>
+                <span class="muted" title="{{if .Scanned}}{{t "my.src.scan"}}{{else}}{{t "my.src.ext"}}{{end}}">{{t "my.taken" (ago .TakenAt)}}</span>
+            </div>
+            <p class="muted my-meta">
+                {{if .Nation}}<b>{{.Nation}}</b> · {{end}}{{t "gs.day"}} {{.Day}} · {{if $self}}{{t "my.provinces" .Mine .Total}}{{else}}{{t "pl.provinces" .Mine .Total}}{{end}}{{if .Teammates}} · {{t "my.team" .Teammates}}{{end}}
+            </p>
+            <div class="minimap" hx-get="{{$base}}{{.GameID}}" hx-trigger="load" hx-swap="innerHTML">
+                <p class="muted">{{t "my.loading"}}</p>
+            </div>
+        </article>
+    {{end}}
+</div>
+{{end}}

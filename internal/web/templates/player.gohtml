@@ -121,6 +121,13 @@
 {{/* Аналитика игрока — из базы, руками не заполняется: место среди
      всех игроков со счётом, частые союзники и партии по архиву коалиций,
      альянс. Нечего показать — блока нет. */}}
+{{/* Где играет сейчас — открытые партии из обхода, где у него есть
+     провинции; мини-карта раскрашена относительно него. */}}
+{{with .Playing}}
+    <h2 class="section-title">{{t "pl.playing"}}</h2>
+    {{template "gamecards" (dict "Games" . "Base" (printf "/players/%d/map/" $.Player.ID) "CanGames" true)}}
+{{end}}
+
 {{if not .A.Empty}}
     <h2 class="section-title">{{t "an.title"}}</h2>
     {{template "analytics" (dict "A" .A "Self" false "Games" .CurrentUser.CanViewGames)}}

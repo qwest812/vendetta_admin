@@ -115,18 +115,10 @@ func (s *Server) miniMap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	enemies := map[string]bool{}
-	if s.manualOn(ctx) {
-		list, err := s.enemies.repo.List(ctx, me.ID)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		for _, rel := range list {
-			if rel.Player.GameID != "" {
-				enemies[rel.Player.GameID] = true
-			}
-		}
+	enemies, err := s.myEnemies(ctx, me.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
 	}
 
 	// owner — класс провинции по её номеру; mapID — чьи очертания брать.
@@ -186,22 +178,18 @@ func (s *Server) miniMap(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		mapID, scanned = g.MapID, true
-		team := g.Teams[me.GameID]
-		for id, site := range owners {
-			switch {
-			case site == me.GameID:
-				classOf[id] = "mm-me"
-			case enemies[site]:
-				classOf[id] = "mm-enemy"
-			case team > 0 && g.Teams[site] == team:
-				classOf[id] = "mm-team"
-			default:
-				classOf[id] = "mm-human"
-			}
-		}
+		classOf = scannedClasses(owners, g.Teams, me.GameID, enemies)
 	}
 
-	geo, err := s.games.MapGeometry(ctx, mapID)
+	s.renderMiniMap(w, r, mapID, classOf, scanned, "")
+}
+
+// renderMiniMap рисует мини-карту по классам провинций. who — подпись
+// «главного» цвета: пусто — «Вы», иначе ник игрока из карточки.
+func (s *Server) renderMiniMap(w http.ResponseWriter, r *http.Request, mapID string,
+	classOf map[int]string, scanned bool, who string) {
+
+	geo, err := s.games.MapGeometry(r.Context(), mapID)
 	if err != nil {
 		s.log.Warn("мини-карта: очертания", "mapID", mapID, "err", err)
 		s.renderPartial(w, r, "overview", "minimap", map[string]any{"Error": true})
@@ -209,8 +197,104 @@ func (s *Server) miniMap(w http.ResponseWriter, r *http.Request) {
 	}
 	shapes, counts := miniShapes(geo, classOf)
 	s.renderPartial(w, r, "overview", "minimap", map[string]any{
-		"Width": geo.Width, "Height": geo.Height, "Shapes": shapes, "Counts": counts, "Scanned": scanned,
+		"Width": geo.Width, "Height": geo.Height, "Shapes": shapes, "Counts": counts,
+		"Scanned": scanned, "Who": who,
 	})
+}
+
+// scannedClasses раскрашивает провинции по данным обхода относительно
+// subject — игрока на сайте: он сам, его коалиция, враги смотрящего,
+// остальные. Ботов и ничьей земли в owners нет.
+func scannedClasses(owners map[int]string, teams map[string]int, subject string, enemies map[string]bool) map[int]string {
+	classOf := make(map[int]string, len(owners))
+	team := teams[subject]
+	for id, site := range owners {
+		switch {
+		case site == subject:
+			classOf[id] = "mm-me"
+		case enemies[site]:
+			classOf[id] = "mm-enemy"
+		case team > 0 && teams[site] == team:
+			classOf[id] = "mm-team"
+		default:
+			classOf[id] = "mm-human"
+		}
+	}
+	return classOf
+}
+
+// myEnemies — игровые ID врагов смотрящего, пока ручные разделы включены.
+func (s *Server) myEnemies(ctx context.Context, userID int64) (map[string]bool, error) {
+	enemies := map[string]bool{}
+	if !s.manualOn(ctx) {
+		return enemies, nil
+	}
+	list, err := s.enemies.repo.List(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, rel := range list {
+		if rel.Player.GameID != "" {
+			enemies[rel.Player.GameID] = true
+		}
+	}
+	return enemies, nil
+}
+
+// playerGames — «Где играет сейчас» для карточки: открытые партии, где
+// у игрока есть провинции по последнему заходу обхода.
+func (s *Server) playerGames(ctx context.Context, gameID string) ([]myGameView, error) {
+	if s.provinces == nil || gameID == "" {
+		return nil, nil
+	}
+	list, err := s.provinces.ScannedGames(ctx, gameID, myGamesLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]myGameView, 0, len(list))
+	for _, g := range list {
+		v := myGameView{GameID: g.GameID, Title: g.Title, Day: g.Day, Mine: g.Mine, Total: g.Total,
+			TakenAt: g.TakenAt, Scanned: true}
+		if team := g.Teams[gameID]; team > 0 {
+			for site, t := range g.Teams {
+				if t == team && site != gameID {
+					v.Teammates++
+				}
+			}
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// playerMiniMap — мини-карта партии для карточки игрока: раскрашена
+// относительно него. Только партии, где у него есть провинции.
+func (s *Server) playerMiniMap(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	player, ok := s.loadPlayer(w, r)
+	if !ok {
+		return
+	}
+	gameID := r.PathValue("game")
+	if !digitsOnly(gameID) || s.games == nil || s.provinces == nil || player.GameID == "" {
+		http.NotFound(w, r)
+		return
+	}
+	owners, g, found, err := s.provinces.ScannedOwners(ctx, gameID, player.GameID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+	enemies, err := s.myEnemies(ctx, currentUser(r).ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.renderMiniMap(w, r, g.MapID, scannedClasses(owners, g.Teams, player.GameID, enemies), true, player.Nickname)
 }
 
 // miniShapes раскладывает очертания по классам; провинции без класса —
