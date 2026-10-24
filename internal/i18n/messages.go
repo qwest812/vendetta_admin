@@ -996,8 +996,9 @@ var messages = map[string]entry{
 	"ov.state.done":        {ru: "закончена", en: "finished"},
 	"ov.state.live":        {ru: "идёт", en: "running"},
 	"ov.checks.left":       {ru: "проверок сегодня: %d из %d", en: "checks today: %d of %d"},
-	"ov.lists":             {ru: "Ваши списки", en: "Your lists"},
-	"ov.lists.sub":         {ru: "игроков в друзьях и врагах.", en: "players in friends and enemies."},
+	"ov.lists.all":         {ru: "весь список →", en: "whole list →"},
+	"ov.enemies.none":      {ru: "Во врагах пока никого. Пометить можно из поиска или с карточки игрока.", en: "No enemies yet. Mark someone from search or from a player card."},
+	"ov.friends.none":      {ru: "В друзьях пока никого. Пометить можно из поиска или с карточки игрока.", en: "No friends yet. Mark someone from search or from a player card."},
 
 	// --- витрина для гостя (корень сайта до входа) ---
 	"landing.title":             {ru: "Frontline — база игроков и карта партии Supremacy 1914", en: "Frontline — player database and game map for Supremacy 1914"},

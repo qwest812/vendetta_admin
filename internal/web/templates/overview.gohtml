@@ -114,14 +114,35 @@
     </section>
     {{end}}
 
-    {{with .Listed}}
-    <section class="card">
-        <div class="card-head"><h2>{{t "ov.lists"}}</h2></div>
-        <p class="ov-big">{{.}}</p>
-        <p class="muted">{{t "ov.lists.sub"}} <a href="/enemies">{{t "nav.enemies"}}</a> · <a href="/friends">{{t "nav.friends"}}</a></p>
-    </section>
+    {{/* Личные списки — врагов и друзей отдельно, свежие сверху. */}}
+    {{if .Lists}}
+        {{template "ov-listed" (dict "L" .EnemyList "Title" (t "rel.enemies.title") "Path" "/enemies" "Badge" "clan-enemy" "Empty" (t "ov.enemies.none"))}}
+        {{template "ov-listed" (dict "L" .FriendList "Title" (t "rel.friends.title") "Path" "/friends" "Badge" "clan-ally" "Empty" (t "ov.friends.none"))}}
     {{end}}
 </div>
+{{end}}
+
+{{/* Блок личного списка: число в заголовке, первые записи со ссылкой
+   на карточку и заметкой, ссылка на весь список. */}}
+{{define "ov-listed"}}
+<section class="card">
+    <div class="card-head">
+        <h2>{{.Title}} <span class="badge {{.Badge}}">{{.L.Total}}</span></h2>
+        <a class="muted" href="{{.Path}}">{{t "ov.lists.all"}}</a>
+    </div>
+    {{if .L.Items}}
+        <ul class="ov-list">
+            {{range .L.Items}}
+                <li>
+                    <a href="/players/{{.Player.ID}}">{{.Player.Nickname}}</a>
+                    <span class="muted ov-note-text">{{if .Comment}}{{.Comment}}{{else if .Player.ClanName}}[{{.Player.ClanName}}]{{end}}</span>
+                </li>
+            {{end}}
+        </ul>
+    {{else}}
+        <p class="muted">{{.Empty}}</p>
+    {{end}}
+</section>
 {{end}}
 
 {{/* Плитка показателя: подпись, число, строка пояснения и полоса места

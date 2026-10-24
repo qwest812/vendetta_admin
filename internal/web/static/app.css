@@ -1391,3 +1391,4 @@ main:has(.map-view) { max-width: 1560px; }
 .ov-chip:hover { border-color: var(--accent); }
 .ov-checks { margin: 10px 0 0; font-size: 12px; }
 @media (max-width: 560px) { .ov-search { flex-direction: column; } }
+.ov-list .ov-note-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; text-align: right; }

@@ -14,7 +14,22 @@ const (
 	overviewAllies  = 6
 	overviewGames   = 6
 	overviewChecked = 5
+	overviewListed  = 6
 )
+
+// listedView — личный список для «Обзора»: первые записи и сколько всего.
+type listedView struct {
+	Items []domain.Relation
+	Total int
+}
+
+func cutListed(list []domain.Relation) listedView {
+	v := listedView{Items: list, Total: len(list)}
+	if len(list) > overviewListed {
+		v.Items = list[:overviewListed]
+	}
+	return v
+}
 
 // pct — доля в процентах, без дробей: «сильнее 84% базы».
 func pct(n, total int) int {
@@ -55,10 +70,21 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Враги и друзья — каждый своим блоком. Это ручной раздел: выключен
+	// он — блоков нет.
 	if s.manualOn(ctx) {
-		if n, err := s.enemies.repo.UsedTotal(ctx, me.ID); err == nil {
-			data["Listed"] = n
+		enemies, err := s.enemies.repo.List(ctx, me.ID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
 		}
+		friends, err := s.friends.repo.List(ctx, me.ID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		data["Lists"] = true
+		data["EnemyList"], data["FriendList"] = cutListed(enemies), cutListed(friends)
 	}
 
 	// Без игрового ID в профиле сравнивать некого: просим его указать.
