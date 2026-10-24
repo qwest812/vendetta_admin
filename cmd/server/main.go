@@ -164,6 +164,8 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// Врагов из личных списков обход отмечает попутно — в партиях,
 		// куда и так зашёл.
 		scanner.WatchEnemies(hunts)
+		// И провинции каждого захода — сырьё для поиска мультиаккаунтов.
+		scanner.KeepProvinces(repo.NewProvinces(pool))
 		watcher.Feed(scanner)
 
 		// Воркеры расходятся по очереди, а не стартуют все разом: ходят они

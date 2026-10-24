@@ -202,6 +202,8 @@ type CoalitionScanner struct {
 	// в партии. Отмечаем только то, что обход и так увидел: ради врагов
 	// он никуда не ходит. nil — не отмечаем.
 	sightings SightingStore
+	// provinces — куда записывать провинции захода; nil — не записываем.
+	provinces ProvinceStore
 }
 
 // SightingStore — кого высматривать для личных списков и куда отмечать
@@ -210,6 +212,18 @@ type SightingStore interface {
 	Watched(ctx context.Context) ([]string, error)
 	Sighted(ctx context.Context, list []domain.Sighting, at time.Time) error
 }
+
+// ProvinceStore — провинции по заходам: сырьё для поиска мультиаккаунтов.
+// PrevOwners — владельцы с прошлого захода, SaveProvinces — новый снимок
+// вместе с переходами.
+type ProvinceStore interface {
+	PrevOwners(ctx context.Context, gameID string) (map[int]string, error)
+	SaveProvinces(ctx context.Context, snap domain.ProvinceSnapshot, at time.Time) error
+}
+
+// KeepProvinces включает запись провинций при каждом заходе. Тоже попутно:
+// состояние партии обход получает и так.
+func (s *CoalitionScanner) KeepProvinces(store ProvinceStore) { s.provinces = store }
 
 // WatchEnemies включает попутные отметки врагов из личных списков.
 func (s *CoalitionScanner) WatchEnemies(store SightingStore) { s.sightings = store }
@@ -356,6 +370,12 @@ func (s *CoalitionScanner) check(ctx context.Context, g domain.WatchedGame, watc
 		return
 	}
 
+	// Провинции захода — попутно, из того же состояния: владельцы, счёт
+	// и переходы с прошлого раза. Ошибка здесь коалиций не отменяет.
+	if s.provinces != nil {
+		s.keepProvinces(ctx, g.GameID, state, done, now)
+	}
+
 	// Враги из личных списков, которых застали в этой партии, — попутно,
 	// из того же состояния.
 	if len(watch) > 0 {
@@ -418,4 +438,19 @@ func CoalitionsOf(g *GameState) []domain.Coalition {
 		out = append(out, domain.Coalition{TeamID: id, Name: g.Teams[id].Name, Members: list})
 	}
 	return out
+}
+
+// keepProvinces записывает провинции захода и переходы с прошлого раза.
+func (s *CoalitionScanner) keepProvinces(ctx context.Context, gameID string, state *GameState, done bool, now time.Time) {
+	prev, err := s.provinces.PrevOwners(ctx, gameID)
+	if err != nil {
+		s.log.Error("провинции: прошлый заход", "gameID", gameID, "err", err)
+		return
+	}
+	owners, counts, teams := ownersOf(state)
+	snap := domain.ProvinceSnapshot{GameID: gameID, Day: state.Day, Owners: owners, Counts: counts,
+		Transfers: transfersBetween(prev, owners, teams), Done: done}
+	if err := s.provinces.SaveProvinces(ctx, snap, now); err != nil {
+		s.log.Error("провинции: запись", "gameID", gameID, "err", err)
+	}
 }

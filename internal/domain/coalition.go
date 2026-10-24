@@ -79,3 +79,23 @@ type CoalitionStats struct {
 	Members   int
 	LastCheck time.Time
 }
+
+// ProvinceTransfer — сколько провинций перешло от одного игрока к другому
+// между двумя заходами в партию. SameTeam — оба в одной коалиции.
+type ProvinceTransfer struct {
+	From      string
+	To        string
+	SameTeam  bool
+	Provinces int
+}
+
+// ProvinceSnapshot — провинции партии на один заход: владельцы (номер
+// провинции → игрок на сайте), сколько у кого и переходы с прошлого раза.
+type ProvinceSnapshot struct {
+	GameID    string
+	Day       int
+	Owners    map[int]string
+	Counts    map[string]int
+	Transfers []ProvinceTransfer
+	Done      bool
+}
