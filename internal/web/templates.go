@@ -61,6 +61,8 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 			}
 			return path == href || strings.HasPrefix(path, href+"/")
 		},
+		// ago — «5 ч назад» от момента: для времени последней проверки.
+		"ago": func(t time.Time) string { return agoText(l, time.Since(t)) },
 		"grouped": func(v any) string {
 			switch x := v.(type) {
 			case int:

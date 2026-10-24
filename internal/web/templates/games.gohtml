@@ -194,20 +194,40 @@
 {{end}}
 {{end}}
 
+{{/* Панель «Сбор данных»: что делают воркеры и что накопил архив.
+     Лампочка — зелёная: идёт; жёлтая: включён, но давно молчит;
+     серая: выключен в «Настройках». Всё из базы, в игру страница
+     не ходит. */}}
 {{define "coalitions-card"}}
 {{$c := .}}
 <div class="card" id="coalitions">
     <div class="card-head">
-        <h1>{{t "coalitions.title"}}</h1>
+        <h1>{{t "workers.title"}}</h1>
         <div class="head-actions">
             <a class="button ghost" href="/settings">{{t "nav.settings"}}</a>
         </div>
     </div>
-    <p class="muted">
-        {{if $c.On}}{{t "coalitions.on"}}{{else}}{{t "coalitions.off"}}{{end}}
-        {{t "coalitions.stats" $c.Watched $c.Pending $c.Games $c.Members}}{{if $c.Endgame}} {{t "coalitions.endgame" $c.Endgame}}{{end}}
-        {{if not $c.LastCheck.IsZero}}{{t "coalitions.last"}} {{datetime $c.LastCheck}}.{{end}}
-    </p>
+    <ul class="workers">
+        <li>
+            <span class="lamp {{if $c.Lobby}}on{{end}}"></span>
+            <b>{{t "lobby.title"}}</b>
+            <span class="muted">{{if $c.Lobby}}{{t "workers.running"}}{{else}}{{t "workers.stopped"}}{{end}}</span>
+        </li>
+        <li>
+            <span class="lamp {{if $c.Stale}}warn{{else if $c.On}}on{{end}}"></span>
+            <b>{{t "coalitions.title"}}</b>
+            <span class="muted">
+                {{if not $c.On}}{{t "workers.stopped"}}{{else if $c.Stale}}{{t "workers.stale"}}{{else}}{{t "workers.running"}}{{end}}{{if not $c.LastCheck.IsZero}} · {{t "workers.last" (ago $c.LastCheck)}}{{end}}
+            </span>
+        </li>
+    </ul>
+    <div class="game-stats workers-stats">
+        <div class="gs-tile"><span>{{t "workers.watched"}}</span><b>{{$c.Watched}}</b></div>
+        <div class="gs-tile"><span>{{t "workers.pending"}}</span><b>{{$c.Pending}}</b></div>
+        <div class="gs-tile"><span>{{t "workers.endgame"}}</span><b>{{$c.Endgame}}</b></div>
+        <div class="gs-tile"><span>{{t "workers.games"}}</span><b>{{$c.Games}}</b></div>
+        <div class="gs-tile"><span>{{t "workers.members"}}</span><b>{{$c.Members}}</b></div>
+    </div>
     <p class="muted">{{t "coalitions.switch.at"}}</p>
 </div>
 {{end}}

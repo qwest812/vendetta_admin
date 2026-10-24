@@ -597,6 +597,27 @@ var messages = map[string]entry{
 	"game.map.zoom.fit":      {ru: "Показать всю карту", en: "Show the whole map"},
 	"game.map.zoom.fitshort": {ru: "Вся", en: "Fit"},
 	// Инспектор провинции справа от карты.
+	// Сводка партии плитками над картой.
+	// Панель «Сбор данных» в «Играх».
+	"workers.title":             {ru: "Сбор данных", en: "Data collection"},
+	"workers.running":           {ru: "идёт", en: "running"},
+	"workers.stopped":           {ru: "остановлен в настройках", en: "stopped in settings"},
+	"workers.stale":             {ru: "включён, но давно не проверял", en: "on, but has not checked for a while"},
+	"workers.last":              {ru: "последняя проверка %s", en: "last check %s"},
+	"workers.watched":           {ru: "Партий под наблюдением", en: "Games watched"},
+	"workers.pending":           {ru: "Ждут проверки", en: "Awaiting a check"},
+	"workers.endgame":           {ru: "В эндшпиле", en: "In the endgame"},
+	"workers.games":             {ru: "Партий с коалициями", en: "Games with coalitions"},
+	"workers.members":           {ru: "Записей об участии", en: "Membership records"},
+	"gs.day":                    {ru: "День партии", en: "Game day"},
+	"gs.humans":                 {ru: "Игроков", en: "Players"},
+	"gs.premium":                {ru: "с подпиской: %d", en: "premium: %d"},
+	"gs.bots":                   {ru: "Ботов", en: "Bots"},
+	"gs.gone":                   {ru: "стали ботами: %d", en: "turned bots: %d"},
+	"gs.banned":                 {ru: "Забанено", en: "Banned"},
+	"gs.teams":                  {ru: "Коалиций", en: "Coalitions"},
+	"gs.alliances":              {ru: "Альянсов", en: "Alliances"},
+	"gs.mine":                   {ru: "Ваших провинций", en: "Your provinces"},
 	"game.insp.kicker":          {ru: "Провинция", en: "Province"},
 	"game.insp.empty":           {ru: "Ничего не выбрано", en: "Nothing selected"},
 	"game.insp.hint":            {ru: "Щёлкните по провинции — здесь появится её владелец. Колесо или щипок — масштаб, перетаскивание — сдвиг.", en: "Click a province to see its owner here. Wheel or pinch to zoom, drag to move."},
@@ -1088,17 +1109,14 @@ var messages = map[string]entry{
 	"hunt.hits":        {ru: "Где нашли", en: "Found in"},
 	"hunt.when":        {ru: "Когда", en: "When"},
 
-	"coalitions.endgame": {ru: "В эндшпиле %d — за ними ходим к каждой смене дня.", en: "%d in the endgame — checked at every day change."},
-	"coalitions.on":      {ru: "Идёт.", en: "Running."},
-	"coalitions.off":     {ru: "Остановлен.", en: "Stopped."},
+	"coalitions.on":  {ru: "Идёт.", en: "Running."},
+	"coalitions.off": {ru: "Остановлен.", en: "Stopped."},
 	// Рубильник и счётчики теперь на разных страницах, и каждая говорит,
 	// где искать вторую половину.
 	"coalitions.switch.at": {ru: "Включается и останавливается в «Настройках».", en: "It is started and stopped in Settings."},
 	"coalitions.stats.at":  {ru: "Сколько партий и пар уже собрано, видно в разделе «Игры».", en: "How many games and pairs have been collected is shown in the Games section."},
 	"coalitions.start":     {ru: "Включить сбор", en: "Start the scan"},
 	"coalitions.stop":      {ru: "Остановить сбор", en: "Stop the scan"},
-	"coalitions.stats":     {ru: "Партий под наблюдением %d, из них ждут проверки %d. Коалиции нашлись в %d партиях, записей об участии %d.", en: "%d games watched, %d of them awaiting a check. Coalitions were found in %d games, %d membership records."},
-	"coalitions.last":      {ru: "Последний заход:", en: "Last check:"},
 
 	// --- «кто с кем уже союзничал» на странице партии ---
 	"pairs.title":    {ru: "Кто с кем уже союзничал", en: "Who has allied with whom"},

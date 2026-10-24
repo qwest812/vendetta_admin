@@ -866,6 +866,20 @@
                hx-get="/games/{{.GameID}}/roster" hx-trigger="load"
                hx-target="closest .map-view" hx-swap="outerHTML">{{t "game.roster.later"}}</p>
         {{end}}
+        {{/* Сводка партии плитками — из того же, что красит карту: род
+             владельцев, коалиции, альянсы, свои провинции. Стоит внутри
+             блока карты, чтобы догруженный состав обновлял и её. */}}
+        <div class="game-stats">
+            {{with .State}}{{if .Day}}<div class="gs-tile"><span>{{t "gs.day"}}</span><b>{{.Day}}</b></div>{{end}}{{end}}
+            {{with .Map.Kinds}}
+                <div class="gs-tile"><span>{{t "gs.humans"}}</span><b>{{.Regular}}</b>{{if .Premium}}<small>{{t "gs.premium" .Premium}}</small>{{end}}</div>
+                <div class="gs-tile"><span>{{t "gs.bots"}}</span><b>{{.AI}}</b>{{if .Gone}}<small>{{t "gs.gone" .Gone}}</small>{{end}}</div>
+                {{if .Banned}}<div class="gs-tile warn"><span>{{t "gs.banned"}}</span><b>{{.Banned}}</b></div>{{end}}
+            {{end}}
+            <div class="gs-tile"><span>{{t "gs.teams"}}</span><b>{{len .Map.Teams}}</b></div>
+            {{if .Map.Legend}}<div class="gs-tile"><span>{{t "gs.alliances"}}</span><b>{{len .Map.Legend}}</b></div>{{end}}
+            {{if .Mine}}<div class="gs-tile mine"><span>{{t "gs.mine"}}</span><b>{{len .Mine}}</b></div>{{end}}
+        </div>
         {{/* Режимы — столбцом слева, у каждого строка о том, что он
              красит. На телефоне столбец становится лентой, и пояснения
              прячутся: места под них там нет. */}}

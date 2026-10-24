@@ -85,7 +85,11 @@ func (s *Server) coalitionCard(ctx context.Context) (coalitionStatsView, error) 
 	if err != nil {
 		return coalitionStatsView{}, err
 	}
-	return coalitionStatsView{On: on, CoalitionStats: stats}, nil
+	lobby, err := s.settings.LobbyWatchEnabled(ctx)
+	if err != nil {
+		return coalitionStatsView{}, err
+	}
+	return coalitionStatsView{On: on, Lobby: lobby, CoalitionStats: stats}, nil
 }
 
 // rememberCoalitions кладёт коалиции открытой партии в архив. Состояние
@@ -255,7 +259,20 @@ func (s *Server) coalitionSide(p supremacy.Player, sides *gameSides) coalitionSi
 // coalitionStatsView — сводка архива для раздела «Игры».
 type coalitionStatsView struct {
 	On bool
+	// Lobby — идёт ли поиск новых партий: от него архив узнаёт о партиях,
+	// и в панели «Сбор данных» он стоит первым.
+	Lobby bool
 	domain.CoalitionStats
+}
+
+// coalitionStale — после какой паузы обход считается застрявшим. Он берёт
+// порцию партий каждые несколько минут; два часа тишины при включённом
+// рубильнике — уже повод посмотреть в логи.
+const coalitionStale = 2 * time.Hour
+
+// Stale — обход включён, но давно ничего не проверял.
+func (v coalitionStatsView) Stale() bool {
+	return v.On && v.Pending > 0 && !v.LastCheck.IsZero() && time.Since(v.LastCheck) > coalitionStale
 }
 
 // Speed печатается в шаблоне как «x4»; число хранится дробным, потому что
