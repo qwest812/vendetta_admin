@@ -8,50 +8,64 @@
     <script src="/static/htmx.min.js" defer></script>
     {{block "head" .}}{{end}}
 </head>
-<body{{if .Landing}} class="landing"{{else if not .CurrentUser}} class="guest"{{end}}>
+<body{{if .Landing}} class="landing"{{else if not .CurrentUser}} class="guest"{{else}} class="has-side"{{end}}>
 {{if .CurrentUser}}
-    <header class="topbar">
+    {{/* Меню — боковой панелью: пунктов у рута больше дюжины, и строкой
+         наверху они переносились. На телефоне панель выезжает по кнопке:
+         флажок side-toggle и css, без скриптов. */}}
+    <input type="checkbox" id="side-toggle" class="side-toggle" aria-label="{{t "nav.menu"}}">
+    <header class="mobilebar">
+        <label for="side-toggle" class="burger" title="{{t "nav.menu"}}">☰</label>
         <a class="brand" href="/">{{t "brand"}}</a>
-        <nav>
-            <a href="/" {{if eq .Path "/"}}class="active"{{end}}>{{t "nav.overview"}}</a>
-            <a href="/players" {{if eq .Path "/players"}}class="active"{{end}}>{{t "nav.search"}}</a>
-            {{/* Пункт «Кланы» из меню убран: раздел жив и открывается прямой
-                 ссылкой /clans, но в навигации его пока не показываем. */}}
-            {{/* Личные списки — ручной раздел: их прячет рубильник в «Настройках». */}}
-            {{if .Manual}}
-                <a href="/friends" {{if eq .Path "/friends"}}class="active"{{end}}>{{t "nav.friends"}}</a>
-                <a href="/enemies" {{if eq .Path "/enemies"}}class="active"{{end}}>{{t "nav.enemies"}}</a>
-            {{end}}
-            {{if .CurrentUser.IsAdmin}}
-                <a href="/users" {{if eq .Path "/users"}}class="active"{{end}}>{{t "nav.users"}}</a>
-                <a href="/audit" {{if eq .Path "/audit"}}class="active"{{end}}>{{t "nav.audit"}}</a>
-            {{end}}
-            {{if .CurrentUser.IsRoot}}
-                <a href="/settings" {{if eq .Path "/settings"}}class="active"{{end}}>{{t "nav.settings"}}</a>
-                <a href="/logins" {{if eq .Path "/logins"}}class="active"{{end}}>{{t "nav.logins"}}</a>
-                <a href="/signups" {{if eq .Path "/signups"}}class="active"{{end}}>{{t "nav.signups"}}</a>
-            {{end}}
+    </header>
+    <label for="side-toggle" class="side-shade" aria-hidden="true"></label>
+    <aside class="side">
+        <a class="brand side-brand" href="/">{{t "brand"}}</a>
+        <nav class="side-nav">
+            {{template "navlink" (dict "P" .Path "Href" "/" "Icon" "overview" "Text" (t "nav.overview"))}}
+            {{template "navlink" (dict "P" .Path "Href" "/players" "Icon" "players" "Text" (t "nav.search"))}}
             {{/* Раздел «Игры» — по персональному доступу от рута, а не по роли. */}}
             {{if .CurrentUser.CanViewGames}}
-                <a href="/games" {{if eq .Path "/games"}}class="active"{{end}}>{{t "nav.games"}}</a>
+                {{template "navlink" (dict "P" .Path "Href" "/games" "Icon" "games" "Text" (t "nav.games"))}}
             {{end}}
-            <a href="/faq" {{if eq .Path "/faq"}}class="active"{{end}}>{{t "nav.faq"}}</a>
+            {{/* Пункт «Кланы» из меню убран: раздел жив и открывается прямой
+                 ссылкой /clans, но в навигации его пока не показываем.
+                 Личные списки — ручной раздел: их прячет рубильник в «Настройках». */}}
+            {{if .Manual}}
+                {{template "navlink" (dict "P" .Path "Href" "/friends" "Icon" "friends" "Text" (t "nav.friends"))}}
+                {{template "navlink" (dict "P" .Path "Href" "/enemies" "Icon" "enemies" "Text" (t "nav.enemies"))}}
+            {{end}}
+            {{if .CurrentUser.IsAdmin}}
+                <p class="side-group">{{t "nav.group.admin"}}</p>
+                {{template "navlink" (dict "P" .Path "Href" "/users" "Icon" "users" "Text" (t "nav.users"))}}
+                {{template "navlink" (dict "P" .Path "Href" "/audit" "Icon" "audit" "Text" (t "nav.audit"))}}
+            {{end}}
+            {{if .CurrentUser.IsRoot}}
+                <p class="side-group">{{t "nav.group.root"}}</p>
+                {{template "navlink" (dict "P" .Path "Href" "/settings" "Icon" "settings" "Text" (t "nav.settings"))}}
+                {{template "navlink" (dict "P" .Path "Href" "/logins" "Icon" "logins" "Text" (t "nav.logins"))}}
+                {{template "navlink" (dict "P" .Path "Href" "/signups" "Icon" "signups" "Text" (t "nav.signups"))}}
+            {{end}}
+            <p class="side-group"></p>
+            {{template "navlink" (dict "P" .Path "Href" "/faq" "Icon" "faq" "Text" (t "nav.faq"))}}
             {{/* Обратная связь — последней: ходят туда редко, а число рядом
                  с разделом само зовёт, когда есть чего ждать. Админу оно
                  показывает, сколько обращений ждут ответа, автору — на сколько
                  его обращений ответили. */}}
-            <a href="/feedback" {{if eq .Path "/feedback"}}class="active"{{end}}>{{t "nav.feedback"}}{{if .FeedbackBadge}} <span class="badge count">{{.FeedbackBadge}}</span>{{end}}</a>
+            {{template "navlink" (dict "P" .Path "Href" "/feedback" "Icon" "feedback" "Text" (t "nav.feedback") "Badge" .FeedbackBadge)}}
         </nav>
-        <div class="me">
+        <div class="side-me">
             <a class="email" href="/profile">{{.CurrentUser.Display}}</a>
             <span class="badge role-{{.CurrentUser.Role}}">{{role .CurrentUser.Role}}</span>
-            {{template "langswitch" .}}
-            <form method="post" action="/logout">
-                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-                <button class="link" type="submit">{{t "top.logout"}}</button>
-            </form>
+            <div class="side-me-row">
+                {{template "langswitch" .}}
+                <form method="post" action="/logout">
+                    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                    <button class="link" type="submit">{{t "top.logout"}}</button>
+                </form>
+            </div>
         </div>
-    </header>
+    </aside>
 {{end}}
 {{/* Витрина раскладывает страницу сама — во всю ширину, без рамки main. */}}
 {{if .Landing}}
@@ -80,3 +94,12 @@
            title="{{t "top.lang.to" .Title}}" lang="{{.}}">{{.Short}}</a>
     {{end}}
 {{end}}
+
+
+{{/* Пункт меню: значок и подпись; активен, когда путь совпадает. */}}
+{{define "navlink"}}
+<a href="{{.Href}}"{{if navActive .P .Href}} class="active"{{end}}>{{template "icon" .Icon}}<span>{{.Text}}</span>{{with .Badge}} <span class="badge count">{{.}}</span>{{end}}</a>
+{{end}}
+
+{{/* Значки меню — линиями, в цвет текста; viewBox 24 на 24. */}}
+{{define "icon"}}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">{{if eq . "overview"}}<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>{{else if eq . "players"}}<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>{{else if eq . "games"}}<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>{{else if eq . "friends"}}<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>{{else if eq . "enemies"}}<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>{{else if eq . "users"}}<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>{{else if eq . "audit"}}<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>{{else if eq . "settings"}}<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>{{else if eq . "logins"}}<path d="M14 4h5v16h-5M3 12h11M10 8l4 4-4 4"/>{{else if eq . "signups"}}<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M19 8v6M16 11h6"/>{{else if eq . "faq"}}<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/>{{else if eq . "feedback"}}<path d="M4 5h16v11H9l-5 4z"/>{{end}}</svg>{{end}}

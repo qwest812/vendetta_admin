@@ -53,6 +53,14 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 			}
 			return min(100, max(4, n*100/top))
 		},
+		// navActive — подсвечивать ли пункт меню: сам раздел и всё внутри
+		// него («Игроки» — и в карточке игрока). Корень — только сам.
+		"navActive": func(path, href string) bool {
+			if href == "/" {
+				return path == "/"
+			}
+			return path == href || strings.HasPrefix(path, href+"/")
+		},
 		"grouped": func(v any) string {
 			switch x := v.(type) {
 			case int:
