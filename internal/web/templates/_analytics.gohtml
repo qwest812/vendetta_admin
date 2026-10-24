@@ -1,0 +1,88 @@
+{{/* Аналитика игрока: плитки с местом в базе, союзники и партии по
+     архиву коалиций, альянс. Общая для «Обзора» (Self — про себя, «вы»)
+     и карточки игрока (про любого). Games — можно ли открывать партии. */}}
+{{define "analytics"}}
+{{$a := .A}}{{$self := .Self}}{{$games := .Games}}
+{{if $a.Rated}}
+{{$st := $a.Standing}}{{$tr := $a.Trend}}
+<div class="ov-tiles">
+    {{template "ov-tile" (dict "Label" (t "ov.tile.level") "Value" $a.Stats.Level "Pct" (index $st "Level") "St" $st "Tr" $tr "D" (and $tr $tr.Level) "Up" (and $tr $tr.LevelUp))}}
+    {{template "ov-tile" (dict "Label" (t "ov.tile.kd") "Value" (ratio $a.Stats.KD) "Pct" (index $st "KD") "St" $st "Tr" $tr "D" (and $tr $tr.KD) "Up" (and $tr $tr.KDUp))}}
+    {{template "ov-tile" (dict "Label" (t "ov.tile.winrate") "Value" (printf "%d%%" $a.WinRate) "Sub" (t "ov.tile.winrate.sub" $a.Wins $a.Stats.Games) "Pct" (index $st "WinRate") "St" $st "Tr" $tr "D" (and $tr $tr.WinRate) "Up" (and $tr $tr.WinRateUp))}}
+    {{template "ov-tile" (dict "Label" (t "ov.tile.defeated") "Value" (grouped $a.Stats.Defeated) "Sub" (t "ov.tile.defeated.sub" (grouped $a.Stats.Casualties)) "Pct" (index $st "Defeated") "St" $st "Tr" $tr "D" (and $tr $tr.Defeated) "Up" (and $tr $tr.DefeatedUp))}}
+</div>
+<p class="muted ov-note">
+    {{with $st}}{{t "ov.tiles.note" (index . "Rated")}}{{end}}
+    {{with $tr}}{{t "ov.trend.note" .Days}}{{else}}{{t "ov.trend.none"}}{{end}}
+</p>
+{{end}}
+
+{{if or $a.Allies $a.Alliance $a.Archived}}
+<div class="ov-grid">
+    {{/* Союзники — из архива коалиций: с кем чаще всего оказывались
+         в одной коалиции. Полоса — доля от самого частого. */}}
+    {{if $a.Allies}}
+    <section class="card">
+        <div class="card-head"><h2>{{if $self}}{{t "ov.allies"}}{{else}}{{t "an.allies"}}{{end}}</h2><span class="muted">{{t "ov.allies.sub"}}</span></div>
+        <ul class="ov-bars">
+            {{$max := $a.AlliesMax}}
+            {{range $a.Allies}}
+                <li>
+                    <span class="ov-bar-label">{{if .CardID}}<a href="/players/{{.CardID}}">{{.Login}}</a>{{else}}{{.Login}}{{end}}</span>
+                    <span class="ov-bar"><span style="width: {{barWidth .Games $max}}%"></span></span>
+                    <span class="ov-bar-n">{{t "ov.allies.games" .Games}}</span>
+                </li>
+            {{end}}
+        </ul>
+    </section>
+    {{end}}
+
+    {{with $a.Alliance}}
+    <section class="card">
+        <div class="card-head"><h2>{{if $self}}{{t "ov.alliance"}}{{else}}{{t "an.alliance"}}{{end}}</h2>{{if .Rank}}<span class="badge">{{t "ov.alliance.rank" .Rank}}</span>{{end}}</div>
+        <p class="ov-big">{{.Name}}{{if .Tag}} <span class="muted">[{{.Tag}}]</span>{{end}}</p>
+        <p class="muted">{{t "ov.alliance.members" .Members}}</p>
+    </section>
+    {{end}}
+
+    {{/* Партии, где игрок был в коалиции, — из того же архива. */}}
+    {{if $a.Archived}}
+    <section class="card ov-wide">
+        <div class="card-head"><h2>{{if $self}}{{t "ov.archived"}}{{else}}{{t "an.archived"}}{{end}}</h2><span class="muted">{{t "ov.archived.total" $a.ArchivedTotal}}</span></div>
+        <div class="table-wrap">
+            <table class="stack">
+                <thead><tr>
+                    <th>{{t "ov.col.game"}}</th><th>{{t "ov.col.team"}}</th>
+                    <th class="narrow">{{t "ov.col.day"}}</th><th class="narrow">{{t "ov.col.state"}}</th>
+                </tr></thead>
+                <tbody>
+                {{range $a.Archived}}
+                    <tr>
+                        <td data-label="{{t "ov.col.game"}}">{{if $games}}<a href="/games/{{.GameID}}">{{if .Title}}{{.Title}}{{else}}{{.GameID}}{{end}}</a>{{else}}{{if .Title}}{{.Title}}{{else}}{{.GameID}}{{end}}{{end}}</td>
+                        <td class="muted" data-label="{{t "ov.col.team"}}">{{if .Team}}{{.Team}}{{else}}—{{end}}</td>
+                        <td class="narrow" data-label="{{t "ov.col.day"}}">{{if .Day}}{{.Day}}{{else}}—{{end}}</td>
+                        <td class="narrow" data-label="{{t "ov.col.state"}}">{{if .Done}}<span class="badge">{{t "ov.state.done"}}</span>{{else}}<span class="badge clan-ally">{{t "ov.state.live"}}</span>{{end}}</td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* Плитка показателя: подпись, число, строка пояснения и полоса места
+   в базе. Без места (счёт есть, а сравнить не с кем) полосы нет. */}}
+{{define "ov-tile"}}
+<div class="ov-tile">
+    <span class="ov-tile-label">{{.Label}}</span>
+    <span class="ov-tile-value">{{.Value}}{{if and .Tr .D}} <span class="ov-delta {{if eq .Up 1}}up{{else if eq .Up -1}}down{{end}}" title="{{t "ov.trend.title" .Tr.Days}}">{{.D}}</span>{{end}}</span>
+    {{with .Sub}}<span class="ov-tile-sub">{{.}}</span>{{end}}
+    {{if .St}}
+        <span class="ov-meter"><span style="width: {{.Pct}}%"></span></span>
+        <span class="ov-tile-pct">{{t "ov.tile.pct" .Pct}}</span>
+    {{end}}
+</div>
+{{end}}

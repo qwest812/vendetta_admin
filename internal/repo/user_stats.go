@@ -2,8 +2,10 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"Vendetta_admin/internal/domain"
@@ -75,16 +77,31 @@ func (r *UserStats) Save(ctx context.Context, list []domain.UserStats, at time.T
 		return nil
 	}
 
+	// Тем же запросом — снимок дня в историю: счёт перезаписывается,
+	// а рост игрока виден только по снимкам. Игроки без уровня в историю
+	// не идут — их счёт пустой.
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO supremacy_user_stats
+		`WITH u AS (
+		     SELECT * FROM unnest($1::text[], $2::int[], $3::bigint[], $4::bigint[], $5::int[],
+		                          $6::int[], $7::int[], $8::bigint[])
+		         AS u(site_user_id, level, defeated, casualties, games,
+		              solo_wins, coalition_wins, overall_score)),
+		 hist AS (
+		     INSERT INTO supremacy_user_stats_history
+		         (site_user_id, day, level, defeated, casualties, games, wins, overall_score)
+		     SELECT site_user_id, $9::timestamptz::date, level, defeated, casualties, games,
+		            solo_wins + coalition_wins, overall_score
+		       FROM u WHERE level > 0
+		     ON CONFLICT (site_user_id, day) DO UPDATE SET
+		         level = EXCLUDED.level, defeated = EXCLUDED.defeated,
+		         casualties = EXCLUDED.casualties, games = EXCLUDED.games,
+		         wins = EXCLUDED.wins, overall_score = EXCLUDED.overall_score)
+		 INSERT INTO supremacy_user_stats
 		     (site_user_id, level, defeated, casualties, games,
 		      solo_wins, coalition_wins, overall_score, checked_at)
 		 SELECT u.site_user_id, u.level, u.defeated, u.casualties, u.games,
 		        u.solo_wins, u.coalition_wins, u.overall_score, $9
-		   FROM unnest($1::text[], $2::int[], $3::bigint[], $4::bigint[], $5::int[],
-		               $6::int[], $7::int[], $8::bigint[])
-		        AS u(site_user_id, level, defeated, casualties, games,
-		             solo_wins, coalition_wins, overall_score)
+		   FROM u
 		 ON CONFLICT (site_user_id) DO UPDATE SET
 		     level = EXCLUDED.level,
 		     defeated = EXCLUDED.defeated,
@@ -96,4 +113,30 @@ func (r *UserStats) Save(ctx context.Context, list []domain.UserStats, at time.T
 		     checked_at = EXCLUDED.checked_at`,
 		users, levels, defeated, casualties, games, solo, coal, score, at)
 	return err
+}
+
+// Snapshot — счёт игрока на один день из истории.
+type Snapshot struct {
+	Day        time.Time
+	Level      int
+	Defeated   int64
+	Casualties int64
+	Games      int
+	Wins       int
+}
+
+// Since — самый ранний снимок игрока не раньше since: от него и считается,
+// насколько игрок вырос. Второе значение false — снимков в окне нет.
+func (r *UserStats) Since(ctx context.Context, siteUserID string, since time.Time) (Snapshot, bool, error) {
+	var s Snapshot
+	err := r.pool.QueryRow(ctx,
+		`SELECT day, level, defeated, casualties, games, wins
+		   FROM supremacy_user_stats_history
+		  WHERE site_user_id = $1 AND day >= $2::date
+		  ORDER BY day LIMIT 1`, siteUserID, since).
+		Scan(&s.Day, &s.Level, &s.Defeated, &s.Casualties, &s.Games, &s.Wins)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return s, false, nil
+	}
+	return s, err == nil, err
 }

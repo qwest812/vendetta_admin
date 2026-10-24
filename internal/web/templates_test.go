@@ -99,18 +99,22 @@ func TestPagesRender(t *testing.T) {
 			page: "overview",
 			user: root,
 			data: map[string]any{
-				"Stats": domain.UserStats{Level: 19, Defeated: 75245863, Casualties: 40000000, Games: 120,
-					SoloWins: 10, CoalitionWins: 50, CheckedAt: &banSeen},
-				"Wins": 60, "WinRate": 50,
-				"Standing":      map[string]int{"Rated": 2663, "Level": 84, "KD": 94, "WinRate": 97, "Defeated": 90},
-				"Allies":        []repo.Ally{{Login: "Shemag", Games: 5, CardID: 7}, {Login: "Ghost", Games: 2}},
-				"AlliesMax":     5,
-				"Alliance":      repo.MyAlliance{Name: "Vendetta", Tag: "VND", Members: 42, Rank: 3},
-				"Archived":      []repo.ArchivedGame{{GameID: "10901726", Title: "World War", Day: 31, Team: "Антанта"}},
-				"ArchivedTotal": 12,
-				"Lists":         true,
-				"EnemyList":     listedView{Total: 9, Items: []domain.Relation{{Player: enemy, Comment: "врал про перемирие"}}},
-				"FriendList":    listedView{},
+				"Stats": domain.UserStats{Level: 19},
+				"A": analyticsView{
+					Stats: domain.UserStats{Level: 19, Defeated: 75245863, Casualties: 40000000, Games: 120,
+						SoloWins: 10, CoalitionWins: 50, CheckedAt: &banSeen},
+					Rated: true, Wins: 60, WinRate: 50,
+					Standing:      map[string]int{"Rated": 2663, "Level": 84, "KD": 94, "WinRate": 97, "Defeated": 90},
+					Allies:        []repo.Ally{{Login: "Shemag", Games: 5, CardID: 7}, {Login: "Ghost", Games: 2}},
+					AlliesMax:     5,
+					Alliance:      &repo.MyAlliance{Name: "Vendetta", Tag: "VND", Members: 42, Rank: 3},
+					Archived:      []repo.ArchivedGame{{GameID: "10901726", Title: "World War", Day: 31, Team: "Антанта"}},
+					ArchivedTotal: 12,
+				},
+				"Alliance":   &repo.MyAlliance{Name: "Vendetta", Tag: "VND"},
+				"Lists":      true,
+				"EnemyList":  listedView{Total: 9, Items: []domain.Relation{{Player: enemy, Comment: "врал про перемирие"}}},
+				"FriendList": listedView{},
 			},
 			want: []string{"С возвращением, root", "Найти карту партии", `action="/games/check"`, "75 245 863", "сильнее 94% игроков базы",
 				"всеми 2663 игроками", `href="/players/7"`, "Shemag", "#3 в топе", "Vendetta",
@@ -442,12 +446,15 @@ func TestPagesRender(t *testing.T) {
 				// Счёт с сайта игры: страница партии его посчитала, карточка
 				// только показывает.
 				"Stats": domain.UserStats{Level: 17, Defeated: 23440, Casualties: 15020,
-					Games: 41, SoloWins: 3, CoalitionWins: 7}},
+					Games: 41, SoloWins: 3, CoalitionWins: 7},
+				// Аналитика — общий блок с «Обзором», но про этого игрока.
+				"A": analyticsView{Allies: []repo.Ally{{Login: "Ghost", Games: 3}}, AlliesMax: 3}},
 			// Клан на карточке — ссылка на клан, а не текст. Признаки —
 			// три метки трёх цветов, и рядом с каждой число отметивших.
 			want: []string{`href="/clans/7"`, "Враждебный альянс",
 				"tag neg", "tag zero", "tag pos", "Мультивод · 3", "Хорошо играет · 2",
-				"17 уровень", "кд 1.56", "партий сыграно 41", "побед в коалиции 7"},
+				"17 уровень", "кд 1.56", "партий сыграно 41", "побед в коалиции 7",
+				"Аналитика", "С кем играет", "Ghost"},
 			// Про игру мы ничего не знаем — и молчим об этом. Шкал больше
 			// нет вовсе: искать стали по признакам, а не по проценту.
 			deny: []string{"В игре", "забанен", "История банов", "Риск", "Лояльность"},

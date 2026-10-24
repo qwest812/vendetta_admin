@@ -1392,3 +1392,10 @@ main:has(.map-view) { max-width: 1560px; }
 .ov-checks { margin: 10px 0 0; font-size: 12px; }
 @media (max-width: 560px) { .ov-search { flex-direction: column; } }
 .ov-list .ov-note-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; text-align: right; }
+/* Заголовок раздела между карточками — например, «Аналитика» на карточке
+   игрока: сам он не карточка, а подпись к блокам под ним. */
+h2.section-title { margin: 28px 0 12px; font-size: 18px; }
+/* Рост за месяц рядом с числом плитки: зелёный — вырос, красный — упал. */
+.ov-delta { font-size: 13px; font-weight: 600; color: var(--muted); vertical-align: middle; }
+.ov-delta.up { color: #4fbf7f; }
+.ov-delta.down { color: #e88b81; }

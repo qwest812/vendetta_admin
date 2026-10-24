@@ -46,9 +46,7 @@ func pct(n, total int) int {
 func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	me := currentUser(r)
-	// Standing и WinRate ждёт шаблон плиток: пустые — значит, сравнить
-	// не с чем или партий нет, и полосы просто не будет.
-	data := map[string]any{"Standing": map[string]int(nil), "WinRate": 0}
+	data := map[string]any{}
 
 	if s.checked != nil && me.CanViewGames() {
 		list, err := s.checked.List(ctx, me.ID, time.Now().Add(-domain.CheckedGamesTTL))
@@ -99,51 +97,17 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 		// Сайт игры мог не ответить — обзор показывает остальное.
 		s.log.Warn("обзор: счёт игрока", "game_id", me.GameID, "err", err)
 	}
-	if st, ok := stats[me.GameID]; ok && st.Rated() {
-		data["Stats"] = st
-		wins := st.SoloWins + st.CoalitionWins
-		data["Wins"] = wins
-		if st.Games > 0 {
-			data["WinRate"] = wins * 100 / st.Games
-		}
-		standing, ok, err := s.overviewRepo.Standing(ctx, me.GameID)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-		if ok {
-			data["Standing"] = map[string]int{
-				"Rated":    standing.Rated,
-				"Level":    pct(standing.Level, standing.Rated),
-				"KD":       pct(standing.KD, standing.Rated),
-				"WinRate":  pct(standing.WinRate, standing.WinRated),
-				"Defeated": pct(standing.Defeated, standing.Rated),
-			}
-		}
-	}
-
-	allies, err := s.overviewRepo.Allies(ctx, me.GameID, overviewAllies)
+	a, err := s.analytics(ctx, me.GameID, stats[me.GameID])
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	data["Allies"] = allies
-	if len(allies) > 0 {
-		data["AlliesMax"] = allies[0].Games
+	data["A"] = a
+	if a.Alliance != nil {
+		data["Alliance"] = a.Alliance
 	}
-
-	games, total, err := s.overviewRepo.ArchivedGames(ctx, me.GameID, overviewGames)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	data["Archived"], data["ArchivedTotal"] = games, total
-
-	if a, ok, err := s.overviewRepo.Alliance(ctx, me.GameID); err != nil {
-		s.serverError(w, r, err)
-		return
-	} else if ok {
-		data["Alliance"] = a
+	if a.Rated {
+		data["Stats"] = a.Stats
 	}
 
 	s.render(w, r, http.StatusOK, "overview", data)

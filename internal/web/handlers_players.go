@@ -240,8 +240,16 @@ func (s *Server) renderPlayerCard(w http.ResponseWriter, r *http.Request, status
 		hunting = id != 0
 	}
 
+	// Аналитика — та же, что в «Обзоре», но про этого игрока: место
+	// в базе, союзники и партии по архиву коалиций, альянс. Всё из базы.
+	analytics, err := s.analytics(r.Context(), player.GameID, stats)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+
 	s.render(w, r, status, "player", map[string]any{
-		"Hunting": hunting, "CanHunt": me.IsRoot() && s.hunts != nil && player.GameID != "",
+		"A": analytics, "Hunting": hunting, "CanHunt": me.IsRoot() && s.hunts != nil && player.GameID != "",
 		"Player": player, "Comments": comments, "MyComment": myComment,
 		"MyNotes": notes, "NoteMax": domain.MaxCommentLen,
 		"Error": errMsg, "Seen": seen, "Bans": bans, "FormerNicks": formerNicks, "Traits": traits,
