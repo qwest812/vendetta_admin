@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -128,6 +129,87 @@ func (r *Hunts) Hits(ctx context.Context, limit int) ([]domain.HuntHit, error) {
 			return nil, err
 		}
 		out = append(out, h)
+	}
+	return out, rows.Err()
+}
+
+// sightingsTTL — сколько держать отметки о замеченных в лобби. Партия
+// из лобби уходит за день-два; дольше отметка ничего не говорит.
+const sightingsTTL = 3 * 24 * time.Hour
+
+// Watched — кого высматривать в лобби для личных списков: игровые ID всех,
+// кто у кого-нибудь во врагах. Пока ручные разделы выключены рубильником,
+// списков как бы нет — и высматривать некого.
+func (r *Hunts) Watched(ctx context.Context) ([]string, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT DISTINCT p.game_id
+		   FROM user_enemies e JOIN players p ON p.id = e.player_id
+		  WHERE p.game_id <> ''
+		    AND coalesce((SELECT value FROM app_settings WHERE key = 'manual_data'), 'true') = 'true'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// Sighted отмечает, кто из высматриваемых в какой партии лобби замечен,
+// и заодно забывает старые отметки.
+func (r *Hunts) Sighted(ctx context.Context, list []domain.Sighting, at time.Time) error {
+	if len(list) == 0 {
+		_, err := r.pool.Exec(ctx, `DELETE FROM supremacy_lobby_sightings WHERE seen_at < $1`, at.Add(-sightingsTTL))
+		return err
+	}
+	users, games, titles, logins := make([]string, 0, len(list)), make([]string, 0, len(list)),
+		make([]string, 0, len(list)), make([]string, 0, len(list))
+	seen := map[[2]string]bool{}
+	for _, s := range list {
+		k := [2]string{s.SiteUserID, s.GameID}
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		users, games, titles, logins = append(users, s.SiteUserID), append(games, s.GameID),
+			append(titles, s.Title), append(logins, s.Login)
+	}
+	_, err := r.pool.Exec(ctx,
+		`WITH gone AS (DELETE FROM supremacy_lobby_sightings WHERE seen_at < $5)
+		 INSERT INTO supremacy_lobby_sightings (site_user_id, game_id, title, login, first_seen, seen_at)
+		 SELECT u, g, t, l, $6, $6 FROM unnest($1::text[], $2::text[], $3::text[], $4::text[]) AS x(u, g, t, l)
+		 ON CONFLICT (site_user_id, game_id) DO UPDATE SET
+		     title = EXCLUDED.title, login = EXCLUDED.login, seen_at = EXCLUDED.seen_at`,
+		users, games, titles, logins, at.Add(-sightingsTTL), at)
+	return err
+}
+
+// EnemiesInLobby — кто из врагов пользователя замечен в лобби с since.
+func (r *Hunts) EnemiesInLobby(ctx context.Context, userID int64, since time.Time) ([]domain.Sighting, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT s.site_user_id, s.game_id, s.title, p.nickname, p.id, s.first_seen, s.seen_at
+		   FROM user_enemies e
+		   JOIN players p ON p.id = e.player_id
+		   JOIN supremacy_lobby_sightings s ON s.site_user_id = p.game_id
+		  WHERE e.user_id = $1 AND s.seen_at >= $2
+		  ORDER BY s.seen_at DESC, lower(p.nickname)`, userID, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.Sighting
+	for rows.Next() {
+		var s domain.Sighting
+		if err := rows.Scan(&s.SiteUserID, &s.GameID, &s.Title, &s.Login, &s.CardID, &s.FirstSeen, &s.SeenAt); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
 	}
 	return out, rows.Err()
 }

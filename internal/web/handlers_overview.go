@@ -15,6 +15,9 @@ const (
 	overviewGames   = 6
 	overviewChecked = 5
 	overviewListed  = 6
+	// enemiesSeenWindow — за какой срок показывать, где замечены враги.
+	// Отмечают их воркеры попутно и нечасто, поэтому окно в днях.
+	enemiesSeenWindow = 3 * 24 * time.Hour
 )
 
 // listedView — личный список для «Обзора»: первые записи и сколько всего.
@@ -83,6 +86,19 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 		}
 		data["Lists"] = true
 		data["EnemyList"], data["FriendList"] = cutListed(enemies), cutListed(friends)
+
+		// Где замечены враги: воркеры отмечают их попутно — поиск в лобби
+		// и сбор коалиций, в партиях, куда и так зашли. Нет врагов — нет
+		// и блока.
+		if s.hunts != nil && len(enemies) > 0 {
+			seen, err := s.hunts.EnemiesInLobby(ctx, me.ID, time.Now().Add(-enemiesSeenWindow))
+			if err != nil {
+				s.serverError(w, r, err)
+				return
+			}
+			data["EnemiesInLobby"] = seen
+			data["WatchLobby"] = true
+		}
 	}
 
 	// Без игрового ID в профиле сравнивать некого: просим его указать.

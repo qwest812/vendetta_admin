@@ -26,6 +26,10 @@ type HuntStore interface {
 	Targets(ctx context.Context) ([]domain.HuntTarget, error)
 	Seen(ctx context.Context, targetID int64, gameID string) (bool, error)
 	Record(ctx context.Context, h domain.HuntHit) error
+	// Watched — кого ещё высматривать для личных списков врагов, Sighted —
+	// где их заметили. В телеграм это не уходит: списки личные.
+	Watched(ctx context.Context) ([]string, error)
+	Sighted(ctx context.Context, list []domain.Sighting, at time.Time) error
 }
 
 // HuntNotifier — куда сообщать о находке. В бою это телеграм.
@@ -78,14 +82,33 @@ func (h *Hunter) Run(ctx context.Context) {
 }
 
 func (h *Hunter) tick(ctx context.Context) error {
+	// В лобби ходим только ради искомых рута. Врагов из личных списков
+	// отмечаем попутно, но ради них одних обход не затеваем: лишние
+	// запросы к сайту с общего аккаунта — повод для бана.
 	targets, err := h.store.Targets(ctx)
 	if err != nil || len(targets) == 0 {
+		return err
+	}
+	watched, err := h.store.Watched(ctx)
+	if err != nil {
 		return err
 	}
 	want := make(map[string]domain.HuntTarget, len(targets))
 	for _, t := range targets {
 		want[t.SiteUserID] = t
 	}
+	watch := make(map[string]bool, len(watched))
+	for _, id := range watched {
+		watch[id] = true
+	}
+	var sightings []domain.Sighting
+	// Отметки пишутся одним запросом в конце прохода — и при отмене тоже:
+	// замеченное до неё уже правда.
+	defer func() {
+		if err := h.store.Sighted(context.WithoutCancel(ctx), sightings, h.now()); err != nil {
+			h.log.Error("поиск игроков: отметки в лобби", "err", err)
+		}
+	}()
 
 	games, err := h.client.OpenGames(ctx)
 	if err != nil {
@@ -112,8 +135,15 @@ func (h *Hunter) tick(ctx context.Context) error {
 			game = &g
 		}
 		for _, l := range logins {
-			if t, ok := want[l.SiteUserID]; ok && l.Known() {
+			if !l.Known() {
+				continue
+			}
+			if t, ok := want[l.SiteUserID]; ok {
 				h.found(ctx, t, l, *game)
+			}
+			if watch[l.SiteUserID] {
+				sightings = append(sightings, domain.Sighting{SiteUserID: l.SiteUserID,
+					GameID: game.GameID, Title: game.Title, Login: l.Login})
 			}
 		}
 	}

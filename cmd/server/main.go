@@ -161,6 +161,9 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// незачем. Фильтр названий на него не распространяется — он про то,
 		// о чём сообщать человеку, а собираем мы про все партии.
 		scanner := supremacy.NewCoalitionScanner(s1914, coalitions, settings, cfg.S1914CoalitionEvery, log)
+		// Врагов из личных списков обход отмечает попутно — в партиях,
+		// куда и так зашёл.
+		scanner.WatchEnemies(hunts)
 		watcher.Feed(scanner)
 
 		// Воркеры расходятся по очереди, а не стартуют все разом: ходят они

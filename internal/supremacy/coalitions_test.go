@@ -308,3 +308,42 @@ func TestScannerRetriesThenGivesUp(t *testing.T) {
 		t.Error("причина неудачи не записана")
 	}
 }
+
+// fakeSightings — кого высматривать и что отметили.
+type fakeSightings struct {
+	watched []string
+	got     []domain.Sighting
+}
+
+func (f *fakeSightings) Watched(context.Context) ([]string, error) { return f.watched, nil }
+
+func (f *fakeSightings) Sighted(_ context.Context, list []domain.Sighting, _ time.Time) error {
+	f.got = append(f.got, list...)
+	return nil
+}
+
+// Враг из личного списка, застигнутый в партии, отмечается попутно —
+// из того же состояния, без лишнего захода в игру.
+func TestScannerSightsEnemiesInPassing(t *testing.T) {
+	obs := &fakeObserver{state: &GameState{
+		GameID: "7", Day: 3,
+		Players: map[int]Player{
+			1: {ID: 1, SiteUserID: "enemy", Name: "Dau7er"},
+			2: {ID: 2, SiteUserID: "other", Name: "Someone"},
+		},
+	}}
+	store := newFakeStore(domain.WatchedGame{GameID: "7", Title: "Европа", Speed: 4})
+	sights := &fakeSightings{watched: []string{"enemy"}}
+
+	s := NewCoalitionScanner(obs, store, fakeSwitch(true), 0, quietLog())
+	s.pause = 0
+	s.WatchEnemies(sights)
+	s.tick(context.Background())
+
+	if obs.calls != 1 {
+		t.Fatalf("заходов в игру %d, ожидался один — тот же, что за коалициями", obs.calls)
+	}
+	if len(sights.got) != 1 || sights.got[0].Login != "Dau7er" || sights.got[0].GameID != "7" || sights.got[0].Title != "Европа" {
+		t.Errorf("отметки: %+v", sights.got)
+	}
+}

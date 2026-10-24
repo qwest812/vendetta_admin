@@ -52,6 +52,28 @@
 {{with .A}}{{template "analytics" (dict "A" . "Self" true "Games" $.CurrentUser.CanViewGames)}}{{end}}
 
 <div class="ov-grid">
+    {{/* Где замечены враги — попутные отметки воркеров: поиск в лобби
+         и сбор коалиций. Пусто — тоже ответ, и сказать его стоит. */}}
+    {{if .WatchLobby}}
+    <section class="card ov-wide">
+        <div class="card-head"><h2>{{t "ov.lobby"}}{{with .EnemiesInLobby}} <span class="badge clan-enemy">{{len .}}</span>{{end}}</h2><span class="muted">{{t "ov.lobby.sub"}}</span></div>
+        {{if .EnemiesInLobby}}
+            <ul class="ov-list">
+                {{range .EnemiesInLobby}}
+                    <li>
+                        <span><a href="/players/{{.CardID}}">{{.Login}}</a>
+                            <span class="muted">{{t "ov.lobby.in"}}</span>
+                            {{if $.CurrentUser.CanViewGames}}<a href="/games/{{.GameID}}">{{if .Title}}{{.Title}}{{else}}{{.GameID}}{{end}}</a>{{else}}{{if .Title}}{{.Title}}{{else}}{{.GameID}}{{end}}{{end}}</span>
+                        <span class="muted">{{t "ov.lobby.since" (ago .SeenAt)}}</span>
+                    </li>
+                {{end}}
+            </ul>
+        {{else}}
+            <p class="muted">{{t "ov.lobby.none"}}</p>
+        {{end}}
+    </section>
+    {{end}}
+
     {{/* Личные списки — врагов и друзей отдельно, свежие сверху. */}}
     {{if .Lists}}
         {{template "ov-listed" (dict "L" .EnemyList "Title" (t "rel.enemies.title") "Path" "/enemies" "Badge" "clan-enemy" "Empty" (t "ov.enemies.none"))}}

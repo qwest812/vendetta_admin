@@ -26,3 +26,16 @@ type HuntHit struct {
 	Nation  string
 	FoundAt time.Time
 }
+
+// Sighting — игрок из чьего-то списка врагов замечен в партии: попутно,
+// поиском в лобби или сбором коалиций.
+// CardID заполняется только при чтении для «Обзора».
+type Sighting struct {
+	SiteUserID string
+	GameID     string
+	Title      string
+	Login      string
+	CardID     int64
+	FirstSeen  time.Time
+	SeenAt     time.Time
+}

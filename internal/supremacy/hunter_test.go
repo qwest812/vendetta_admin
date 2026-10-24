@@ -14,6 +14,9 @@ type fakeHuntStore struct {
 	targets []domain.HuntTarget
 	seen    map[string]bool
 	hits    []domain.HuntHit
+	// watched и sightings — высматривание врагов для личных списков.
+	watched   []string
+	sightings []domain.Sighting
 }
 
 func (f *fakeHuntStore) Targets(context.Context) ([]domain.HuntTarget, error) { return f.targets, nil }
@@ -25,6 +28,13 @@ func (f *fakeHuntStore) Seen(_ context.Context, target int64, gameID string) (bo
 func (f *fakeHuntStore) Record(_ context.Context, h domain.HuntHit) error {
 	f.hits = append(f.hits, h)
 	f.seen[h.GameID] = true
+	return nil
+}
+
+func (f *fakeHuntStore) Watched(context.Context) ([]string, error) { return f.watched, nil }
+
+func (f *fakeHuntStore) Sighted(_ context.Context, list []domain.Sighting, _ time.Time) error {
+	f.sightings = append(f.sightings, list...)
 	return nil
 }
 
@@ -149,6 +159,45 @@ func TestHunterWithoutNation(t *testing.T) {
 	}
 	if len(notify.sent) != 1 || notify.sent[0].Nation != "" {
 		t.Fatalf("ожидалось сообщение без страны: %+v", notify.sent)
+	}
+}
+
+// Ради одних врагов из личных списков в лобби не ходим: лишние запросы
+// с общего аккаунта — повод для бана.
+func TestHunterIgnoresEnemiesAlone(t *testing.T) {
+	lobby, store := huntFixture()
+	store.targets = nil
+	store.watched = []string{"42"}
+	h := NewHunter(lobby, store, &fakeHuntNotifier{}, 10*time.Minute, quietLog())
+	if err := h.tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if lobby.lobbyed != 0 {
+		t.Fatalf("ради одних врагов ходили в лобби %d раз", lobby.lobbyed)
+	}
+}
+
+// Враг попался попутно, в обходе ради искомых: отметка пишется, а в
+// телеграм не уходит ничего — списки личные.
+func TestHunterSightsEnemiesQuietly(t *testing.T) {
+	lobby, store := huntFixture()
+	store.targets = []domain.HuntTarget{{ID: 8, SiteUserID: "5", Nickname: "Someone"}}
+	store.seen = map[string]bool{"1": true}
+	store.watched = []string{"42"}
+	notify := &fakeHuntNotifier{}
+	h := NewHunter(lobby, store, notify, 10*time.Minute, quietLog())
+	h.pause = 0
+	if err := h.tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if lobby.lobbyed != 1 {
+		t.Fatalf("в лобби ходили %d раз, ожидался один", lobby.lobbyed)
+	}
+	if len(notify.sent) != 0 {
+		t.Errorf("враг из личного списка ушёл в телеграм: %+v", notify.sent)
+	}
+	if len(store.sightings) != 1 || store.sightings[0].GameID != "2" || store.sightings[0].Login != "Dau7er" {
+		t.Errorf("отметки: %+v", store.sightings)
 	}
 }
 

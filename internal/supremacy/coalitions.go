@@ -197,7 +197,22 @@ type CoalitionScanner struct {
 
 	lastRegular time.Time
 	now         func() time.Time
+
+	// sightings — куда отмечать врагов из личных списков, замеченных
+	// в партии. Отмечаем только то, что обход и так увидел: ради врагов
+	// он никуда не ходит. nil — не отмечаем.
+	sightings SightingStore
 }
+
+// SightingStore — кого высматривать для личных списков и куда отмечать
+// замеченных. Общий для обхода коалиций и поиска в лобби.
+type SightingStore interface {
+	Watched(ctx context.Context) ([]string, error)
+	Sighted(ctx context.Context, list []domain.Sighting, at time.Time) error
+}
+
+// WatchEnemies включает попутные отметки врагов из личных списков.
+func (s *CoalitionScanner) WatchEnemies(store SightingStore) { s.sightings = store }
 
 // scanTick — как часто проверять очередь. Это запрос к своей базе,
 // а не заход в игру.
@@ -277,6 +292,20 @@ func (s *CoalitionScanner) tick(ctx context.Context) {
 		due = append(due, regular...)
 	}
 
+	// Кого высматривать — один раз на проверку: список врагов меняется
+	// редко, а партий в проверке бывает десяток.
+	var watch map[string]bool
+	if s.sightings != nil && len(due) > 0 {
+		ids, err := s.sightings.Watched(ctx)
+		if err != nil {
+			s.log.Error("сбор коалиций: кого высматривать", "err", err)
+		}
+		watch = make(map[string]bool, len(ids))
+		for _, id := range ids {
+			watch[id] = true
+		}
+	}
+
 	seen := map[string]bool{}
 	for i, g := range due {
 		if ctx.Err() != nil {
@@ -295,12 +324,12 @@ func (s *CoalitionScanner) tick(ctx context.Context) {
 			case <-time.After(s.pause):
 			}
 		}
-		s.check(ctx, g)
+		s.check(ctx, g, watch)
 	}
 }
 
 // check заходит в одну партию и записывает, что застал.
-func (s *CoalitionScanner) check(ctx context.Context, g domain.WatchedGame) {
+func (s *CoalitionScanner) check(ctx context.Context, g domain.WatchedGame, watch map[string]bool) {
 	now := s.now()
 
 	state, err := s.client.ObserveGame(ctx, g.GameID)
@@ -325,6 +354,23 @@ func (s *CoalitionScanner) check(ctx context.Context, g domain.WatchedGame) {
 	if err := s.store.Save(ctx, g.GameID, state.Day, teams, now, next, done, urgent); err != nil {
 		s.log.Error("запись коалиций", "gameID", g.GameID, "err", err)
 		return
+	}
+
+	// Враги из личных списков, которых застали в этой партии, — попутно,
+	// из того же состояния.
+	if len(watch) > 0 {
+		var found []domain.Sighting
+		for _, p := range state.Players {
+			if p.SiteUserID != "" && watch[p.SiteUserID] {
+				found = append(found, domain.Sighting{SiteUserID: p.SiteUserID,
+					GameID: g.GameID, Title: g.Title, Login: p.Name})
+			}
+		}
+		if len(found) > 0 {
+			if err := s.sightings.Sighted(ctx, found, now); err != nil {
+				s.log.Error("сбор коалиций: отметки врагов", "gameID", g.GameID, "err", err)
+			}
+		}
 	}
 
 	people := 0
