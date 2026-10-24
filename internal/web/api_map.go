@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"Vendetta_admin/internal/domain"
 	"Vendetta_admin/internal/i18n"
@@ -63,6 +64,18 @@ type apiMapPlayer struct {
 	Banned    bool   `json:"banned"`
 	Team      int    `json:"team"`
 	Provinces int    `json:"provinces"`
+	// Nation и Name — страна и ник; присылаются вместе со снимком партии.
+	Nation string `json:"nation"`
+	Name   string `json:"name"`
+}
+
+// apiMapGame — снимок партии из клиента игры: номер, день, карта и кому
+// принадлежит какая провинция. Необязателен: старое расширение его не шлёт.
+type apiMapGame struct {
+	ID     string   `json:"id"`
+	Day    int      `json:"day"`
+	Map    string   `json:"map"`
+	Owners [][2]int `json:"owners"`
 }
 
 type apiMapTeam struct {
@@ -72,6 +85,7 @@ type apiMapTeam struct {
 }
 
 type apiMapRequest struct {
+	Game    *apiMapGame    `json:"game"`
 	Me      string         `json:"me"`
 	Players []apiMapPlayer `json:"players"`
 	Teams   []apiMapTeam   `json:"teams"`
@@ -149,6 +163,16 @@ func (s *Server) apiMap(w http.ResponseWriter, r *http.Request) {
 	if p, ok := viewerPlayer(state, req.Me); ok {
 		meID = p.ID
 	}
+
+	// Снимок партии — для «Обзора»: мини-карта своих партий без захода
+	// в игру. Не разобрался или не записался — раскраска всё равно уходит:
+	// ради неё расширение и спрашивало.
+	if snap, ok := clientSnapshot(req, meID); ok && s.snapshots != nil {
+		if err := s.snapshots.Save(ctx, currentUser(r).ID, snap); err != nil {
+			s.log.Warn("снимок партии из расширения", "gameID", snap.GameID, "err", err)
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"me":    meID,
 		"modes": mapModes(lang, state, sides, meID, pending, !topCapturedAt(top).IsZero()),
@@ -409,4 +433,34 @@ func gameColor(css string) string {
 		return gameColor(mapGrey)
 	}
 	return fmt.Sprintf("rgba(%d,%d,%d,255)", r, g, b)
+}
+
+// clientSnapshot проверяет и собирает снимок партии. Номера — только
+// цифры, владельцы — только игроки из того же запроса, строки — короткие:
+// всё это ляжет в базу и потом в разметку.
+func clientSnapshot(req apiMapRequest, meID int) (domain.ClientSnapshot, bool) {
+	g := req.Game
+	if g == nil || meID <= 0 || !digitsOnly(g.ID) || !digitsOnly(g.Map) ||
+		g.Day < 0 || g.Day > 10000 || len(g.Owners) == 0 || len(g.Owners) > apiMapMaxProvinces {
+		return domain.ClientSnapshot{}, false
+	}
+	snap := domain.ClientSnapshot{GameID: g.ID, MapID: g.Map, Day: g.Day, MeID: meID, TakenAt: time.Now()}
+	known := make(map[int]bool, len(req.Players))
+	for _, p := range req.Players {
+		if len([]rune(p.Nation)) > 100 || len([]rune(p.Name)) > 100 {
+			return domain.ClientSnapshot{}, false
+		}
+		known[p.ID] = true
+		snap.Players = append(snap.Players, domain.SnapPlayer{ID: p.ID, Site: p.Site, Nation: p.Nation,
+			Name: p.Name, AI: p.AI || p.Site == "", Team: p.Team})
+	}
+	seen := make(map[int]bool, len(g.Owners))
+	for _, o := range g.Owners {
+		if o[0] <= 0 || seen[o[0]] || !known[o[1]] {
+			return domain.ClientSnapshot{}, false
+		}
+		seen[o[0]] = true
+	}
+	snap.Owners = g.Owners
+	return snap, true
 }

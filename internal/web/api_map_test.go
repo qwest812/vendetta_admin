@@ -135,3 +135,39 @@ func TestMapColorsMatchStylesheet(t *testing.T) {
 		}
 	}
 }
+
+// Снимок партии из расширения: правильный собирается, а всё, что ляжет
+// в базу и разметку чужим, — отклоняется целиком.
+func TestClientSnapshot(t *testing.T) {
+	base := func() apiMapRequest {
+		return apiMapRequest{
+			Me: "42",
+			Players: []apiMapPlayer{
+				{ID: 1, Site: "42", Nation: "Швеция", Name: "Dau7er", Team: 3},
+				{ID: 2, AI: true, Nation: "Норвегия"},
+			},
+			Game: &apiMapGame{ID: "10934703", Day: 12, Map: "5100", Owners: [][2]int{{10, 1}, {11, 2}}},
+		}
+	}
+	snap, ok := clientSnapshot(base(), 1)
+	if !ok || snap.GameID != "10934703" || snap.MapID != "5100" || snap.Day != 12 || snap.MeID != 1 ||
+		len(snap.Owners) != 2 || len(snap.Players) != 2 || snap.Players[0].Nation != "Швеция" {
+		t.Fatalf("снимок: %+v ok=%v", snap, ok)
+	}
+
+	cases := map[string]func(*apiMapRequest) int{
+		"нет снимка":            func(r *apiMapRequest) int { r.Game = nil; return 1 },
+		"не знаем, кто прислал": func(r *apiMapRequest) int { return 0 },
+		"буквы в номере":        func(r *apiMapRequest) int { r.Game.ID = "1 OR 1"; return 1 },
+		"чужой владелец":        func(r *apiMapRequest) int { r.Game.Owners = [][2]int{{10, 99}}; return 1 },
+		"провинция дважды":      func(r *apiMapRequest) int { r.Game.Owners = [][2]int{{10, 1}, {10, 2}}; return 1 },
+		"пустые владельцы":      func(r *apiMapRequest) int { r.Game.Owners = nil; return 1 },
+	}
+	for name, spoil := range cases {
+		req := base()
+		me := spoil(&req)
+		if _, ok := clientSnapshot(req, me); ok {
+			t.Errorf("%s: снимок принят", name)
+		}
+	}
+}

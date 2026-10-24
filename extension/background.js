@@ -20,14 +20,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id || !msg || msg.type !== "map") {
         return false;
     }
-    map(msg.me, msg.players, msg.teams).then(sendResponse);
+    map(msg.me, msg.players, msg.teams, msg.game).then(sendResponse);
     return true; // ответ придёт позже
 });
 
-// map спрашивает сервер о цветах всех режимов карты для партии.
+// map спрашивает сервер о цветах всех режимов карты для партии. Заодно
+// уходит снимок партии (game) — по нему админка рисует мини-карту в
+// «Обзоре»; старый сервер это поле просто пропустит.
 // Ответ всегда объект: {data} при удаче или {error, status} при отказе —
 // сообщения между частями расширения исключения не переносят.
-async function map(me, players, teams) {
+async function map(me, players, teams, game) {
     const { token } = await chrome.storage.local.get(["token"]);
     if (!token) {
         return { error: "Войдите в расширении «Админка» — значок справа от адресной строки.", status: 401 };
@@ -38,7 +40,7 @@ async function map(me, players, teams) {
         res = await fetch(SERVER + "/api/map", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-            body: JSON.stringify({ me, players, teams }),
+            body: JSON.stringify({ me, players, teams, game: game || null }),
             credentials: "omit",
             cache: "no-store",
         });

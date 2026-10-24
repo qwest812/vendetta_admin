@@ -101,6 +101,14 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Свои партии — по снимкам из расширения; в игру ради них не ходим.
+	games, err := s.myGames(ctx, me.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	data["MyGames"] = games
+
 	// Без игрового ID в профиле сравнивать некого: просим его указать.
 	if me.GameID == "" || s.overviewRepo == nil {
 		data["NoGameID"] = me.GameID == ""

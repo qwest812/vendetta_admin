@@ -77,6 +77,36 @@
         return counts;
     }
 
+    // gameSnapshot — партия, как её видит клиент: номер, день, карта и кому
+    // принадлежит какая провинция. По нему админка рисует мини-карту в
+    // «Обзоре», не заходя в игру. Необязателен, как и провинции: сбой
+    // здесь раскраску не роняет — снимка просто не будет.
+    function gameSnapshot() {
+        try {
+            const gs = window.hup.gameState;
+            const info = gs.getGameInfoState();
+            const id = Number(window.hup.config.userData.gameID);
+            const map = gs.getMapState();
+            const provinces = map && typeof map.getProvinceArray === "function" ? map.getProvinceArray() : [];
+            const owners = [];
+            for (const p of provinces || []) {
+                const owner = Number(flag(p, "getOwnerID")) || 0;
+                const pid = Number(flag(p, "getProvinceID")) || 0;
+                if (owner > 0 && pid > 0) owners.push([pid, owner]);
+            }
+            if (!(id > 0) || owners.length === 0) return null;
+            return {
+                id: String(id),
+                day: Number(flag(info, "getDayOfGame")) || 0,
+                map: String(Number(flag(info, "getMapID")) || ""),
+                owners,
+            };
+        } catch (err) {
+            console.warn("[Админка] снимок партии не прочитался:", err);
+            return null;
+        }
+    }
+
     // teamList — коалиции партии с названием и цветом. Как и провинции,
     // необязательны: без них серым останется только режим «Коалиции».
     function teamList() {
@@ -132,12 +162,15 @@
                 banned: Boolean(flag(p, "getBanned")),
                 team: Number(flag(p, "getTeamID")) || 0,
                 provinces: counts.get(id) || 0,
+                nation: String(flag(p, "getNationName") || ""),
+                name: String(flag(p, "getUserName") || flag(p, "getPlayerName") || flag(p, "getName") || ""),
             });
         }
         return {
             me: { id: Number(me.playerID), site: String(me.siteUserID || "") },
             players: list,
             teams: teamList(),
+            game: gameSnapshot(),
         };
     }
 

@@ -52,7 +52,9 @@ type fakeProvinces struct {
 	saved []domain.ProvinceSnapshot
 }
 
-func (f *fakeProvinces) PrevOwners(context.Context, string) (map[int]string, error) { return f.prev, nil }
+func (f *fakeProvinces) PrevOwners(context.Context, string) (map[int]string, error) {
+	return f.prev, nil
+}
 
 func (f *fakeProvinces) SaveProvinces(_ context.Context, s domain.ProvinceSnapshot, _ time.Time) error {
 	f.saved = append(f.saved, s)

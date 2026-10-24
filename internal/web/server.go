@@ -83,6 +83,7 @@ type Server struct {
 	cookieSecure   bool
 	trustedProxies []netip.Prefix
 	overviewRepo   *repo.Overview
+	snapshots      *repo.ClientSnapshots
 	pages          site
 }
 
@@ -138,6 +139,8 @@ type Deps struct {
 	Checks *repo.MapChecks
 	// Overview — запросы «Обзора»: место игрока в базе, союзники, альянс.
 	Overview *repo.Overview
+	// Snapshots — снимки партий из расширения: «Ваши партии» в «Обзоре».
+	Snapshots *repo.ClientSnapshots
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
 	// CookieSecure — ставить ли кукам флаг Secure. Тот же, что у сессии.
@@ -164,7 +167,7 @@ func NewServer(d Deps) (*Server, error) {
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
 		builds: d.BuildQueue, heroPlans: d.HeroPlans,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
-		trustedProxies: d.TrustedProxies, overviewRepo: d.Overview,
+		trustedProxies: d.TrustedProxies, overviewRepo: d.Overview, snapshots: d.Snapshots,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
 	s.friends = newRelationSection(s, d.Friends, friendWords)
@@ -203,6 +206,8 @@ func (s *Server) Handler() http.Handler {
 	// проверки роли тут нет, её делает index сам. Поиск живёт в «Игроках».
 	mux.HandleFunc("GET /{$}", s.index)
 	mux.Handle("GET /players", user(http.HandlerFunc(s.home)))
+	// Мини-карта своей партии по снимку из расширения — для «Обзора».
+	mux.Handle("GET /overview/map/{id}", user(http.HandlerFunc(s.miniMap)))
 	mux.Handle("GET /search", user(http.HandlerFunc(s.search)))
 	mux.Handle("GET /players/{id}", user(http.HandlerFunc(s.playerCard)))
 	// Кланы смотрят все: это такой же справочник, как карточки игроков.

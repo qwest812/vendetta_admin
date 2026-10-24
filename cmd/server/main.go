@@ -99,6 +99,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		TopAlliances: topAlliances, UserStats: userStats, Hunts: hunts,
 		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 		TrustedProxies: cfg.TrustedProxies, Overview: repo.NewOverview(pool),
+		Snapshots: repo.NewClientSnapshots(pool),
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
 	// на проверку `== nil` не отвечает, и раздел счёл бы аккаунт настроенным.

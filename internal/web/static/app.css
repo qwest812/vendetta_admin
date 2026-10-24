@@ -1460,3 +1460,21 @@ body.has-side { padding-left: var(--side); }
 .lamp { width: 10px; height: 10px; border-radius: 50%; background: #4a5b68; flex: none; }
 .lamp.on { background: #4fbf7f; box-shadow: 0 0 8px rgba(79, 191, 127, .6); }
 .lamp.warn { background: #e0a43a; box-shadow: 0 0 8px rgba(224, 164, 58, .5); }
+
+/* «Ваши партии»: карточки с мини-картой по снимку из расширения. */
+.my-games { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 0 20px; }
+.my-game .card-head h2 { margin: 0; font-size: 16px; }
+.my-meta { margin: 0 0 10px; font-size: 13px; }
+.my-hint { margin: 0 0 20px; font-size: 13px; }
+.mini-map { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; background: #16222c; }
+.mini-map polygon { stroke: rgba(0, 0, 0, .35); stroke-width: 1; }
+.mm-free { fill: #2b3a46; }
+.mm-ai { fill: #4a5b68; }
+.mm-human { fill: #6f8597; }
+.mm-team { fill: #3f7d5a; }
+.mm-enemy { fill: #a2453c; }
+.mm-me { fill: #3b8fd9; }
+.mini-legend { margin-top: 8px; font-size: 12px; }
+.swatch.mm-me { background: #3b8fd9; } .swatch.mm-team { background: #3f7d5a; }
+.swatch.mm-enemy { background: #a2453c; } .swatch.mm-human { background: #6f8597; }
+.swatch.mm-ai { background: #4a5b68; }

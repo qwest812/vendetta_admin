@@ -98,3 +98,28 @@ type HeroPlan struct {
 
 // Open — план ещё ждёт своего захода.
 func (p HeroPlan) Open() bool { return !p.NextAt.IsZero() }
+
+// SnapPlayer — игрок в снимке партии из расширения.
+type SnapPlayer struct {
+	ID     int    `json:"id"`
+	Site   string `json:"site,omitempty"`
+	Nation string `json:"nation,omitempty"`
+	Name   string `json:"name,omitempty"`
+	AI     bool   `json:"ai,omitempty"`
+	Team   int    `json:"team,omitempty"`
+}
+
+// ClientSnapshot — партия глазами клиента игры у самого игрока: кто есть
+// и кому принадлежит какая провинция. Присылает расширение, в игру ради
+// него никто не ходит.
+type ClientSnapshot struct {
+	GameID  string
+	MapID   string
+	Day     int
+	Players []SnapPlayer
+	// Owners — [номер провинции, номер владельца в партии].
+	Owners  [][2]int
+	TakenAt time.Time
+	// MeID — номер того, кто прислал, в этой партии.
+	MeID int
+}

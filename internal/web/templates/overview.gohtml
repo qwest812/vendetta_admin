@@ -36,6 +36,31 @@
     {{end}}
 </section>
 
+{{/* Ваши партии — по снимкам из расширения: мини-карта каждой
+     подгружается отдельно, очертания тяжёлые. В игру ради этого никто
+     не ходит: снимок присылает клиент, открытый у самого игрока. */}}
+{{if .MyGames}}
+<h2 class="section-title">{{t "my.title"}}</h2>
+<div class="my-games">
+    {{range .MyGames}}
+        <article class="card my-game">
+            <div class="card-head">
+                <h2>{{if $.CurrentUser.CanViewGames}}<a href="/games/{{.GameID}}">{{t "game.unnamed" .GameID}}</a>{{else}}{{t "game.unnamed" .GameID}}{{end}}</h2>
+                <span class="muted">{{t "my.taken" (ago .TakenAt)}}</span>
+            </div>
+            <p class="muted my-meta">
+                {{if .Nation}}<b>{{.Nation}}</b> · {{end}}{{t "gs.day"}} {{.Day}} · {{t "my.provinces" .Mine .Total}}{{if .Teammates}} · {{t "my.team" .Teammates}}{{end}}
+            </p>
+            <div class="minimap" hx-get="/overview/map/{{.GameID}}" hx-trigger="load" hx-swap="innerHTML">
+                <p class="muted">{{t "my.loading"}}</p>
+            </div>
+        </article>
+    {{end}}
+</div>
+{{else if .CurrentUser.CanUseExtension}}
+    <p class="muted my-hint">{{t "my.hint"}}</p>
+{{end}}
+
 {{if .NoGameID}}
     <div class="card ov-empty">
         <h2>{{t "ov.noid.title"}}</h2>
@@ -103,4 +128,24 @@
         <p class="muted">{{.Empty}}</p>
     {{end}}
 </section>
+{{end}}
+
+{{/* Мини-карта своей партии: вы, коалиция, враги, остальные. Ответ
+     на запрос из карточки «Ваших партий». */}}
+{{define "minimap"}}
+{{if .Error}}
+    <p class="muted">{{t "my.map.error"}}</p>
+{{else}}
+    <svg class="mini-map" viewBox="0 0 {{.Width}} {{.Height}}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="{{t "my.title"}}">
+        <rect width="{{.Width}}" height="{{.Height}}" fill="#16222c"></rect>
+        {{range .Shapes}}<polygon points="{{.Points}}" class="{{.Class}}"></polygon>{{end}}
+    </svg>
+    <ul class="map-legend mini-legend">
+        <li><span class="swatch mm-me"></span> {{t "my.me"}}</li>
+        {{with index .Counts "mm-team"}}<li><span class="swatch mm-team"></span> {{t "my.legend.team"}} <span class="muted">— {{.}}</span></li>{{end}}
+        {{with index .Counts "mm-enemy"}}<li><span class="swatch mm-enemy"></span> {{t "my.legend.enemies"}} <span class="muted">— {{.}}</span></li>{{end}}
+        <li><span class="swatch mm-human"></span> {{t "my.legend.others"}}</li>
+        <li><span class="swatch mm-ai"></span> {{t "my.legend.bots"}}</li>
+    </ul>
+{{end}}
 {{end}}

@@ -189,12 +189,12 @@ const mapPanel = (() => {
                 status(roster ? roster.error : "Вкладка с игрой не ответила — перезагрузите её.", true);
                 return;
             }
-            const { me, players, teams } = roster.roster;
+            const { me, players, teams, game } = roster.roster;
             if (!me.site || players.length === 0) {
                 status("Не удалось прочитать состав партии.", true);
                 return;
             }
-            const res = await chrome.runtime.sendMessage({ type: "map", me: me.site, players, teams });
+            const res = await chrome.runtime.sendMessage({ type: "map", me: me.site, players, teams, game });
             if (!res || res.error) {
                 status(res ? res.error : "Расширение не ответило.", true);
                 return;
