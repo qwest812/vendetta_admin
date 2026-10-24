@@ -13,7 +13,8 @@
     <header class="topbar">
         <a class="brand" href="/">{{t "brand"}}</a>
         <nav>
-            <a href="/" {{if eq .Path "/"}}class="active"{{end}}>{{t "nav.search"}}</a>
+            <a href="/" {{if eq .Path "/"}}class="active"{{end}}>{{t "nav.overview"}}</a>
+            <a href="/players" {{if eq .Path "/players"}}class="active"{{end}}>{{t "nav.search"}}</a>
             {{/* Пункт «Кланы» из меню убран: раздел жив и открывается прямой
                  ссылкой /clans, но в навигации его пока не показываем. */}}
             {{/* Личные списки — ручной раздел: их прячет рубильник в «Настройках». */}}

@@ -376,7 +376,7 @@ func (s *Server) playerDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logAuditOn(r, "player.delete", "player", player.ID, map[string]any{"nickname": player.Nickname})
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/players", http.StatusSeeOther)
 }
 
 // playerHeroView — строка героя в карточке: кто он, до какого уровня

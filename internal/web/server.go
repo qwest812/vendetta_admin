@@ -82,6 +82,7 @@ type Server struct {
 	// и жить она должна по тем же правилам.
 	cookieSecure   bool
 	trustedProxies []netip.Prefix
+	overviewRepo   *repo.Overview
 	pages          site
 }
 
@@ -135,6 +136,8 @@ type Deps struct {
 	Checked *repo.CheckedGames
 	// Checks — дневной счёт проверок карты.
 	Checks *repo.MapChecks
+	// Overview — запросы «Обзора»: место игрока в базе, союзники, альянс.
+	Overview *repo.Overview
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
 	// CookieSecure — ставить ли кукам флаг Secure. Тот же, что у сессии.
@@ -161,7 +164,7 @@ func NewServer(d Deps) (*Server, error) {
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
 		builds: d.BuildQueue, heroPlans: d.HeroPlans,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
-		trustedProxies: d.TrustedProxies,
+		trustedProxies: d.TrustedProxies, overviewRepo: d.Overview,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
 	s.friends = newRelationSection(s, d.Friends, friendWords)
@@ -196,9 +199,10 @@ func (s *Server) Handler() http.Handler {
 
 	// Поиск и просмотр — всем авторизованным.
 	user := auth.RequireRole(domain.RoleUser)
-	// Корень один на двоих: вошедшему — поиск, гостю — витрина. Отдельной
-	// проверки роли тут нет, её делает index сам.
+	// Корень один на двоих: вошедшему — «Обзор», гостю — витрина. Отдельной
+	// проверки роли тут нет, её делает index сам. Поиск живёт в «Игроках».
 	mux.HandleFunc("GET /{$}", s.index)
+	mux.Handle("GET /players", user(http.HandlerFunc(s.home)))
 	mux.Handle("GET /search", user(http.HandlerFunc(s.search)))
 	mux.Handle("GET /players/{id}", user(http.HandlerFunc(s.playerCard)))
 	// Кланы смотрят все: это такой же справочник, как карточки игроков.

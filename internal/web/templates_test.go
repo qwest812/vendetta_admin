@@ -93,6 +93,36 @@ func TestPagesRender(t *testing.T) {
 			deny: []string{`name="status"`, "Только союзные"},
 		},
 		{
+			// «Обзор» с полными данными: плитки с местом в базе, союзники
+			// со ссылкой на карточку, альянс и партии из архива.
+			name: "overview/всё есть",
+			page: "overview",
+			user: root,
+			data: map[string]any{
+				"Stats": domain.UserStats{Level: 19, Defeated: 75245863, Casualties: 40000000, Games: 120,
+					SoloWins: 10, CoalitionWins: 50, CheckedAt: &banSeen},
+				"Wins": 60, "WinRate": 50,
+				"Standing":      map[string]int{"Rated": 2663, "Level": 84, "KD": 94, "WinRate": 97, "Defeated": 90},
+				"Allies":        []repo.Ally{{Login: "Shemag", Games: 5, CardID: 7}, {Login: "Ghost", Games: 2}},
+				"AlliesMax":     5,
+				"Alliance":      repo.MyAlliance{Name: "Vendetta", Tag: "VND", Members: 42, Rank: 3},
+				"Archived":      []repo.ArchivedGame{{GameID: "10901726", Title: "World War", Day: 31, Team: "Антанта"}},
+				"ArchivedTotal": 12,
+			},
+			want: []string{"С возвращением, root", "Найти карту партии", `action="/games/check"`, "75 245 863", "сильнее 94% игроков базы",
+				"всеми 2663 игроками", `href="/players/7"`, "Shemag", "#3 в топе", "Vendetta",
+				`href="/games/10901726"`, "World War", "всего 12", `href="/players"`},
+			deny: []string{"Укажите игровой ID"},
+		},
+		{
+			// Без игрового ID обзор просит его указать, а не рисует нули.
+			name: "overview/без игрового ID",
+			page: "overview",
+			data: map[string]any{"NoGameID": true, "Standing": map[string]int(nil), "WinRate": 0},
+			want: []string{"Укажите игровой ID", `href="/profile"`},
+			deny: []string{"сильнее", "Уничтожено юнитов"},
+		},
+		{
 			// Витрина для гостя: живые цифры, вход и регистрация. Пока
 			// ручные разделы открыты, обещает заметки; выключены — нет.
 			name:  "landing/гость",

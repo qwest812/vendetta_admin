@@ -13,7 +13,7 @@ const landingWeek = 7 * 24 * time.Hour
 // отсюда сразу уводило на вход, и по адресу было не понять, куда пришёл.
 func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 	if currentUser(r) != nil {
-		s.home(w, r)
+		s.overview(w, r)
 		return
 	}
 	s.landing(w, r)

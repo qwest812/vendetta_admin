@@ -43,6 +43,25 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 		"datetime": func(t time.Time) string { return t.Local().Format(l.T("format.datetime")) },
 		// Дата без времени: в счёте по дням час ни к чему.
 		"date": func(t time.Time) string { return t.Local().Format(l.T("format.date")) },
+		// Число с разрядами: «75 245 863», как в газете. Целые разных типов приходят
+		// из разных структур, поэтому приводим к int64 здесь.
+		// Ширина полосы в процентах от самого большого в списке; самая
+		// короткая не меньше 4%, иначе единица превращается в ничто.
+		"barWidth": func(n, top int) int {
+			if top <= 0 {
+				return 0
+			}
+			return min(100, max(4, n*100/top))
+		},
+		"grouped": func(v any) string {
+			switch x := v.(type) {
+			case int:
+				return groupDigits(int64(x))
+			case int64:
+				return groupDigits(x)
+			}
+			return fmt.Sprint(v)
+		},
 		// День без года — подпись под столбиком графика, где год и так один.
 		"day": func(t time.Time) string { return t.Local().Format(l.T("format.day")) },
 		// Изменение со знаком: «+3», «−2», «0». Минус типографский — у
