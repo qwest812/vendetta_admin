@@ -4,7 +4,7 @@
     --border: #2b2f38;
     --text: #e7e9ee;
     --muted: #8b93a3;
-    --accent: #d9483b;
+    --accent: #3b8fd9;
     --danger: #c0392b;
     --ok: #3fa66a;
 }
@@ -930,7 +930,7 @@ td.plan { min-width: 18rem; }
     font-size: 13px;
 }
 .hero-levels .lvl:hover span { color: var(--text); }
-.hero-levels .lvl input:checked + span { border-color: var(--accent); background: rgba(217, 72, 59, .16); color: var(--text); }
+.hero-levels .lvl input:checked + span { border-color: var(--accent); background: rgba(59, 143, 217, .16); color: var(--text); }
 /* Ноль — это «героя нет»: он выбран у всех, кого не отмечали, и красить
    его в акцент незачем. */
 .hero-levels .lvl.zero input:checked + span { border-color: var(--muted); background: rgba(255, 255, 255, .06); }
