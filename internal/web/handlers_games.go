@@ -427,6 +427,10 @@ func (s *Server) renderGameNotice(w http.ResponseWriter, r *http.Request, gameID
 			view := gameViews(lang, []supremacy.Game{g})[0]
 			data["Game"] = &view
 			data["Ours"] = true
+			// Пауза автопилота — под скорость этой партии, как её и
+			// считает воркер: настройка подобрана под x4.
+			data["Interval"] = supremacy.AutopilotPause(s.heroEvery, g.Speed())
+			data["IntervalMax"] = supremacy.AutopilotPause(s.heroEveryMax, g.Speed())
 			break
 		}
 	}

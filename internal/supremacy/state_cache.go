@@ -208,3 +208,20 @@ func (c *Client) noteSpeeds(games ...Game) {
 		}
 	}
 }
+
+// GameSpeed — скорость партии: из памяти, а если её там нет — из сведений
+// о партии с сайта (запрос к сайту, не заход в партию; ответ кэшируется).
+// Не узнали — 0, и пусть решает тот, кто спрашивал.
+func (c *Client) GameSpeed(ctx context.Context, gameID string) float64 {
+	c.mu.Lock()
+	speed := c.speeds[gameID]
+	c.mu.Unlock()
+	if speed > 0 {
+		return speed
+	}
+	g, _, err := c.Game(ctx, gameID)
+	if err != nil || g == nil {
+		return 0
+	}
+	return g.Speed()
+}

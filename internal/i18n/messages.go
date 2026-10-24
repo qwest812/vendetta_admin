@@ -496,6 +496,7 @@ var messages = map[string]entry{
 	"game.hero.on":             {ru: "Включить призыв пехоты", en: "Turn infantry deployment on"},
 	"game.hero.off":            {ru: "Выключить призыв пехоты", en: "Turn infantry deployment off"},
 	"game.hero.now":            {ru: "Призвать сейчас", en: "Deploy now"},
+	"game.hero.waiting":        {ru: "Мейв в партии пока нет — включили ожидание: автопилот призовёт пехоту, как только она появится.", en: "Maeve is not in the game yet — waiting is on: the autopilot will summon infantry as soon as she appears."},
 	"game.hero.on.note":        {ru: "Включено: воркер заходит в партию каждые %s и жмёт у Мейв «призвать пехоту».", en: "On: the worker enters the game every %s and presses Maeve’s “deploy infantry”."},
 	"game.hero.off.note":       {ru: "Выключено. Если включить, воркер будет заходить в партию каждые %s и жать у Мейв «призвать пехоту».", en: "Off. Once on, the worker will enter the game every %s and press Maeve’s “deploy infantry”."},
 	"game.eco.title":           {ru: "Экономика и производство (%d)", en: "Economy and production (%d)"},

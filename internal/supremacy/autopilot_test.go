@@ -46,7 +46,11 @@ type fakeDeployer struct {
 	err     error
 	visited []string
 	jobs    []AutopilotJob
+	// speeds — скорость партии; нет записи — не узнали (0).
+	speeds map[string]float64
 }
+
+func (f *fakeDeployer) GameSpeed(_ context.Context, gameID string) float64 { return f.speeds[gameID] }
 
 func (f *fakeDeployer) RunAutopilot(_ context.Context, gameID string, job AutopilotJob) (*AutopilotRun, error) {
 	f.visited = append(f.visited, gameID)
@@ -193,5 +197,48 @@ func TestAutopilotWaitWithoutSpread(t *testing.T) {
 	back := NewAutopilot(&fakeDeployer{}, &fakeTasks{}, time.Hour, time.Minute, quietLog())
 	if d := back.wait(); d != time.Hour {
 		t.Errorf("при перевёрнутых границах пауза = %s, ожидался час", d)
+	}
+}
+
+// Пауза растягивается под скорость: настройка — для x4, в x1 вчетверо
+// дольше, в x10 короче, но не чаще пяти минут. Скорость не узнали —
+// считаем x4.
+func TestAutopilotWaitFollowsSpeed(t *testing.T) {
+	a := NewAutopilot(&fakeDeployer{}, &fakeTasks{runs: map[string]string{}}, 45*time.Minute, 45*time.Minute, quietLog())
+	for speed, want := range map[float64]time.Duration{
+		4:   45 * time.Minute,
+		1:   180 * time.Minute,
+		10:  18 * time.Minute,
+		0:   45 * time.Minute,
+		100: autopilotFloor,
+	} {
+		if got := a.waitFor(speed); got != want {
+			t.Errorf("x%v: %v, ожидали %v", speed, got, want)
+		}
+	}
+}
+
+// Срок у каждой партии свой: быструю обходим снова, пока медленная ждёт.
+func TestAutopilotSchedulesPerGame(t *testing.T) {
+	store := &fakeTasks{enabled: []domain.GameTask{
+		{GameID: "fast", HeroDeploy: true}, {GameID: "slow", HeroDeploy: true},
+	}}
+	dep := &fakeDeployer{speeds: map[string]float64{"fast": 10, "slow": 1}}
+	a := NewAutopilot(dep, store, 45*time.Minute, 45*time.Minute, quietLog())
+	now := time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
+	a.now = func() time.Time { return now }
+
+	if err := a.tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(dep.visited) != 2 {
+		t.Fatalf("первая сверка: %v", dep.visited)
+	}
+	now = now.Add(20 * time.Minute) // быстрой пора (18 мин), медленной — нет (3 ч)
+	if err := a.tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(dep.visited) != 3 || dep.visited[2] != "fast" {
+		t.Errorf("через 20 минут: %v", dep.visited)
 	}
 }

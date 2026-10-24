@@ -23,9 +23,15 @@ package supremacy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
+
+// ErrNoHero — в партии нет нашей армии с героем, умеющим призыв пехоты.
+// Это не поломка: Мейв появляется не сразу. Кнопка в таком случае
+// включает ожидание, а автопилот спрашивает снова на следующем заходе.
+var ErrNoHero = errors.New("героя с призывом пехоты в партии пока нет")
 
 // DeployInfantry активирует навык Мейв «призвать пехоту» в партии.
 // Возвращает описание сделанного — его показывает страница партии.
@@ -46,7 +52,7 @@ func (c *Client) deployInfantry(ctx context.Context, acc *gameAccess, gameID str
 
 	army, hero, ok := state.DeployArmy()
 	if !ok {
-		return "", 0, fmt.Errorf("партия %s: не нашлась наша армия с героем, умеющим призыв пехоты", gameID)
+		return "", 0, fmt.Errorf("партия %s: %w", gameID, ErrNoHero)
 	}
 
 	// Повторное нажатие игра принимает молча и таймер не сбрасывает, так что

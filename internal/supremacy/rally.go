@@ -21,6 +21,7 @@ package supremacy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -220,6 +221,10 @@ type AutopilotJob struct {
 }
 
 // AutopilotRun — итог захода по частям: у каждой своё поле на странице.
+// HeroWaiting — итог захода, когда Мейв в партии ещё нет: не ошибка,
+// а ожидание.
+const HeroWaiting = "Мейв в партии пока нет — ждём: призовём, как только она появится"
+
 type AutopilotRun struct {
 	Hero, Rally string
 	Armies      []int64
@@ -241,7 +246,11 @@ func (c *Client) RunAutopilot(ctx context.Context, gameID string, job AutopilotJ
 	var deploying int64
 	if job.Hero {
 		result, armyID, err := c.deployInfantry(ctx, acc, gameID, state, 3)
-		if err != nil {
+		switch {
+		case errors.Is(err, ErrNoHero):
+			// Мейв ещё нет — ждём: следующий заход спросит снова.
+			result = HeroWaiting
+		case err != nil:
 			result = err.Error()
 		}
 		run.Hero, deploying = result, armyID

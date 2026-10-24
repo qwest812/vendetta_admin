@@ -2,8 +2,11 @@ package supremacy
 
 // Autopilot — то, что админка делает в партиях сама: жмёт кнопку Мейв
 // и шлёт в выбранный город каждую новую армию. Заход на игровой сервер игра засчитывает как вход в партию,
-// поэтому ходим редко (по умолчанию раз в 45–50 минут) и только в те партии,
-// где это включено руками.
+// поэтому ходим редко и только в те партии, где это включено руками.
+//
+// Пауза у каждой партии своя и зависит от её скорости: настройка (по
+// умолчанию 45–50 минут) подобрана под x4, и в партии x1 игровой день
+// идёт вчетверо дольше — туда ходим вчетверо реже, в x10 — чаще.
 
 import (
 	"context"
@@ -26,7 +29,20 @@ type TaskStore interface {
 // Интерфейс ради тестов: в бою сюда приходит *Client.
 type autopilotRunner interface {
 	RunAutopilot(ctx context.Context, gameID string, job AutopilotJob) (*AutopilotRun, error)
+	// GameSpeed — скорость партии; 0 — не узнали.
+	GameSpeed(ctx context.Context, gameID string) float64
 }
+
+// Настройка паузы подобрана под эту скорость.
+const autopilotBaseSpeed = 4
+
+// autopilotFloor — чаще этого в партию не ходим, какой бы быстрой она ни
+// была: заход засчитывается как вход, и частить нельзя.
+const autopilotFloor = 5 * time.Minute
+
+// autopilotTick — как часто воркер сверяется с расписанием партий. Это
+// взгляд в свою память и базу, а не в игру.
+const autopilotTick = time.Minute
 
 // Autopilot обходит включённые партии, выжидая между обходами случайную
 // паузу от min до max.
@@ -39,6 +55,9 @@ type Autopilot struct {
 
 	// now подменяется в тестах; в бою это time.Now.
 	now func() time.Time
+	// next — когда в какую партию идти в следующий раз. Нет записи —
+	// идём на ближайшей сверке: партию только что включили.
+	next map[string]time.Time
 }
 
 // NewAutopilot: min и max — границы паузы между обходами. Равные значения
@@ -48,7 +67,28 @@ func NewAutopilot(c autopilotRunner, store TaskStore, min, max time.Duration, lo
 	if max < min {
 		max = min
 	}
-	return &Autopilot{client: c, store: store, log: log, min: min, max: max, now: time.Now}
+	return &Autopilot{client: c, store: store, log: log, min: min, max: max, now: time.Now,
+		next: map[string]time.Time{}}
+}
+
+// waitFor — пауза для партии этой скорости: случайная из настройки,
+// растянутая или сжатая под скорость. Скорость не узнали — считаем x4,
+// как и было до учёта скорости.
+func (a *Autopilot) waitFor(speed float64) time.Duration {
+	return AutopilotPause(a.wait(), speed)
+}
+
+// AutopilotPause растягивает паузу из настройки (она для x4) под скорость
+// партии. Общая для воркера и страницы партии, которая её показывает.
+func AutopilotPause(base time.Duration, speed float64) time.Duration {
+	if speed <= 0 {
+		speed = autopilotBaseSpeed
+	}
+	d := time.Duration(float64(base) * autopilotBaseSpeed / speed)
+	if d < autopilotFloor {
+		d = autopilotFloor
+	}
+	return d
 }
 
 // wait — сколько ждать до следующего обхода. Пауза каждый раз своя: заход
@@ -61,41 +101,52 @@ func (a *Autopilot) wait() time.Duration {
 	return a.min + rand.N(a.max-a.min)
 }
 
-// Run крутится до отмены контекста. Первый обход делает сразу: если кнопка
-// включена, ждать до первого тика незачем.
+// Run крутится до отмены контекста. Первая сверка — сразу: включённые
+// партии без срока идут в работу, ждать до первого тика незачем.
 func (a *Autopilot) Run(ctx context.Context) {
-	a.log.Info("автопилот партий запущен", "пауза от", a.min, "до", a.max)
+	a.log.Info("автопилот партий запущен", "пауза для x4 от", a.min, "до", a.max)
 
-	// Таймер, а не тикер: пауза у каждого круга своя, и её надо назначать
-	// заново после каждого обхода.
-	timer := time.NewTimer(a.wait())
-	defer timer.Stop()
-
+	ticker := time.NewTicker(autopilotTick)
+	defer ticker.Stop()
 	for {
 		if err := a.tick(ctx); err != nil && ctx.Err() == nil {
 			a.log.Error("обход партий", "err", err)
 		}
-		next := a.wait()
-		a.log.Info("следующий обход партий", "через", next)
-		timer.Reset(next)
 		select {
 		case <-ctx.Done():
 			return
-		case <-timer.C:
+		case <-ticker.C:
 		}
 	}
 }
 
+// tick заходит в партии, чей срок подошёл, и назначает им следующий —
+// по их скорости.
 func (a *Autopilot) tick(ctx context.Context) error {
 	tasks, err := a.store.AutopilotTasks(ctx)
 	if err != nil {
 		return err
 	}
+	live := make(map[string]bool, len(tasks))
 	for _, t := range tasks {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+		live[t.GameID] = true
+		if at, ok := a.next[t.GameID]; ok && a.now().Before(at) {
+			continue
+		}
 		a.visit(ctx, t)
+		speed := a.client.GameSpeed(ctx, t.GameID)
+		wait := a.waitFor(speed)
+		a.next[t.GameID] = a.now().Add(wait)
+		a.log.Info("следующий заход автопилота", "gameID", t.GameID, "скорость", speed, "через", wait)
+	}
+	// Выключенные партии забываем: включат снова — пойдём сразу.
+	for id := range a.next {
+		if !live[id] {
+			delete(a.next, id)
+		}
 	}
 	return nil
 }

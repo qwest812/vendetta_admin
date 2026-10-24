@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sort"
 	"strconv"
@@ -30,11 +31,11 @@ func (s *Server) gameHeroToggle(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("автопризыв пехоты переключён",
 		"gameID", gameID, "включён", on, "user_id", currentUser(r).ID)
 
-	msg := ""
+	msg, notice := "", ""
 	if on {
-		msg = s.heroDeploy(r, gameID, "при включении")
+		msg, notice = s.heroDeploy(r, gameID, "при включении")
 	}
-	s.renderGame(w, r, gameID, false, msg)
+	s.renderGameNotice(w, r, gameID, false, msg, notice)
 }
 
 // gameHeroRun — «призвать сейчас»: то же самое, что делает воркер, но по
@@ -43,7 +44,8 @@ func (s *Server) gameHeroToggle(w http.ResponseWriter, r *http.Request) {
 // от того, кто его сделал.
 func (s *Server) gameHeroRun(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
-	s.renderGame(w, r, gameID, false, s.heroDeploy(r, gameID, "вручную"))
+	msg, notice := s.heroDeploy(r, gameID, "вручную")
+	s.renderGameNotice(w, r, gameID, false, msg, notice)
 }
 
 // heroDeploy заходит в партию и жмёт кнопку Мейв, если её есть смысл жать:
@@ -55,9 +57,13 @@ func (s *Server) gameHeroRun(w http.ResponseWriter, r *http.Request) {
 // заход независимо от того, кто его сделал. Запись некритична — призыв уже
 // случился (или не случился), и терять из-за базы ответ человеку было бы
 // обидно.
-func (s *Server) heroDeploy(r *http.Request, gameID, reason string) string {
+//
+// Мейв в партии ещё нет — это не ошибка, а ожидание: включаем автопризыв,
+// и воркер нажмёт кнопку на первом заходе, где она появится. Человеку
+// это говорится уведомлением (второе значение), а не ошибкой.
+func (s *Server) heroDeploy(r *http.Request, gameID, reason string) (errMsg, notice string) {
 	if s.games == nil {
-		return langOf(r).T("games.noaccount.short")
+		return langOf(r).T("games.noaccount.short"), ""
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
@@ -65,10 +71,18 @@ func (s *Server) heroDeploy(r *http.Request, gameID, reason string) string {
 
 	var msg string
 	result, err := s.games.DeployInfantry(ctx, gameID)
-	if err != nil {
+	switch {
+	case errors.Is(err, supremacy.ErrNoHero):
+		result = supremacy.HeroWaiting
+		notice = langOf(r).T("game.hero.waiting")
+		s.log.Info("призыв пехоты: героя пока нет, ждём", "повод", reason, "gameID", gameID)
+		if err := s.waitForHero(r, gameID); err != nil {
+			s.log.Error("включение ожидания героя", "gameID", gameID, "err", err)
+		}
+	case err != nil:
 		s.log.Error("призыв пехоты", "повод", reason, "gameID", gameID, "err", err)
 		result, msg = err.Error(), err.Error()
-	} else {
+	default:
 		s.log.Info("призыв пехоты", "повод", reason, "gameID", gameID,
 			"user_id", currentUser(r).ID, "итог", result)
 	}
@@ -76,7 +90,24 @@ func (s *Server) heroDeploy(r *http.Request, gameID, reason string) string {
 	if err := s.tasks.MarkHeroRun(r.Context(), gameID, time.Now(), result); err != nil {
 		s.log.Error("запись итога призыва", "gameID", gameID, "err", err)
 	}
-	return msg
+	return msg, notice
+}
+
+// waitForHero включает автопризыв, если он ещё выключен: тогда воркер сам
+// нажмёт кнопку, как только Мейв появится в партии.
+func (s *Server) waitForHero(r *http.Request, gameID string) error {
+	task, err := s.tasks.Get(r.Context(), gameID)
+	if err != nil {
+		return err
+	}
+	if task != nil && task.HeroDeploy {
+		return nil
+	}
+	title := ""
+	if task != nil {
+		title = task.Title
+	}
+	return s.tasks.SetHeroDeploy(r.Context(), gameID, title, true, currentUser(r).ID)
 }
 
 // gameRightOfWay выдаёт право прохода всем ботам партии — разово, по
