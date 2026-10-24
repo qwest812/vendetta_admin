@@ -242,3 +242,23 @@ func TestAutopilotSchedulesPerGame(t *testing.T) {
 		t.Errorf("через 20 минут: %v", dep.visited)
 	}
 }
+
+// После перезапуска срок считается от последнего захода из базы: недавно
+// заходили — ждём, давно или ни разу — идём сразу.
+func TestAutopilotResumesFromLastRun(t *testing.T) {
+	now := time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
+	store := &fakeTasks{enabled: []domain.GameTask{
+		{GameID: "recent", HeroDeploy: true, LastRunAt: now.Add(-10 * time.Minute)},
+		{GameID: "stale", HeroDeploy: true, LastRunAt: now.Add(-2 * time.Hour)},
+		{GameID: "never", HeroDeploy: true},
+	}}
+	dep := &fakeDeployer{speeds: map[string]float64{"recent": 4, "stale": 4, "never": 4}}
+	a := NewAutopilot(dep, store, 45*time.Minute, 45*time.Minute, quietLog())
+	a.now = func() time.Time { return now }
+	if err := a.tick(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(dep.visited) != 2 || dep.visited[0] != "stale" || dep.visited[1] != "never" {
+		t.Errorf("после перезапуска зашли в %v, ожидали stale и never", dep.visited)
+	}
+}

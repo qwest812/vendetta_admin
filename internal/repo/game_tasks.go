@@ -82,7 +82,8 @@ func (r *GameTasks) SetHeroDeploy(ctx context.Context, gameID, title string, on 
 func (r *GameTasks) AutopilotTasks(ctx context.Context) ([]domain.GameTask, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT game_id, title, hero_deploy,
-		        coalesce(rally_province, 0), rally_city, rally_auto, rally_known
+		        coalesce(rally_province, 0), rally_city, rally_auto, rally_known,
+		        last_run_at, rally_run_at
 		   FROM supremacy_game_tasks WHERE hero_deploy OR rally_auto ORDER BY game_id`)
 	if err != nil {
 		return nil, err
@@ -92,9 +93,18 @@ func (r *GameTasks) AutopilotTasks(ctx context.Context) ([]domain.GameTask, erro
 	var out []domain.GameTask
 	for rows.Next() {
 		var t domain.GameTask
+		// Время последних заходов нужно воркеру после перезапуска: срок
+		// следующего захода он считает от них, а не идёт во все партии сразу.
+		var lastRun, rallyRun *time.Time
 		if err := rows.Scan(&t.GameID, &t.Title, &t.HeroDeploy,
-			&t.RallyProvince, &t.RallyCity, &t.RallyAuto, &t.RallyKnown); err != nil {
+			&t.RallyProvince, &t.RallyCity, &t.RallyAuto, &t.RallyKnown, &lastRun, &rallyRun); err != nil {
 			return nil, err
+		}
+		if lastRun != nil {
+			t.LastRunAt = *lastRun
+		}
+		if rallyRun != nil {
+			t.RallyRunAt = *rallyRun
 		}
 		out = append(out, t)
 	}

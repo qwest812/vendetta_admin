@@ -133,7 +133,17 @@ func (a *Autopilot) tick(ctx context.Context) error {
 			return ctx.Err()
 		}
 		live[t.GameID] = true
-		if at, ok := a.next[t.GameID]; ok && a.now().Before(at) {
+		at, ok := a.next[t.GameID]
+		if !ok {
+			// Срока в памяти нет — воркер только что запустился. Считаем
+			// его от последнего захода из базы: иначе каждый перезапуск
+			// админки был бы лишним входом во все партии разом.
+			if last := lastVisit(t); !last.IsZero() {
+				at, ok = last.Add(a.waitFor(a.client.GameSpeed(ctx, t.GameID))), true
+				a.next[t.GameID] = at
+			}
+		}
+		if ok && a.now().Before(at) {
 			continue
 		}
 		a.visit(ctx, t)
@@ -179,4 +189,14 @@ func (a *Autopilot) visit(ctx context.Context, t domain.GameTask) {
 			a.log.Error("запись итога сбора", "gameID", t.GameID, "err", err)
 		}
 	}
+}
+
+// lastVisit — когда автопилот последний раз заходил в партию: позднейший
+// из итогов призыва и сбора. Нулевое — не заходил ни разу.
+func lastVisit(t domain.GameTask) time.Time {
+	last := t.LastRunAt
+	if t.RallyRunAt.After(last) {
+		last = t.RallyRunAt
+	}
+	return last
 }
