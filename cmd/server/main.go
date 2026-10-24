@@ -70,6 +70,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	userStats := repo.NewUserStats(pool)
 	feedback := repo.NewFeedback(pool)
 	hunts := repo.NewHunts(pool)
+	provinceRepo := repo.NewProvinces(pool)
 
 	if err := seedRoot(ctx, log, users, cfg); err != nil {
 		return err
@@ -99,7 +100,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		TopAlliances: topAlliances, UserStats: userStats, Hunts: hunts,
 		Health: pool.Ping, CookieSecure: cfg.CookieSecure,
 		TrustedProxies: cfg.TrustedProxies, Overview: repo.NewOverview(pool),
-		Snapshots: repo.NewClientSnapshots(pool),
+		Snapshots: repo.NewClientSnapshots(pool), Provinces: provinceRepo,
 	}
 	// Присваиваем только настроенного клиента: типизированный nil в интерфейсе
 	// на проверку `== nil` не отвечает, и раздел счёл бы аккаунт настроенным.
@@ -166,7 +167,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// куда и так зашёл.
 		scanner.WatchEnemies(hunts)
 		// И провинции каждого захода — сырьё для поиска мультиаккаунтов.
-		scanner.KeepProvinces(repo.NewProvinces(pool))
+		scanner.KeepProvinces(provinceRepo)
 		watcher.Feed(scanner)
 
 		// Воркеры расходятся по очереди, а не стартуют все разом: ходят они

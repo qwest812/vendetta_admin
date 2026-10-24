@@ -448,8 +448,8 @@ func (s *CoalitionScanner) keepProvinces(ctx context.Context, gameID string, sta
 		return
 	}
 	owners, counts, teams := ownersOf(state)
-	snap := domain.ProvinceSnapshot{GameID: gameID, Day: state.Day, Owners: owners, Counts: counts,
-		Transfers: transfersBetween(prev, owners, teams), Done: done}
+	snap := domain.ProvinceSnapshot{GameID: gameID, MapID: state.MapID, Day: state.Day, Owners: owners,
+		Counts: counts, Teams: teams, Transfers: transfersBetween(prev, owners, teams), Done: done}
 	if err := s.provinces.SaveProvinces(ctx, snap, now); err != nil {
 		s.log.Error("провинции: запись", "gameID", gameID, "err", err)
 	}

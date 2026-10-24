@@ -102,7 +102,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Свои партии — по снимкам из расширения; в игру ради них не ходим.
-	games, err := s.myGames(ctx, me.ID)
+	games, err := s.myGames(ctx, me)
 	if err != nil {
 		s.serverError(w, r, err)
 		return

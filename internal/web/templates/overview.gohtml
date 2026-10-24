@@ -45,8 +45,9 @@
     {{range .MyGames}}
         <article class="card my-game">
             <div class="card-head">
-                <h2>{{if $.CurrentUser.CanViewGames}}<a href="/games/{{.GameID}}">{{t "game.unnamed" .GameID}}</a>{{else}}{{t "game.unnamed" .GameID}}{{end}}</h2>
-                <span class="muted">{{t "my.taken" (ago .TakenAt)}}</span>
+                {{$name := .Title}}{{if not $name}}{{$name = t "game.unnamed" .GameID}}{{end}}
+                <h2>{{if $.CurrentUser.CanViewGames}}<a href="/games/{{.GameID}}">{{$name}}</a>{{else}}{{$name}}{{end}}</h2>
+                <span class="muted" title="{{if .Scanned}}{{t "my.src.scan"}}{{else}}{{t "my.src.ext"}}{{end}}">{{t "my.taken" (ago .TakenAt)}}</span>
             </div>
             <p class="muted my-meta">
                 {{if .Nation}}<b>{{.Nation}}</b> · {{end}}{{t "gs.day"}} {{.Day}} · {{t "my.provinces" .Mine .Total}}{{if .Teammates}} · {{t "my.team" .Teammates}}{{end}}
@@ -57,7 +58,7 @@
         </article>
     {{end}}
 </div>
-{{else if .CurrentUser.CanUseExtension}}
+{{else if .CurrentUser.GameID}}
     <p class="muted my-hint">{{t "my.hint"}}</p>
 {{end}}
 
@@ -145,7 +146,11 @@
         {{with index .Counts "mm-team"}}<li><span class="swatch mm-team"></span> {{t "my.legend.team"}} <span class="muted">— {{.}}</span></li>{{end}}
         {{with index .Counts "mm-enemy"}}<li><span class="swatch mm-enemy"></span> {{t "my.legend.enemies"}} <span class="muted">— {{.}}</span></li>{{end}}
         <li><span class="swatch mm-human"></span> {{t "my.legend.others"}}</li>
-        <li><span class="swatch mm-ai"></span> {{t "my.legend.bots"}}</li>
+        {{if .Scanned}}
+            <li><span class="swatch mm-free"></span> {{t "my.legend.freebots"}}</li>
+        {{else}}
+            <li><span class="swatch mm-ai"></span> {{t "my.legend.bots"}}</li>
+        {{end}}
     </ul>
 {{end}}
 {{end}}

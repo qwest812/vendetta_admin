@@ -92,8 +92,11 @@ type ProvinceTransfer struct {
 // ProvinceSnapshot — провинции партии на один заход: владельцы (номер
 // провинции → игрок на сайте), сколько у кого и переходы с прошлого раза.
 type ProvinceSnapshot struct {
-	GameID    string
-	Day       int
+	GameID string
+	MapID  string
+	Day    int
+	// Teams — коалиция живого игрока по номеру на сайте; для мини-карты.
+	Teams     map[string]int
 	Owners    map[int]string
 	Counts    map[string]int
 	Transfers []ProvinceTransfer

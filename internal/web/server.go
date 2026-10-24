@@ -84,6 +84,7 @@ type Server struct {
 	trustedProxies []netip.Prefix
 	overviewRepo   *repo.Overview
 	snapshots      *repo.ClientSnapshots
+	provinces      *repo.Provinces
 	pages          site
 }
 
@@ -141,6 +142,9 @@ type Deps struct {
 	Overview *repo.Overview
 	// Snapshots — снимки партий из расширения: «Ваши партии» в «Обзоре».
 	Snapshots *repo.ClientSnapshots
+	// Provinces — провинции по заходам сбора коалиций: второй источник
+	// «Ваших партий», без расширения.
+	Provinces *repo.Provinces
 	// Health проверяет живость зависимостей для /healthz.
 	Health func(context.Context) error
 	// CookieSecure — ставить ли кукам флаг Secure. Тот же, что у сессии.
@@ -168,6 +172,7 @@ func NewServer(d Deps) (*Server, error) {
 		builds: d.BuildQueue, heroPlans: d.HeroPlans,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 		trustedProxies: d.TrustedProxies, overviewRepo: d.Overview, snapshots: d.Snapshots,
+		provinces: d.Provinces,
 	}
 	s.enemies = newRelationSection(s, d.Enemies, enemyWords)
 	s.friends = newRelationSection(s, d.Friends, friendWords)
