@@ -29,15 +29,15 @@ func (r *GameTasks) Get(ctx context.Context, gameID string) (*domain.GameTask, e
 		updatedBy     *int64
 	)
 	err := r.pool.QueryRow(ctx,
-		`SELECT game_id, title, hero_deploy, updated_by, updated_at, last_run_at, last_result,
+		`SELECT game_id, title, hero_deploy, hero_min_money, updated_by, updated_at, last_run_at, last_result,
 		        build_next_at, build_run_at, build_result,
 		        rally_province, rally_city, rally_auto, rally_known, rally_run_at, rally_result
 		   FROM supremacy_game_tasks WHERE game_id = $1`, gameID).
-		Scan(&t.GameID, &t.Title, &t.HeroDeploy, &updatedBy, &t.UpdatedAt, &lastRun, &t.LastResult,
+		Scan(&t.GameID, &t.Title, &t.HeroDeploy, &t.HeroMinMoney, &updatedBy, &t.UpdatedAt, &lastRun, &t.LastResult,
 			&buildNext, &buildRun, &t.BuildResult,
 			&rallyProvince, &t.RallyCity, &t.RallyAuto, &t.RallyKnown, &rallyRun, &t.RallyResult)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return &domain.GameTask{GameID: gameID}, nil
+		return &domain.GameTask{GameID: gameID, HeroMinMoney: domain.HeroMinMoneyDefault}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -62,6 +62,21 @@ func (r *GameTasks) Get(ctx context.Context, gameID string) (*domain.GameTask, e
 }
 
 // SetHeroDeploy включает или выключает автопризыв пехоты в партии.
+// SetHeroMinMoney меняет порог денег для Мейв: ниже него она не призывает.
+func (r *GameTasks) SetHeroMinMoney(ctx context.Context, gameID, title string, money int, actorID int64) error {
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO supremacy_game_tasks (game_id, title, hero_min_money, updated_by, updated_at)
+		 VALUES ($1, $2, $3, $4, now())
+		 ON CONFLICT (game_id) DO UPDATE
+		    SET hero_min_money = EXCLUDED.hero_min_money,
+		        updated_by     = EXCLUDED.updated_by,
+		        updated_at     = now(),
+		        title = CASE WHEN EXCLUDED.title = '' THEN supremacy_game_tasks.title
+		                     ELSE EXCLUDED.title END`,
+		gameID, title, money, actorID)
+	return err
+}
+
 func (r *GameTasks) SetHeroDeploy(ctx context.Context, gameID, title string, on bool, actorID int64) error {
 	_, err := r.pool.Exec(ctx,
 		`INSERT INTO supremacy_game_tasks (game_id, title, hero_deploy, updated_by, updated_at)
@@ -81,7 +96,7 @@ func (r *GameTasks) SetHeroDeploy(ctx context.Context, gameID, title string, on 
 // пехоты или сбор новых армий в город.
 func (r *GameTasks) AutopilotTasks(ctx context.Context) ([]domain.GameTask, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT game_id, title, hero_deploy,
+		`SELECT game_id, title, hero_deploy, hero_min_money,
 		        coalesce(rally_province, 0), rally_city, rally_auto, rally_known,
 		        last_run_at, rally_run_at
 		   FROM supremacy_game_tasks WHERE hero_deploy OR rally_auto ORDER BY game_id`)
@@ -96,7 +111,7 @@ func (r *GameTasks) AutopilotTasks(ctx context.Context) ([]domain.GameTask, erro
 		// Время последних заходов нужно воркеру после перезапуска: срок
 		// следующего захода он считает от них, а не идёт во все партии сразу.
 		var lastRun, rallyRun *time.Time
-		if err := rows.Scan(&t.GameID, &t.Title, &t.HeroDeploy,
+		if err := rows.Scan(&t.GameID, &t.Title, &t.HeroDeploy, &t.HeroMinMoney,
 			&t.RallyProvince, &t.RallyCity, &t.RallyAuto, &t.RallyKnown, &lastRun, &rallyRun); err != nil {
 			return nil, err
 		}

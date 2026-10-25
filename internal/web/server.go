@@ -350,6 +350,7 @@ func (s *Server) Handler() http.Handler {
 	// у него рутовый. Роут стоит раньше /games/{id}: он точнее.
 	mux.Handle("POST /games/{id}/hero", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroToggle))))
 	mux.Handle("POST /games/{id}/hero/run", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroRun))))
+	mux.Handle("POST /games/{id}/hero/money", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroMoney))))
 	mux.Handle("POST /games/{id}/relate", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRightOfWay))))
 	mux.Handle("POST /games/{id}/hero/order", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroOrder))))
 	mux.Handle("POST /games/{id}/hero/plan/{planID}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroPlanRemove))))

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"Vendetta_admin/internal/domain"
@@ -36,6 +37,28 @@ func (s *Server) gameHeroToggle(w http.ResponseWriter, r *http.Request) {
 		msg, notice = s.heroDeploy(r, gameID, "при включении")
 	}
 	s.renderGameNotice(w, r, gameID, false, msg, notice)
+}
+
+// gameHeroMoney сохраняет порог денег для Мейв: ниже него она не призывает
+// ни по кнопке, ни автопилотом. Пустое поле — ноль, без ограничения.
+func (s *Server) gameHeroMoney(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	raw := strings.TrimSpace(strings.ReplaceAll(r.PostFormValue("money"), " ", ""))
+	money := 0
+	if raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 0 || n > 100_000_000 {
+			s.renderGame(w, r, gameID, false, langOf(r).T("game.hero.money.bad"))
+			return
+		}
+		money = n
+	}
+	if err := s.tasks.SetHeroMinMoney(r.Context(), gameID, r.PostFormValue("title"), money, currentUser(r).ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.logAuditOn(r, "game.hero.money", "game", 0, map[string]any{"game": gameID, "money": money})
+	s.renderGameNotice(w, r, gameID, false, "", langOf(r).T("game.hero.money.saved", money))
 }
 
 // gameHeroRun — «призвать сейчас»: то же самое, что делает воркер, но по
@@ -69,8 +92,14 @@ func (s *Server) heroDeploy(r *http.Request, gameID, reason string) (errMsg, not
 	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
 	defer cancel()
 
+	// Порог денег — из настроек партии; не прочиталась — по умолчанию.
+	minMoney := domain.HeroMinMoneyDefault
+	if task, err := s.tasks.Get(ctx, gameID); err == nil && task != nil {
+		minMoney = task.HeroMinMoney
+	}
+
 	var msg string
-	result, err := s.games.DeployInfantry(ctx, gameID)
+	result, err := s.games.DeployInfantry(ctx, gameID, minMoney)
 	switch {
 	case errors.Is(err, supremacy.ErrNoHero):
 		result = supremacy.HeroWaiting

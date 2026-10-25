@@ -98,3 +98,57 @@ func TestScannerKeepsProvinces(t *testing.T) {
 		t.Errorf("второй заход: %+v", prov.saved[1])
 	}
 }
+
+// Цена призыва — по уровню: открытый предметом самый дорогой уровень.
+// Ничего не открыто — первый, самый дешёвый.
+func TestDeployCost(t *testing.T) {
+	st := &GameState{
+		DeployLevels: map[int][]DeployLevel{50617: {
+			{Item: 1, Cost: map[int]float64{resFish: 300, resMoney: 8000}, Amount: 2},
+			{Item: 2, Cost: map[int]float64{resFish: 700, resMoney: 18000}, Amount: 6},
+			{Item: 3, Cost: map[int]float64{resFish: 1000, resMoney: 25000}, Amount: 9},
+		}},
+		Inventory: map[int]int{1: 1, 2: 1},
+	}
+	if c, ok := st.DeployCost(50617); !ok || c.Cost[resMoney] != 18000 || c.Amount != 6 {
+		t.Errorf("десятый уровень: %+v ok=%v", c, ok)
+	}
+	st.Inventory = nil
+	if c, _ := st.DeployCost(50617); c.Cost[resMoney] != 8000 {
+		t.Errorf("ничего не открыто: %+v", c)
+	}
+	if _, ok := st.DeployCost(64); ok {
+		t.Error("цена у героя без уровней")
+	}
+}
+
+// Призыв пропускается, если после него денег останется меньше порога
+// или рыбы не хватит. Цена неизвестна — порог против того, что есть.
+func TestDeploySkip(t *testing.T) {
+	now := time.Date(2026, 10, 25, 3, 0, 0, 0, time.UTC)
+	res := func(money, fish float64) map[int]Resource {
+		return map[int]Resource{resMoney: {Amount: money, Measured: now}, resFish: {Amount: fish, Measured: now}}
+	}
+	priced := map[int][]DeployLevel{7: {{Item: 1, Cost: map[int]float64{resFish: 700, resMoney: 18000}}}}
+	inv := map[int]int{1: 1}
+
+	cases := []struct {
+		name string
+		st   *GameState
+		min  int
+		skip bool
+	}{
+		{"хватает с запасом", &GameState{Resources: res(40000, 1000), DeployLevels: priced, Inventory: inv}, 20000, false},
+		{"после призыва меньше порога", &GameState{Resources: res(35000, 1000), DeployLevels: priced, Inventory: inv}, 20000, true},
+		{"рыбы не хватает", &GameState{Resources: res(90000, 500), DeployLevels: priced, Inventory: inv}, 20000, true},
+		{"цена неизвестна, денег больше порога", &GameState{Resources: res(25000, 0)}, 20000, false},
+		{"цена неизвестна, денег меньше порога", &GameState{Resources: res(15000, 0)}, 20000, true},
+		{"порог ноль, цена неизвестна", &GameState{Resources: res(100, 0)}, 0, false},
+		{"денег игра не прислала", &GameState{DeployLevels: priced, Inventory: inv}, 20000, false},
+	}
+	for _, c := range cases {
+		if why := deploySkip(c.st, 7, c.min, now); (why != "") != c.skip {
+			t.Errorf("%s: %q", c.name, why)
+		}
+	}
+}

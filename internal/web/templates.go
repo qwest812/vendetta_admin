@@ -69,6 +69,8 @@ func funcsFor(l i18n.Lang) template.FuncMap {
 				return groupDigits(int64(x))
 			case int64:
 				return groupDigits(x)
+			case float64:
+				return groupDigits(int64(x))
 			}
 			return fmt.Sprint(v)
 		},

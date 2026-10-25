@@ -988,8 +988,8 @@ func (sizeSource) CachedState(string) (*supremacy.GameState, bool) { return nil,
 func (sizeSource) StateFor(context.Context, string, bool, bool) (*supremacy.GameState, time.Time, error) {
 	return nil, time.Time{}, nil
 }
-func (sizeSource) StateFresh(string, bool) time.Duration                  { return 0 }
-func (sizeSource) DeployInfantry(context.Context, string) (string, error) { return "", nil }
+func (sizeSource) StateFresh(string, bool) time.Duration                       { return 0 }
+func (sizeSource) DeployInfantry(context.Context, string, int) (string, error) { return "", nil }
 func (sizeSource) GameLosses(context.Context, string, int) (*supremacy.Losses, error) {
 	return nil, nil
 }

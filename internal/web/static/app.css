@@ -1478,3 +1478,7 @@ body.has-side { padding-left: var(--side); }
 .swatch.mm-me { background: #3b8fd9; } .swatch.mm-team { background: #3f7d5a; }
 .swatch.mm-enemy { background: #a2453c; } .swatch.mm-human { background: #6f8597; }
 .swatch.mm-ai { background: #4a5b68; }
+/* Порог денег для Мейв — в той же строке, что кнопки. */
+.hero-money { display: flex; align-items: flex-end; gap: 8px; }
+.hero-money label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.hero-money input { width: 130px; }

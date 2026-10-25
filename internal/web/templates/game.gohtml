@@ -63,6 +63,20 @@
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
             <button type="submit">{{t "game.hero.now"}}</button>
         </form>
+        {{/* Порог денег: Мейв не призывает, пока денег меньше, — иначе
+             за ночь автопилот выедал всю казну. */}}
+        <form method="post" action="/games/{{.GameID}}/hero/money" class="hero-money">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
+            <label>{{t "game.hero.money"}}
+                <input type="number" name="money" min="0" step="1000" inputmode="numeric"
+                       value="{{if $t}}{{$t.HeroMinMoney}}{{else}}20000{{end}}">
+            </label>
+            <button type="submit" class="ghost">{{t "common.save"}}</button>
+            {{with .HeroCost}}
+                <span class="muted">{{t "game.hero.cost" (grouped (index .Cost 20)) (grouped (index .Cost 1)) .Amount}}</span>
+            {{end}}
+        </form>
         <p class="muted">
             {{if and $t $t.HeroDeploy}}
                 {{t "game.hero.on.note" (everySpan .Interval .IntervalMax)}}

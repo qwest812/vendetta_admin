@@ -211,6 +211,8 @@ func (c *Client) rally(ctx context.Context, acc *gameAccess, gameID string, stat
 // AutopilotJob — что автопилот делает в партии за один заход.
 type AutopilotJob struct {
 	Hero bool
+	// MinMoney — не призывать, если денег меньше; ноль — без ограничения.
+	MinMoney int
 	// RallyTo — куда собирать новые армии; ноль — сбор выключен.
 	RallyTo   int
 	RallyCity string
@@ -220,11 +222,11 @@ type AutopilotJob struct {
 	Known []int64
 }
 
-// AutopilotRun — итог захода по частям: у каждой своё поле на странице.
 // HeroWaiting — итог захода, когда Мейв в партии ещё нет: не ошибка,
 // а ожидание.
 const HeroWaiting = "Мейв в партии пока нет — ждём: призовём, как только она появится"
 
+// AutopilotRun — итог захода по частям: у каждой своё поле на странице.
 type AutopilotRun struct {
 	Hero, Rally string
 	Armies      []int64
@@ -245,7 +247,7 @@ func (c *Client) RunAutopilot(ctx context.Context, gameID string, job AutopilotJ
 	// какую армию сейчас не трогать.
 	var deploying int64
 	if job.Hero {
-		result, armyID, err := c.deployInfantry(ctx, acc, gameID, state, 3)
+		result, armyID, err := c.deployInfantry(ctx, acc, gameID, state, 3, job.MinMoney)
 		switch {
 		case errors.Is(err, ErrNoHero):
 			// Мейв ещё нет — ждём: следующий заход спросит снова.

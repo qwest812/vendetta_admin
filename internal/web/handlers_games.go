@@ -47,7 +47,7 @@ type gameSource interface {
 	// нужно свежее остальных.
 	StateFor(ctx context.Context, gameID string, ours, root bool) (*supremacy.GameState, time.Time, error)
 	StateFresh(gameID string, root bool) time.Duration
-	DeployInfantry(ctx context.Context, gameID string) (string, error)
+	DeployInfantry(ctx context.Context, gameID string, minMoney int) (string, error)
 	// GrantRightOfWay заходит в партию и выдаёт право прохода всем ботам,
 	// у кого его ещё нет.
 	GrantRightOfWay(ctx context.Context, gameID string) (string, error)
@@ -918,6 +918,14 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 	}
 	data["DeployHeroes"] = heroOptions(heroes, cards, state, faces)
 	data["HeroesOnMap"], data["HeroLimit"] = deployed, state.HeroLimit
+
+	// Цена призыва Мейв на нашем уровне — рядом с порогом денег: видно,
+	// сколько уходит за раз и сколько останется.
+	if army, _, ok := state.DeployArmy(); ok {
+		if cost, ok := state.DeployCost(army.DeployHeroType(state.HeroTypes)); ok {
+			data["HeroCost"] = cost
+		}
+	}
 
 	// Карту рисуем, если получилось: очертания лежат отдельным файлом
 	// на static-сервере игры, и его недоступность не повод прятать

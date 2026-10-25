@@ -35,20 +35,52 @@ var ErrNoHero = errors.New("героя с призывом пехоты в па�
 
 // DeployInfantry активирует навык Мейв «призвать пехоту» в партии.
 // Возвращает описание сделанного — его показывает страница партии.
-func (c *Client) DeployInfantry(ctx context.Context, gameID string) (string, error) {
+// minMoney — не призывать, если денег меньше; ноль — без ограничения.
+func (c *Client) DeployInfantry(ctx context.Context, gameID string, minMoney int) (string, error) {
 	acc, state, err := c.enter(ctx, gameID)
 	if err != nil {
 		return "", err
 	}
-	result, _, err := c.deployInfantry(ctx, acc, gameID, state, 3)
+	result, _, err := c.deployInfantry(ctx, acc, gameID, state, 3, minMoney)
 	return result, err
+}
+
+// Ресурсы, которые тратит призыв: деньги (hup.consts.MONEY) и рыба.
+const (
+	resMoney = 20
+	resFish  = 1
+)
+
+// deploySkip — почему призыв сейчас не жмём, или пусто, если можно.
+// Порог — сколько денег должно остаться ПОСЛЕ призыва: цену игра сама
+// присылает по уровню героя (см. GameState.DeployCost). Цены нет —
+// порог сравнивается с тем, что есть сейчас. Рыбы меньше цены — тоже
+// пропуск: игра всё равно бы отказала. Денег в состоянии нет (игра не
+// прислала) — не мешаем: порог защищает казну, а не отключает кнопку.
+func deploySkip(state *GameState, heroType, minMoney int, now time.Time) string {
+	cost, priced := state.DeployCost(heroType)
+	if r, ok := state.Resources[resFish]; ok && priced && r.AmountAt(now) < cost.Cost[resFish] {
+		return fmt.Sprintf("пропустили: рыбы %d, а призыв стоит %d", int(r.AmountAt(now)), int(cost.Cost[resFish]))
+	}
+	r, ok := state.Resources[resMoney]
+	if !ok || minMoney <= 0 && !priced {
+		return ""
+	}
+	have, price := r.AmountAt(now), cost.Cost[resMoney]
+	if have-price < float64(minMoney) {
+		if priced {
+			return fmt.Sprintf("пропустили: денег %d, призыв стоит %d, держим не меньше %d", int(have), int(price), minMoney)
+		}
+		return fmt.Sprintf("пропустили: денег %d, держим не меньше %d", int(have), minMoney)
+	}
+	return ""
 }
 
 // deployInfantry жмёт кнопку в партии, куда уже зашли. Второе значение —
 // армия, которая теперь размещается (ноль, если кнопку не жали): марш её
 // размещение отменил бы, и сбор войск должен её обойти.
 func (c *Client) deployInfantry(ctx context.Context, acc *gameAccess, gameID string,
-	state *GameState, reqID int) (string, int64, error) {
+	state *GameState, reqID, minMoney int) (string, int64, error) {
 
 	army, hero, ok := state.DeployArmy()
 	if !ok {
@@ -61,6 +93,13 @@ func (c *Client) deployInfantry(ctx context.Context, acc *gameAccess, gameID str
 	if army.Deploying {
 		return fmt.Sprintf("%s уже размещается, осталось %s игрового времени",
 			hero, gameMinutes(army.DeployLeft)), army.ID, nil
+	}
+
+	// Казну не выедаем: после призыва денег должно остаться не меньше
+	// порога, и рыбы должно хватить. Нет — пропускаем, следующий заход
+	// спросит снова: к тому времени накопится.
+	if why := deploySkip(state, army.DeployHeroType(state.HeroTypes), minMoney, time.Now()); why != "" {
+		return why, 0, nil
 	}
 
 	var res json.RawMessage

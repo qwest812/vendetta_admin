@@ -165,7 +165,7 @@ func (a *Autopilot) tick(ctx context.Context) error {
 // чем это кончилось. Итог виден на странице партии, поэтому он нужен
 // и при удаче, и при отказе.
 func (a *Autopilot) visit(ctx context.Context, t domain.GameTask) {
-	job := AutopilotJob{Hero: t.HeroDeploy}
+	job := AutopilotJob{Hero: t.HeroDeploy, MinMoney: t.HeroMinMoney}
 	if t.Rallies() {
 		job.RallyTo, job.RallyCity, job.Known = t.RallyProvince, t.RallyCity, t.RallyKnown
 	}

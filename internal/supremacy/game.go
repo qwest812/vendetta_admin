@@ -345,6 +345,9 @@ type GameState struct {
 	// по шкале клиента (см. RelationRightOfWay). Отношение одностороннее,
 	// и здесь только то, что выдали мы. Нет записи — игра о нём не сказала.
 	Relations map[int]int
+	// DeployLevels — уровни призыва пехоты по типу героя: предмет,
+	// открывающий уровень, цена и сколько пехоты приходит.
+	DeployLevels map[int][]DeployLevel
 	// HeroTypes — типы юнитов, умеющих призывать пехоту (роль
 	// DEPLOY_INFANTRY), и их имена: по ним ищется армия с героиней.
 	HeroTypes map[int]string
@@ -429,6 +432,50 @@ func (g *GameState) Province(id int) (Province, bool) {
 // такой армии в партии нет: героиню в партию ещё не отправили или её убили.
 // У наблюдателя своего игрока нет вовсе, и своей армии у него быть не может:
 // иначе за нас сошёл бы владелец с номером ноль.
+// DeployLevel — один уровень навыка «призвать пехоту»: его открывает
+// предмет Item в инвентаре.
+type DeployLevel struct {
+	Item   int
+	Cost   map[int]float64
+	Amount int
+}
+
+// DeployCost — сколько стоит призыв у героя этого типа на нашем уровне:
+// из открытых предметами уровней берём самый дорогой — это и есть
+// нынешний. Ни одного не открыто, а уровни известны — самый дешёвый,
+// первый. Второе значение ложно, если игра цены не прислала.
+func (g *GameState) DeployCost(heroType int) (DeployLevel, bool) {
+	levels := g.DeployLevels[heroType]
+	if len(levels) == 0 {
+		return DeployLevel{}, false
+	}
+	money := func(l DeployLevel) float64 { return l.Cost[resMoney] }
+	var best, cheapest DeployLevel
+	found := false
+	for i, l := range levels {
+		if i == 0 || money(l) < money(cheapest) {
+			cheapest = l
+		}
+		if g.Inventory[l.Item] > 0 && (!found || money(l) > money(best)) {
+			best, found = l, true
+		}
+	}
+	if !found {
+		return cheapest, true
+	}
+	return best, true
+}
+
+// DeployHeroType — тип героя-призывателя в армии.
+func (a Army) DeployHeroType(types map[int]string) int {
+	for _, u := range a.Units {
+		if _, ok := types[u.Type]; ok {
+			return u.Type
+		}
+	}
+	return 0
+}
+
 func (g *GameState) DeployArmy() (Army, string, bool) {
 	if g.Me <= 0 {
 		return Army{}, "", false
@@ -814,6 +861,22 @@ type gameStateResponse struct {
 				RatingConfig struct {
 					UnitRoles []string `json:"unitRoles"`
 				} `json:"ratingConfig"`
+				// clientArmyModifiersConfig.modifierSetsByName — уровни навыков
+				// героя. Уровень открывает предмет инвентаря; у навыка «призвать
+				// пехоту» в модификаторе лежит deployUnit с ценой и числом пехоты.
+				ArmyModifiers struct {
+					Sets map[string]struct {
+						Modifiers []struct {
+							DeployUnit *struct {
+								Cost   map[string]float64 `json:"deployCost"`
+								Amount int                `json:"deployAmount"`
+							} `json:"deployUnit"`
+						} `json:"modifiers"`
+						Required *struct {
+							Item int `json:"identifier"`
+						} `json:"requiredInventoryItem"`
+					} `json:"modifierSetsByName"`
+				} `json:"clientArmyModifiersConfig"`
 			} `json:"allUnitTypes"`
 			// upgrades — здания партии: название на языке аккаунта (upn),
 			// время стройки в секундах (bt) и цена по ресурсам (c).
@@ -1151,6 +1214,7 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 	g.HeroLimit = r.States.Scenario.Heroes.Limit
 
 	g.HeroTypes = make(map[int]string)
+	g.DeployLevels = make(map[int][]DeployLevel)
 	g.Units = make(map[int]UnitType)
 	g.UnitNames = make(map[int]string)
 	g.UnitSets = make(map[int]int)
@@ -1176,8 +1240,23 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 			g.Units[unit.ID] = unit
 		}
 		for _, role := range u.RatingConfig.UnitRoles {
-			if role == roleDeployInfantry {
-				g.HeroTypes[u.UnitTypeID] = u.UnitName
+			if role != roleDeployInfantry {
+				continue
+			}
+			g.HeroTypes[u.UnitTypeID] = u.UnitName
+			for _, set := range u.ArmyModifiers.Sets {
+				for _, m := range set.Modifiers {
+					if m.DeployUnit == nil || set.Required == nil {
+						continue
+					}
+					lvl := DeployLevel{Item: set.Required.Item, Amount: m.DeployUnit.Amount, Cost: map[int]float64{}}
+					for id, v := range m.DeployUnit.Cost {
+						if n, err := strconv.Atoi(id); err == nil {
+							lvl.Cost[n] = v
+						}
+					}
+					g.DeployLevels[u.UnitTypeID] = append(g.DeployLevels[u.UnitTypeID], lvl)
+				}
 			}
 		}
 	}
