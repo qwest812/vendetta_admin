@@ -89,6 +89,10 @@ type Province struct {
 	// Condition — состояние каждого здания из Built («c» у игры). Здание
 	// готово, когда оно кратно BuildCondition своего типа.
 	Condition map[int]int
+	// Off — здания из Built, выключенные игроком («e» = false у игры):
+	// стоят, но не работают и не берут содержания. Включённые сюда
+	// не попадают, см. Switches.
+	Off map[int]bool
 	// Building — стройки, идущие сейчас. Обычно не больше одной: второй
 	// слот даёт премиум, и тогда их бывает две.
 	Building []Construction
@@ -788,8 +792,9 @@ type gameStateResponse struct {
 					// слотом (премиум) строек бывает две, и в bi лежит
 					// только одна.
 					Built []struct {
-						ID        int `json:"id"`
-						Condition int `json:"c"`
+						ID        int   `json:"id"`
+						Condition int   `json:"c"`
+						Enabled   *bool `json:"e"`
 					} `json:"us"`
 					Constructions json.RawMessage `json:"cos"`
 					Building      *buildWire      `json:"bi"`
@@ -1115,6 +1120,14 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 					pr.Condition = make(map[int]int, len(l.Built))
 				}
 				pr.Condition[b.ID] = b.Condition
+				// Без «e» здание считаем включённым: так шлёт его и сам
+				// клиент, а выключенное игра называет явно.
+				if b.Enabled != nil && !*b.Enabled {
+					if pr.Off == nil {
+						pr.Off = make(map[int]bool)
+					}
+					pr.Off[b.ID] = true
+				}
 			}
 		}
 		for _, c := range buildList(l.Constructions, l.Building, clock) {

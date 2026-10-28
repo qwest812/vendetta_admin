@@ -100,6 +100,57 @@
         <p class="muted">{{t "game.relate.note"}}</p>
     </div>
 
+    {{/* Выключатели ЖД и пунктов призыва во всех своих провинциях. Когда
+         состояние партии загружено, кнопка одна и ведёт в другое положение;
+         без него положение неизвестно, и кнопок две. */}}
+    <div class="row-form">
+        {{range .Switches}}
+            {{$name := .Label}}
+            {{if .Known}}
+                {{if or .On .Off}}
+                    <form method="post" action="/games/{{$.GameID}}/switch">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <input type="hidden" name="kind" value="{{.Kind}}">
+                        <input type="hidden" name="on" value="{{if .On}}0{{else}}1{{end}}">
+                        <button type="submit">{{if .On}}{{t "game.switch.off" $name}}{{else}}{{t "game.switch.on" $name}}{{end}}</button>
+                    </form>
+                    <span class="muted">{{t "game.switch.count" .On .Off}}</span>
+                {{else}}
+                    <span class="muted">{{t "game.switch.none" $name}}</span>
+                {{end}}
+            {{else}}
+                <form method="post" action="/games/{{$.GameID}}/switch">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="hidden" name="kind" value="{{.Kind}}">
+                    <input type="hidden" name="on" value="0">
+                    <button type="submit">{{t "game.switch.off" $name}}</button>
+                </form>
+                <form method="post" action="/games/{{$.GameID}}/switch">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="hidden" name="kind" value="{{.Kind}}">
+                    <input type="hidden" name="on" value="1">
+                    <button type="submit" class="ghost">{{t "game.switch.on" $name}}</button>
+                </form>
+            {{end}}
+        {{end}}
+        <p class="muted">{{t "game.switch.note"}}</p>
+    </div>
+
+    {{/* Пункт призыва во все провинции без него: записи в очередь
+         строительства, строит воркер. Провинции берутся из карты. */}}
+    <div class="row-form">
+        {{if eq .RecruitTodo 0}}
+            <span class="muted">{{t "game.recruit.none"}}</span>
+        {{else}}
+            <form method="post" action="/games/{{.GameID}}/recruit">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <button type="submit">{{t "game.recruit.now"}}</button>
+            </form>
+            {{if and .RecruitTodo (gt .RecruitTodo 0)}}<span class="muted">{{t "game.recruit.count" .RecruitTodo}}</span>{{end}}
+        {{end}}
+        <p class="muted">{{t "game.recruit.note"}}</p>
+    </div>
+
     {{/* Размещение героя: герои аккаунта и свои провинции знает только
          состояние партии, поэтому блок появляется вместе с картой. */}}
     {{/* Приказ на размещение героя: админка ставит его сама, как только

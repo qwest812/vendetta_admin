@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"Vendetta_admin/internal/domain"
+	"Vendetta_admin/internal/i18n"
 	"Vendetta_admin/internal/supremacy"
 	"Vendetta_admin/internal/supremacy/heroes"
 )
@@ -161,6 +162,134 @@ func (s *Server) gameRightOfWay(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("право прохода ботам", "gameID", gameID,
 		"user_id", currentUser(r).ID, "итог", result)
 	s.renderGameNotice(w, r, gameID, false, "", result)
+}
+
+// buildingSwitch — выключатель зданий одного вида на странице. Known —
+// известно ли положение: без состояния партии его не знает никто.
+type buildingSwitch struct {
+	Kind    string
+	Label   string
+	Known   bool
+	On, Off int
+}
+
+// switchLabel — название выключателя на странице.
+func switchLabel(lang i18n.Lang, kind string) string {
+	if kind == supremacy.SwitchRailway {
+		return lang.T("game.switch.railway")
+	}
+	return lang.T("game.switch.recruiting")
+}
+
+// buildingSwitches — выключатели ЖД и пунктов призыва по состоянию партии.
+func buildingSwitches(lang i18n.Lang, state *supremacy.GameState) []buildingSwitch {
+	var counts map[string]supremacy.SwitchCount
+	if state != nil && state.Me > 0 {
+		counts = state.Switches()
+	}
+	out := make([]buildingSwitch, 0, len(supremacy.SwitchKinds))
+	for _, kind := range supremacy.SwitchKinds {
+		n := counts[kind]
+		out = append(out, buildingSwitch{Kind: kind, Label: switchLabel(lang, kind), Known: counts != nil, On: n.On, Off: n.Off})
+	}
+	return out
+}
+
+// gameSwitch включает или выключает во всех своих провинциях партии ЖД
+// или пункты призыва — разово, по нажатию, как право прохода.
+func (s *Server) gameSwitch(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	if s.games == nil {
+		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		return
+	}
+	kind, on := r.PostFormValue("kind"), r.PostFormValue("on") == "1"
+
+	ctx, cancel := context.WithTimeout(r.Context(), gamesTimeout)
+	defer cancel()
+
+	result, err := s.games.SwitchBuildings(ctx, gameID, kind, on)
+	if err != nil {
+		s.log.Error("выключатель зданий", "gameID", gameID, "что", kind, "err", err)
+		s.renderGame(w, r, gameID, false, err.Error())
+		return
+	}
+	s.log.Info("выключатель зданий", "gameID", gameID, "что", kind, "включить", on,
+		"user_id", currentUser(r).ID, "итог", result)
+	s.renderGameNotice(w, r, gameID, false, "", result)
+}
+
+// recruitPlan — где ставить пункт призыва: свои провинции без него, кроме
+// тех, где он уже ждёт в очереди. first — первый уровень здания.
+func recruitPlan(state *supremacy.GameState, queue []domain.BuildEntry) (first supremacy.Upgrade,
+	todo []supremacy.Province, queued int, ok bool) {
+
+	first, where, ok := state.Missing(supremacy.SwitchRecruiting)
+	if !ok {
+		return first, nil, 0, false
+	}
+	waiting := map[int]bool{}
+	for _, e := range queue {
+		if state.SwitchKindOf(e.UpgradeID) == supremacy.SwitchRecruiting {
+			waiting[e.ProvinceID] = true
+		}
+	}
+	for _, p := range where {
+		if waiting[p.ID] {
+			queued++
+			continue
+		}
+		todo = append(todo, p)
+	}
+	return first, todo, queued, true
+}
+
+// gameRecruitEverywhere ставит в очередь строительства пункт призыва во все
+// свои провинции, где его нет. В партию не ходит: провинции берёт из копии
+// состояния, которую показала карта, а строит воркер очереди — он и ждёт
+// ресурсов, и повторяет то, что игра не приняла.
+func (s *Server) gameRecruitEverywhere(w http.ResponseWriter, r *http.Request) {
+	gameID := r.PathValue("id")
+	lang := langOf(r)
+	if s.games == nil || s.builds == nil {
+		s.renderGame(w, r, gameID, false, lang.T("games.noaccount.short"))
+		return
+	}
+	state, ok := s.games.CachedState(gameID)
+	if !ok || state.Me <= 0 {
+		s.renderGame(w, r, gameID, false, lang.T("game.recruit.nomap"))
+		return
+	}
+	queue, err := s.builds.List(r.Context(), gameID, domain.QueueBuilding)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	first, todo, queued, ok := recruitPlan(state, queue)
+	if !ok {
+		s.renderGame(w, r, gameID, false, lang.T("game.recruit.unknown"))
+		return
+	}
+	for _, p := range todo {
+		err := s.builds.Add(r.Context(), domain.BuildEntry{
+			GameID: gameID, Kind: domain.QueueBuilding, ProvinceID: p.ID, Province: p.Name,
+			UpgradeID: first.ID, Upgrade: first.Name, Image: first.Image,
+		}, currentUser(r).ID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+	// Воркер придёт на ближайшей проверке, а не к прежнему сроку.
+	if len(todo) > 0 {
+		if err := s.builds.Hurry(r.Context(), gameID, time.Now()); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+	s.log.Info("пункт призыва во все провинции", "gameID", gameID, "user_id", currentUser(r).ID,
+		"поставлено", len(todo), "уже в очереди", queued)
+	s.renderGameNotice(w, r, gameID, false, "", lang.T("game.recruit.done", len(todo), queued))
 }
 
 // rallyProvince — своя провинция в выборе города для сбора войск.

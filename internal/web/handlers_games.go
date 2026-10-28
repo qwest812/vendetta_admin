@@ -51,6 +51,9 @@ type gameSource interface {
 	// GrantRightOfWay заходит в партию и выдаёт право прохода всем ботам,
 	// у кого его ещё нет.
 	GrantRightOfWay(ctx context.Context, gameID string) (string, error)
+	// SwitchBuildings заходит в партию и включает или выключает во всех
+	// своих провинциях здания одного вида: ЖД или пункты призыва.
+	SwitchBuildings(ctx context.Context, gameID, kind string, on bool) (string, error)
 	// RallyArmies заходит в партию и шлёт в город все сухопутные армии,
 	// RunAutopilot — то же, что делает автопилот за один свой заход.
 	RallyArmies(ctx context.Context, gameID string, target int, city string) (*supremacy.RallyRun, error)
@@ -395,6 +398,12 @@ func (s *Server) renderGameNotice(w http.ResponseWriter, r *http.Request, gameID
 		// RosterLater — карта нарисована без состава с сайта, и страница
 		// попросит его отдельным запросом. См. gameRoster.
 		"RosterLater": false,
+		// Switches — выключатели ЖД и пунктов призыва. Без состояния
+		// партии положение неизвестно, и страница даёт обе кнопки.
+		"Switches": buildingSwitches(lang, nil),
+		// RecruitTodo — в скольких своих провинциях нет пункта призыва
+		// и его нет в очереди; -1 — неизвестно, карта не открыта.
+		"RecruitTodo": -1,
 	}
 	merge(data, builds)
 
@@ -903,6 +912,16 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 	// Город для сбора войск выбирается из своих провинций — их знает
 	// только состояние партии.
 	data["RallyProvinces"] = rallyProvinces(state)
+	data["Switches"] = buildingSwitches(lang, state)
+	if s.builds != nil {
+		queue, err := s.builds.List(ctx, state.GameID, domain.QueueBuilding)
+		if err != nil {
+			return err
+		}
+		if _, todo, _, ok := recruitPlan(state, queue); ok {
+			data["RecruitTodo"] = len(todo)
+		}
+	}
 	// Герои аккаунта для размещения: кто есть и кто уже на карте.
 	heroes, deployed := state.HeroChoices()
 	cards, err := s.games.HeroCards(ctx)

@@ -1006,6 +1006,9 @@ func (sizeSource) HeroCards(context.Context) (map[int]supremacy.HeroCard, error)
 func (sizeSource) GameRankings(context.Context, string, int) (*supremacy.Rankings, error) {
 	return nil, nil
 }
+func (sizeSource) SwitchBuildings(context.Context, string, string, bool) (string, error) {
+	return "", nil
+}
 func (sizeSource) GrantRightOfWay(context.Context, string) (string, error) {
 	return "", nil
 }
