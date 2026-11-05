@@ -242,6 +242,60 @@
     {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
 </div>
 
+{{/* Биржа: заявки лежат в базе и видны всегда, а выбор ресурса и цены
+     — из состояния партии. Покупает воркер, страница в партию не ходит. */}}
+<div class="card">
+    <h1>{{t "game.market.title"}}</h1>
+    <p class="muted">{{t "game.market.note"}}</p>
+    {{if .MarketResources}}
+        <form class="row-form" method="post" action="/games/{{.GameID}}/market">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <label>
+                {{t "game.market.resource"}}
+                <select name="resource">
+                    {{range .MarketResources}}
+                        <option value="{{.ID}}|{{.Name}}">{{.Name}} — {{if .Offers}}{{t "game.market.best" .Best}}{{else}}{{t "game.market.nooffers"}}{{end}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <label>
+                {{t "game.market.budget"}}
+                <input type="number" name="budget" min="1" step="1" inputmode="numeric" value="10000" required>
+            </label>
+            <label class="narrow">
+                {{t "game.market.price"}}
+                <input type="number" name="price" min="0.1" step="0.1" inputmode="decimal" required>
+            </label>
+            <label class="narrow">
+                {{t "game.market.every"}}
+                <select name="every">
+                    {{range .MarketEvery}}
+                        <option value="{{.}}"{{if eq . $.MarketEveryDefault}} selected{{end}}>{{t "game.market.minutes" .}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <button type="submit">{{t "game.market.add"}}</button>
+        </form>
+    {{else}}
+        <p class="muted">{{t "game.market.needmap"}}</p>
+    {{end}}
+    {{if .MarketOrders}}
+        <ul class="hero-plans">
+            {{range .MarketOrders}}
+                <li>
+                    {{t "game.market.row" .ResourceName .MaxPrice (grouped .Spent) (grouped .Budget) (grouped .Bought) .Every}}
+                    — {{if .Open}}{{t "game.market.next" (datetime .NextAt)}}{{else}}{{t "game.market.closed"}}{{end}}
+                    {{if not .RunAt.IsZero}}<span class="muted">· {{datetime .RunAt}}: {{.Result}}</span>{{end}}
+                    <form class="inline" method="post" action="/games/{{$.GameID}}/market/{{.ID}}/delete">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <button type="submit" class="ghost">{{t "game.market.remove"}}</button>
+                    </form>
+                </li>
+            {{end}}
+        </ul>
+    {{end}}
+</div>
+
 {{/* Очередь строительства. Сама очередь лежит в нашей базе и видна всегда,
      а выбор провинции и здания собирается из состояния партии — то есть
      появляется вместе с картой. Правка очереди в партию не ходит, поэтому

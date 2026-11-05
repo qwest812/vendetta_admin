@@ -64,6 +64,8 @@ type Server struct {
 	builds *repo.BuildQueue
 	// heroPlans — отложенные размещения героев, см. supremacy.HeroPlanner.
 	heroPlans *repo.HeroPlans
+	// market — заявки на покупку с биржи, см. supremacy.MarketWatcher.
+	market *repo.MarketOrders
 	// heroEveryMax — верхняя граница той же паузы: она случайна, и на
 	// странице партии написан диапазон, а не одно число.
 	heroEveryMax time.Duration
@@ -129,6 +131,7 @@ type Deps struct {
 	// партии, а ставит здания воркер.
 	BuildQueue *repo.BuildQueue
 	HeroPlans  *repo.HeroPlans
+	Market     *repo.MarketOrders
 	// Coalitions — архив коалиций, Settings — общие переключатели админки.
 	Coalitions *repo.Coalitions
 	Settings   *repo.Settings
@@ -169,7 +172,7 @@ func NewServer(d Deps) (*Server, error) {
 		coalitions: d.Coalitions, settings: d.Settings, heroes: d.Heroes,
 		checked: d.Checked, checks: d.Checks, mapTickets: newMapTickets(),
 		tasks: d.Tasks, heroEvery: d.HeroEvery, heroEveryMax: d.HeroEveryMax,
-		builds: d.BuildQueue, heroPlans: d.HeroPlans,
+		builds: d.BuildQueue, heroPlans: d.HeroPlans, market: d.Market,
 		health: d.Health, cookieSecure: d.CookieSecure, pages: tmpls,
 		trustedProxies: d.TrustedProxies, overviewRepo: d.Overview, snapshots: d.Snapshots,
 		provinces: d.Provinces,
@@ -356,6 +359,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /games/{id}/relate", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRightOfWay))))
 	mux.Handle("POST /games/{id}/hero/order", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroOrder))))
 	mux.Handle("POST /games/{id}/hero/plan/{planID}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.gameHeroPlanRemove))))
+	// Заявки на покупку с биржи: правка — записи в базе, покупает воркер.
+	mux.Handle("POST /games/{id}/market", root(auth.VerifyCSRF(http.HandlerFunc(s.gameMarketPut))))
+	mux.Handle("POST /games/{id}/market/{orderID}/delete", root(auth.VerifyCSRF(http.HandlerFunc(s.gameMarketRemove))))
 	mux.Handle("POST /games/{id}/rally", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyCity))))
 	mux.Handle("POST /games/{id}/rally/now", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyNow))))
 	mux.Handle("POST /games/{id}/rally/auto", root(auth.VerifyCSRF(http.HandlerFunc(s.gameRallyAuto))))

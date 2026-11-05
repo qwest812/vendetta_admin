@@ -363,8 +363,19 @@ func (s *Server) renderGameNotice(w http.ResponseWriter, r *http.Request, gameID
 		}
 	}
 
+	// Заявки биржи — тоже из базы.
+	var market []domain.MarketOrder
+	if s.market != nil {
+		if market, err = s.market.List(r.Context(), gameID); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+
 	data := map[string]any{
 		"GameID": gameID, "Task": task, "Error": errMsg, "Notice": notice, "HeroPlans": heroPlans,
+		"MarketOrders": market, "MarketEvery": domain.MarketEveryChoices,
+		"MarketEveryDefault": domain.MarketEveryDefault, "MarketResources": nil,
 		"Interval": s.heroEvery, "IntervalMax": s.heroEveryMax,
 		"Game": nil, "State": nil, "Mine": nil,
 		"Map": nil, "MapError": "", "Enemies": nil, "Friends": nil,
@@ -912,6 +923,8 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 	// Город для сбора войск выбирается из своих провинций — их знает
 	// только состояние партии.
 	data["RallyProvinces"] = rallyProvinces(state)
+	// Чем торгует биржа и почём сейчас — тоже только из состояния.
+	data["MarketResources"] = marketResources(state)
 	data["Switches"] = buildingSwitches(lang, state)
 	if s.builds != nil {
 		queue, err := s.builds.List(ctx, state.GameID, domain.QueueBuilding)

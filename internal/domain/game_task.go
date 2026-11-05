@@ -129,3 +129,45 @@ type ClientSnapshot struct {
 	// MeID — номер того, кто прислал, в этой партии.
 	MeID int
 }
+
+// MarketEveryChoices — как часто можно проверять биржу, в минутах.
+// MarketEveryDefault — что стоит в выборе, пока его не трогали.
+var MarketEveryChoices = []int{5, 10, 15, 20, 30, 60}
+
+const MarketEveryDefault = 30
+
+// MarketOrder — заявка на покупку с биржи партии: брать ресурс у тех, кто
+// продаёт не дороже MaxPrice за единицу, пока не уйдёт Budget денег.
+// Воркер заходит в партию раз в Every минут; потраченная сумма заявку
+// закрывает, и ходить за ней больше незачем.
+type MarketOrder struct {
+	ID       int64
+	GameID   string
+	Resource int
+	// ResourceName — название ресурса на языке аккаунта: заявку
+	// показывают, не заходя в партию.
+	ResourceName string
+	Budget       int
+	MaxPrice     float64
+	Every        int
+	// Spent и Bought — сколько денег ушло и сколько ресурса пришло,
+	// с комиссией биржи.
+	Spent  int
+	Bought int
+	// NextAt — когда идти в партию; нулевое — заявка закрыта.
+	NextAt  time.Time
+	RunAt   time.Time
+	Result  string
+	AddedAt time.Time
+}
+
+// Open — заявка ещё ждёт своего захода.
+func (o MarketOrder) Open() bool { return !o.NextAt.IsZero() }
+
+// Left — сколько денег из суммы заявки ещё можно потратить.
+func (o MarketOrder) Left() int {
+	if o.Spent >= o.Budget {
+		return 0
+	}
+	return o.Budget - o.Spent
+}

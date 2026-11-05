@@ -59,6 +59,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 	tasks := repo.NewGameTasks(pool)
 	buildQueue := repo.NewBuildQueue(pool)
 	heroPlans := repo.NewHeroPlans(pool)
+	marketOrders := repo.NewMarketOrders(pool)
 	alliances := repo.NewAlliances(pool)
 	gamePlayers := repo.NewGamePlayers(pool)
 	coalitions := repo.NewCoalitions(pool)
@@ -94,7 +95,7 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		Audit: audit, Logins: logins, Players: players, Clans: clans, Traits: traits,
 		Enemies: enemies, Friends: friends, Feedback: feedback, Alliances: alliances, GamePlayers: gamePlayers,
 		Tasks: tasks, HeroEvery: cfg.S1914HeroEvery, HeroEveryMax: cfg.S1914HeroEveryMax,
-		BuildQueue: buildQueue, HeroPlans: heroPlans,
+		BuildQueue: buildQueue, HeroPlans: heroPlans, Market: marketOrders,
 		Coalitions: coalitions, Settings: settings, Heroes: heroes,
 		Checked: checked, Checks: mapChecks,
 		TopAlliances: topAlliances, UserStats: userStats, Hunts: hunts,
@@ -198,6 +199,11 @@ func run(log *slog.Logger, level *slog.LevelVar) error {
 		// к началу нужного дня партии, — а до него спрашивает только базу.
 		heroPlanner := supremacy.NewHeroPlanner(s1914, heroPlans, log)
 		startAfter(ctx, 7*workerStagger, heroPlanner.Run)
+
+		// Заявки на покупку с биржи: в партию — раз в несколько минут,
+		// свой срок у каждой заявки; без заявок — только база.
+		market := supremacy.NewMarketWatcher(s1914, marketOrders, log)
+		startAfter(ctx, 8*workerStagger, market.Run)
 
 		// Кланы игроков спрашивает воркер, а не страница карты: сайт игры
 		// отвечает про одного игрока за раз. Очередь ему наполняют сами

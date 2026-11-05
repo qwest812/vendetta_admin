@@ -381,6 +381,11 @@ type GameState struct {
 	// ResourceNames — названия ресурсов из справочника партии: они есть
 	// и у наблюдателя, в отличие от наших запасов.
 	ResourceNames map[int]string
+	// Asks — предложения продажи на бирже по номеру ресурса, дешёвые
+	// первыми. Ресурс есть в карте, даже если предложений нет: так видно,
+	// чем вообще торгуют. MarketFee — комиссия биржи долей (0.1 — 10%).
+	Asks      map[int][]MarketOffer
+	MarketFee float64
 	// Consumption — потребление ресурса на душу населения в сутки
 	// («resourceConsumption»), StateFactor — множитель потребления по
 	// состоянию провинции. См. ProvinceUpkeep.
@@ -915,6 +920,11 @@ type gameStateResponse struct {
 			Premiums map[string]struct {
 				Name string `json:"name"`
 			} `json:"premiums"`
+			// Настройки мода: из них нужна комиссия биржи в процентах.
+			// Игра шлёт её то числом, то строкой.
+			Options struct {
+				MarketFee json.RawMessage `json:"marketFeePercentage"`
+			} `json:"options"`
 		} `json:"11"`
 		// Инвентарь аккаунта: сколько каких предметов есть.
 		Inventory struct {
@@ -943,6 +953,10 @@ type gameStateResponse struct {
 					} `json:"resourceEntries"`
 				} `json:"categories"`
 			} `json:"resourceProfs"`
+			// Биржа: предложения продажи по ресурсам особыми списками
+			// ["ultshared.UltAskList",[заявка, …]], индекс — номер ресурса.
+			// Разбирается вручную, см. marketAsks.
+			Asks []json.RawMessage `json:"asks"`
 		} `json:"4"`
 		Info struct {
 			DayOfGame int `json:"dayOfGame"`
@@ -1205,6 +1219,8 @@ func (r *gameStateResponse) build(gameID string, me int) (*GameState, error) {
 
 	mod := r.States.Mod
 	g.ResourceNames = resourceNames(mod.ResourceEntries)
+	g.Asks = marketAsks(r.States.Resources.Asks)
+	g.MarketFee = marketFee(mod.Options.MarketFee)
 	g.Consumption = numMap(mod.ResourceConsumption)
 	g.StateFactor = stateFactors(mod.ProvinceStates)
 
