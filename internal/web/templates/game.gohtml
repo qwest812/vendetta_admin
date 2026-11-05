@@ -155,6 +155,8 @@
          состояние партии, поэтому блок появляется вместе с картой. */}}
     {{/* Приказ на размещение героя: админка ставит его сама, как только
          сойдутся день, место в лимите, мораль провинции и нет боя. */}}
+    <details class="fold" data-fold="heroes">
+    <summary><span class="fold-title">{{t "game.heroorder.title"}}</span>{{if .HeroPlans}}<span class="muted">{{t "game.fold.count" (len .HeroPlans)}}</span>{{end}}</summary>
     {{if and .DeployHeroes .RallyProvinces}}
         <form class="row-form" method="post" action="/games/{{.GameID}}/hero/order">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
@@ -200,7 +202,17 @@
             {{end}}
         </ul>
     {{end}}
+    {{if not (and .DeployHeroes .RallyProvinces)}}<p class="muted">{{t "game.heroorder.needmap"}}</p>{{end}}
+    </details>
 
+    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
+</div>
+
+{{/* Сбор войск — своей карточкой: внутри «Что делаем сами» кнопки
+     терялись. */}}
+<div class="card">
+    <h1>{{t "game.rally.title"}}</h1>
+    {{$t := .Task}}
     {{/* Сбор войск в город: город выбирается из своих провинций (они
          есть, только когда загружено состояние партии), а кнопки
          работают и без него — город уже лежит в базе. */}}
@@ -239,7 +251,6 @@
     {{else if not .RallyProvinces}}
         <p class="muted">{{t "game.rally.needmap"}}</p>
     {{end}}
-    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
 </div>
 
 {{/* Биржа: заявки лежат в базе и видны всегда, а выбор ресурса и цены
@@ -300,8 +311,8 @@
      а выбор провинции и здания собирается из состояния партии — то есть
      появляется вместе с картой. Правка очереди в партию не ходит, поэтому
      она htmx-ом подменяет только список: карта и форма остаются на месте. */}}
-<div class="card">
-    <h1>{{t "game.build.title"}}</h1>
+<details class="card fold" data-fold="build">
+    <summary><span class="fold-title">{{t "game.build.title"}}</span>{{if .BuildQueue}}<span class="muted">{{t "game.fold.queued"}}</span>{{end}}</summary>
     <p class="muted">{{t "game.build.note"}}</p>
 
     {{if and $t (not $t.BuildRunAt.IsZero)}}
@@ -355,14 +366,14 @@
     {{end}}
 
     {{template "buildqueue" .}}
-</div>
+</details>
 
 {{/* Очередь войск — такой же список, но свой слот: производство
      войск в провинции не ждёт стройку. Ходит за ней тот же воркер тем же
      заходом. Что провинция может производить, решает игра, поэтому
      воркер сам скажет в итоге, если нужного здания ещё нет. */}}
-<div class="card">
-    <h1>{{t "game.units.title"}}</h1>
+<details class="card fold" data-fold="units">
+    <summary><span class="fold-title">{{t "game.units.title"}}</span>{{if .UnitQueue}}<span class="muted">{{t "game.fold.queued"}}</span>{{end}}</summary>
     <p class="muted">{{t "game.units.note"}}</p>
 
     {{if .UnitProvinces}}
@@ -399,7 +410,18 @@
     {{end}}
 
     {{template "unitqueue" .}}
-</div>
+</details>
+{{/* Свёрнут блок или раскрыт — помнит браузер: после отправки формы
+     страница рисуется заново, и раскрытый блок не должен схлопываться. */}}
+<script>
+document.querySelectorAll("details[data-fold]").forEach(function (d) {
+    var key = "fold:" + d.dataset.fold;
+    try { if (localStorage.getItem(key) === "1") d.open = true; } catch (e) {}
+    d.addEventListener("toggle", function () {
+        try { localStorage.setItem(key, d.open ? "1" : "0"); } catch (e) {}
+    });
+});
+</script>
 {{end}}
 
 {{/* Карта и состав приезжают с игрового сервера, и для своей партии это
