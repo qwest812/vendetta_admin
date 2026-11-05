@@ -2,6 +2,7 @@ package heroes
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -181,5 +182,13 @@ func TestParseDict(t *testing.T) {
 	}
 	if got := d.tr("Pershing"); got != "" {
 		t.Errorf("неизвестное слово: %q", got)
+	}
+}
+
+func TestImageNames(t *testing.T) {
+	got := imageNames("arthur_mac_tavish.png")
+	want := []string{"arthur_mac_tavish.png", "arthurmac_tavish.png", "arthur_mactavish.png"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("imageNames = %v, ждали %v", got, want)
 	}
 }

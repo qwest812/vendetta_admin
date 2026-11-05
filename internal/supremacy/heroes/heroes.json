@@ -1,7 +1,7 @@
 {
  "version": 1,
- "collected_at": "2026-09-11T13:39:07Z",
- "client": "app.a21483.js",
+ "collected_at": "2026-11-05T16:41:34Z",
+ "client": "app.3206ce.js",
  "heroes": [
   {
    "identifier": "ViscountAllenby",
@@ -684,14 +684,16 @@
      "shards": 50,
      "items": [
       23045,
-      23060
+      23060,
+      61588
      ]
     },
     {
      "level": 2,
      "shards": 70,
      "items": [
-      23061
+      23061,
+      61588
      ],
      "effects": [
       {
@@ -706,14 +708,16 @@
      "level": 3,
      "shards": 90,
      "items": [
-      23062
+      23062,
+      61588
      ]
     },
     {
      "level": 4,
      "shards": 110,
      "items": [
-      23063
+      23063,
+      61588
      ],
      "effects": [
       {
@@ -728,7 +732,8 @@
      "level": 5,
      "shards": 130,
      "items": [
-      23064
+      23064,
+      61588
      ],
      "effects": [
       {
@@ -743,14 +748,16 @@
      "level": 6,
      "shards": 160,
      "items": [
-      52567
+      52567,
+      61588
      ]
     },
     {
      "level": 7,
      "shards": 190,
      "items": [
-      52568
+      52568,
+      61588
      ],
      "effects": [
       {
@@ -765,7 +772,8 @@
      "level": 8,
      "shards": 220,
      "items": [
-      52569
+      52569,
+      61588
      ],
      "effects": [
       {
@@ -780,7 +788,8 @@
      "level": 9,
      "shards": 250,
      "items": [
-      52570
+      52570,
+      61588
      ],
      "effects": [
       {
@@ -795,7 +804,8 @@
      "level": 10,
      "shards": 280,
      "items": [
-      52571
+      52571,
+      61588
      ]
     }
    ]
@@ -6260,6 +6270,164 @@
      "shards": 430,
      "items": [
       53158
+     ]
+    }
+   ]
+  },
+  {
+   "identifier": "ArthurMacTavish",
+   "unit_type_id": 53975,
+   "shard_item_id": 53182,
+   "class": "ArmoredCar",
+   "rarity": "Legendary",
+   "image": "arthur_mactavish.png",
+   "name_en": "",
+   "name_ru": "",
+   "short_en": "MacTavish",
+   "short_ru": "",
+   "subtitle_en": "Armoured Car Engineer",
+   "subtitle_ru": "",
+   "skills": [],
+   "levels": [
+    {
+     "level": 1,
+     "shards": 50,
+     "items": [
+      53162,
+      53183
+     ]
+    },
+    {
+     "level": 2,
+     "shards": 70,
+     "items": [
+      53163
+     ]
+    },
+    {
+     "level": 3,
+     "shards": 90,
+     "items": [
+      53164
+     ]
+    },
+    {
+     "level": 4,
+     "shards": 110,
+     "items": [
+      53165
+     ]
+    },
+    {
+     "level": 5,
+     "shards": 130,
+     "items": [
+      53166
+     ]
+    },
+    {
+     "level": 6,
+     "shards": 160,
+     "items": [
+      53167
+     ]
+    },
+    {
+     "level": 7,
+     "shards": 190,
+     "items": [
+      53168
+     ]
+    },
+    {
+     "level": 8,
+     "shards": 220,
+     "items": [
+      53169
+     ]
+    },
+    {
+     "level": 9,
+     "shards": 250,
+     "items": [
+      53170
+     ]
+    },
+    {
+     "level": 10,
+     "shards": 280,
+     "items": [
+      53171
+     ]
+    },
+    {
+     "level": 11,
+     "shards": 290,
+     "items": [
+      53172
+     ]
+    },
+    {
+     "level": 12,
+     "shards": 300,
+     "items": [
+      53173
+     ]
+    },
+    {
+     "level": 13,
+     "shards": 310,
+     "items": [
+      53174
+     ]
+    },
+    {
+     "level": 14,
+     "shards": 320,
+     "items": [
+      53175
+     ]
+    },
+    {
+     "level": 15,
+     "shards": 330,
+     "items": [
+      53176
+     ]
+    },
+    {
+     "level": 16,
+     "shards": 350,
+     "items": [
+      53177
+     ]
+    },
+    {
+     "level": 17,
+     "shards": 370,
+     "items": [
+      53178
+     ]
+    },
+    {
+     "level": 18,
+     "shards": 390,
+     "items": [
+      53179
+     ]
+    },
+    {
+     "level": 19,
+     "shards": 410,
+     "items": [
+      53180
+     ]
+    },
+    {
+     "level": 20,
+     "shards": 430,
+     "items": [
+      53181
      ]
     }
    ]

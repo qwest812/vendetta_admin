@@ -141,17 +141,36 @@ func Fetch(ctx context.Context, hc *http.Client, offers []Offer, prev *Snapshot)
 	})
 
 	images := make(map[string][]byte, len(snap.Heroes))
-	for _, h := range snap.Heroes {
-		raw, err := get(ctx, hc, clientBase+"/images/heroes/unit/"+h.Image)
-		if err != nil {
-			// Портрет — не повод ронять весь сбор: у нового героя файл
-			// может называться иначе, чем его идентификатор, и тогда
-			// в справочнике останется старая картинка или пусто.
-			continue
+	for i, h := range snap.Heroes {
+		// Имя файла выводится из идентификатора, и игра режет его не всегда
+		// по каждой заглавной: ArthurMacTavish у неё arthur_mactavish.png.
+		// Не нашёлся файл — пробуем то же имя без одного из подчёркиваний.
+		for _, name := range imageNames(h.Image) {
+			raw, err := get(ctx, hc, clientBase+"/images/heroes/unit/"+name)
+			if err != nil {
+				continue
+			}
+			snap.Heroes[i].Image = name
+			images[name] = raw
+			break
 		}
-		images[h.Image] = raw
+		// Портрет — не повод ронять весь сбор: не нашёлся ни под одним
+		// именем — в справочнике останется старая картинка или пусто.
 	}
 	return snap, images, nil
+}
+
+// imageNames — имя портрета и его варианты без одного из подчёркиваний,
+// по порядку: сначала то, что вышло из идентификатора.
+func imageNames(image string) []string {
+	out := []string{image}
+	base, ext, _ := strings.Cut(image, ".")
+	for i := 0; i < len(base); i++ {
+		if base[i] == '_' {
+			out = append(out, base[:i]+base[i+1:]+"."+ext)
+		}
+	}
+	return out
 }
 
 // appBundleRe — имя бандла в странице клиента: оно меняется с каждым
