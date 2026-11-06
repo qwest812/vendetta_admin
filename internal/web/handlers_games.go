@@ -912,6 +912,39 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 	// отдельного захода в партию не нужно.
 	data["Economy"] = economy(lang, state, meID)
 
+	if err := s.ownLive(ctx, r, data, state); err != nil {
+		return err
+	}
+
+	// Карту рисуем, если получилось: очертания лежат отдельным файлом
+	// на static-сервере игры, и его недоступность не повод прятать
+	// остальную страницу.
+	if geo, err := s.games.MapGeometry(ctx, state.MapID); err != nil {
+		s.log.Warn("очертания карты", "gameID", state.GameID, "mapID", state.MapID, "err", err)
+		data["MapError"] = lang.T("game.map.error", err)
+	} else {
+		data["Map"] = gameMap(lang, geo, state, sides, meID)
+	}
+	return nil
+}
+
+// joinErrors склеивает предупреждение и ошибку: на странице место одно,
+// а сказать иногда нужно и то и другое.
+func joinErrors(parts ...string) string {
+	kept := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p != "" {
+			kept = append(kept, p)
+		}
+	}
+	return strings.Join(kept, "; ")
+}
+
+// ownLive — то, что карточкам своей партии нужно из её состояния: свои
+// провинции, справочник зданий, герои, ресурсы биржи. Его зовёт и полная
+// страница, и карточка, которую кнопка перерисовывает отдельно.
+func (s *Server) ownLive(ctx context.Context, r *http.Request, data map[string]any, state *supremacy.GameState) error {
+	lang := langOf(r)
 	// Очередь строительства: сама очередь уже в данных страницы, а здесь
 	// к ней добавляются свои провинции и справочник зданий — их знает
 	// только состояние партии.
@@ -958,27 +991,5 @@ func (s *Server) fillLive(ctx context.Context, r *http.Request, data map[string]
 			data["HeroCost"] = cost
 		}
 	}
-
-	// Карту рисуем, если получилось: очертания лежат отдельным файлом
-	// на static-сервере игры, и его недоступность не повод прятать
-	// остальную страницу.
-	if geo, err := s.games.MapGeometry(ctx, state.MapID); err != nil {
-		s.log.Warn("очертания карты", "gameID", state.GameID, "mapID", state.MapID, "err", err)
-		data["MapError"] = lang.T("game.map.error", err)
-	} else {
-		data["Map"] = gameMap(lang, geo, state, sides, meID)
-	}
 	return nil
-}
-
-// joinErrors склеивает предупреждение и ошибку: на странице место одно,
-// а сказать иногда нужно и то и другое.
-func joinErrors(parts ...string) string {
-	kept := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p != "" {
-			kept = append(kept, p)
-		}
-	}
-	return strings.Join(kept, "; ")
 }

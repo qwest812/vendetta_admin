@@ -59,7 +59,7 @@ func (s *Server) gameMarketPut(w http.ResponseWriter, r *http.Request) {
 	if errRes != nil || resource < 0 || name == "" || len([]rune(name)) > marketNameMax ||
 		errBudget != nil || budget <= 0 || errPrice != nil || price <= 0 || price > 1e6 ||
 		errEvery != nil || !slices.Contains(domain.MarketEveryChoices, every) || s.market == nil {
-		s.renderGame(w, r, gameID, false, l.T("game.market.bad"))
+		s.renderGameCard(w, r, gameID, "card-market", l.T("game.market.bad"), "")
 		return
 	}
 
@@ -73,19 +73,19 @@ func (s *Server) gameMarketPut(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logAuditOn(r, "market.order", "game", 0, map[string]any{
 		"game": gameID, "resource": name, "budget": budget, "price": price, "every": every})
-	s.renderGameNotice(w, r, gameID, false, "", l.T("game.market.added", name))
+	s.renderGameCard(w, r, gameID, "card-market", "", l.T("game.market.added", name))
 }
 
 func (s *Server) gameMarketRemove(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
 	id, err := strconv.ParseInt(r.PathValue("orderID"), 10, 64)
 	if err != nil || s.market == nil {
-		s.renderGame(w, r, gameID, false, langOf(r).T("game.market.bad"))
+		s.renderGameCard(w, r, gameID, "card-market", langOf(r).T("game.market.bad"), "")
 		return
 	}
 	if err := s.market.Remove(r.Context(), gameID, id); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.renderGame(w, r, gameID, false, "")
+	s.renderGameCard(w, r, gameID, "card-market", "", "")
 }

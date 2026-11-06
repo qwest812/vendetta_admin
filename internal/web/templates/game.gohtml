@@ -45,267 +45,11 @@
 </div>
 
 {{if and .CurrentUser.IsRoot .Ours}}
-<div class="card">
-    <h1>{{t "game.we"}}</h1>
-    {{$t := .Task}}
-    <div class="row-form">
-        <form method="post" action="/games/{{.GameID}}/hero">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
-            <input type="hidden" name="on" value="{{if and $t $t.HeroDeploy}}0{{else}}1{{end}}">
-            <button type="submit">
-                {{if and $t $t.HeroDeploy}}{{t "game.hero.off"}}{{else}}{{t "game.hero.on"}}{{end}}
-            </button>
-        </form>
-        {{/* Ручной призыв стоит рядом с переключателем: проверять кнопку,
-             дожидаясь тика воркера, невозможно. */}}
-        <form method="post" action="/games/{{.GameID}}/hero/run">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button type="submit">{{t "game.hero.now"}}</button>
-        </form>
-        {{/* Порог денег: Мейв не призывает, пока денег меньше, — иначе
-             за ночь автопилот выедал всю казну. */}}
-        <form method="post" action="/games/{{.GameID}}/hero/money" class="hero-money">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
-            <label>{{t "game.hero.money"}}
-                <input type="number" name="money" min="0" step="1000" inputmode="numeric"
-                       value="{{if $t}}{{$t.HeroMinMoney}}{{else}}20000{{end}}">
-            </label>
-            <button type="submit" class="ghost">{{t "common.save"}}</button>
-            {{with .HeroCost}}
-                <span class="muted">{{t "game.hero.cost" (grouped (index .Cost 20)) (grouped (index .Cost 1)) .Amount}}</span>
-            {{end}}
-        </form>
-        <p class="muted">
-            {{if and $t $t.HeroDeploy}}
-                {{t "game.hero.on.note" (everySpan .Interval .IntervalMax)}}
-            {{else}}
-                {{t "game.hero.off.note" (everySpan .Interval .IntervalMax)}}
-            {{end}}
-        </p>
-    </div>
+{{template "card-we" .}}
 
-    {{if and $t (not $t.LastRunAt.IsZero)}}
-        <p class="muted">{{t "game.hero.last"}} {{datetime $t.LastRunAt}} — {{$t.LastResult}}</p>
-    {{end}}
+{{template "card-rally" .}}
 
-    {{/* Право прохода ботам: разовое действие без воркера, итог
-         показывается строкой ниже. */}}
-    <div class="row-form">
-        <form method="post" action="/games/{{.GameID}}/relate">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button type="submit">{{t "game.relate.now"}}</button>
-        </form>
-        <p class="muted">{{t "game.relate.note"}}</p>
-    </div>
-
-    {{/* Выключатели ЖД и пунктов призыва во всех своих провинциях. Когда
-         состояние партии загружено, кнопка одна и ведёт в другое положение;
-         без него положение неизвестно, и кнопок две. */}}
-    <div class="row-form">
-        {{range .Switches}}
-            {{$name := .Label}}
-            {{if .Known}}
-                {{if or .On .Off}}
-                    <form method="post" action="/games/{{$.GameID}}/switch">
-                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                        <input type="hidden" name="kind" value="{{.Kind}}">
-                        <input type="hidden" name="on" value="{{if .On}}0{{else}}1{{end}}">
-                        <button type="submit">{{if .On}}{{t "game.switch.off" $name}}{{else}}{{t "game.switch.on" $name}}{{end}}</button>
-                    </form>
-                    <span class="muted">{{t "game.switch.count" .On .Off}}</span>
-                {{else}}
-                    <span class="muted">{{t "game.switch.none" $name}}</span>
-                {{end}}
-            {{else}}
-                <form method="post" action="/games/{{$.GameID}}/switch">
-                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                    <input type="hidden" name="kind" value="{{.Kind}}">
-                    <input type="hidden" name="on" value="0">
-                    <button type="submit">{{t "game.switch.off" $name}}</button>
-                </form>
-                <form method="post" action="/games/{{$.GameID}}/switch">
-                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                    <input type="hidden" name="kind" value="{{.Kind}}">
-                    <input type="hidden" name="on" value="1">
-                    <button type="submit" class="ghost">{{t "game.switch.on" $name}}</button>
-                </form>
-            {{end}}
-        {{end}}
-        <p class="muted">{{t "game.switch.note"}}</p>
-    </div>
-
-    {{/* Пункт призыва во все провинции без него: записи в очередь
-         строительства, строит воркер. Провинции берутся из карты. */}}
-    <div class="row-form">
-        {{if eq .RecruitTodo 0}}
-            <span class="muted">{{t "game.recruit.none"}}</span>
-        {{else}}
-            <form method="post" action="/games/{{.GameID}}/recruit">
-                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-                <button type="submit">{{t "game.recruit.now"}}</button>
-            </form>
-            {{if and .RecruitTodo (gt .RecruitTodo 0)}}<span class="muted">{{t "game.recruit.count" .RecruitTodo}}</span>{{end}}
-        {{end}}
-        <p class="muted">{{t "game.recruit.note"}}</p>
-    </div>
-
-    {{/* Размещение героя: герои аккаунта и свои провинции знает только
-         состояние партии, поэтому блок появляется вместе с картой. */}}
-    {{/* Приказ на размещение героя: админка ставит его сама, как только
-         сойдутся день, место в лимите, мораль провинции и нет боя. */}}
-    <details class="fold" data-fold="heroes">
-    <summary><span class="fold-title">{{t "game.heroorder.title"}}</span>{{if .HeroPlans}}<span class="muted">{{t "game.fold.count" (len .HeroPlans)}}</span>{{end}}</summary>
-    {{if and .DeployHeroes .RallyProvinces}}
-        <form class="row-form" method="post" action="/games/{{.GameID}}/hero/order">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            {{/* Герой выбирается портретом, как здание в очереди: в выпадающем
-                 списке картинку не показать. */}}
-            <fieldset class="pick-tiles hero-tiles">
-                <legend>{{t "game.herodeploy.hero"}}</legend>
-                {{range $i, $h := .DeployHeroes}}
-                    <label class="tile">
-                        <input type="radio" name="hero" value="{{$h.Unit}}|{{$h.Name}}"{{if eq $i 0}} required{{end}}>
-                        {{if $h.Image}}<img class="hero-face" src="/heroes/img/{{$h.Image}}" alt="" loading="lazy">{{end}}
-                        <span>{{$h.Name}}</span>
-                        {{if $h.MaxLevel}}<span class="muted">{{t "game.herodeploy.level" $h.Level $h.MaxLevel}}</span>{{end}}
-                        {{if not $h.Ready}}<span class="muted">{{t "game.herodeploy.fromday" $h.Day}}{{if not $h.Opens.IsZero}}, {{datetime $h.Opens}}{{end}}</span>{{end}}
-                    </label>
-                {{end}}
-            </fieldset>
-            <label>
-                {{t "game.rally.city.pick"}}
-                <select name="province">
-                    {{range .RallyProvinces}}
-                        <option value="{{.ID}}|{{.Name}}">{{.Name}}{{if .Capital}} ★{{end}}</option>
-                    {{end}}
-                </select>
-            </label>
-            <button type="submit">{{t "game.heroorder.add"}}</button>
-            <span class="muted">{{if .HeroLimit}}{{t "game.herodeploy.limit" .HeroesOnMap .HeroLimit}}{{end}}</span>
-        </form>
-        <p class="muted">{{t "game.heroorder.note"}}</p>
-    {{end}}
-    {{if .HeroPlans}}
-        <ul class="hero-plans">
-            {{range .HeroPlans}}
-                <li>
-                    {{.Hero}} → {{.City}}
-                    — {{if .Open}}{{t "game.heroplan.next" (datetime .NextAt)}}{{else}}{{t "game.heroplan.closed"}}{{end}}
-                    {{if not .RunAt.IsZero}}<span class="muted">· {{datetime .RunAt}}: {{.Result}}</span>{{end}}
-                    <form class="inline" method="post" action="/games/{{$.GameID}}/hero/plan/{{.ID}}/delete">
-                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                        <button type="submit" class="ghost">{{t "game.heroplan.remove"}}</button>
-                    </form>
-                </li>
-            {{end}}
-        </ul>
-    {{end}}
-    {{if not (and .DeployHeroes .RallyProvinces)}}<p class="muted">{{t "game.heroorder.needmap"}}</p>{{end}}
-    </details>
-
-    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
-</div>
-
-{{/* Сбор войск — своей карточкой: внутри «Что делаем сами» кнопки
-     терялись. */}}
-<div class="card">
-    <h1>{{t "game.rally.title"}}</h1>
-    {{$t := .Task}}
-    {{/* Сбор войск в город: город выбирается из своих провинций (они
-         есть, только когда загружено состояние партии), а кнопки
-         работают и без него — город уже лежит в базе. */}}
-    <p class="muted">{{t "game.rally.note"}}</p>
-    {{if .RallyProvinces}}
-        <form class="row-form" method="post" action="/games/{{.GameID}}/rally">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
-            <label>
-                {{t "game.rally.city.pick"}}
-                <select name="province">
-                    {{range .RallyProvinces}}
-                        <option value="{{.ID}}|{{.Name}}"{{if and $t (eq $t.RallyProvince .ID)}} selected{{end}}>{{.Name}}{{if .Capital}} ★{{end}}</option>
-                    {{end}}
-                </select>
-            </label>
-            <button type="submit">{{t "game.rally.city.save"}}</button>
-        </form>
-    {{end}}
-    {{if and $t (gt $t.RallyProvince 0)}}
-        <div class="row-form">
-            <form method="post" action="/games/{{.GameID}}/rally/now">
-                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-                <button type="submit">{{t "game.rally.now" $t.RallyCity}}</button>
-            </form>
-            <form method="post" action="/games/{{.GameID}}/rally/auto">
-                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-                <input type="hidden" name="on" value="{{if $t.RallyAuto}}0{{else}}1{{end}}">
-                <button type="submit">{{if $t.RallyAuto}}{{t "game.rally.auto.off"}}{{else}}{{t "game.rally.auto.on"}}{{end}}</button>
-            </form>
-            <p class="muted">{{if $t.RallyAuto}}{{t "game.rally.auto.on.note" $t.RallyCity}}{{else}}{{t "game.rally.auto.off.note"}}{{end}}</p>
-        </div>
-        {{if not $t.RallyRunAt.IsZero}}
-            <p class="muted">{{t "game.rally.last"}} {{datetime $t.RallyRunAt}} — {{$t.RallyResult}}</p>
-        {{end}}
-    {{else if not .RallyProvinces}}
-        <p class="muted">{{t "game.rally.needmap"}}</p>
-    {{end}}
-</div>
-
-{{/* Биржа: заявки лежат в базе и видны всегда, а выбор ресурса и цены
-     — из состояния партии. Покупает воркер, страница в партию не ходит. */}}
-<div class="card">
-    <h1>{{t "game.market.title"}}</h1>
-    <p class="muted">{{t "game.market.note"}}</p>
-    {{if .MarketResources}}
-        <form class="row-form" method="post" action="/games/{{.GameID}}/market">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <label>
-                {{t "game.market.resource"}}
-                <select name="resource">
-                    {{range .MarketResources}}
-                        <option value="{{.ID}}|{{.Name}}">{{.Name}} — {{if .Offers}}{{t "game.market.best" .Best}}{{else}}{{t "game.market.nooffers"}}{{end}}</option>
-                    {{end}}
-                </select>
-            </label>
-            <label>
-                {{t "game.market.budget"}}
-                <input type="number" name="budget" min="1" step="1" inputmode="numeric" value="10000" required>
-            </label>
-            <label class="narrow">
-                {{t "game.market.price"}}
-                <input type="number" name="price" min="0.1" step="0.1" inputmode="decimal" required>
-            </label>
-            <label class="narrow">
-                {{t "game.market.every"}}
-                <select name="every">
-                    {{range .MarketEvery}}
-                        <option value="{{.}}"{{if eq . $.MarketEveryDefault}} selected{{end}}>{{t "game.market.minutes" .}}</option>
-                    {{end}}
-                </select>
-            </label>
-            <button type="submit">{{t "game.market.add"}}</button>
-        </form>
-    {{else}}
-        <p class="muted">{{t "game.market.needmap"}}</p>
-    {{end}}
-    {{if .MarketOrders}}
-        <ul class="hero-plans">
-            {{range .MarketOrders}}
-                <li>
-                    {{t "game.market.row" .ResourceName .MaxPrice (grouped .Spent) (grouped .Budget) (grouped .Bought) .Every}}
-                    — {{if .Open}}{{t "game.market.next" (datetime .NextAt)}}{{else}}{{t "game.market.closed"}}{{end}}
-                    {{if not .RunAt.IsZero}}<span class="muted">· {{datetime .RunAt}}: {{.Result}}</span>{{end}}
-                    <form class="inline" method="post" action="/games/{{$.GameID}}/market/{{.ID}}/delete">
-                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                        <button type="submit" class="ghost">{{t "game.market.remove"}}</button>
-                    </form>
-                </li>
-            {{end}}
-        </ul>
-    {{end}}
-</div>
+{{template "card-market" .}}
 
 {{/* Очередь строительства. Сама очередь лежит в нашей базе и видна всегда,
      а выбор провинции и здания собирается из состояния партии — то есть
@@ -313,6 +57,7 @@
      она htmx-ом подменяет только список: карта и форма остаются на месте. */}}
 <details class="card fold" data-fold="build">
     <summary><span class="fold-title">{{t "game.build.title"}}</span>{{if .BuildQueue}}<span class="muted">{{t "game.fold.queued"}}</span>{{end}}</summary>
+    {{$t := .Task}}
     <p class="muted">{{t "game.build.note"}}</p>
 
     {{if and $t (not $t.BuildRunAt.IsZero)}}
@@ -414,13 +159,23 @@
 {{/* Свёрнут блок или раскрыт — помнит браузер: после отправки формы
      страница рисуется заново, и раскрытый блок не должен схлопываться. */}}
 <script>
-document.querySelectorAll("details[data-fold]").forEach(function (d) {
-    var key = "fold:" + d.dataset.fold;
-    try { if (localStorage.getItem(key) === "1") d.open = true; } catch (e) {}
-    d.addEventListener("toggle", function () {
-        try { localStorage.setItem(key, d.open ? "1" : "0"); } catch (e) {}
-    });
-});
+(function () {
+    // Карточку кнопка перерисовывает целиком, поэтому то же самое
+    // повторяется и после каждой подмены htmx.
+    function folds(root) {
+        root.querySelectorAll("details[data-fold]").forEach(function (d) {
+            if (d.dataset.foldReady) return;
+            d.dataset.foldReady = "1";
+            var key = "fold:" + d.dataset.fold;
+            try { if (localStorage.getItem(key) === "1") d.open = true; } catch (e) {}
+            d.addEventListener("toggle", function () {
+                try { localStorage.setItem(key, d.open ? "1" : "0"); } catch (e) {}
+            });
+        });
+    }
+    folds(document);
+    document.body.addEventListener("htmx:afterSettle", function () { folds(document); });
+})();
 </script>
 {{end}}
 
@@ -1389,4 +1144,279 @@ document.querySelectorAll("details[data-fold]").forEach(function (d) {
         <span id="game-title" hx-swap-oob="true">{{template "gametitle" .}}</span>
         <div id="game-about" hx-swap-oob="true">{{template "gameabout" .}}</div>
     {{end}}
+{{end}}
+
+{{/* Карточки своей партии отдельными блоками: кнопка в карточке
+     перерисовывает только её, страница остаётся на месте вместе с картой. */}}
+{{define "card-we"}}
+<div class="card" id="card-we" hx-target="this" hx-swap="outerHTML">
+    <h1>{{t "game.we"}}</h1>
+    {{$t := .Task}}
+    <div class="row-form">
+        <form method="post" action="/games/{{.GameID}}/hero" hx-post="/games/{{.GameID}}/hero">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
+            <input type="hidden" name="on" value="{{if and $t $t.HeroDeploy}}0{{else}}1{{end}}">
+            <button type="submit">
+                {{if and $t $t.HeroDeploy}}{{t "game.hero.off"}}{{else}}{{t "game.hero.on"}}{{end}}
+            </button>
+        </form>
+        {{/* Ручной призыв стоит рядом с переключателем: проверять кнопку,
+             дожидаясь тика воркера, невозможно. */}}
+        <form method="post" action="/games/{{.GameID}}/hero/run" hx-post="/games/{{.GameID}}/hero/run">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button type="submit">{{t "game.hero.now"}}</button>
+        </form>
+        {{/* Порог денег: Мейв не призывает, пока денег меньше, — иначе
+             за ночь автопилот выедал всю казну. */}}
+        <form method="post" action="/games/{{.GameID}}/hero/money" hx-post="/games/{{.GameID}}/hero/money" class="hero-money">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
+            <label>{{t "game.hero.money"}}
+                <input type="number" name="money" min="0" step="1000" inputmode="numeric"
+                       value="{{if $t}}{{$t.HeroMinMoney}}{{else}}20000{{end}}">
+            </label>
+            <button type="submit" class="ghost">{{t "common.save"}}</button>
+            {{with .HeroCost}}
+                <span class="muted">{{t "game.hero.cost" (grouped (index .Cost 20)) (grouped (index .Cost 1)) .Amount}}</span>
+            {{end}}
+        </form>
+        <p class="muted">
+            {{if and $t $t.HeroDeploy}}
+                {{t "game.hero.on.note" (everySpan .Interval .IntervalMax)}}
+            {{else}}
+                {{t "game.hero.off.note" (everySpan .Interval .IntervalMax)}}
+            {{end}}
+        </p>
+    </div>
+
+    {{if and $t (not $t.LastRunAt.IsZero)}}
+        <p class="muted">{{t "game.hero.last"}} {{datetime $t.LastRunAt}} — {{$t.LastResult}}</p>
+    {{end}}
+
+    {{/* Право прохода ботам: разовое действие без воркера, итог
+         показывается строкой ниже. */}}
+    <div class="row-form">
+        <form method="post" action="/games/{{.GameID}}/relate" hx-post="/games/{{.GameID}}/relate">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button type="submit">{{t "game.relate.now"}}</button>
+        </form>
+        <p class="muted">{{t "game.relate.note"}}</p>
+    </div>
+
+    {{/* Выключатели ЖД и пунктов призыва во всех своих провинциях. Когда
+         состояние партии загружено, кнопка одна и ведёт в другое положение;
+         без него положение неизвестно, и кнопок две. */}}
+    <div class="row-form">
+        {{range .Switches}}
+            {{$name := .Label}}
+            {{if .Known}}
+                {{if or .On .Off}}
+                    <form method="post" action="/games/{{$.GameID}}/switch" hx-post="/games/{{$.GameID}}/switch">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <input type="hidden" name="kind" value="{{.Kind}}">
+                        <input type="hidden" name="on" value="{{if .On}}0{{else}}1{{end}}">
+                        <button type="submit">{{if .On}}{{t "game.switch.off" $name}}{{else}}{{t "game.switch.on" $name}}{{end}}</button>
+                    </form>
+                    <span class="muted">{{t "game.switch.count" .On .Off}}</span>
+                {{else}}
+                    <span class="muted">{{t "game.switch.none" $name}}</span>
+                {{end}}
+            {{else}}
+                <form method="post" action="/games/{{$.GameID}}/switch" hx-post="/games/{{$.GameID}}/switch">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="hidden" name="kind" value="{{.Kind}}">
+                    <input type="hidden" name="on" value="0">
+                    <button type="submit">{{t "game.switch.off" $name}}</button>
+                </form>
+                <form method="post" action="/games/{{$.GameID}}/switch" hx-post="/games/{{$.GameID}}/switch">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="hidden" name="kind" value="{{.Kind}}">
+                    <input type="hidden" name="on" value="1">
+                    <button type="submit" class="ghost">{{t "game.switch.on" $name}}</button>
+                </form>
+            {{end}}
+        {{end}}
+        <p class="muted">{{t "game.switch.note"}}</p>
+    </div>
+
+    {{/* Пункт призыва во все провинции без него: записи в очередь
+         строительства, строит воркер. Провинции берутся из карты. */}}
+    <div class="row-form">
+        {{if eq .RecruitTodo 0}}
+            <span class="muted">{{t "game.recruit.none"}}</span>
+        {{else}}
+            <form method="post" action="/games/{{.GameID}}/recruit" hx-post="/games/{{.GameID}}/recruit">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <button type="submit">{{t "game.recruit.now"}}</button>
+            </form>
+            {{if and .RecruitTodo (gt .RecruitTodo 0)}}<span class="muted">{{t "game.recruit.count" .RecruitTodo}}</span>{{end}}
+        {{end}}
+        <p class="muted">{{t "game.recruit.note"}}</p>
+    </div>
+
+    {{/* Размещение героя: герои аккаунта и свои провинции знает только
+         состояние партии, поэтому блок появляется вместе с картой. */}}
+    {{/* Приказ на размещение героя: админка ставит его сама, как только
+         сойдутся день, место в лимите, мораль провинции и нет боя. */}}
+    <details class="fold" data-fold="heroes">
+    <summary><span class="fold-title">{{t "game.heroorder.title"}}</span>{{if .HeroPlans}}<span class="muted">{{t "game.fold.count" (len .HeroPlans)}}</span>{{end}}</summary>
+    {{if and .DeployHeroes .RallyProvinces}}
+        <form class="row-form" method="post" action="/games/{{.GameID}}/hero/order" hx-post="/games/{{.GameID}}/hero/order">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            {{/* Герой выбирается портретом, как здание в очереди: в выпадающем
+                 списке картинку не показать. */}}
+            <fieldset class="pick-tiles hero-tiles">
+                <legend>{{t "game.herodeploy.hero"}}</legend>
+                {{range $i, $h := .DeployHeroes}}
+                    <label class="tile">
+                        <input type="radio" name="hero" value="{{$h.Unit}}|{{$h.Name}}"{{if eq $i 0}} required{{end}}>
+                        {{if $h.Image}}<img class="hero-face" src="/heroes/img/{{$h.Image}}" alt="" loading="lazy">{{end}}
+                        <span>{{$h.Name}}</span>
+                        {{if $h.MaxLevel}}<span class="muted">{{t "game.herodeploy.level" $h.Level $h.MaxLevel}}</span>{{end}}
+                        {{if not $h.Ready}}<span class="muted">{{t "game.herodeploy.fromday" $h.Day}}{{if not $h.Opens.IsZero}}, {{datetime $h.Opens}}{{end}}</span>{{end}}
+                    </label>
+                {{end}}
+            </fieldset>
+            <label>
+                {{t "game.rally.city.pick"}}
+                <select name="province">
+                    {{range .RallyProvinces}}
+                        <option value="{{.ID}}|{{.Name}}">{{.Name}}{{if .Capital}} ★{{end}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <button type="submit">{{t "game.heroorder.add"}}</button>
+            <span class="muted">{{if .HeroLimit}}{{t "game.herodeploy.limit" .HeroesOnMap .HeroLimit}}{{end}}</span>
+        </form>
+        <p class="muted">{{t "game.heroorder.note"}}</p>
+    {{end}}
+    {{if .HeroPlans}}
+        <ul class="hero-plans">
+            {{range .HeroPlans}}
+                <li>
+                    {{.Hero}} → {{.City}}
+                    — {{if .Open}}{{t "game.heroplan.next" (datetime .NextAt)}}{{else}}{{t "game.heroplan.closed"}}{{end}}
+                    {{if not .RunAt.IsZero}}<span class="muted">· {{datetime .RunAt}}: {{.Result}}</span>{{end}}
+                    <form class="inline" method="post" action="/games/{{$.GameID}}/hero/plan/{{.ID}}/delete" hx-post="/games/{{$.GameID}}/hero/plan/{{.ID}}/delete">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <button type="submit" class="ghost">{{t "game.heroplan.remove"}}</button>
+                    </form>
+                </li>
+            {{end}}
+        </ul>
+    {{end}}
+    {{if not (and .DeployHeroes .RallyProvinces)}}<p class="muted">{{t "game.heroorder.needmap"}}</p>{{end}}
+    </details>
+
+    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
+    {{if .CardError}}<p class="error">{{.CardError}}</p>{{end}}
+</div>
+{{end}}
+
+{{define "card-rally"}}
+{{/* Сбор войск — своей карточкой: внутри «Что делаем сами» кнопки
+     терялись. */}}
+<div class="card" id="card-rally" hx-target="this" hx-swap="outerHTML">
+    <h1>{{t "game.rally.title"}}</h1>
+    {{$t := .Task}}
+    {{/* Сбор войск в город: город выбирается из своих провинций (они
+         есть, только когда загружено состояние партии), а кнопки
+         работают и без него — город уже лежит в базе. */}}
+    <p class="muted">{{t "game.rally.note"}}</p>
+    {{if .RallyProvinces}}
+        <form class="row-form" method="post" action="/games/{{.GameID}}/rally" hx-post="/games/{{.GameID}}/rally">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="hidden" name="title" value="{{if .Game}}{{.Game.Title}}{{end}}">
+            <label>
+                {{t "game.rally.city.pick"}}
+                <select name="province">
+                    {{range .RallyProvinces}}
+                        <option value="{{.ID}}|{{.Name}}"{{if and $t (eq $t.RallyProvince .ID)}} selected{{end}}>{{.Name}}{{if .Capital}} ★{{end}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <button type="submit">{{t "game.rally.city.save"}}</button>
+        </form>
+    {{end}}
+    {{if and $t (gt $t.RallyProvince 0)}}
+        <div class="row-form">
+            <form method="post" action="/games/{{.GameID}}/rally/now" hx-post="/games/{{.GameID}}/rally/now">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <button type="submit">{{t "game.rally.now" $t.RallyCity}}</button>
+            </form>
+            <form method="post" action="/games/{{.GameID}}/rally/auto" hx-post="/games/{{.GameID}}/rally/auto">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="on" value="{{if $t.RallyAuto}}0{{else}}1{{end}}">
+                <button type="submit">{{if $t.RallyAuto}}{{t "game.rally.auto.off"}}{{else}}{{t "game.rally.auto.on"}}{{end}}</button>
+            </form>
+            <p class="muted">{{if $t.RallyAuto}}{{t "game.rally.auto.on.note" $t.RallyCity}}{{else}}{{t "game.rally.auto.off.note"}}{{end}}</p>
+        </div>
+        {{if not $t.RallyRunAt.IsZero}}
+            <p class="muted">{{t "game.rally.last"}} {{datetime $t.RallyRunAt}} — {{$t.RallyResult}}</p>
+        {{end}}
+    {{else if not .RallyProvinces}}
+        <p class="muted">{{t "game.rally.needmap"}}</p>
+    {{end}}
+    {{if .CardNotice}}<p class="notice">{{.CardNotice}}</p>{{end}}
+    {{if .CardError}}<p class="error">{{.CardError}}</p>{{end}}
+</div>
+{{end}}
+
+{{define "card-market"}}
+{{/* Биржа: заявки лежат в базе и видны всегда, а выбор ресурса и цены
+     — из состояния партии. Покупает воркер, страница в партию не ходит. */}}
+<div class="card" id="card-market" hx-target="this" hx-swap="outerHTML">
+    <h1>{{t "game.market.title"}}</h1>
+    <p class="muted">{{t "game.market.note"}}</p>
+    {{if .MarketResources}}
+        <form class="row-form" method="post" action="/games/{{.GameID}}/market" hx-post="/games/{{.GameID}}/market">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <label>
+                {{t "game.market.resource"}}
+                <select name="resource">
+                    {{range .MarketResources}}
+                        <option value="{{.ID}}|{{.Name}}">{{.Name}} — {{if .Offers}}{{t "game.market.best" .Best}}{{else}}{{t "game.market.nooffers"}}{{end}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <label>
+                {{t "game.market.budget"}}
+                <input type="number" name="budget" min="1" step="1" inputmode="numeric" value="10000" required>
+            </label>
+            <label class="narrow">
+                {{t "game.market.price"}}
+                <input type="number" name="price" min="0.1" step="0.1" inputmode="decimal" required>
+            </label>
+            <label class="narrow">
+                {{t "game.market.every"}}
+                <select name="every">
+                    {{range .MarketEvery}}
+                        <option value="{{.}}"{{if eq . $.MarketEveryDefault}} selected{{end}}>{{t "game.market.minutes" .}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <button type="submit">{{t "game.market.add"}}</button>
+        </form>
+    {{else}}
+        <p class="muted">{{t "game.market.needmap"}}</p>
+    {{end}}
+    {{if .MarketOrders}}
+        <ul class="hero-plans">
+            {{range .MarketOrders}}
+                <li>
+                    {{t "game.market.row" .ResourceName .MaxPrice (grouped .Spent) (grouped .Budget) (grouped .Bought) .Every}}
+                    — {{if .Open}}{{t "game.market.next" (datetime .NextAt)}}{{else}}{{t "game.market.closed"}}{{end}}
+                    {{if not .RunAt.IsZero}}<span class="muted">· {{datetime .RunAt}}: {{.Result}}</span>{{end}}
+                    <form class="inline" method="post" action="/games/{{$.GameID}}/market/{{.ID}}/delete" hx-post="/games/{{$.GameID}}/market/{{.ID}}/delete">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <button type="submit" class="ghost">{{t "game.market.remove"}}</button>
+                    </form>
+                </li>
+            {{end}}
+        </ul>
+    {{end}}
+    {{if .CardNotice}}<p class="notice">{{.CardNotice}}</p>{{end}}
+    {{if .CardError}}<p class="error">{{.CardError}}</p>{{end}}
+</div>
 {{end}}

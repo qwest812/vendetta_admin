@@ -37,7 +37,7 @@ func (s *Server) gameHeroToggle(w http.ResponseWriter, r *http.Request) {
 	if on {
 		msg, notice = s.heroDeploy(r, gameID, "при включении")
 	}
-	s.renderGameNotice(w, r, gameID, false, msg, notice)
+	s.renderGameCard(w, r, gameID, "card-we", msg, notice)
 }
 
 // gameHeroMoney сохраняет порог денег для Мейв: ниже него она не призывает
@@ -49,7 +49,7 @@ func (s *Server) gameHeroMoney(w http.ResponseWriter, r *http.Request) {
 	if raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil || n < 0 || n > 100_000_000 {
-			s.renderGame(w, r, gameID, false, langOf(r).T("game.hero.money.bad"))
+			s.renderGameCard(w, r, gameID, "card-we", langOf(r).T("game.hero.money.bad"), "")
 			return
 		}
 		money = n
@@ -59,7 +59,7 @@ func (s *Server) gameHeroMoney(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logAuditOn(r, "game.hero.money", "game", 0, map[string]any{"game": gameID, "money": money})
-	s.renderGameNotice(w, r, gameID, false, "", langOf(r).T("game.hero.money.saved", money))
+	s.renderGameCard(w, r, gameID, "card-we", "", langOf(r).T("game.hero.money.saved", money))
 }
 
 // gameHeroRun — «призвать сейчас»: то же самое, что делает воркер, но по
@@ -69,7 +69,7 @@ func (s *Server) gameHeroMoney(w http.ResponseWriter, r *http.Request) {
 func (s *Server) gameHeroRun(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
 	msg, notice := s.heroDeploy(r, gameID, "вручную")
-	s.renderGameNotice(w, r, gameID, false, msg, notice)
+	s.renderGameCard(w, r, gameID, "card-we", msg, notice)
 }
 
 // heroDeploy заходит в партию и жмёт кнопку Мейв, если её есть смысл жать:
@@ -146,7 +146,7 @@ func (s *Server) waitForHero(r *http.Request, gameID string) error {
 func (s *Server) gameRightOfWay(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
 	if s.games == nil {
-		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		s.renderGameCard(w, r, gameID, "card-we", langOf(r).T("games.noaccount.short"), "")
 		return
 	}
 
@@ -156,12 +156,12 @@ func (s *Server) gameRightOfWay(w http.ResponseWriter, r *http.Request) {
 	result, err := s.games.GrantRightOfWay(ctx, gameID)
 	if err != nil {
 		s.log.Error("право прохода ботам", "gameID", gameID, "err", err)
-		s.renderGame(w, r, gameID, false, err.Error())
+		s.renderGameCard(w, r, gameID, "card-we", err.Error(), "")
 		return
 	}
 	s.log.Info("право прохода ботам", "gameID", gameID,
 		"user_id", currentUser(r).ID, "итог", result)
-	s.renderGameNotice(w, r, gameID, false, "", result)
+	s.renderGameCard(w, r, gameID, "card-we", "", result)
 }
 
 // buildingSwitch — выключатель зданий одного вида на странице. Known —
@@ -200,7 +200,7 @@ func buildingSwitches(lang i18n.Lang, state *supremacy.GameState) []buildingSwit
 func (s *Server) gameSwitch(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
 	if s.games == nil {
-		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		s.renderGameCard(w, r, gameID, "card-we", langOf(r).T("games.noaccount.short"), "")
 		return
 	}
 	kind, on := r.PostFormValue("kind"), r.PostFormValue("on") == "1"
@@ -211,12 +211,12 @@ func (s *Server) gameSwitch(w http.ResponseWriter, r *http.Request) {
 	result, err := s.games.SwitchBuildings(ctx, gameID, kind, on)
 	if err != nil {
 		s.log.Error("выключатель зданий", "gameID", gameID, "что", kind, "err", err)
-		s.renderGame(w, r, gameID, false, err.Error())
+		s.renderGameCard(w, r, gameID, "card-we", err.Error(), "")
 		return
 	}
 	s.log.Info("выключатель зданий", "gameID", gameID, "что", kind, "включить", on,
 		"user_id", currentUser(r).ID, "итог", result)
-	s.renderGameNotice(w, r, gameID, false, "", result)
+	s.renderGameCard(w, r, gameID, "card-we", "", result)
 }
 
 // recruitPlan — где ставить пункт призыва: свои провинции без него, кроме
@@ -252,12 +252,12 @@ func (s *Server) gameRecruitEverywhere(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
 	lang := langOf(r)
 	if s.games == nil || s.builds == nil {
-		s.renderGame(w, r, gameID, false, lang.T("games.noaccount.short"))
+		s.renderGameCard(w, r, gameID, "card-we", lang.T("games.noaccount.short"), "")
 		return
 	}
 	state, ok := s.games.CachedState(gameID)
 	if !ok || state.Me <= 0 {
-		s.renderGame(w, r, gameID, false, lang.T("game.recruit.nomap"))
+		s.renderGameCard(w, r, gameID, "card-we", lang.T("game.recruit.nomap"), "")
 		return
 	}
 	queue, err := s.builds.List(r.Context(), gameID, domain.QueueBuilding)
@@ -267,7 +267,7 @@ func (s *Server) gameRecruitEverywhere(w http.ResponseWriter, r *http.Request) {
 	}
 	first, todo, queued, ok := recruitPlan(state, queue)
 	if !ok {
-		s.renderGame(w, r, gameID, false, lang.T("game.recruit.unknown"))
+		s.renderGameCard(w, r, gameID, "card-we", lang.T("game.recruit.unknown"), "")
 		return
 	}
 	for _, p := range todo {
@@ -289,7 +289,7 @@ func (s *Server) gameRecruitEverywhere(w http.ResponseWriter, r *http.Request) {
 	}
 	s.log.Info("пункт призыва во все провинции", "gameID", gameID, "user_id", currentUser(r).ID,
 		"поставлено", len(todo), "уже в очереди", queued)
-	s.renderGameNotice(w, r, gameID, false, "", lang.T("game.recruit.done", len(todo), queued))
+	s.renderGameCard(w, r, gameID, "card-we", "", lang.T("game.recruit.done", len(todo), queued))
 }
 
 // rallyProvince — своя провинция в выборе города для сбора войск.
@@ -326,7 +326,7 @@ func (s *Server) gameRallyCity(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
 	province, city, _, ok := idAndName(r.PostFormValue("province"))
 	if !ok {
-		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
+		s.renderGameCard(w, r, gameID, "card-rally", langOf(r).T("game.build.bad"), "")
 		return
 	}
 	if err := s.tasks.SetRallyCity(r.Context(), gameID, r.PostFormValue("title"), province, city,
@@ -335,7 +335,7 @@ func (s *Server) gameRallyCity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("город сбора войск выбран", "gameID", gameID, "город", city, "user_id", currentUser(r).ID)
-	s.renderGame(w, r, gameID, false, "")
+	s.renderGameCard(w, r, gameID, "card-rally", "", "")
 }
 
 // gameRallyNow шлёт в город все сухопутные армии — разово, по нажатию.
@@ -365,7 +365,7 @@ func (s *Server) gameRallyNow(w http.ResponseWriter, r *http.Request) {
 	if err := s.tasks.MarkRallyRun(r.Context(), gameID, time.Now(), result, armies); err != nil {
 		s.log.Error("запись итога сбора", "gameID", gameID, "err", err)
 	}
-	s.renderGame(w, r, gameID, false, msg)
+	s.renderGameCard(w, r, gameID, "card-rally", msg, "")
 }
 
 // gameRallyAuto включает и выключает сбор новых армий автопилотом.
@@ -387,7 +387,7 @@ func (s *Server) gameRallyAuto(w http.ResponseWriter, r *http.Request) {
 	}
 	s.log.Info("сбор новых армий переключён", "gameID", gameID, "включён", on, "user_id", currentUser(r).ID)
 	if !on {
-		s.renderGame(w, r, gameID, false, "")
+		s.renderGameCard(w, r, gameID, "card-rally", "", "")
 		return
 	}
 
@@ -404,14 +404,14 @@ func (s *Server) gameRallyAuto(w http.ResponseWriter, r *http.Request) {
 	if err := s.tasks.MarkRallyRun(r.Context(), gameID, time.Now(), run.Rally, run.Armies); err != nil {
 		s.log.Error("запись итога сбора", "gameID", gameID, "err", err)
 	}
-	s.renderGame(w, r, gameID, false, msg)
+	s.renderGameCard(w, r, gameID, "card-rally", msg, "")
 }
 
 // rallyTask — настройки партии для сбора войск. Без выбранного города
 // собирать некуда, и об этом говорится на странице, а не ошибкой.
 func (s *Server) rallyTask(w http.ResponseWriter, r *http.Request, gameID string) (*domain.GameTask, bool) {
 	if s.games == nil {
-		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		s.renderGameCard(w, r, gameID, "card-rally", langOf(r).T("games.noaccount.short"), "")
 		return nil, false
 	}
 	task, err := s.tasks.Get(r.Context(), gameID)
@@ -420,7 +420,7 @@ func (s *Server) rallyTask(w http.ResponseWriter, r *http.Request, gameID string
 		return nil, false
 	}
 	if task.RallyProvince <= 0 {
-		s.renderGame(w, r, gameID, false, langOf(r).T("game.rally.nocity"))
+		s.renderGameCard(w, r, gameID, "card-rally", langOf(r).T("game.rally.nocity"), "")
 		return nil, false
 	}
 	return task, true
@@ -479,11 +479,11 @@ func (s *Server) gameHeroOrder(w http.ResponseWriter, r *http.Request) {
 	unit, hero, _, okHero := idAndName(r.PostFormValue("hero"))
 	province, city, _, okProvince := idAndName(r.PostFormValue("province"))
 	if !okHero || !okProvince || s.heroPlans == nil {
-		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
+		s.renderGameCard(w, r, gameID, "card-we", langOf(r).T("game.build.bad"), "")
 		return
 	}
 	if s.games == nil {
-		s.renderGame(w, r, gameID, false, langOf(r).T("games.noaccount.short"))
+		s.renderGameCard(w, r, gameID, "card-we", langOf(r).T("games.noaccount.short"), "")
 		return
 	}
 	now := time.Now()
@@ -508,7 +508,7 @@ func (s *Server) gameHeroOrder(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Не зашли — приказ стоит и дождётся воркера.
 		s.log.Error("приказы героев", "gameID", gameID, "err", err)
-		s.renderGame(w, r, gameID, false, err.Error())
+		s.renderGameCard(w, r, gameID, "card-we", err.Error(), "")
 		return
 	}
 	notice := ""
@@ -520,19 +520,19 @@ func (s *Server) gameHeroOrder(w http.ResponseWriter, r *http.Request) {
 			notice = run.Result
 		}
 	}
-	s.renderGameNotice(w, r, gameID, false, "", notice)
+	s.renderGameCard(w, r, gameID, "card-we", "", notice)
 }
 
 func (s *Server) gameHeroPlanRemove(w http.ResponseWriter, r *http.Request) {
 	gameID := r.PathValue("id")
 	id, err := strconv.ParseInt(r.PathValue("planID"), 10, 64)
 	if err != nil || s.heroPlans == nil {
-		s.renderGame(w, r, gameID, false, langOf(r).T("game.build.bad"))
+		s.renderGameCard(w, r, gameID, "card-we", langOf(r).T("game.build.bad"), "")
 		return
 	}
 	if err := s.heroPlans.Remove(r.Context(), gameID, id); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.renderGame(w, r, gameID, false, "")
+	s.renderGameCard(w, r, gameID, "card-we", "", "")
 }

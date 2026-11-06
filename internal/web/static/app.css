@@ -1484,3 +1484,7 @@ body.has-side { padding-left: var(--side); }
 .hero-money { display: flex; align-items: flex-end; gap: 8px; }
 .hero-money label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
 .hero-money input { width: 130px; }
+
+/* Кнопка карточки своей партии, пока её запрос в пути: заход в партию
+   длится секунды, и без этого её жали бы по второму разу. */
+form.htmx-request button { opacity: .5; pointer-events: none; cursor: progress; }

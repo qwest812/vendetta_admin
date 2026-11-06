@@ -1920,3 +1920,43 @@ func TestPlayerFormRequiresGameID(t *testing.T) {
 		})
 	}
 }
+
+// Кнопки своей партии перерисовывают только свою карточку: каждая
+// отрисовывается отдельно, её формы уходят htmx-ом в неё же, а итог
+// кнопки виден в самой карточке.
+func TestGameCardsSwapAlone(t *testing.T) {
+	pages, err := parseTemplates(i18n.RU)
+	if err != nil {
+		t.Fatalf("разбор шаблонов: %v", err)
+	}
+	data := map[string]any{
+		"CurrentUser": &domain.User{ID: 1, Nickname: "root", Role: domain.RoleRoot},
+		"CSRFToken":   "csrf", "GameID": "10886819", "Game": nil,
+		"Task":     &domain.GameTask{GameID: "10886819", RallyProvince: 5, RallyCity: "Сурселе"},
+		"Interval": 45 * time.Minute, "IntervalMax": 50 * time.Minute,
+		"Switches": buildingSwitches(i18n.RU, nil), "RecruitTodo": -1,
+		"MarketEvery": domain.MarketEveryChoices, "MarketEveryDefault": domain.MarketEveryDefault,
+		"MarketResources": []marketResource{{ID: 0, Name: "Зерно", Best: 6.4, Offers: 1}},
+		"MarketOrders":    []domain.MarketOrder{{ID: 3, Resource: 0, ResourceName: "Зерно", Budget: 5000, MaxPrice: 7, Every: 10}},
+		"CardError":       "ошибка кнопки", "CardNotice": "итог кнопки", "Notice": "итог кнопки",
+	}
+	for card, action := range map[string]string{
+		"card-we":     `hx-post="/games/10886819/hero/money"`,
+		"card-rally":  `hx-post="/games/10886819/rally/now"`,
+		"card-market": `hx-post="/games/10886819/market"`,
+	} {
+		var buf bytes.Buffer
+		if err := pages["game"].ExecuteTemplate(&buf, card, data); err != nil {
+			t.Fatalf("%s: %v", card, err)
+		}
+		html := buf.String()
+		for _, want := range []string{`id="` + card + `"`, `hx-target="this"`, action, "ошибка кнопки", "итог кнопки"} {
+			if !strings.Contains(html, want) {
+				t.Errorf("%s: нет %q", card, want)
+			}
+		}
+		if strings.Contains(html, `<form method="post" action`) && !strings.Contains(html, "hx-post") {
+			t.Errorf("%s: форма без htmx", card)
+		}
+	}
+}
